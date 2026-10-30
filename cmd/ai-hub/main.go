@@ -6,14 +6,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"aihub/internal/app"
 	"aihub/internal/config"
+	"aihub/internal/gateway"
 	"aihub/internal/health"
 	"aihub/internal/observability"
+	"aihub/internal/providers"
 	"aihub/internal/server"
 )
 
@@ -53,11 +56,36 @@ func run() error {
 		logger.Warn("unknown AIHUB_ environment variable ignored", "variable", name)
 	}
 
+	providerClient, err := providers.NewClient(cfg.Provider.OpenCodeGo, nil)
+	if err != nil {
+		return fmt.Errorf("build provider: %w", err)
+	}
+
+	providerModule := providers.NewManager(logger, providerClient)
+
 	readiness := health.NewRegistry()
-	router := server.NewRouter(logger, health.Live(), readiness.Ready())
+
+	router := server.NewRouter(logger, health.Live(), readiness.Ready(),
+		server.Route{
+			Method:  http.MethodPost,
+			Pattern: "/v1/responses",
+			Handler: gateway.NewResponsesHandler(providerClient, logger, gateway.StreamInactivityTimeout),
+		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/v1/models",
+			Handler: gateway.NewModelsHandler(providerClient, logger),
+		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/diagnostics/providers",
+			Handler: gateway.NewProvidersHandler(providerModule.Statuses),
+		},
+	)
+
 	httpServer := server.New(cfg.Server, router, logger)
 
-	application, err := app.New(logger, httpServer)
+	application, err := app.New(logger, providerModule, httpServer)
 	if err != nil {
 		return err
 	}

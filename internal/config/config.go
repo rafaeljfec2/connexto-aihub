@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -18,28 +19,32 @@ import (
 
 // Environment variables read by the application.
 const (
-	EnvServerHost              = "AIHUB_SERVER_HOST"
-	EnvServerPort              = "AIHUB_SERVER_PORT"
-	EnvServerReadHeaderTimeout = "AIHUB_SERVER_READ_HEADER_TIMEOUT"
-	EnvServerReadTimeout       = "AIHUB_SERVER_READ_TIMEOUT"
-	EnvServerWriteTimeout      = "AIHUB_SERVER_WRITE_TIMEOUT"
-	EnvServerIdleTimeout       = "AIHUB_SERVER_IDLE_TIMEOUT"
-	EnvServerShutdownTimeout   = "AIHUB_SERVER_SHUTDOWN_TIMEOUT"
-	EnvLogLevel                = "AIHUB_LOG_LEVEL"
-	EnvLogFormat               = "AIHUB_LOG_FORMAT"
+	EnvServerHost                = "AIHUB_SERVER_HOST"
+	EnvServerPort                = "AIHUB_SERVER_PORT"
+	EnvServerReadHeaderTimeout   = "AIHUB_SERVER_READ_HEADER_TIMEOUT"
+	EnvServerReadTimeout         = "AIHUB_SERVER_READ_TIMEOUT"
+	EnvServerWriteTimeout        = "AIHUB_SERVER_WRITE_TIMEOUT"
+	EnvServerIdleTimeout         = "AIHUB_SERVER_IDLE_TIMEOUT"
+	EnvServerShutdownTimeout     = "AIHUB_SERVER_SHUTDOWN_TIMEOUT"
+	EnvLogLevel                  = "AIHUB_LOG_LEVEL"
+	EnvLogFormat                 = "AIHUB_LOG_FORMAT"
+	EnvProviderOpenCodeGoBaseURL = "AIHUB_PROVIDER_OPENCODEGO_BASE_URL"
+	EnvProviderOpenCodeGoAPIKey  = "AIHUB_PROVIDER_OPENCODEGO_API_KEY"
 )
 
 // knownEnvKeys lists every variable the application consumes.
 var knownEnvKeys = map[string]struct{}{
-	EnvServerHost:              {},
-	EnvServerPort:              {},
-	EnvServerReadHeaderTimeout: {},
-	EnvServerReadTimeout:       {},
-	EnvServerWriteTimeout:      {},
-	EnvServerIdleTimeout:       {},
-	EnvServerShutdownTimeout:   {},
-	EnvLogLevel:                {},
-	EnvLogFormat:               {},
+	EnvServerHost:                {},
+	EnvServerPort:                {},
+	EnvServerReadHeaderTimeout:   {},
+	EnvServerReadTimeout:         {},
+	EnvServerWriteTimeout:        {},
+	EnvServerIdleTimeout:         {},
+	EnvServerShutdownTimeout:     {},
+	EnvLogLevel:                  {},
+	EnvLogFormat:                 {},
+	EnvProviderOpenCodeGoBaseURL: {},
+	EnvProviderOpenCodeGoAPIKey:  {},
 }
 
 // LogLevel is a validated log level accepted by the application.
@@ -118,10 +123,29 @@ type Log struct {
 	Format LogFormat
 }
 
+// ProviderOpenCodeGo groups the settings of the OpenCode Go provider. The
+// credential lives only in the environment; an empty key disables the
+// provider without failing startup.
+type ProviderOpenCodeGo struct {
+	BaseURL string
+	APIKey  string
+}
+
+// Enabled reports whether the provider has a credential configured.
+func (p ProviderOpenCodeGo) Enabled() bool {
+	return p.APIKey != ""
+}
+
+// Provider groups every configured integration.
+type Provider struct {
+	OpenCodeGo ProviderOpenCodeGo
+}
+
 // Config is the root configuration.
 type Config struct {
-	Server Server
-	Log    Log
+	Server   Server
+	Log      Log
+	Provider Provider
 }
 
 // Default returns the baseline configuration used as the starting point for
@@ -140,6 +164,11 @@ func Default() Config {
 		Log: Log{
 			Level:  LogLevelInfo,
 			Format: LogFormatJSON,
+		},
+		Provider: Provider{
+			OpenCodeGo: ProviderOpenCodeGo{
+				BaseURL: "https://opencode.ai/inference/go",
+			},
 		},
 	}
 }
@@ -200,6 +229,14 @@ func applyEnvironment(cfg *Config) error {
 
 	if value, ok := os.LookupEnv(EnvLogFormat); ok {
 		cfg.Log.Format = LogFormat(value)
+	}
+
+	if value, ok := os.LookupEnv(EnvProviderOpenCodeGoBaseURL); ok {
+		cfg.Provider.OpenCodeGo.BaseURL = value
+	}
+
+	if value, ok := os.LookupEnv(EnvProviderOpenCodeGoAPIKey); ok {
+		cfg.Provider.OpenCodeGo.APIKey = value
 	}
 
 	durations := []struct {
@@ -271,7 +308,45 @@ func (c Config) Validate() error {
 		errs = append(errs, fmt.Errorf("log.format must be one of json, text; got %q", c.Log.Format))
 	}
 
+	if err := ValidateBaseURL(c.Provider.OpenCodeGo.BaseURL); err != nil {
+		errs = append(errs, err)
+	}
+
 	return errors.Join(errs...)
+}
+
+// ValidateBaseURL rejects provider base URLs that cannot be joined safely with
+// the fixed endpoint paths, including URLs with embedded credentials.
+func ValidateBaseURL(baseURL string) error {
+	const field = "provider.opencode-go.base_url"
+
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", field, err)
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("%s scheme must be http or https, got %q", field, parsed.Scheme)
+	}
+
+	if parsed.Host == "" {
+		return fmt.Errorf("%s host must not be empty", field)
+	}
+
+	if parsed.User != nil {
+		return errors.New(field + " must not embed credentials; use the dedicated environment variable")
+	}
+
+	if parsed.RawQuery != "" {
+		return errors.New(field + " must not carry a query string")
+	}
+
+	if parsed.Fragment != "" {
+		return errors.New(field + " must not carry a fragment")
+	}
+
+	return nil
 }
 
 func validateHost(host string) error {

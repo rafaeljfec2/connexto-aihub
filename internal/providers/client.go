@@ -1,0 +1,119 @@
+// Package providers implements the concrete OpenCode Go provider integration:
+// credential handling, model catalog retrieval, Responses execution and the
+// provider availability state machine.
+package providers
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+
+	"aihub/internal/config"
+)
+
+// OpenCodeGoID identifies the first integrated provider.
+const OpenCodeGoID = "opencode-go"
+
+// Endpoint paths appended to the configured base URL. They follow the spike
+// findings (docs/research/opencode-go-protocol-spike.md §2.1): the models path
+// deliberately differs from the Responses path.
+const (
+	responsesPath = "/openai/v1/responses"
+	modelsPath    = "/v1/models"
+)
+
+const (
+	dialTimeout           = 10 * time.Second
+	tlsHandshakeTimeout   = 10 * time.Second
+	responseHeaderTimeout = 120 * time.Second
+)
+
+// Client executes requests against the OpenCode Go upstream. It is concrete on
+// purpose: the spike validated a single adapter shape; abstractions enter when
+// a second provider does.
+type Client struct {
+	baseURL    string
+	apiKey     string
+	httpClient *http.Client
+}
+
+// NewClient builds the provider client. A nil httpClient selects the package
+// transport with bounded dial, handshake and header timeouts.
+func NewClient(cfg config.ProviderOpenCodeGo, httpClient *http.Client) (*Client, error) {
+	if err := config.ValidateBaseURL(cfg.BaseURL); err != nil {
+		return nil, fmt.Errorf("provider %s: %w", OpenCodeGoID, err)
+	}
+
+	if httpClient == nil {
+		httpClient = &http.Client{Transport: newTransport()}
+	}
+
+	return &Client{
+		baseURL:    strings.TrimRight(cfg.BaseURL, "/"),
+		apiKey:     cfg.APIKey,
+		httpClient: httpClient,
+	}, nil
+}
+
+// Enabled reports whether a credential is configured. A disabled client
+// refuses no request path but must never perform upstream calls with an empty
+// Authorization header.
+func (c *Client) Enabled() bool {
+	return c.apiKey != ""
+}
+
+// ListModels retrieves the model catalog from the vendor-specific path.
+func (c *Client) ListModels(ctx context.Context) (*http.Response, error) {
+	return c.do(ctx, http.MethodGet, modelsPath, nil, nil)
+}
+
+// OpenResponses forwards a Responses API request body verbatim. The adapter
+// only supplies transport headers; it never parses or rewrites the payload.
+func (c *Client) OpenResponses(ctx context.Context, body io.Reader, contentType, sessionID string) (*http.Response, error) {
+	header := make(http.Header, 2)
+	header.Set("Content-Type", contentType)
+	header.Set("X-Opencode-Session", sessionID)
+
+	return c.do(ctx, http.MethodPost, responsesPath, body, header)
+}
+
+// Stop releases idle connections for process shutdown.
+func (c *Client) CloseIdle() {
+	c.httpClient.CloseIdleConnections()
+}
+
+func (c *Client) do(ctx context.Context, method, path string, body io.Reader, header http.Header) (*http.Response, error) {
+	request, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	if err != nil {
+		return nil, fmt.Errorf("build provider request: %w", err)
+	}
+
+	if header != nil {
+		request.Header = header
+	}
+
+	// The credential never travels in the URL or in an error message.
+	request.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("provider request: %w", err)
+	}
+
+	return response, nil
+}
+
+func newTransport() *http.Transport {
+	return &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: dialTimeout, KeepAlive: 30 * time.Second}).DialContext,
+		ForceAttemptHTTP2:     true,
+		TLSHandshakeTimeout:   tlsHandshakeTimeout,
+		ResponseHeaderTimeout: responseHeaderTimeout,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
