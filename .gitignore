@@ -1,0 +1,15 @@
+# Build artifacts
+/bin/
+/ai-hub
+*.test
+coverage.out
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
