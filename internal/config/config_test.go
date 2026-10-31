@@ -10,8 +10,8 @@ import (
 	"aihub/internal/config"
 )
 
-// unsetAIHUBEnv clears AIHUB_* variables so tests observe real defaults, then
-// restores them when the test finishes.
+// unsetAIHUBEnv clears AIHUB_* variables and installs the mandatory gateway key
+// required by E04, then restores the previous environment when the test ends.
 func unsetAIHUBEnv(t *testing.T) {
 	t.Helper()
 
@@ -24,6 +24,8 @@ func unsetAIHUBEnv(t *testing.T) {
 		t.Cleanup(func() { _ = os.Setenv(name, value) })
 		_ = os.Unsetenv(name)
 	}
+
+	t.Setenv(gatewayKeyEnv, gatewayKey)
 }
 
 func writeEnvFile(t *testing.T, contents string) string {
@@ -39,6 +41,7 @@ func writeEnvFile(t *testing.T, contents string) string {
 
 func TestDefaultIsValid(t *testing.T) {
 	cfg := config.Default()
+	cfg.Gateway.APIKey = gatewayKey
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("default config must be valid, got: %v", err)

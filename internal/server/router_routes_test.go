@@ -23,6 +23,7 @@ func TestRouterRegistersAdditionalRoutes(t *testing.T) {
 
 	handler := server.NewRouter(
 		testLogger(new(bytes.Buffer)),
+		testPolicy(t),
 		// health handlers unused in this scenario
 		health.Live(),
 		health.NewRegistry().Ready(),
@@ -34,7 +35,9 @@ func TestRouterRegistersAdditionalRoutes(t *testing.T) {
 	)
 
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/v1/responses", nil))
+	request := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	request.Header.Set("Authorization", authorization())
+	handler.ServeHTTP(recorder, request)
 
 	if !*invoked {
 		t.Fatalf("injected route was not reachable through the middleware chain")
@@ -46,13 +49,16 @@ func TestRouterAdditionalRouteRejectsOtherMethods(t *testing.T) {
 
 	handler := server.NewRouter(
 		testLogger(new(bytes.Buffer)),
+		testPolicy(t),
 		health.Live(),
 		health.NewRegistry().Ready(),
 		server.Route{Method: http.MethodPost, Pattern: "/v1/models", Handler: markerHandler{requested: invoked}},
 	)
 
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+	request := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	request.Header.Set("Authorization", authorization())
+	handler.ServeHTTP(recorder, request)
 
 	if *invoked {
 		t.Fatalf("GET must not reach a POST-only route")

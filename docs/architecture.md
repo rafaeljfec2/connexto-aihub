@@ -1,4 +1,4 @@
-# AI Hub — Implemented Architecture (E01–E03)
+# AI Hub — Implemented Architecture (E01–E04)
 
 This document describes what exists today. Product vision and future layers are
 in `AI-Hub-Product-Architecture-Kickoff.md`; E02 (first provider integration
@@ -20,10 +20,14 @@ cmd/ai-hub/main.go
          |
          v
  internal/server (HTTP transport)
-   |    |         |
-   v    v         v
-internal/       internal/
-gateway (E02)   observability
+   |    |          |
+   v    v          v
+internal/access  internal/gateway
+(E04 trust       (E02/E03 handlers)
+ boundary)
+         |
+         v
+ internal/observability
 ```
 
 Health endpoints are served by `health`; provider endpoints are injected as
@@ -31,9 +35,10 @@ additional routes into the same router.
 
 Dependencies are explicit and acyclic. `cmd` wires every package and owns the
 construction order; `app` depends only on the standard library (it knows the
-`Module` contract, not the concrete modules); `server` depends on `config` and
-`observability`; `health` and `observability` depend on the standard library
-only.
+`Module` contract, not the concrete modules); `server` depends on `config`,
+`access` and `observability`; `config` reuses `access` validation helpers;
+`access` is a standard-library-only leaf package; `health` and `observability`
+depend on the standard library only.
 
 ## Packages
 
@@ -42,7 +47,8 @@ only.
 | `cmd/ai-hub`             | Process entrypoint, flags, signal handling, shutdown budget.                                              |
 | `internal/app`           | `Module` contract, ordered start, reverse-order stop, rollback.                                           |
 | `internal/config`        | Typed configuration, env defaults overrides, validation, provider settings.                               |
-| `internal/server`        | Listener, `http.Server`, routing tree and HTTP middleware.                                                |
+| `internal/server`        | Listener, exposure policy, `http.Server`, routing tree and HTTP middleware.                               |
+| `internal/access`        | Static bearer authentication, Host/Origin policy, request admission and request identity (E04).           |
 | `internal/health`        | Readiness registry and liveness/readiness handlers.                                                       |
 | `internal/observability` | `slog` construction and correlation ID context propagation.                                               |
 | `internal/providers`     | OpenCode Go adapter: credential handling, catalog descriptors, Responses execution, provider state (E02). |
@@ -55,8 +61,8 @@ abstraction will be introduced only when a second provider exists.
 
 ## Lifecycle
 
-1. `main` loads and validates configuration. Invalid input aborts before any
-   listener is created.
+1. `main` loads and validates configuration, including the mandatory gateway
+   key and access policy. Invalid input aborts before any listener is created.
 2. The logger is built from the validated log settings.
 3. Modules are constructed explicitly and injected into `app.New`.
 4. `App.Start` starts modules in order (`providers` → `catalog` → `http-server`),
@@ -66,7 +72,10 @@ abstraction will be introduced only when a second provider exists.
    modules in reverse order, joining errors.
 
 `server.Start` binds the listener synchronously, so port conflicts fail startup
-instead of surfacing asynchronously.
+instead of surfacing asynchronously. The bound address is checked after
+`net.Listen`: loopback is always accepted, while a non-loopback listener is
+accepted only after explicit allowed-host configuration; otherwise the listener
+is closed and startup fails.
 
 ## Request pipeline
 
@@ -74,10 +83,16 @@ instead of surfacing asynchronously.
 X-Request-Id validation/generation
         |
         v
+access logging (method, path, status, bytes, duration, correlation id)
+        |
+        v
 panic recovery
         |
         v
-access logging (method, path, status, bytes, duration, correlation id)
+Access policy: Host/Origin -> bearer authentication
+        |
+        v
+route admission: body bound, media/encoding and provider session
         |
         v
 http.ServeMux ->  GET /healthz | GET /readyz
@@ -88,7 +103,8 @@ http.ServeMux ->  GET /healthz | GET /readyz
 ```
 
 The access log intentionally excludes headers, query strings and bodies, so
-credentials cannot leak through it. Query strings are excluded because they can
+credentials cannot leak through it. Only exactly `GET /healthz` and
+`GET /readyz` bypass authentication; both still enforce Host/Origin policy. Query strings are excluded because they can
 carry API keys. Recovery runs inside access logging, so panicked requests are
 logged too; if the handler already committed a status, recovery logs the panic
 without appending error text to the partial body.
@@ -116,6 +132,41 @@ AIHUB_CATALOG_SYNC_TIMEOUT=10s        # startup and manual sync deadline; must b
 
 An invalid base URL (scheme, host, query/fragment or embedded credentials)
 aborts startup; a missing API key does not — the provider starts disabled.
+
+Gateway settings (E04):
+
+```env
+AIHUB_GATEWAY_API_KEY=                # mandatory; 32-512 b64token characters, distinct from provider key
+AIHUB_GATEWAY_ALLOWED_HOSTS=          # explicit for non-loopback; defaults to localhost/127.0.0.1/::1
+AIHUB_GATEWAY_ALLOWED_ORIGINS=        # exact http/https origins; empty allows no browser Origin
+AIHUB_GATEWAY_MAX_BODY_BYTES=33554432 # 1 KiB-128 MiB
+```
+
+## Gateway access control (E04)
+
+Host and Origin checks run before authentication and body admission. Host
+matching uses the request authority with port/brackets/case normalized and
+never trusts forwarded headers. Origin is exact and canonicalized; absent
+Origin is allowed, while `null`, wildcard, multiple values and malformed origins
+are rejected with `403`. Rejections do not echo the offending value.
+
+Authentication requires exactly one `Authorization: Bearer <key>` value. The key
+is validated at startup, and the runtime access policy stores only a SHA-256
+digest for constant-time comparison. The original key remains in the process
+configuration and environment. Local errors use the stable
+`{"error":{"type","message"}}` envelope with `Cache-Control: no-store`; `401` adds
+`WWW-Authenticate: Bearer realm="ai-hub"`.
+
+`POST /v1/responses` buffers at most the configured body limit plus one sentinel
+byte, forwards the accepted bytes unchanged and never buffers the response.
+Catalog sync keeps a 4 KiB cap. Non-identity content encodings are rejected, as
+are duplicate media/session/authorization headers. Admission resolves
+`x-opencode-session` before the E02 handler; valid supplied values are
+preserved, while absent/empty values generate `aihub-ses-<32 hex>`.
+
+`internal/access.Metadata` carries the authenticated principal, provider session
+and accepted Host/Origin in the request context. It is never persisted or added
+to the provider payload. `X-Request-Id` remains correlation-only.
 
 ## Health semantics
 
@@ -216,6 +267,10 @@ codes. Panics are recovered, logged, and answered with `500`.
   close and directory-`fsync` failures, plus handler contracts.
 - `internal/catalog/live_smoke_test.go` performs a real catalog sync when
   `AIHUB_LIVE_SMOKE=1` and a credential are present.
+- E04 tests cover key grammar and bearer forms, Host/Origin normalization,
+  middleware precedence, body limits and chunked overflow, media/encoding
+  rejection, session generation/preservation, listener refusal, response
+  streaming and E02/E03 compatibility through the real router.
 
 # Strict Code Architecture Rules
 

@@ -18,19 +18,41 @@ const maxHeaderBytes = 64 << 10
 // Server is the HTTP transport module. It owns the listener and the http.Server
 // instance, while the routing tree is injected by the caller.
 type Server struct {
-	cfg        config.Server
-	logger     *slog.Logger
-	httpServer *http.Server
-	listener   net.Listener
-	errCh      chan error
+	cfg              config.Server
+	logger           *slog.Logger
+	httpServer       *http.Server
+	listener         net.Listener
+	errCh            chan error
+	allowNonLoopback bool
+}
+
+type options struct {
+	allowNonLoopback bool
+}
+
+// Option customizes server exposure policy.
+type Option func(*options)
+
+// WithNonLoopbackAllowed permits a listener that is not bound to loopback.
+// Callers must only enable it after validating explicit gateway access settings.
+func WithNonLoopbackAllowed(allowed bool) Option {
+	return func(opts *options) {
+		opts.allowNonLoopback = allowed
+	}
 }
 
 // New builds the HTTP server module.
-func New(cfg config.Server, handler http.Handler, logger *slog.Logger) *Server {
+func New(cfg config.Server, handler http.Handler, logger *slog.Logger, opts ...Option) *Server {
+	settings := options{}
+	for _, option := range opts {
+		option(&settings)
+	}
+
 	server := &Server{
-		cfg:    cfg,
-		logger: logger,
-		errCh:  make(chan error, 1),
+		cfg:              cfg,
+		logger:           logger,
+		errCh:            make(chan error, 1),
+		allowNonLoopback: settings.allowNonLoopback,
 	}
 
 	server.httpServer = &http.Server{
@@ -64,13 +86,13 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("listen on %s: %w", s.cfg.Address(), err)
 	}
 
+	if !isListenerAllowed(listener.Addr(), s.allowNonLoopback) {
+		_ = listener.Close()
+		return fmt.Errorf("listen on %s: non-loopback exposure requires an explicit allowed-host policy", s.cfg.Address())
+	}
+
 	s.listener = listener
 	s.logger.Info("http server listening", "address", listener.Addr().String())
-
-	if !isLoopback(listener.Addr()) {
-		s.logger.Warn("gateway is bound to a non-loopback address without authentication; do not expose it before E04",
-			"address", listener.Addr().String())
-	}
 
 	go func() {
 		if err := s.httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -93,6 +115,21 @@ func isLoopback(addr net.Addr) bool {
 	}
 
 	return tcpAddr.IP.IsLoopback()
+}
+
+// isListenerAllowed accepts loopback listeners unconditionally and other TCP
+// listeners only after an explicit gateway exposure policy is enabled.
+func isListenerAllowed(addr net.Addr, allowNonLoopback bool) bool {
+	tcpAddr, ok := addr.(*net.TCPAddr)
+	if !ok || tcpAddr == nil {
+		return false
+	}
+
+	if isLoopback(addr) {
+		return true
+	}
+
+	return allowNonLoopback
 }
 
 // Errors reports fatal serving errors that happen after a successful start.

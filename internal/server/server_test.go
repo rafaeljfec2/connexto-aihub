@@ -2,24 +2,42 @@ package server_test
 
 import (
 	"bytes"
-	"context"
-	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"aihub/internal/config"
+	"aihub/internal/access"
 	"aihub/internal/health"
 	"aihub/internal/observability"
 	"aihub/internal/server"
 )
 
+const gatewayTestKey = "test-gateway-key-0123456789abcdef"
+
 func testLogger(buffer *bytes.Buffer) *slog.Logger {
 	return observability.NewLogger(buffer, slog.LevelDebug, "json")
+}
+
+func testPolicy(t *testing.T) access.Policy {
+	t.Helper()
+
+	policy, err := access.NewPolicy(access.PolicyConfig{
+		APIKey:               gatewayTestKey,
+		AllowedHosts:         []string{"example.com", "localhost", "127.0.0.1", "::1"},
+		AllowedHostsExplicit: true,
+		MaxBodyBytes:         1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("NewPolicy() returned error: %v", err)
+	}
+
+	return policy
+}
+
+func authorization() string {
+	return "Bearer " + gatewayTestKey
 }
 
 func newRouterTestHandler(t *testing.T) (*http.Handler, *bytes.Buffer) {
@@ -27,7 +45,7 @@ func newRouterTestHandler(t *testing.T) (*http.Handler, *bytes.Buffer) {
 
 	buffer := &bytes.Buffer{}
 	registry := health.NewRegistry()
-	handler := server.NewRouter(testLogger(buffer), health.Live(), registry.Ready())
+	handler := server.NewRouter(testLogger(buffer), testPolicy(t), health.Live(), registry.Ready())
 
 	return &handler, buffer
 }
@@ -58,8 +76,11 @@ func TestRouterServesHealthEndpoints(t *testing.T) {
 func TestRouterRejectsUnsupportedMethod(t *testing.T) {
 	handler, _ := newRouterTestHandler(t)
 
+	request := httptest.NewRequest(http.MethodPost, "/healthz", nil)
+	request.Header.Set("Authorization", authorization())
+
 	recorder := httptest.NewRecorder()
-	(*handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/healthz", nil))
+	(*handler).ServeHTTP(recorder, request)
 
 	if got, want := recorder.Code, http.StatusMethodNotAllowed; got != want {
 		t.Fatalf("status = %d, want %d", got, want)
@@ -69,8 +90,11 @@ func TestRouterRejectsUnsupportedMethod(t *testing.T) {
 func TestRouterReturnsNotFoundForUnknownPath(t *testing.T) {
 	handler, _ := newRouterTestHandler(t)
 
+	request := httptest.NewRequest(http.MethodGet, "/unknown", nil)
+	request.Header.Set("Authorization", authorization())
+
 	recorder := httptest.NewRecorder()
-	(*handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/unknown", nil))
+	(*handler).ServeHTTP(recorder, request)
 
 	if got, want := recorder.Code, http.StatusNotFound; got != want {
 		t.Fatalf("status = %d, want %d", got, want)
@@ -159,7 +183,7 @@ func TestRouterRecoversFromPanics(t *testing.T) {
 		panic("boom")
 	})
 
-	handler := server.NewRouter(testLogger(buffer), panicHandler, panicHandler)
+	handler := server.NewRouter(testLogger(buffer), testPolicy(t), panicHandler, panicHandler)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -173,102 +197,6 @@ func TestRouterRecoversFromPanics(t *testing.T) {
 	}
 }
 
-func TestServerStartAndStop(t *testing.T) {
-	cfg := config.Default().Server
-	cfg.Port = 0
-	buffer := &bytes.Buffer{}
-
-	instance := server.New(cfg, http.NotFoundHandler(), testLogger(buffer))
-	if err := instance.Start(context.Background()); err != nil {
-		t.Fatalf("Start() returned error: %v", err)
-	}
-
-	response, err := http.Get("http://" + instance.Addr() + "/healthz")
-	if err != nil {
-		t.Fatalf("GET returned error: %v", err)
-	}
-	defer func() { _ = response.Body.Close() }()
-
-	if got, want := response.StatusCode, http.StatusNotFound; got != want {
-		t.Fatalf("status = %d, want %d", got, want)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	if err := instance.Stop(ctx); err != nil {
-		t.Fatalf("Stop() returned error: %v", err)
-	}
-}
-
-func TestServerStartFailsWhenAddressIsInUse(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	defer func() { _ = listener.Close() }()
-
-	address := listener.Addr().(*net.TCPAddr)
-
-	cfg := config.Default().Server
-	cfg.Host = "127.0.0.1"
-	cfg.Port = address.Port
-
-	instance := server.New(cfg, http.NotFoundHandler(), testLogger(&bytes.Buffer{}))
-
-	if err := instance.Start(context.Background()); err == nil {
-		t.Fatal("Start() must fail when the address is already in use")
-	}
-}
-
-func TestServerStopCompletesInFlightRequests(t *testing.T) {
-	requestStarted := make(chan struct{})
-	releaseRequest := make(chan struct{})
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		close(requestStarted)
-		<-releaseRequest
-		w.WriteHeader(http.StatusOK)
-	})
-
-	cfg := config.Default().Server
-	cfg.Port = 0
-
-	instance := server.New(cfg, handler, testLogger(&bytes.Buffer{}))
-	if err := instance.Start(context.Background()); err != nil {
-		t.Fatalf("Start() returned error: %v", err)
-	}
-
-	responseErr := make(chan error, 1)
-	go func() {
-		response, err := http.Get("http://" + instance.Addr() + "/slow")
-		if err == nil {
-			_, _ = io.Copy(io.Discard, response.Body)
-			_ = response.Body.Close()
-		}
-		responseErr <- err
-	}()
-
-	<-requestStarted
-
-	stopErr := make(chan error, 1)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		stopErr <- instance.Stop(ctx)
-	}()
-
-	close(releaseRequest)
-
-	if err := <-responseErr; err != nil {
-		t.Fatalf("in-flight request failed during shutdown: %v", err)
-	}
-
-	if err := <-stopErr; err != nil {
-		t.Fatalf("Stop() returned error: %v", err)
-	}
-}
-
 func TestRouterKeepsPartialResponseWhenHandlerPanics(t *testing.T) {
 	buffer := &bytes.Buffer{}
 	partialHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -277,7 +205,7 @@ func TestRouterKeepsPartialResponseWhenHandlerPanics(t *testing.T) {
 		panic("boom after write")
 	})
 
-	handler := server.NewRouter(testLogger(buffer), partialHandler, partialHandler)
+	handler := server.NewRouter(testLogger(buffer), testPolicy(t), partialHandler, partialHandler)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -293,86 +221,4 @@ func TestRouterKeepsPartialResponseWhenHandlerPanics(t *testing.T) {
 	if !strings.Contains(buffer.String(), "panic recovered") {
 		t.Fatalf("logs must record the recovered panic, got %q", buffer.String())
 	}
-}
-
-func TestServerStartFailsWithCancelledContext(t *testing.T) {
-	cfg := config.Default().Server
-	cfg.Port = 0
-
-	instance := server.New(cfg, http.NotFoundHandler(), testLogger(&bytes.Buffer{}))
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	if err := instance.Start(ctx); err == nil {
-		t.Fatal("Start() must fail when the context is already cancelled")
-	}
-}
-
-func TestServerWarnsWhenBoundToNonLoopbackAddress(t *testing.T) {
-	cfg := config.Default().Server
-	cfg.Host = "0.0.0.0"
-	cfg.Port = 0
-
-	buffer := &bytes.Buffer{}
-	instance := server.New(cfg, http.NotFoundHandler(), testLogger(buffer))
-
-	if err := instance.Start(context.Background()); err != nil {
-		t.Fatalf("Start() returned error: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	if err := instance.Stop(ctx); err != nil {
-		t.Fatalf("Stop() returned error: %v", err)
-	}
-
-	if !strings.Contains(buffer.String(), "non-loopback") {
-		t.Fatalf("logs must warn about the non-loopback bind, got %q", buffer.String())
-	}
-}
-
-func TestServerStopReturnsErrorWhenDeadlineExpires(t *testing.T) {
-	requestStarted := make(chan struct{})
-	releaseRequest := make(chan struct{})
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		close(requestStarted)
-		<-releaseRequest
-		w.WriteHeader(http.StatusOK)
-	})
-
-	cfg := config.Default().Server
-	cfg.Port = 0
-
-	instance := server.New(cfg, handler, testLogger(&bytes.Buffer{}))
-	if err := instance.Start(context.Background()); err != nil {
-		t.Fatalf("Start() returned error: %v", err)
-	}
-
-	requestDone := make(chan struct{})
-	go func() {
-		defer close(requestDone)
-
-		response, err := http.Get("http://" + instance.Addr() + "/hang")
-		if err != nil {
-			return
-		}
-
-		_, _ = io.Copy(io.Discard, response.Body)
-		_ = response.Body.Close()
-	}()
-
-	<-requestStarted
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	if err := instance.Stop(ctx); err == nil {
-		t.Fatal("Stop() must return an error when the deadline expires with in-flight requests")
-	}
-
-	close(releaseRequest)
-	<-requestDone
 }

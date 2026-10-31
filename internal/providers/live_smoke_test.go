@@ -26,12 +26,15 @@ func TestLiveOpenCodeGoSmoke(t *testing.T) {
 		t.Skip("skipped: no AIHUB_PROVIDER_OPENCODEGO_API_KEY available")
 	}
 
-	cfg, err := config.Load()
-	if err != nil {
-		t.Fatalf("config.Load() returned error: %v", err)
+	baseURL := os.Getenv(config.EnvProviderOpenCodeGoBaseURL)
+	if baseURL == "" {
+		baseURL = "https://opencode.ai/inference/go"
 	}
 
-	client, err := providers.NewClient(cfg.Provider.OpenCodeGo, nil)
+	client, err := providers.NewClient(config.ProviderOpenCodeGo{
+		BaseURL: baseURL,
+		APIKey:  credential,
+	}, nil)
 	if err != nil {
 		t.Fatalf("NewClient() returned error: %v", err)
 	}

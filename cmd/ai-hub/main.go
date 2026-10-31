@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"aihub/internal/access"
 	"aihub/internal/app"
 	"aihub/internal/catalog"
 	"aihub/internal/config"
@@ -74,11 +75,23 @@ func run() error {
 
 	readiness := health.NewRegistry()
 
-	router := server.NewRouter(logger, health.Live(), readiness.Ready(),
+	policy, err := access.NewPolicy(access.PolicyConfig{
+		APIKey:               cfg.Gateway.APIKey,
+		AllowedHosts:         cfg.Gateway.AllowedHosts,
+		AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
+		AllowedOrigins:       cfg.Gateway.AllowedOrigins,
+		MaxBodyBytes:         cfg.Gateway.MaxBodyBytes,
+	})
+	if err != nil {
+		return fmt.Errorf("build gateway access policy: %w", err)
+	}
+
+	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
 		server.Route{
-			Method:  http.MethodPost,
-			Pattern: "/v1/responses",
-			Handler: gateway.NewResponsesHandler(providerClient, logger, gateway.StreamInactivityTimeout),
+			Method:    http.MethodPost,
+			Pattern:   "/v1/responses",
+			Handler:   gateway.NewResponsesHandler(providerClient, logger, gateway.StreamInactivityTimeout),
+			Admission: access.ResponsesAdmission(policy.MaxBodyBytes()),
 		},
 		server.Route{
 			Method:  http.MethodGet,
@@ -106,13 +119,16 @@ func run() error {
 			Handler: gateway.NewCatalogProvidersHandler(catalogModule),
 		},
 		server.Route{
-			Method:  http.MethodPost,
-			Pattern: "/v1/catalog/sync",
-			Handler: gateway.NewCatalogSyncHandler(catalogModule),
+			Method:    http.MethodPost,
+			Pattern:   "/v1/catalog/sync",
+			Handler:   gateway.NewCatalogSyncHandler(catalogModule),
+			Admission: access.CatalogSyncAdmission(policy.MaxBodyBytes()),
 		},
 	)
 
-	httpServer := server.New(cfg.Server, router, logger)
+	httpServer := server.New(cfg.Server, router, logger,
+		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),
+	)
 
 	application, err := app.New(logger, providerModule, catalogModule, httpServer)
 	if err != nil {

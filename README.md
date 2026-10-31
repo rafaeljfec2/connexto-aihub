@@ -4,13 +4,14 @@ Local-first Personal AI Orchestrator. The product and architecture baseline is
 documented in [`AI-Hub-Product-Architecture-Kickoff.md`](AI-Hub-Product-Architecture-Kickoff.md).
 
 **Current status:** E01 (Core Foundation), E02 (OpenCode Go provider
-integration, Responses pass-through) and E03 (Model Catalog) implemented.
-Routing, learning, quotas and multi-provider orchestration are not implemented yet.
+integration, Responses pass-through), E03 (Model Catalog) and E04 (Gateway
+hardening and access control) implemented. Routing, learning, quotas and
+multi-provider orchestration are not implemented yet.
 
 ## Scope implemented
 
 - Application bootstrap with explicit module lifecycle.
-- Configuration loading and validation (defaults, file, environment).
+- Configuration loading and validation (defaults, environment and dotenv).
 - Local HTTP server with timeouts and bounded headers.
 - `GET /healthz` (liveness) and `GET /readyz` (readiness).
 - Structured JSON logging through `log/slog`.
@@ -21,6 +22,9 @@ Routing, learning, quotas and multi-provider orchestration are not implemented y
 - E03 model catalog: normalized, provider-scoped model entries with capability
   provenance, presence/freshness, startup and manual synchronization, and a
   versioned JSON snapshot with quarantine recovery.
+- E04 gateway access control: mandatory static bearer key, exact Host/Origin
+  validation, fail-closed listener exposure, bounded request bodies and
+  per-request provider sessions.
 
 ## Requirements
 
@@ -31,6 +35,9 @@ Routing, learning, quotas and multi-provider orchestration are not implemented y
 
 ```bash
 cp .env.example .env   # then adjust values; never commit .env
+# AIHUB_GATEWAY_API_KEY is mandatory and must differ from the provider key.
+# Generate a private value with `openssl rand -base64 48`; .env.example leaves
+# it empty intentionally so startup fails closed until the operator sets it.
 go run ./cmd/ai-hub
 ```
 
@@ -45,6 +52,9 @@ The server binds to `127.0.0.1:8080` by default.
 ```bash
 curl -i http://127.0.0.1:8080/healthz
 curl -i http://127.0.0.1:8080/readyz
+
+curl -i -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  http://127.0.0.1:8080/v1/models
 ```
 
 ## Endpoints
@@ -61,9 +71,13 @@ curl -i http://127.0.0.1:8080/readyz
 | GET    | `/v1/catalog/providers` | Provider sync state, freshness and catalog counts (E03).                   |
 | POST   | `/v1/catalog/sync`      | Trigger a bounded catalog synchronization (E03; state change).             |
 
-Both return `application/json` with `Cache-Control: no-store`. A request may
-send `X-Request-Id` (8–128 characters of `A-Z a-z 0-9 . _ : -`); a valid value is
-reused and echoed, otherwise a new identifier is generated.
+Health endpoints return `application/json` with `Cache-Control: no-store`.
+Every other route requires `Authorization: Bearer <AIHUB_GATEWAY_API_KEY>` and
+an allowed `Host`; `HEAD /healthz` and `HEAD /readyz` are not authentication
+exempt. A request may send `X-Request-Id` (8–128 characters of `A-Z a-z 0-9 . _
+: -`); a valid value is reused and echoed, otherwise a new identifier is
+generated. `X-Request-Id` is correlation only and is never used as a provider
+session.
 
 ## Configuration
 
@@ -87,8 +101,46 @@ variables are ignored with a startup warning; invalid values abort startup.
 | `AIHUB_DATA_DIR`                       | `${XDG_DATA_HOME:-$HOME/.local/share}/ai-hub` |
 | `AIHUB_CATALOG_STALE_AFTER`            | `24h`                                |
 | `AIHUB_CATALOG_SYNC_TIMEOUT`           | `10s`                                |
+| `AIHUB_GATEWAY_API_KEY`                | *(required, no default)*             |
+| `AIHUB_GATEWAY_ALLOWED_HOSTS`          | loopback hosts when unset            |
+| `AIHUB_GATEWAY_ALLOWED_ORIGINS`        | *(empty — no browser Origin allowed)*|
+| `AIHUB_GATEWAY_MAX_BODY_BYTES`         | `33554432` (32 MiB)                  |
 
 Durations use Go syntax (`250ms`, `15s`, `1m30s`). See [.env.example](.env.example).
+
+Gateway settings (E04):
+
+- `AIHUB_GATEWAY_API_KEY` is mandatory, must contain 32–512 ASCII characters
+  from the RFC 6750 `b64token` set and must differ from the provider key.
+- Allowed hosts are exact lowercase DNS names or IP literals without ports,
+  schemes, paths or wildcards. When unset on a loopback bind, the defaults are
+  `localhost`, `127.0.0.1` and `::1`. An explicitly empty value is invalid.
+- A non-loopback `AIHUB_SERVER_HOST` requires an explicit non-empty
+  `AIHUB_GATEWAY_ALLOWED_HOSTS`; the actual bound listener is checked after
+  `net.Listen` and startup fails closed otherwise.
+- Allowed origins are exact `http`/`https` origins without path, query,
+  fragment or user information. An empty origin list permits only requests
+  without an `Origin` header.
+- `AIHUB_GATEWAY_MAX_BODY_BYTES` accepts 1,024–134,217,728 bytes. Catalog sync
+  keeps its own 4 KiB cap.
+
+### Gateway access control (E04)
+
+The gateway validates `Host` and `Origin` before authentication, then requires
+one well-formed bearer token on every route except exactly `GET /healthz` and
+`GET /readyz`. Local rejections use the stable envelope
+`{"error":{"type":"...","message":"..."}}` with `Cache-Control: no-store`;
+`401` adds `WWW-Authenticate: Bearer realm="ai-hub"`. The gateway key is never
+forwarded upstream: the provider adapter continues to set the provider
+credential.
+
+`POST /v1/responses` requires `application/json` (optionally
+`charset=utf-8`), rejects non-identity `Content-Encoding`, and buffers at most
+the configured limit plus one sentinel byte before forwarding the exact accepted
+body. SSE responses remain unbuffered. A missing or empty
+`x-opencode-session` is replaced with `aihub-ses-<32 hex>`; a valid value of
+1–128 characters from `A-Z a-z 0-9 . _ : -` is preserved; malformed or duplicate
+values are rejected with `400`. No durable AI Hub session is created.
 
 ### OpenCode Go provider (E02)
 
@@ -120,9 +172,12 @@ valid snapshot. An empty upstream payload is rejected as `rejected_empty`
 without deleting known models.
 
 ```bash
-curl -s http://127.0.0.1:8080/v1/catalog/models
-curl -s http://127.0.0.1:8080/v1/catalog/providers
-curl -s -X POST http://127.0.0.1:8080/v1/catalog/sync
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  http://127.0.0.1:8080/v1/catalog/models
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  http://127.0.0.1:8080/v1/catalog/providers
+curl -s -X POST -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  http://127.0.0.1:8080/v1/catalog/sync
 ```
 
 `GET /v1/models` remains the E02 byte-for-byte provider pass-through.
@@ -134,8 +189,10 @@ AIHUB_LIVE_SMOKE=1 AIHUB_PROVIDER_OPENCODEGO_API_KEY=oc_sk_... \
   go test ./internal/providers/ -run TestLiveOpenCodeGoSmoke -v
 ```
 
-It is skipped automatically without both variables; mock-based green tests do
-not count as real integration success.
+It is skipped automatically without both variables. The provider-only smoke
+also honors `AIHUB_PROVIDER_OPENCODEGO_BASE_URL` when set and does not require
+the gateway API key; mock-based green tests do not count as real integration
+success.
 
 ## Tests and validation
 
@@ -152,14 +209,18 @@ golangci-lint run ./...
 - [`docs/specs/E02-provider-management.md`](docs/specs/E02-provider-management.md) — E02 spec and decisions.
 - [`docs/specs/E03-model-catalog.md`](docs/specs/E03-model-catalog.md) — E03 spec and decisions.
 - [`docs/design/E03-model-catalog-design.md`](docs/design/E03-model-catalog-design.md) — E03 technical design.
+- [`docs/specs/E04-gateway-hardening-access-control.md`](docs/specs/E04-gateway-hardening-access-control.md) — E04 spec and decisions.
+- [`docs/design/E04-gateway-hardening-access-control-design.md`](docs/design/E04-gateway-hardening-access-control-design.md) — E04 technical design.
 - [`docs/research/opencode-go-protocol-spike.md`](docs/research/opencode-go-protocol-spike.md) — validated integration evidence.
-- [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 and ADR-010).
+- [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 through ADR-013).
 
 ## Known limitations
 
-- The gateway has no authentication. It is bound to loopback by default, and a
-  non-loopback bind emits a startup warning; do not expose it to other hosts
-  before authentication exists (E04).
+- The gateway uses one static client key. Key rotation, multiple concurrent
+  keys and a secret manager are not implemented (E04 D15).
+- TLS termination, rate limiting and CORS preflight are out of E04 scope. A
+  non-loopback listener requires explicit configuration and must run behind a
+  trusted network, VPN or TLS-terminating proxy.
 - Provider sessions are per-request in E02; cross-turn continuity of generated
   `x-opencode-session` values depends on a future AI Hub context/session layer.
 - No retries, fallback or quota enforcement (E05/E09).

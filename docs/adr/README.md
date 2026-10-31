@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Decisions taken during E01–E03. Each record states context, decision, rationale
+Decisions taken during E01–E04. Each record states context, decision, rationale
 and consequences.
 
 | ADR     | Decision                                                        |
@@ -15,6 +15,9 @@ and consequences.
 | ADR-008 | Streaming inactivity deadline                                   |
 | ADR-009 | Provider-scoped model identity, capability claims and listing semantics |
 | ADR-010 | Catalog persistence: versioned JSON snapshot with quarantine    |
+| ADR-011 | Gateway API key authentication and network exposure policy      |
+| ADR-012 | Gateway request admission limits and local error contract       |
+| ADR-013 | Request and session identity                                    |
 
 New decisions get the next number. Superseded records stay in place and are
 marked as such.

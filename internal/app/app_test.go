@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"aihub/internal/access"
 	"aihub/internal/app"
 	"aihub/internal/config"
 	"aihub/internal/health"
@@ -141,7 +142,15 @@ func TestApplicationServesHealthAndStops(t *testing.T) {
 
 	logger := discardLogger()
 	readiness := health.NewRegistry()
-	router := server.NewRouter(logger, health.Live(), readiness.Ready())
+	policy, err := access.NewPolicy(access.PolicyConfig{
+		APIKey:       "test-gateway-key-0123456789abcdef",
+		MaxBodyBytes: 1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("NewPolicy() returned error: %v", err)
+	}
+
+	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready())
 	httpServer := server.New(cfg, router, logger)
 
 	application := newApp(t, httpServer)

@@ -1,0 +1,154 @@
+package config
+
+import (
+	"log/slog"
+	"net"
+	"strconv"
+	"time"
+)
+
+// Environment variables read by the application.
+const (
+	EnvServerHost                = "AIHUB_SERVER_HOST"
+	EnvServerPort                = "AIHUB_SERVER_PORT"
+	EnvServerReadHeaderTimeout   = "AIHUB_SERVER_READ_HEADER_TIMEOUT"
+	EnvServerReadTimeout         = "AIHUB_SERVER_READ_TIMEOUT"
+	EnvServerWriteTimeout        = "AIHUB_SERVER_WRITE_TIMEOUT"
+	EnvServerIdleTimeout         = "AIHUB_SERVER_IDLE_TIMEOUT"
+	EnvServerShutdownTimeout     = "AIHUB_SERVER_SHUTDOWN_TIMEOUT"
+	EnvLogLevel                  = "AIHUB_LOG_LEVEL"
+	EnvLogFormat                 = "AIHUB_LOG_FORMAT"
+	EnvProviderOpenCodeGoBaseURL = "AIHUB_PROVIDER_OPENCODEGO_BASE_URL"
+	EnvProviderOpenCodeGoAPIKey  = "AIHUB_PROVIDER_OPENCODEGO_API_KEY"
+	EnvDataDir                   = "AIHUB_DATA_DIR"
+	EnvCatalogStaleAfter         = "AIHUB_CATALOG_STALE_AFTER"
+	EnvCatalogSyncTimeout        = "AIHUB_CATALOG_SYNC_TIMEOUT"
+	EnvGatewayAPIKey             = "AIHUB_GATEWAY_API_KEY"
+	EnvGatewayAllowedHosts       = "AIHUB_GATEWAY_ALLOWED_HOSTS"
+	EnvGatewayAllowedOrigins     = "AIHUB_GATEWAY_ALLOWED_ORIGINS"
+	EnvGatewayMaxBodyBytes       = "AIHUB_GATEWAY_MAX_BODY_BYTES"
+)
+
+// knownEnvKeys lists every variable the application consumes.
+var knownEnvKeys = map[string]struct{}{
+	EnvServerHost:                {},
+	EnvServerPort:                {},
+	EnvServerReadHeaderTimeout:   {},
+	EnvServerReadTimeout:         {},
+	EnvServerWriteTimeout:        {},
+	EnvServerIdleTimeout:         {},
+	EnvServerShutdownTimeout:     {},
+	EnvLogLevel:                  {},
+	EnvLogFormat:                 {},
+	EnvProviderOpenCodeGoBaseURL: {},
+	EnvProviderOpenCodeGoAPIKey:  {},
+	EnvDataDir:                   {},
+	EnvCatalogStaleAfter:         {},
+	EnvCatalogSyncTimeout:        {},
+	EnvGatewayAPIKey:             {},
+	EnvGatewayAllowedHosts:       {},
+	EnvGatewayAllowedOrigins:     {},
+	EnvGatewayMaxBodyBytes:       {},
+}
+
+// LogLevel is a validated log level accepted by the application.
+type LogLevel string
+
+// Supported log levels.
+const (
+	LogLevelDebug LogLevel = "debug"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelWarn  LogLevel = "warn"
+	LogLevelError LogLevel = "error"
+)
+
+// Valid reports whether the level is supported.
+func (l LogLevel) Valid() bool {
+	switch l {
+	case LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError:
+		return true
+	default:
+		return false
+	}
+}
+
+// SlogLevel maps a validated level to its slog equivalent.
+func (l LogLevel) SlogLevel() slog.Level {
+	switch l {
+	case LogLevelDebug:
+		return slog.LevelDebug
+	case LogLevelWarn:
+		return slog.LevelWarn
+	case LogLevelError:
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+// LogFormat is a validated log output format.
+type LogFormat string
+
+// Supported log formats.
+const (
+	LogFormatJSON LogFormat = "json"
+	LogFormatText LogFormat = "text"
+)
+
+// Valid reports whether the format is supported.
+func (f LogFormat) Valid() bool {
+	switch f {
+	case LogFormatJSON, LogFormatText:
+		return true
+	default:
+		return false
+	}
+}
+
+// Server groups the HTTP server settings.
+type Server struct {
+	Host              string
+	Port              int
+	ReadHeaderTimeout time.Duration
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
+	ShutdownTimeout   time.Duration
+}
+
+// Address returns the host:port pair the server binds to.
+func (s Server) Address() string {
+	return net.JoinHostPort(s.Host, strconv.Itoa(s.Port))
+}
+
+// Log groups the logging settings.
+type Log struct {
+	Level  LogLevel
+	Format LogFormat
+}
+
+// ProviderOpenCodeGo groups the settings of the OpenCode Go provider. The
+// credential lives only in the environment; an empty key disables the
+// provider without failing startup.
+type ProviderOpenCodeGo struct {
+	BaseURL string
+	APIKey  string
+}
+
+// Enabled reports whether the provider has a credential configured.
+func (p ProviderOpenCodeGo) Enabled() bool {
+	return p.APIKey != ""
+}
+
+// Provider groups every configured integration.
+type Provider struct {
+	OpenCodeGo ProviderOpenCodeGo
+}
+
+// Catalog groups the model catalog settings. An empty DataDir means "resolve
+// the XDG default during Load".
+type Catalog struct {
+	DataDir     string
+	StaleAfter  time.Duration
+	SyncTimeout time.Duration
+}
