@@ -21,6 +21,8 @@ and consequences.
 | ADR-014 | Execution lifecycle and command contract                        |
 | ADR-015 | Coordinated execution shutdown                                  |
 | ADR-016 | Execution timeout and HTTP error mapping                        |
+| ADR-017 | Execution records storage: append-only JSONL segments            |
+| ADR-018 | E05 terminal observation and records delivery                    |
 
 New decisions get the next number. Superseded records stay in place and are
 marked as such.

@@ -40,6 +40,7 @@ func (e *execution) finish() Result {
 	}
 	e.mu.Unlock()
 	e.manager.logFinished(result, e.command)
+	e.manager.observe(e, result)
 	e.manager.remove(e)
 	return result
 }

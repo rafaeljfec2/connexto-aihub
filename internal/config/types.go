@@ -27,6 +27,11 @@ const (
 	EnvGatewayAllowedHosts       = "AIHUB_GATEWAY_ALLOWED_HOSTS"
 	EnvGatewayAllowedOrigins     = "AIHUB_GATEWAY_ALLOWED_ORIGINS"
 	EnvGatewayMaxBodyBytes       = "AIHUB_GATEWAY_MAX_BODY_BYTES"
+	EnvRecordsMaxAge             = "AIHUB_RECORDS_MAX_AGE"
+	EnvRecordsMaxCount           = "AIHUB_RECORDS_MAX_COUNT"
+	EnvRecordsMaxStorageBytes    = "AIHUB_RECORDS_MAX_STORAGE_BYTES"
+	EnvRecordsSegmentBytes       = "AIHUB_RECORDS_SEGMENT_BYTES"
+	EnvRecordsRetentionInterval  = "AIHUB_RECORDS_RETENTION_INTERVAL"
 )
 
 // knownEnvKeys lists every variable the application consumes.
@@ -49,6 +54,11 @@ var knownEnvKeys = map[string]struct{}{
 	EnvGatewayAllowedHosts:       {},
 	EnvGatewayAllowedOrigins:     {},
 	EnvGatewayMaxBodyBytes:       {},
+	EnvRecordsMaxAge:             {},
+	EnvRecordsMaxCount:           {},
+	EnvRecordsMaxStorageBytes:    {},
+	EnvRecordsSegmentBytes:       {},
+	EnvRecordsRetentionInterval:  {},
 }
 
 // LogLevel is a validated log level accepted by the application.

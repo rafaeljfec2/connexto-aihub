@@ -19,6 +19,7 @@ type Config struct {
 	Provider Provider
 	Catalog  Catalog
 	Gateway  Gateway
+	Records  Records
 }
 
 // Default returns the baseline configuration used as the starting point for
@@ -48,6 +49,7 @@ func Default() Config {
 			SyncTimeout: 10 * time.Second,
 		},
 		Gateway: defaultGateway(),
+		Records: defaultRecords(),
 	}
 }
 

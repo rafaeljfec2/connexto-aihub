@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"aihub/internal/access"
@@ -20,6 +21,7 @@ import (
 	"aihub/internal/health"
 	"aihub/internal/observability"
 	"aihub/internal/providers"
+	"aihub/internal/records"
 	"aihub/internal/server"
 )
 
@@ -65,13 +67,22 @@ func run() error {
 	}
 
 	providerModule := providers.NewManager(logger, providerClient)
+	recordsModule := records.New(records.Options{
+		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),
+		Logger:            logger,
+		MaxAge:            cfg.Records.MaxAge,
+		MaxCount:          cfg.Records.MaxCount,
+		MaxStorageBytes:   cfg.Records.MaxStorageBytes,
+		SegmentBytes:      cfg.Records.SegmentBytes,
+		RetentionInterval: cfg.Records.RetentionInterval,
+	})
 	executionManager := execution.NewManager(logger, providers.OpenCodeGoID,
 		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
 			return providerClient.OpenTargetResponses(ctx, providers.ResponsesTarget{
 				ProviderID: target.ProviderID,
 				ModelID:    target.ModelID,
 			}, payload, contentType, sessionID)
-		}, gateway.StreamInactivityTimeout)
+		}, gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
 
 	catalogStore := catalog.NewStore(cfg.Catalog.DataDir, logger)
 	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
@@ -132,6 +143,16 @@ func run() error {
 			Handler:   gateway.NewCatalogSyncHandler(catalogModule),
 			Admission: access.CatalogSyncAdmission(policy.MaxBodyBytes()),
 		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/v1/records/executions",
+			Handler: gateway.NewExecutionRecordsHandler(recordsModule),
+		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/v1/records/executions/{execution_id}",
+			Handler: gateway.NewExecutionRecordHandler(recordsModule),
+		},
 	)
 
 	httpServer := server.New(cfg.Server, router, logger,
@@ -140,7 +161,7 @@ func run() error {
 	lifecycle := newExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
 	guardedProvider := newGuardedProviderModule(providerModule, executionManager)
 
-	application, err := app.New(logger, guardedProvider, catalogModule, lifecycle)
+	application, err := app.New(logger, guardedProvider, catalogModule, recordsModule, lifecycle)
 	if err != nil {
 		return err
 	}

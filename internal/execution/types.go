@@ -62,6 +62,22 @@ type Result struct {
 	Duration       time.Duration
 }
 
+// FinishedExecution is the minimal immutable observation offered to consumers
+// after an execution reaches its terminal result. It carries no provider
+// session, payload, response content, or HTTP headers.
+type FinishedExecution struct {
+	Result    Result
+	RequestID string
+	Target    Target
+	StartedAt time.Time
+}
+
+// ResultObserver receives one finished execution per registered execution.
+// Implementations must return promptly and must not mutate the value.
+type ResultObserver interface {
+	OnExecutionFinished(FinishedExecution)
+}
+
 // Sink keeps HTTP response ownership in the gateway.
 type Sink interface {
 	Commit(status int, contentType string)

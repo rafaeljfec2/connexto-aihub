@@ -21,6 +21,7 @@ type Manager struct {
 	providerID string
 	opener     OpenResponses
 	inactivity time.Duration
+	observer   ResultObserver
 
 	mu            sync.Mutex
 	accepting     bool
@@ -29,8 +30,19 @@ type Manager struct {
 	cleanupFailed bool
 }
 
+// Option configures optional manager collaborators.
+type Option func(*Manager)
+
+// WithObserver installs the terminal-result observer. A nil observer is a
+// no-op for isolated callers.
+func WithObserver(observer ResultObserver) Option {
+	return func(manager *Manager) {
+		manager.observer = observer
+	}
+}
+
 // NewManager builds the lifecycle owner for one configured provider adapter.
-func NewManager(logger *slog.Logger, providerID string, opener OpenResponses, inactivity time.Duration) *Manager {
+func NewManager(logger *slog.Logger, providerID string, opener OpenResponses, inactivity time.Duration, options ...Option) *Manager {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -38,7 +50,7 @@ func NewManager(logger *slog.Logger, providerID string, opener OpenResponses, in
 		inactivity = DefaultInactivityTimeout
 	}
 
-	return &Manager{
+	manager := &Manager{
 		logger:     logger,
 		providerID: providerID,
 		opener:     opener,
@@ -47,6 +59,13 @@ func NewManager(logger *slog.Logger, providerID string, opener OpenResponses, in
 		active:     make(map[string]*execution),
 		changed:    make(chan struct{}),
 	}
+	for _, option := range options {
+		if option != nil {
+			option(manager)
+		}
+	}
+
+	return manager
 }
 
 // Execute admits and runs one explicit command.
@@ -152,6 +171,29 @@ func (m *Manager) remove(work *execution) {
 	defer m.mu.Unlock()
 	delete(m.active, work.id)
 	m.notifyLocked()
+}
+
+// observe isolates consumer failures from result publication and deregistration.
+func (m *Manager) observe(work *execution, result Result) {
+	if m.observer == nil {
+		return
+	}
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			m.logger.Error("execution observer failed",
+				"class", "observer_panic",
+				"execution_id", result.ExecutionID,
+			)
+		}
+	}()
+
+	m.observer.OnExecutionFinished(FinishedExecution{
+		Result:    result,
+		RequestID: work.command.RequestID,
+		Target:    work.command.Target,
+		StartedAt: work.startedAt,
+	})
 }
 
 func (m *Manager) recordCleanupFailure() {

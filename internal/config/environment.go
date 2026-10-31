@@ -92,5 +92,9 @@ func applyEnvironment(cfg *Config) error {
 		return err
 	}
 
+	if err := applyRecordsEnvironment(&cfg.Records); err != nil {
+		return err
+	}
+
 	return nil
 }

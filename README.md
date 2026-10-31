@@ -4,9 +4,10 @@ Local-first Personal AI Orchestrator. The product and architecture baseline is
 documented in [`AI-Hub-Product-Architecture-Kickoff.md`](AI-Hub-Product-Architecture-Kickoff.md).
 
 **Current status:** E01 (Core Foundation), E02 (OpenCode Go provider
-integration, Responses pass-through), E03 (Model Catalog) and E04 (Gateway
-hardening and access control) implemented. Routing, learning, quotas and
-multi-provider orchestration are not implemented yet.
+integration, Responses pass-through), E03 (Model Catalog), E04 (Gateway
+hardening and access control), E05 (execution lifecycle) and E06 (execution
+records) implemented. Routing, learning, quotas and multi-provider orchestration
+are not implemented yet.
 
 ## Scope implemented
 
@@ -25,6 +26,11 @@ multi-provider orchestration are not implemented yet.
 - E04 gateway access control: mandatory static bearer key, exact Host/Origin
   validation, fail-closed listener exposure, bounded request bodies and
   per-request provider sessions.
+- E05 execution lifecycle: coordinated timeout, cancellation and shutdown with a
+  single terminal result per registered execution.
+- E06 execution records: non-blocking observation of finished executions,
+  append-only JSONL storage under `AIHUB_DATA_DIR`, bounded retention and
+  cursor-based query endpoints.
 
 ## Requirements
 
@@ -70,6 +76,8 @@ curl -i -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
 | GET    | `/v1/catalog/models/{provider}/{model...}` | One model with provenance metadata and capabilities (E03).  |
 | GET    | `/v1/catalog/providers` | Provider sync state, freshness and catalog counts (E03).                   |
 | POST   | `/v1/catalog/sync`      | Trigger a bounded catalog synchronization (E03; state change).             |
+| GET    | `/v1/records/executions` | Filtered page of retained execution records (E06).                        |
+| GET    | `/v1/records/executions/{execution_id}` | One retained execution record (E06).                         |
 
 Health endpoints return `application/json` with `Cache-Control: no-store`.
 Every other route requires `Authorization: Bearer <AIHUB_GATEWAY_API_KEY>` and
@@ -101,6 +109,11 @@ variables are ignored with a startup warning; invalid values abort startup.
 | `AIHUB_DATA_DIR`                       | `${XDG_DATA_HOME:-$HOME/.local/share}/ai-hub` |
 | `AIHUB_CATALOG_STALE_AFTER`            | `24h`                                |
 | `AIHUB_CATALOG_SYNC_TIMEOUT`           | `10s`                                |
+| `AIHUB_RECORDS_MAX_AGE`                | `720h` (30 days)                     |
+| `AIHUB_RECORDS_MAX_COUNT`              | `10000`                              |
+| `AIHUB_RECORDS_MAX_STORAGE_BYTES`      | `134217728` (128 MiB)                |
+| `AIHUB_RECORDS_SEGMENT_BYTES`          | `8388608` (8 MiB)                    |
+| `AIHUB_RECORDS_RETENTION_INTERVAL`     | `1h`                                 |
 | `AIHUB_GATEWAY_API_KEY`                | *(required, no default)*             |
 | `AIHUB_GATEWAY_ALLOWED_HOSTS`          | loopback hosts when unset            |
 | `AIHUB_GATEWAY_ALLOWED_ORIGINS`        | *(empty — no browser Origin allowed)*|
@@ -182,6 +195,49 @@ curl -s -X POST -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
 
 `GET /v1/models` remains the E02 byte-for-byte provider pass-through.
 
+### Execution records (E06)
+
+E05 offers every finished execution to the records service after the response
+body is closed and before the execution is deregistered. The offer is
+non-blocking: records are queued in memory (256 entries) and written by a single
+writer, so queue overflow, storage failure or slow disk can never change the
+execution result, the client response or the provider-release guard. Overflow
+drops the newest event and marks the process degraded.
+
+Records are immutable schema-v1 JSONL lines written to
+`${AIHUB_DATA_DIR}/records` as rotating segments. Only operational metadata is
+persisted: execution/request IDs, provider and model IDs (null when unknown),
+UTC timestamps, duration, outcome, phase, cause, upstream status and whether the
+response was committed. Payloads, generated content, headers, provider session
+ids and credentials are never stored; `usage` is always `null` in schema v1.
+
+Retention trims the oldest eligible records by age, count and managed storage,
+and startup recovery keeps the valid prefix of a corrupted segment while
+isolating the invalid suffix. A `404` means the record is absent from the
+currently retained set, not that the execution never happened; `503` is returned
+only when the query index is unavailable.
+
+```bash
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  "http://127.0.0.1:8080/v1/records/executions?limit=20&outcome=completed"
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  "http://127.0.0.1:8080/v1/records/executions?provider_id=opencode-go&started_after=2026-10-01T00:00:00Z"
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  "http://127.0.0.1:8080/v1/records/executions/<32-hex-execution-id>"
+```
+
+List filters are `limit` (1–200, default 50), `provider_id`, `model_id`,
+`outcome` (`completed`, `failed`, `canceled`, `timed_out`), `started_after`,
+`started_before` (RFC3339) and `cursor`. Pages are ordered by
+`completed_at DESC, execution_id DESC`; pass `next_cursor` back to continue.
+An `execution_id` is exactly 32 lowercase hexadecimal characters.
+
+Retention settings accept `AIHUB_RECORDS_MAX_AGE` 1h–8760h,
+`AIHUB_RECORDS_MAX_COUNT` 1–100000, `AIHUB_RECORDS_MAX_STORAGE_BYTES`
+16 MiB–1 GiB, `AIHUB_RECORDS_SEGMENT_BYTES` 64 KiB–32 MiB and
+`AIHUB_RECORDS_RETENTION_INTERVAL` 1m–24h. The segment size must be at least
+16 KiB smaller than the storage cap and no greater than half of it.
+
 ### Real integration smoke test
 
 ```bash
@@ -211,6 +267,10 @@ golangci-lint run ./...
 - [`docs/design/E03-model-catalog-design.md`](docs/design/E03-model-catalog-design.md) — E03 technical design.
 - [`docs/specs/E04-gateway-hardening-access-control.md`](docs/specs/E04-gateway-hardening-access-control.md) — E04 spec and decisions.
 - [`docs/design/E04-gateway-hardening-access-control-design.md`](docs/design/E04-gateway-hardening-access-control-design.md) — E04 technical design.
+- [`docs/specs/E05-execution.md`](docs/specs/E05-execution.md) — E05 execution lifecycle spec.
+- [`docs/specs/E06-execution-records.md`](docs/specs/E06-execution-records.md) — E06 spec and decisions.
+- [`docs/design/E06-execution-records-design.md`](docs/design/E06-execution-records-design.md) — E06 technical design.
+- [`docs/discovery/E06-discovery.md`](docs/discovery/E06-discovery.md) — E06 discovery evidence.
 - [`docs/research/opencode-go-protocol-spike.md`](docs/research/opencode-go-protocol-spike.md) — validated integration evidence.
 - [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 through ADR-013).
 
@@ -221,15 +281,21 @@ golangci-lint run ./...
 - TLS termination, rate limiting and CORS preflight are out of E04 scope. A
   non-loopback listener requires explicit configuration and must run behind a
   trusted network, VPN or TLS-terminating proxy.
-- Provider sessions are per-request in E02; cross-turn continuity of generated
-  `x-opencode-session` values depends on a future AI Hub context/session layer.
+- Provider sessions are per-request in E02 and are not stored in E06 records;
+  cross-turn continuity of generated `x-opencode-session` values depends on a
+  future AI Hub context/session layer.
 - No retries, fallback or quota enforcement (E05/E09).
-- No persistence beyond the catalog snapshot; readiness has no dependency checks registered yet.
+- Execution records are at-most-once and best-effort: queue overflow, storage
+  failure, crash or flush expiry loses history, and `usage` stays `null` in
+  schema v1.
+- No persistence beyond the catalog snapshot and execution-record segments;
+  readiness has no dependency checks registered yet.
 - The catalog is derived data: it reflects the last accepted sync, not a live
   execution probe. Synchronization runs at startup (healthy provider only) and
   on demand; there is no periodic refresh. One process owns a data directory.
 - A successful catalog sync records `upstream_status` as 200; non-200 2xx
   variants from the models endpoint are not propagated in E03.
-- No metrics or OpenTelemetry export (E06).
+- No metrics or OpenTelemetry export (deferred beyond E06; E06 exposes only
+  process-local degradation counters).
 - `X-Request-Id` is the only correlation header accepted.
 - No CI pipeline and no container image.
