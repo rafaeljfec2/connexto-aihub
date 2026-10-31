@@ -3,9 +3,9 @@
 Local-first Personal AI Orchestrator. The product and architecture baseline is
 documented in [`AI-Hub-Product-Architecture-Kickoff.md`](AI-Hub-Product-Architecture-Kickoff.md).
 
-**Current status:** E01 (Core Foundation) and E02 (OpenCode Go provider
-integration, Responses pass-through) implemented. Routing, learning, quotas
-and multi-provider orchestration are not implemented yet.
+**Current status:** E01 (Core Foundation), E02 (OpenCode Go provider
+integration, Responses pass-through) and E03 (Model Catalog) implemented.
+Routing, learning, quotas and multi-provider orchestration are not implemented yet.
 
 ## Scope implemented
 
@@ -18,6 +18,9 @@ and multi-provider orchestration are not implemented yet.
 - Panic recovery and access logging without headers or query strings.
 - Graceful shutdown on `SIGINT` / `SIGTERM`.
 - Automated tests for configuration, health, middleware, server and lifecycle.
+- E03 model catalog: normalized, provider-scoped model entries with capability
+  provenance, presence/freshness, startup and manual synchronization, and a
+  versioned JSON snapshot with quarantine recovery.
 
 ## Requirements
 
@@ -53,6 +56,10 @@ curl -i http://127.0.0.1:8080/readyz
 | POST   | `/v1/responses`         | Responses pass-through to OpenCode Go (E02; `503` when provider disabled). |
 | GET    | `/v1/models`            | Provider model catalog pass-through (E02).                                 |
 | GET    | `/diagnostics/providers`| Provider configuration and availability state, no secrets (E02).           |
+| GET    | `/v1/catalog/models`    | Normalized catalog with filtered presence, listing state and capability (E03). |
+| GET    | `/v1/catalog/models/{provider}/{model...}` | One model with provenance metadata and capabilities (E03).  |
+| GET    | `/v1/catalog/providers` | Provider sync state, freshness and catalog counts (E03).                   |
+| POST   | `/v1/catalog/sync`      | Trigger a bounded catalog synchronization (E03; state change).             |
 
 Both return `application/json` with `Cache-Control: no-store`. A request may
 send `X-Request-Id` (8–128 characters of `A-Z a-z 0-9 . _ : -`); a valid value is
@@ -77,6 +84,9 @@ variables are ignored with a startup warning; invalid values abort startup.
 | `AIHUB_LOG_FORMAT`                     | `json`                               |
 | `AIHUB_PROVIDER_OPENCODEGO_BASE_URL`   | `https://opencode.ai/inference/go`   |
 | `AIHUB_PROVIDER_OPENCODEGO_API_KEY`    | *(empty — provider disabled)*        |
+| `AIHUB_DATA_DIR`                       | `${XDG_DATA_HOME:-$HOME/.local/share}/ai-hub` |
+| `AIHUB_CATALOG_STALE_AFTER`            | `24h`                                |
+| `AIHUB_CATALOG_SYNC_TIMEOUT`           | `10s`                                |
 
 Durations use Go syntax (`250ms`, `15s`, `1m30s`). See [.env.example](.env.example).
 
@@ -91,6 +101,31 @@ is visible at `GET /diagnostics/providers`; a missing key disables the
 provider without affecting readiness. `previous_response_id` is never emitted
 (translated models such as `deepseek-v4.1-flash` require full conversation
 replay — see `docs/research/opencode-go-protocol-spike.md`).
+
+### Model catalog (E03)
+
+The catalog stores a provider-scoped entry per model (`provider_id` +
+`model_id`) with the closed nine-capability vocabulary, provenance/confidence
+and the full upstream metadata. Capabilities are conservative: a modality is
+`supported` only when the provider declares it, and absence is `unknown`, never
+`unsupported`. Listing state combines presence, freshness and provider health;
+it never implies that a model executed successfully (`execution_verification`
+is `unverified`).
+
+Synchronization runs asynchronously at startup (only when the provider is
+healthy) and on demand through `POST /v1/catalog/sync`. A successful snapshot
+is written atomically under `AIHUB_DATA_DIR`; a corrupt snapshot is quarantined
+before the catalog starts empty, and a failed write never replaces the previous
+valid snapshot. An empty upstream payload is rejected as `rejected_empty`
+without deleting known models.
+
+```bash
+curl -s http://127.0.0.1:8080/v1/catalog/models
+curl -s http://127.0.0.1:8080/v1/catalog/providers
+curl -s -X POST http://127.0.0.1:8080/v1/catalog/sync
+```
+
+`GET /v1/models` remains the E02 byte-for-byte provider pass-through.
 
 ### Real integration smoke test
 
@@ -115,8 +150,10 @@ golangci-lint run ./...
 
 - [`docs/architecture.md`](docs/architecture.md) — implemented architecture and flow.
 - [`docs/specs/E02-provider-management.md`](docs/specs/E02-provider-management.md) — E02 spec and decisions.
+- [`docs/specs/E03-model-catalog.md`](docs/specs/E03-model-catalog.md) — E03 spec and decisions.
+- [`docs/design/E03-model-catalog-design.md`](docs/design/E03-model-catalog-design.md) — E03 technical design.
 - [`docs/research/opencode-go-protocol-spike.md`](docs/research/opencode-go-protocol-spike.md) — validated integration evidence.
-- [`docs/adr/`](docs/adr/) — architecture decision records.
+- [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 and ADR-010).
 
 ## Known limitations
 
@@ -126,7 +163,12 @@ golangci-lint run ./...
 - Provider sessions are per-request in E02; cross-turn continuity of generated
   `x-opencode-session` values depends on a future AI Hub context/session layer.
 - No retries, fallback or quota enforcement (E05/E09).
-- No persistence; readiness has no dependency checks registered yet.
+- No persistence beyond the catalog snapshot; readiness has no dependency checks registered yet.
+- The catalog is derived data: it reflects the last accepted sync, not a live
+  execution probe. Synchronization runs at startup (healthy provider only) and
+  on demand; there is no periodic refresh. One process owns a data directory.
+- A successful catalog sync records `upstream_status` as 200; non-200 2xx
+  variants from the models endpoint are not propagated in E03.
 - No metrics or OpenTelemetry export (E06).
 - `X-Request-Id` is the only correlation header accepted.
 - No CI pipeline and no container image.

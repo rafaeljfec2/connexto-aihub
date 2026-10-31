@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,9 @@ const (
 	EnvLogFormat                 = "AIHUB_LOG_FORMAT"
 	EnvProviderOpenCodeGoBaseURL = "AIHUB_PROVIDER_OPENCODEGO_BASE_URL"
 	EnvProviderOpenCodeGoAPIKey  = "AIHUB_PROVIDER_OPENCODEGO_API_KEY"
+	EnvDataDir                   = "AIHUB_DATA_DIR"
+	EnvCatalogStaleAfter         = "AIHUB_CATALOG_STALE_AFTER"
+	EnvCatalogSyncTimeout        = "AIHUB_CATALOG_SYNC_TIMEOUT"
 )
 
 // knownEnvKeys lists every variable the application consumes.
@@ -45,6 +49,9 @@ var knownEnvKeys = map[string]struct{}{
 	EnvLogFormat:                 {},
 	EnvProviderOpenCodeGoBaseURL: {},
 	EnvProviderOpenCodeGoAPIKey:  {},
+	EnvDataDir:                   {},
+	EnvCatalogStaleAfter:         {},
+	EnvCatalogSyncTimeout:        {},
 }
 
 // LogLevel is a validated log level accepted by the application.
@@ -141,11 +148,20 @@ type Provider struct {
 	OpenCodeGo ProviderOpenCodeGo
 }
 
+// Catalog groups the model catalog settings. An empty DataDir means "resolve
+// the XDG default during Load".
+type Catalog struct {
+	DataDir     string
+	StaleAfter  time.Duration
+	SyncTimeout time.Duration
+}
+
 // Config is the root configuration.
 type Config struct {
 	Server   Server
 	Log      Log
 	Provider Provider
+	Catalog  Catalog
 }
 
 // Default returns the baseline configuration used as the starting point for
@@ -170,6 +186,10 @@ func Default() Config {
 				BaseURL: "https://opencode.ai/inference/go",
 			},
 		},
+		Catalog: Catalog{
+			StaleAfter:  24 * time.Hour,
+			SyncTimeout: 10 * time.Second,
+		},
 	}
 }
 
@@ -183,11 +203,39 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	if cfg.Catalog.DataDir == "" {
+		dir, err := defaultDataDir()
+		if err != nil {
+			return Config{}, fmt.Errorf("%s: %w", EnvDataDir, err)
+		}
+
+		cfg.Catalog.DataDir = dir
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
 
 	return cfg, nil
+}
+
+// defaultDataDir resolves the local data directory from the XDG base directory
+// specification.
+func defaultDataDir() (string, error) {
+	if dir := os.Getenv("XDG_DATA_HOME"); dir != "" {
+		if !filepath.IsAbs(dir) {
+			return "", errors.New("XDG_DATA_HOME must be an absolute path")
+		}
+
+		return filepath.Join(dir, "ai-hub"), nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+
+	return filepath.Join(home, ".local", "share", "ai-hub"), nil
 }
 
 // UnknownEnvVariables returns AIHUB_* variables present in the environment that
@@ -239,6 +287,10 @@ func applyEnvironment(cfg *Config) error {
 		cfg.Provider.OpenCodeGo.APIKey = value
 	}
 
+	if value, ok := os.LookupEnv(EnvDataDir); ok {
+		cfg.Catalog.DataDir = value
+	}
+
 	durations := []struct {
 		name   string
 		target *time.Duration
@@ -248,6 +300,8 @@ func applyEnvironment(cfg *Config) error {
 		{EnvServerWriteTimeout, &cfg.Server.WriteTimeout},
 		{EnvServerIdleTimeout, &cfg.Server.IdleTimeout},
 		{EnvServerShutdownTimeout, &cfg.Server.ShutdownTimeout},
+		{EnvCatalogStaleAfter, &cfg.Catalog.StaleAfter},
+		{EnvCatalogSyncTimeout, &cfg.Catalog.SyncTimeout},
 	}
 
 	for _, item := range durations {
@@ -310,6 +364,18 @@ func (c Config) Validate() error {
 
 	if err := ValidateBaseURL(c.Provider.OpenCodeGo.BaseURL); err != nil {
 		errs = append(errs, err)
+	}
+
+	if c.Catalog.DataDir != "" && !filepath.IsAbs(c.Catalog.DataDir) {
+		errs = append(errs, fmt.Errorf("%s must be an absolute path, got %q", EnvDataDir, c.Catalog.DataDir))
+	}
+
+	if c.Catalog.StaleAfter <= 0 {
+		errs = append(errs, errors.New("catalog.stale_after must be greater than zero"))
+	}
+
+	if c.Catalog.SyncTimeout <= 0 {
+		errs = append(errs, errors.New("catalog.sync_timeout must be greater than zero"))
 	}
 
 	return errors.Join(errs...)

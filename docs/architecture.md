@@ -1,8 +1,8 @@
-# AI Hub — Implemented Architecture (E01–E02)
+# AI Hub — Implemented Architecture (E01–E03)
 
 This document describes what exists today. Product vision and future layers are
 in `AI-Hub-Product-Architecture-Kickoff.md`; E02 (first provider integration
-plus gateway passthrough) is implemented alongside E01.
+plus gateway passthrough) and E03 (model catalog) are implemented alongside E01.
 
 ## Runtime model
 
@@ -37,16 +37,17 @@ only.
 
 ## Packages
 
-| Package                   | Responsibility                                                        |
-| ------------------------- | ------------------------------------------------------------------------ |
-| `cmd/ai-hub`              | Process entrypoint, flags, signal handling, shutdown budget.          |
-| `internal/app`            | `Module` contract, ordered start, reverse-order stop, rollback.       |
-| `internal/config`         | Typed configuration, env defaults overrides, validation, provider settings. |
-| `internal/server`         | Listener, `http.Server`, routing tree and HTTP middleware.            |
-| `internal/health`         | Readiness registry and liveness/readiness handlers.                   |
-| `internal/observability`  | `slog` construction and correlation ID context propagation.           |
-| `internal/providers`      | OpenCode Go adapter: credential handling, catalog, Responses execution, provider state (E02). |
-| `internal/gateway`        | Provider passthrough handlers: Responses, models catalog, provider diagnostics (E02). |
+| Package                  | Responsibility                                                                                            |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `cmd/ai-hub`             | Process entrypoint, flags, signal handling, shutdown budget.                                              |
+| `internal/app`           | `Module` contract, ordered start, reverse-order stop, rollback.                                           |
+| `internal/config`        | Typed configuration, env defaults overrides, validation, provider settings.                               |
+| `internal/server`        | Listener, `http.Server`, routing tree and HTTP middleware.                                                |
+| `internal/health`        | Readiness registry and liveness/readiness handlers.                                                       |
+| `internal/observability` | `slog` construction and correlation ID context propagation.                                               |
+| `internal/providers`     | OpenCode Go adapter: credential handling, catalog descriptors, Responses execution, provider state (E02). |
+| `internal/catalog`       | Model catalog domain, JSON snapshot, synchronization and queries (E03).                                   |
+| `internal/gateway`       | Provider passthrough handlers (E02) and catalog handlers (E03).                                           |
 
 `providers` is a concrete adapter, not an interface-driven layer: the spike
 validated exactly one adapter shape (Responses in, Responses out); an
@@ -58,8 +59,8 @@ abstraction will be introduced only when a second provider exists.
    listener is created.
 2. The logger is built from the validated log settings.
 3. Modules are constructed explicitly and injected into `app.New`.
-4. `App.Start` starts modules in order, stopping already started modules in
-   reverse order if one fails.
+4. `App.Start` starts modules in order (`providers` → `catalog` → `http-server`),
+   stopping already started modules in reverse order if one fails.
 5. The process waits for `SIGINT`/`SIGTERM` or a fatal serving error.
 6. `App.Stop` runs with a context limited by `server.shutdown_timeout` and stops
    modules in reverse order, joining errors.
@@ -82,6 +83,8 @@ access logging (method, path, status, bytes, duration, correlation id)
 http.ServeMux ->  GET /healthz | GET /readyz
    |              | GET /v1/models        | GET /diagnostics/providers
    |              | POST /v1/responses    (streaming, byte-for-byte pass-through)
+   |              | GET /v1/catalog/models | GET /v1/catalog/models/{provider}/{model...}
+   |              | GET /v1/catalog/providers | POST /v1/catalog/sync
 ```
 
 The access log intentionally excludes headers, query strings and bodies, so
@@ -103,6 +106,14 @@ AIHUB_PROVIDER_OPENCODEGO_BASE_URL=   # default https://opencode.ai/inference/go
 AIHUB_PROVIDER_OPENCODEGO_API_KEY=    # empty => provider disabled
 ```
 
+Catalog settings (E03):
+
+```env
+AIHUB_DATA_DIR=                       # default ${XDG_DATA_HOME:-~/.local/share}/ai-hub
+AIHUB_CATALOG_STALE_AFTER=24h         # freshness threshold; must be > 0
+AIHUB_CATALOG_SYNC_TIMEOUT=10s        # startup and manual sync deadline; must be > 0
+```
+
 An invalid base URL (scheme, host, query/fragment or embedded credentials)
 aborts startup; a missing API key does not — the provider starts disabled.
 
@@ -117,7 +128,8 @@ The registry is empty as long as no dependency is registered. Provider
 availability deliberately does **not** flip readiness: a disabled or unhealthy
 provider is a diagnostic state exposed at `GET /diagnostics/providers`, never a
 decision about whether the application itself is fine (see E02 SPEC decision
-D-R).
+D-R). Catalog synchronization has the same stance: a failed sync or a stale
+catalog never affects `/readyz`.
 
 ## Provider integration (E02)
 
@@ -145,6 +157,43 @@ The first provider is `opencode-go`, integrated exactly as validated in
   `AIHUB_PROVIDER_OPENCODEGO_API_KEY` and is always skipped otherwise; mock
   green tests never count as real integration success.
 
+## Model catalog (E03)
+
+The catalog is a derived, provider-scoped view of the models a provider exposes.
+Identity is `(provider_id, model_id)`; `canonical_id` is vendor metadata and is
+never a key. Each entry carries the closed nine-capability vocabulary with
+`state`, `provenance`, `confidence` and `verification`. Modality enumerations
+only produce positive claims: an absent modality is `unknown`, never
+`unsupported`. `provider_metadata` preserves the upstream object losslessly.
+
+Listing is derived per request from four independent dimensions: `presence`
+(last accepted sync), `freshness` (`stale_after`), `provider_state` (E02) and
+`execution_verification` (always `unverified` in E03). `listing_state=current`
+is a catalog condition, not proof that a model can execute a request.
+
+Synchronization:
+
+- At startup the module loads the snapshot, then runs one asynchronous sync
+  only when the provider is enabled and healthy. Disabled, unhealthy or
+  `unknown` providers are recorded as `skipped`; startup never fails.
+- `POST /v1/catalog/sync` runs synchronously with `catalog.sync_timeout`,
+  single-flight, and rejects an empty upstream payload as `rejected_empty`
+  without deleting known models.
+- An accepted sync is persisted before it is committed to memory. If the write
+  fails, the accepted entries/counters/`last_success_at` remain unchanged; the
+  operational attempt is recorded in memory as `failed/persistence` and is lost
+  on restart. A directory-`fsync` failure is reported as
+  completed-but-not-durable, not as a failed write.
+- Missing models are retained with `missing_since`; `missing` counts only the
+  present→absent transition of the accepted sync.
+
+Persistence is a versioned JSON snapshot at `{AIHUB_DATA_DIR}/catalog.json`
+(`0600`, directory `0700`). Writes use a temp file, file `fsync`, `rename` and a
+best-effort directory `fsync`; the previous snapshot is never truncated. A
+corrupt or unsupported snapshot is quarantined under a unique name before the
+catalog starts empty; if quarantine fails, writes are disabled for the session
+so recoverable data is never overwritten. One process owns the data directory.
+
 ## Error handling
 
 Errors are wrapped with context and propagated upward; `main` prints the failure
@@ -162,3 +211,27 @@ codes. Panics are recovered, logged, and answered with `500`.
 - `-race` enabled in the documented test command.
 - `internal/providers/live_smoke_test.go` covers the real upstream, strictly
   opt-in via environment variables (never part of ordinary test runs).
+- Catalog tests cover the capability mapping, listing matrix, sync counters,
+  snapshot round-trip, quarantine, P1/preservation and fault-injected write,
+  close and directory-`fsync` failures, plus handler contracts.
+- `internal/catalog/live_smoke_test.go` performs a real catalog sync when
+  `AIHUB_LIVE_SMOKE=1` and a credential are present.
+
+# Strict Code Architecture Rules
+
+## File Length Limits (Token Optimization)
+
+- **Hard Limit:** No source code file may exceed **300 physical lines** under any circumstances.
+- **Pre-Refactoring Trigger:** If a modification or a new feature causes a file to exceed 250 lines, you MUST stop and plan a refactoring before writing any more code.
+- **Definition of Done:** A task is NOT complete if any file modified or created contains more than 300 lines.
+
+## Automated Refactoring Protocol
+
+If a file hits the line limit, you are strictly required to:
+
+1. **Apply SRP (Single Responsibility Principle):** Isolate core logic from auxiliary logic.
+2. **Extract Modules:** Split utility functions, sub-components, types/interfaces, or constants into separate files within the same domain directory.
+3. **Orchestrate Only:** Keep the main file as a clean orchestrator, ideally below 200 lines after the split.
+4. **Notify the User:** Explicitly list the new files created and explain the breakdown strategy applied.
+
+_Failure to comply with this limit will result in token waste and context degradation. Prioritize modularity over convenience._

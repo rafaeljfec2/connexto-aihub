@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"aihub/internal/app"
+	"aihub/internal/catalog"
 	"aihub/internal/config"
 	"aihub/internal/gateway"
 	"aihub/internal/health"
@@ -63,6 +64,14 @@ func run() error {
 
 	providerModule := providers.NewManager(logger, providerClient)
 
+	catalogStore := catalog.NewStore(cfg.Catalog.DataDir, logger)
+	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
+		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
+	}, catalogStore, catalog.Options{
+		StaleAfter:  cfg.Catalog.StaleAfter,
+		SyncTimeout: cfg.Catalog.SyncTimeout,
+	})
+
 	readiness := health.NewRegistry()
 
 	router := server.NewRouter(logger, health.Live(), readiness.Ready(),
@@ -81,11 +90,31 @@ func run() error {
 			Pattern: "/diagnostics/providers",
 			Handler: gateway.NewProvidersHandler(providerModule.Statuses),
 		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/v1/catalog/models",
+			Handler: gateway.NewCatalogModelsHandler(catalogModule),
+		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/v1/catalog/models/{provider}/{model...}",
+			Handler: gateway.NewCatalogModelHandler(catalogModule),
+		},
+		server.Route{
+			Method:  http.MethodGet,
+			Pattern: "/v1/catalog/providers",
+			Handler: gateway.NewCatalogProvidersHandler(catalogModule),
+		},
+		server.Route{
+			Method:  http.MethodPost,
+			Pattern: "/v1/catalog/sync",
+			Handler: gateway.NewCatalogSyncHandler(catalogModule),
+		},
 	)
 
 	httpServer := server.New(cfg.Server, router, logger)
 
-	application, err := app.New(logger, providerModule, httpServer)
+	application, err := app.New(logger, providerModule, catalogModule, httpServer)
 	if err != nil {
 		return err
 	}
