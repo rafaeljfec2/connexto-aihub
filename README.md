@@ -250,6 +250,98 @@ also honors `AIHUB_PROVIDER_OPENCODEGO_BASE_URL` when set and does not require
 the gateway API key; mock-based green tests do not count as real integration
 success.
 
+See also the [Codex E07 report](docs/validation/E07-codex-first-harness-integration.md).
+
+### Codex CLI validation (experimental; E07 incomplete)
+
+E07 has not established Codex CLI support. The latest real-provider attempt
+used `codex-cli 0.164.0-alpha.11.1`, Go `1.23.0`, Linux `amd64`, and model
+`deepseek-v4.1-flash`; see the [E07 validation report](docs/validation/E07-codex-first-harness-integration.md)
+for the scenario results and limitations. Do not treat this procedure as a
+support claim.
+
+Prerequisites are Bash, Go 1.23, the recorded Codex CLI release, an available
+OpenCode Go provider credential, and the selected model. This manual smoke
+uses two separate terminal sessions. It does not edit `~/.codex`, project
+`.env` files, or tracked Codex configuration.
+
+In Terminal A, make the provider key available only to the AI Hub process,
+enter a distinct gateway key without echo, create dedicated data storage, and
+start the Hub on its loopback default:
+
+```bash
+export AIHUB_PROVIDER_OPENCODEGO_API_KEY="$OPENCODE_API_KEY"
+export AIHUB_DATA_DIR="$(mktemp -d)"
+read -r -s -p 'AI Hub gateway key: ' AIHUB_GATEWAY_API_KEY
+printf '\n'
+export AIHUB_GATEWAY_API_KEY
+test -n "${AIHUB_PROVIDER_OPENCODEGO_API_KEY:-}" && test -n "${AIHUB_GATEWAY_API_KEY:-}"
+go run ./cmd/ai-hub -env-file /dev/null
+```
+
+The gateway key must be 32–512 characters in E04's `b64token` grammar and
+must differ from the provider key. Do not place either value in a command,
+Codex TOML, or repository file.
+
+In Terminal B, create `CODEX_HOME` before writing its configuration. The
+provider uses the local Responses endpoint and reads the gateway key from the
+environment variable named by `env_key`:
+
+```bash
+export CODEX_HOME="$(mktemp -d)"
+mkdir -m 700 -p "$CODEX_HOME"
+cat > "$CODEX_HOME/config.toml" <<'EOF'
+model = "deepseek-v4.1-flash"
+model_provider = "aihub"
+sandbox_mode = "workspace-write"
+
+[model_providers.aihub]
+name = "AI Hub OpenCode Go"
+base_url = "http://127.0.0.1:8080/v1"
+wire_api = "responses"
+env_key = "AIHUB_CLIENT_KEY"
+request_max_retries = 0
+stream_max_retries = 0
+EOF
+read -r -s -p 'AI Hub gateway key: ' AIHUB_CLIENT_KEY
+printf '\n'
+export AIHUB_CLIENT_KEY
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY OPENCODE_API_KEY
+test -n "${AIHUB_CLIENT_KEY:-}"
+WORKDIR="$(mktemp -d)"
+printf 'Reply with exactly E07_BASIC_OK and no other text.\n' |
+  (cd "$WORKDIR" && HOME="$CODEX_HOME" codex exec --sandbox workspace-write --skip-git-repo-check -)
+unset AIHUB_CLIENT_KEY
+rm -r -- "$CODEX_HOME" "$WORKDIR"
+```
+
+The Codex process receives only the gateway credential; it does not inherit
+the provider credential or the Hub's gateway variable. Keep sandbox and
+approval behavior enabled. After the manual smoke, stop the Hub gracefully
+with Ctrl-C and remove only the temporary `CODEX_HOME`, `WORKDIR`, and data
+directories created for this run:
+
+```bash
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
+rm -r -- "$AIHUB_DATA_DIR"
+```
+
+The opt-in E07 validator exercises records, probes, streaming, restart, and
+before/after integrity checks in one bounded pass. Supply the provider
+credential through `AIHUB_PROVIDER_OPENCODEGO_API_KEY` or the existing
+`OPENCODE_API_KEY` environment variable. If `AIHUB_GATEWAY_API_KEY` is unset,
+the validator generates a distinct temporary gateway key in memory and passes
+it to the Hub and Codex child without printing or persisting it. Then run:
+
+```bash
+AIHUB_E07_LIVE=1 go test ./cmd/ai-hub -run '^TestE07LiveCodexOpenCodeGo$' -count=1 -v
+```
+
+The validator creates and removes isolated Codex, data, and tool-workspace
+directories. Its report emits scenario statuses and aggregate measurements
+only. A skipped or failed required scenario leaves E07 incomplete; do not add
+a Codex support claim until every required scenario passes.
+
 ## Tests and validation
 
 ```bash
@@ -270,6 +362,9 @@ golangci-lint run ./...
 - [`docs/specs/E05-execution.md`](docs/specs/E05-execution.md) — E05 execution lifecycle spec.
 - [`docs/specs/E06-execution-records.md`](docs/specs/E06-execution-records.md) — E06 spec and decisions.
 - [`docs/design/E06-execution-records-design.md`](docs/design/E06-execution-records-design.md) — E06 technical design.
+- [`docs/specs/E07-codex-first-harness-integration.md`](docs/specs/E07-codex-first-harness-integration.md) — approved E07 scope and acceptance criteria.
+- [`docs/design/E07-codex-first-harness-integration-design.md`](docs/design/E07-codex-first-harness-integration-design.md) — E07 validation design.
+- [`docs/validation/E07-codex-first-harness-integration.md`](docs/validation/E07-codex-first-harness-integration.md) — incomplete E07 scenario evidence.
 - [`docs/discovery/E06-discovery.md`](docs/discovery/E06-discovery.md) — E06 discovery evidence.
 - [`docs/research/opencode-go-protocol-spike.md`](docs/research/opencode-go-protocol-spike.md) — validated integration evidence.
 - [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 through ADR-013).
