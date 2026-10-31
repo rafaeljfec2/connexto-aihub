@@ -15,6 +15,7 @@ import (
 	"aihub/internal/app"
 	"aihub/internal/catalog"
 	"aihub/internal/config"
+	"aihub/internal/execution"
 	"aihub/internal/gateway"
 	"aihub/internal/health"
 	"aihub/internal/observability"
@@ -64,6 +65,13 @@ func run() error {
 	}
 
 	providerModule := providers.NewManager(logger, providerClient)
+	executionManager := execution.NewManager(logger, providers.OpenCodeGoID,
+		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			return providerClient.OpenTargetResponses(ctx, providers.ResponsesTarget{
+				ProviderID: target.ProviderID,
+				ModelID:    target.ModelID,
+			}, payload, contentType, sessionID)
+		}, gateway.StreamInactivityTimeout)
 
 	catalogStore := catalog.NewStore(cfg.Catalog.DataDir, logger)
 	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
@@ -90,7 +98,7 @@ func run() error {
 		server.Route{
 			Method:    http.MethodPost,
 			Pattern:   "/v1/responses",
-			Handler:   gateway.NewResponsesHandler(providerClient, logger, gateway.StreamInactivityTimeout),
+			Handler:   gateway.NewResponsesHandlerWithManager(providerClient, executionManager, logger, gateway.StreamInactivityTimeout),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes()),
 		},
 		server.Route{
@@ -129,8 +137,10 @@ func run() error {
 	httpServer := server.New(cfg.Server, router, logger,
 		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),
 	)
+	lifecycle := newExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
+	guardedProvider := newGuardedProviderModule(providerModule, executionManager)
 
-	application, err := app.New(logger, providerModule, catalogModule, httpServer)
+	application, err := app.New(logger, guardedProvider, catalogModule, lifecycle)
 	if err != nil {
 		return err
 	}

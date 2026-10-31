@@ -4,12 +4,16 @@
 package providers
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"aihub/internal/config"
@@ -17,6 +21,24 @@ import (
 
 // OpenCodeGoID identifies the first integrated provider.
 const OpenCodeGoID = "opencode-go"
+
+// ResponsesTarget identifies the already-selected destination for a request.
+type ResponsesTarget struct {
+	ProviderID string
+	ModelID    string
+}
+
+// ResponseHeaderTimeoutError marks the configured upstream header deadline.
+type ResponseHeaderTimeoutError struct{}
+
+func (ResponseHeaderTimeoutError) Error() string {
+	return "provider response header timeout"
+}
+
+// IsResponseHeaderTimeout identifies this transport-specific opening timeout.
+func (ResponseHeaderTimeoutError) IsResponseHeaderTimeout() bool {
+	return true
+}
 
 // Endpoint paths appended to the configured base URL. They follow the spike
 // findings (docs/research/opencode-go-protocol-spike.md §2.1): the models path
@@ -79,6 +101,39 @@ func (c *Client) OpenResponses(ctx context.Context, body io.Reader, contentType,
 	header.Set("X-Opencode-Session", sessionID)
 
 	return c.do(ctx, http.MethodPost, responsesPath, body, header)
+}
+
+// OpenTargetResponses forwards a prepared payload for an explicit provider
+// target. Target metadata never rewrites the payload.
+func (c *Client) OpenTargetResponses(ctx context.Context, target ResponsesTarget, payload []byte, contentType, sessionID string) (*http.Response, error) {
+	if target.ProviderID != OpenCodeGoID {
+		return nil, errors.New("provider target does not match OpenCode Go")
+	}
+	if target.ModelID != "" && strings.TrimSpace(target.ModelID) == "" {
+		return nil, errors.New("provider model identity must not be empty")
+	}
+
+	var requestWritten atomic.Bool
+	trace := &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
+		if info.Err == nil {
+			requestWritten.Store(true)
+		}
+	}}
+	requestContext := httptrace.WithClientTrace(ctx, trace)
+	header := make(http.Header, 2)
+	header.Set("Content-Type", contentType)
+	header.Set("X-Opencode-Session", sessionID)
+
+	response, err := c.do(requestContext, http.MethodPost, responsesPath,
+		bytes.NewReader(payload), header)
+	if err == nil || ctx.Err() != nil || !requestWritten.Load() {
+		return response, err
+	}
+	var networkError net.Error
+	if errors.As(err, &networkError) && networkError.Timeout() {
+		return nil, ResponseHeaderTimeoutError{}
+	}
+	return nil, err
 }
 
 // Stop releases idle connections for process shutdown.

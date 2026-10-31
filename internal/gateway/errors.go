@@ -20,10 +20,16 @@ type errorPayload struct {
 
 // Failure types surfaced by the gateway itself.
 const (
-	providerUnavailableType = "provider_unavailable"
-	upstreamUnavailableType = "upstream_unavailable"
-	providerUnavailableMsg  = "provider opencode-go is not configured"
-	upstreamUnavailableMsg  = "the upstream provider request failed"
+	providerUnavailableType  = "provider_unavailable"
+	upstreamUnavailableType  = "upstream_unavailable"
+	executionUnavailableType = "execution_unavailable"
+	executionTimeoutType     = "execution_timeout"
+	executionFailedType      = "execution_failed"
+	providerUnavailableMsg   = "provider opencode-go is not configured"
+	upstreamUnavailableMsg   = "the upstream provider request failed"
+	executionUnavailableMsg  = "the execution manager is shutting down"
+	executionTimeoutMsg      = "the upstream provider did not respond in time"
+	executionFailedMsg       = "the execution could not be started"
 )
 
 func writeJSONError(w http.ResponseWriter, status int, failureType, message string) {

@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -10,39 +11,37 @@ import (
 	"net/http"
 	"time"
 
+	"aihub/internal/access"
+	"aihub/internal/execution"
+	"aihub/internal/observability"
 	"aihub/internal/providers"
 )
 
-// StreamInactivityTimeout bounds the silence between two streamed chunks.
-// It re-arms per chunk, so whole streams may run far longer, and it is an
-// inactivity bound rather than a total-duration cap (ADR-008).
+// StreamInactivityTimeout bounds silence between streamed chunks.
 const StreamInactivityTimeout = 2 * time.Minute
 
 const (
-	streamCopyBufferSize  = 32 << 10
-	streamChannelCapacity = 16
+	sessionHeader = "X-Opencode-Session"
+	SessionPrefix = "aihub-ses-"
 )
 
-// sessionHeader carries the provider execution context. Request correlation
-// (X-Request-Id) is unrelated and never derives this value.
-const sessionHeader = "X-Opencode-Session"
-
-// SessionPrefix keeps generated provider session identifiers recognizable.
-const SessionPrefix = "aihub-ses-"
-
-// NewResponsesHandler returns the Responses passthrough handler. The request
-// body reaches the upstream byte-for-byte; the adapter never injects
-// previous_response_id or performs any protocol translation (D4).
+// NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration) http.Handler {
+	manager := newExecutionManager(client, logger, inactivity)
+	return NewResponsesHandlerWithManager(client, manager, logger, inactivity)
+}
+
+// NewResponsesHandlerWithManager binds the HTTP boundary to the shared manager.
+func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-
-	return &responsesHandler{client: client, logger: logger, inactivity: inactivity}
+	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity}
 }
 
 type responsesHandler struct {
 	client     *providers.Client
+	manager    *execution.Manager
 	logger     *slog.Logger
 	inactivity time.Duration
 }
@@ -50,164 +49,112 @@ type responsesHandler struct {
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !h.client.Enabled() {
 		writeJSONError(w, http.StatusServiceUnavailable, providerUnavailableType, providerUnavailableMsg)
-
 		return
 	}
 
-	sessionID, err := resolveSessionID(r)
+	sessionID, err := providerSessionID(r)
 	if err != nil {
-		h.logger.Error("session id generation failed", "error", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-
+		h.logger.ErrorContext(r.Context(), "session id generation failed", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, executionFailedType, executionFailedMsg)
 		return
 	}
-
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "the request body could not be read")
+		return
+	}
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = "application/json"
 	}
 
-	response, err := h.client.OpenResponses(r.Context(), r.Body, contentType, sessionID)
+	result, err := h.manager.Execute(r.Context(), execution.Command{
+		RequestID:         observability.CorrelationIDFrom(r.Context()),
+		Target:            execution.Target{ProviderID: providers.OpenCodeGoID},
+		ProviderSessionID: sessionID,
+		Payload:           payload,
+		ContentType:       contentType,
+	}, &responseSink{writer: w, inactivity: h.inactivity})
+	if errors.Is(err, execution.ErrUnavailable) {
+		writeJSONError(w, http.StatusServiceUnavailable, executionUnavailableType, executionUnavailableMsg)
+		return
+	}
 	if err != nil {
-		// Only the wrapped, credential-free message is recorded; the raw
-		// transport error is never echoed to the client.
-		h.logger.Error("upstream responses request failed", "error", err)
-		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
-
+		h.logger.ErrorContext(r.Context(), "execution command rejected", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, executionFailedType, executionFailedMsg)
+		return
+	}
+	if result.Committed {
 		return
 	}
 
-	defer func() { _ = response.Body.Close() }()
-
-	if upstreamType := response.Header.Get("Content-Type"); upstreamType != "" {
-		w.Header().Set("Content-Type", upstreamType)
+	if result.Outcome == execution.OutcomeTimedOut && result.Phase == execution.PhaseOpening {
+		writeJSONError(w, http.StatusGatewayTimeout, executionTimeoutType, executionTimeoutMsg)
+		return
 	}
-
-	w.WriteHeader(response.StatusCode)
-	h.copyStream(w, r, response.Body)
-}
-
-// copyStream forwards the upstream body chunk by chunk, flushing after every
-// chunk and re-arming both deadline mechanisms (ADR-008). Reads happen on a
-// dedicated goroutine, so the handler stays responsive to client disconnects
-// and inactivity.
-func (h *responsesHandler) copyStream(w http.ResponseWriter, r *http.Request, body io.ReadCloser) {
-	controller := http.NewResponseController(w)
-	_ = controller.SetWriteDeadline(time.Now().Add(h.inactivity))
-
-	quit := make(chan struct{})
-	defer close(quit)
-
-	timer := time.NewTimer(h.inactivity)
-	defer timer.Stop()
-
-	chunks := startReader(body, quit)
-
-	for {
-		select {
-		case <-timer.C:
-			h.logger.Warn("stream inactivity timeout; aborting passthrough", "path", r.URL.Path)
-
-			return
-
-		case <-r.Context().Done():
-			h.logger.Info("client disconnected; aborting passthrough", "path", r.URL.Path)
-
-			return
-
-		case chunk := <-chunks:
-			if chunk.err != nil {
-				if !errors.Is(chunk.err, io.EOF) {
-					h.logger.Warn("upstream stream ended with error", "path", r.URL.Path)
-				}
-
-				return
-			}
-
-			if _, writeErr := w.Write(chunk.data); writeErr != nil {
-				h.logger.Warn("client write failed; aborting passthrough", "path", r.URL.Path)
-
-				return
-			}
-
-			if flusher, canFlush := w.(http.Flusher); canFlush {
-				flusher.Flush()
-			}
-			_ = controller.SetWriteDeadline(time.Now().Add(h.inactivity))
-			rearmTimer(timer, h.inactivity)
-		}
+	if result.Outcome == execution.OutcomeFailed && result.Phase == execution.PhaseOpening {
+		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
 	}
 }
 
-// chunkResult is one body read consumed by the copy loop.
-type chunkResult struct {
-	data []byte
-	err  error
+type responseSink struct {
+	writer     http.ResponseWriter
+	inactivity time.Duration
 }
 
-// startReader pumps the upstream body into a bounded channel. Sending
-// respects quit, so the reader goroutine always exits and never leaks.
-func startReader(body io.Reader, quit <-chan struct{}) <-chan chunkResult {
-	chunks := make(chan chunkResult, streamChannelCapacity)
-
-	go func() {
-		buffer := make([]byte, streamCopyBufferSize)
-		for {
-			n, err := body.Read(buffer)
-			if n > 0 {
-				result := make([]byte, n)
-				copy(result, buffer[:n])
-
-				select {
-				case chunks <- chunkResult{data: result}:
-				case <-quit:
-					return
-				}
-			}
-
-			if err != nil {
-				select {
-				case chunks <- chunkResult{err: err}:
-				case <-quit:
-				}
-
-				return
-			}
-		}
-	}()
-
-	return chunks
-}
-
-// rearmTimer restarts the read watchdog. Only the copy loop touches the timer,
-// so the stop/drain/reset sequence is race-free.
-func rearmTimer(timer *time.Timer, inactivity time.Duration) {
-	if !timer.Stop() {
-		select {
-		case <-timer.C:
-		default:
-		}
+func (s *responseSink) Commit(status int, contentType string) {
+	if contentType != "" {
+		s.writer.Header().Set("Content-Type", contentType)
 	}
-
-	timer.Reset(inactivity)
+	controller := http.NewResponseController(s.writer)
+	_ = controller.SetWriteDeadline(time.Now().Add(s.inactivity))
+	s.writer.WriteHeader(status)
 }
 
-// resolveSessionID keeps request correlation independent of the provider
-// execution context (D3): a supplied session header wins, otherwise a fresh
-// session identifier is generated with its own entropy source.
+func (s *responseSink) WriteChunk(chunk []byte) error {
+	if _, err := s.writer.Write(chunk); err != nil {
+		return err
+	}
+	controller := http.NewResponseController(s.writer)
+	if err := controller.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+	_ = controller.SetWriteDeadline(time.Now().Add(s.inactivity))
+	return nil
+}
+
+func newExecutionManager(client *providers.Client, logger *slog.Logger, inactivity time.Duration) *execution.Manager {
+	return execution.NewManager(logger, providers.OpenCodeGoID,
+		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			return client.OpenTargetResponses(ctx, providers.ResponsesTarget{
+				ProviderID: target.ProviderID,
+				ModelID:    target.ModelID,
+			}, payload, contentType, sessionID)
+		}, inactivity)
+}
+
+func providerSessionID(r *http.Request) (string, error) {
+	if metadata, ok := access.MetadataFrom(r.Context()); ok && metadata.ProviderSessionID != "" {
+		return metadata.ProviderSessionID, nil
+	}
+	return resolveSessionID(r)
+}
+
 func resolveSessionID(r *http.Request) (string, error) {
 	if supplied := r.Header.Get(sessionHeader); supplied != "" {
 		return supplied, nil
 	}
-
 	return newSessionID()
 }
 
 func newSessionID() (string, error) {
+	return newPrefixedID(SessionPrefix)
+}
+
+func newPrefixedID(prefix string) (string, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return "", fmt.Errorf("generate provider session id: %w", err)
 	}
-
-	return SessionPrefix + hex.EncodeToString(random[:]), nil
+	return prefix + hex.EncodeToString(random[:]), nil
 }

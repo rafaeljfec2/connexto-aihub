@@ -156,3 +156,11 @@ func (s *Server) Stop(ctx context.Context) error {
 	s.logger.Info("http server stopped")
 	return nil
 }
+
+// ForceClose closes active connections after the graceful shutdown period ends.
+func (s *Server) ForceClose() error {
+	if err := s.httpServer.Close(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("force close http server: %w", err)
+	}
+	return nil
+}
