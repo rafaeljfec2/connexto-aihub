@@ -1,8 +1,8 @@
 # E07 Final E2E Execution Plan
 
-Status: **PROPOSED — no execution is authorized by this document.**
+Status: **CONDITIONALLY AUTHORIZED by the 2026-11-01 final acceptance prompt; execution remains blocked until every precondition passes.**
 
-Date: 2026-10-31.
+Plan drafted: 2026-10-31. Conditional authorization recorded: 2026-11-01.
 
 ## 1. Objective and Authorization Boundary
 
@@ -13,11 +13,13 @@ real-provider pass over:
 Codex CLI → AI Hub → OpenCode Go → Provider
 ```
 
-The original and supplemental passes are consumed. This plan does not authorize
-a third pass. A project lead must approve this plan and the pass budget
-explicitly before any provider scenario begins. If an unmet scenario fails,
-do not retry or rerun it; report the result and request a new decision before
-any later attempt.
+The original and supplemental passes are consumed. The project lead's
+2026-11-01 final acceptance prompt conditionally authorizes exactly one
+additional pass under the limits in this plan, superseding the earlier
+statement that the plan did not authorize execution. No provider traffic may
+start unless every precondition below passes. If an unmet scenario fails, do
+not retry or rerun it; report the result and request a new decision before any
+later attempt.
 
 The pass is limited to loopback, synthetic prompts/markers, isolated Codex and
 Hub state, one selected model, and the existing E05/E06 behavior. Do not alter
@@ -28,7 +30,8 @@ behavior. Do not install tools or bypass Codex sandbox/approval controls.
 
 All conditions below must pass before the first provider-boundary request:
 
-1. The project lead has approved this plan and the exact single-pass budget.
+1. The 2026-11-01 final acceptance prompt conditionally authorizes one pass
+   with the limits in §3; all operational preconditions below still must pass.
 2. The final helper change set is reviewed and contains a hard provider-call
    cap. A call above budget must be rejected before reaching OpenCode Go.
 3. The four E07 test source files exceeding 300 lines have been split within
@@ -100,19 +103,27 @@ call/time budgets are intact; mark skipped scenarios
 
 ## 4. Ordered Scenario Plan
 
-After all preconditions pass, run the consolidated live test exactly once from
-the repository root:
+After all preconditions pass, run the consolidated live test exactly once with
+the hardened procedure documented in the README "Codex CLI validation" section:
+build the test binary in a credential-free environment with a temporary `HOME`
+and temporary Go caches, then execute it once from a sanitized subshell whose
+explicit environment contains only `PATH`, `HOME`, `TMPDIR`,
+`AIHUB_E07_LIVE=1`, `AIHUB_DATA_DIR`, `AIHUB_GATEWAY_API_KEY`, and
+`AIHUB_PROVIDER_OPENCODEGO_API_KEY`. The equivalent invocation is:
 
 ```bash
-AIHUB_E07_LIVE=1 go test ./cmd/ai-hub -run '^TestE07LiveCodexOpenCodeGo$' -count=1 -timeout 30m -v
+"$AIHUB_E07_TEST_DIR/ai-hub-e07.test" \
+  -test.run '^TestE07LiveCodexOpenCodeGo$' -test.count=1 -test.v
 ```
 
-This command was not run during this Discovery. Do not repeat it after a
-failure or environmental interruption.
+Do not run `go test` with credentials present in the environment, because test
+compilation would inherit them. This pass was not executed during any
+E07 discovery or preflight. Do not repeat it after a failure or environmental
+interruption.
 
 | ID | Related ACs | Objective and procedure | Expected result | Evidence and approval condition |
 | --- | --- | --- | --- | --- |
-| E07-PRE-01 | AC-1, AC-2, AC-11, AC-12, AC-14 | Verify versions, sandbox, scanner, credential presence, clean baseline, port, and isolated directories. Write a digest-only private manifest before invoking Codex. Assert the Hub environment contains its gateway and provider credentials; assert the exact Codex child environment contains the gateway credential and excludes the provider and Hub-only credentials. | Every precondition passes; no provider scenario has started. | Presence booleans and category-only readiness record. Any failure stops the pass before provider traffic. |
+| E07-PRE-01 | AC-1, AC-2, AC-11, AC-12, AC-14 | Verify versions, sandbox, scanner, credential presence, clean baseline, port, and isolated directories. Write a metadata-only private manifest before invoking Codex. Assert the Hub environment contains its gateway and provider credentials; assert the exact Codex child environment contains the gateway credential and excludes the provider and Hub-only credentials. | Every precondition passes; no provider scenario has started. | Presence booleans and category-only readiness record. Any failure stops the pass before provider traffic. |
 | E07-GEN-02 | AC-1, AC-2, AC-3, AC-4 | Start AI Hub on loopback with a dedicated data directory and provider key. Before spawning Codex, verify the exact environment allowlist passed to its process; send one basic synthetic prompt. | Non-empty successful response; exactly one Codex Responses request reaches the Hub. | CLI exit/success booleans, credential-presence booleans, and aggregate route count only. |
 | E07-REPLAY-03 | AC-2, AC-5 | In one temporary Codex workspace, establish a synthetic marker in turn one and recall it in turn two. Inspect only the second provider request in memory; restore original request bytes before forwarding. | Two Hub requests; both turns succeed; marker recall passes; prior context is present; `previous_response_id` is absent. | Separate structural booleans and aggregate count. No prompt, response, request ID, or body is saved. |
 | E07-TOOL-04 | AC-2, AC-6 | Ask Codex to write and read a synthetic value in a dedicated temporary workspace outside the repository, with `workspace-write` and normal approvals. | Tool round trip succeeds without bypass. | Exit/result booleans and workspace cleanup result; no tool payload in report. |
@@ -121,7 +132,7 @@ failure or environmental interruption.
 | E07-STREAM-07 | AC-8 | Send one authenticated real-provider streaming request and timestamp SSE arrivals at the Hub client. Observe Codex stdout progression separately from gateway timing. | Multiple SSE events arrive before completion; CLI rendering is directly measured or `NOT VERIFIED`. | Aggregate event count and bounded timings; no response content. |
 | E07-RECORDS-08 | AC-9 | Correlate all admitted scenario requests to E05 terminal observations in memory. Query E06 list and each expected ID independently. Verify provider, terminal outcome, request correlation, `model_id: null`, and `usage: null`. Exclude only the pre-E05 unauthenticated request by its captured request identity. | Every expected normal execution is queryable; each independent assertion passes. | Aggregate expected/matched/mismatch counts only; no generated IDs or record content. |
 | E07-RESTART-09 | AC-10 | Gracefully stop Hub, allow E05 cleanup and the E06 two-second writer drain, restart on the same dedicated data directory, then create fresh contexts and repeat independent list/by-ID queries. | Records accepted and written under normal operation remain queryable after restart. | Aggregate recovery counts and lifecycle result only. State best-effort and loss limits. |
-| E07-INT-CP | AC-1, AC-14 | After each Codex invocation and each provider-bearing scenario, and before any subsequent provider traffic, compare current global Codex/repository/environment fingerprints and Git scope to the private baseline. | No category changes between stages. If a difference appears, stop before the next provider call and mark integrity failed. | Compare digests in memory; report category outcomes only. |
+| E07-INT-CP | AC-1, AC-14 | After each Codex invocation and each provider-bearing scenario, and before any subsequent provider traffic, compare current global Codex/repository/environment fingerprints and Git scope to the private baseline. | No category changes between stages. If a difference appears, stop before the next provider call and mark integrity failed. | Compare the private metadata manifests in memory; report category outcomes only. |
 | E07-INTEGRITY-10 | AC-1, AC-11, AC-12, AC-14 | After cleanup, compare the complete global Codex tree, all existing `.env` files, full repository tree, tracked file content, Git status/scope, and secret scan against the private baseline. Delete the manifest and all temporary state. | Every category passes; no unauthorized file or secret is added; no global Codex change occurs. | Category outcomes only. Never report paths, contents, credential values, hashes, or identifiers. |
 
 ### Same-response upstream oracle
