@@ -19,7 +19,7 @@ opt-in E07 helpers and their tests; no production file was changed.
 | --- | --- |
 | Repository root was the Go package working directory | Root now resolves from Git metadata with a module-marker fallback, so the complete repository is fingerprinted. The live preflight compares the production paths against the recorded E06 baseline commit and rejects untracked or ignored production files instead of requiring an exact current `HEAD`, so committing the test-only E07 change set does not block a future authorized pass. |
 | Integrity coverage missed root/nested `.env`, already-dirty tracked files, and untracked files | The snapshot now combines a full tree digest, environment-file discovery, tracked-file content, and a Git status digest. A content change to an already-dirty tracked file is detected even when `git status` output is unchanged. `.env.example` remains covered by the tree and tracked-file categories but is not treated as a secrets file. |
-| Symlink targets below a directory were not hashed | Symbolic links now record the target and digest resolvable target content, with directory-link cycle protection and an entry bound. |
+| Symlink targets below a directory were not hashed | In the repository snapshot, symbolic links now record the target and digest resolvable target content, with directory-link cycle protection and an entry bound. The separate Codex metadata snapshot instead records a nested link's target without following it. |
 | Before-state fingerprints were memory-only | A private manifest with digests only is written with owner-only permissions under the isolated temporary root outside the repository, loaded for comparison, and removed with that root. A dedicated helper rejects a manifest directory inside the repository. Reports remain category-only. |
 | Record outcome expectations were inferred from HTTP status | Expected outcomes now come from the validation-only E05 terminal observer (the same `FinishedExecution` value the E06 observer receives). A fully read upstream 2xx or 4xx is `completed` with its upstream status; transport and body-read failures keep their E05 failure outcomes. The pre-E05 authentication probe is excluded by captured request identifier, never by status, so an upstream 401 remains verifiable. |
 | List failure suppressed the by-ID and restart checks | List, correlation, outcome, schema-v1 null fields, and by-ID lookup are evaluated independently. The by-ID query addresses the execution identifier directly, every query derives its own context bounded by the remaining poll window, and requests captured without an E05 terminal observation are counted separately. |
@@ -125,7 +125,7 @@ All modified and new Go files remain at or below 300 lines.
 | E05/E06 record behavior and contexts | `e07_records_test.go` (153), `e07_record_outcomes_test.go` (83), `e07_record_assertions_test.go` (182), `e07_record_context_test.go` (74) |
 | Provider-call budget and transport | `e07_provider_budget_support_test.go` (66), `e07_provider_observer_test.go` (138), `e07_provider_budget_test.go` (216) |
 | Upstream response and same-response fidelity | `e07_response_fidelity_test.go` (154), `e07_upstream_response_test.go` (85) |
-| Observer and scenario orchestration | `e07_observer_support_test.go` (82), `e07_live_hub_test.go` (188), `e07_live_scenario_support_test.go` (214), `e07_live_scenarios_test.go` (204), `e07_live_auth_support_test.go` (43), `e07_live_auth_test.go` (29), `e07_provider_timeout_test.go` (38) |
+| Observer and scenario orchestration | `e07_observer_support_test.go` (83), `e07_live_hub_test.go` (188), `e07_live_scenario_support_test.go` (214), `e07_live_scenarios_test.go` (204), `e07_live_auth_support_test.go` (43), `e07_live_auth_test.go` (29), `e07_provider_timeout_test.go` (38) |
 
 Of the 32 existing E07 test functions, 31 remain unchanged by name through the
 splits. The former cross-call error-probe test was replaced by a stricter
@@ -341,3 +341,583 @@ Execution-record guarantees remain E06 best-effort and at-most-once. The
 writer's drain window is two seconds; queue overflow, storage failure, crash,
 retention, or flush expiry can lose records. This run does not establish
 preservation outside normal orderly shutdown.
+
+## Final implementation and acceptance checkpoint — 2026-11-01
+
+Status: **INCOMPLETE — final real-provider acceptance was not started.** The
+two historical E2E passes remain consumed. The user authorized one further
+pass conditionally, but no provider-boundary request was made in this
+checkpoint; the new-pass count is `0/1` and its provider-call count is `0/9`.
+The two consumed passes account for 14 historical provider-boundary calls
+(five in the original pass and nine in the supplemental pass); no provider
+call was made in this checkpoint. The loopback fake Responses server used by
+the synthetic canary is not part of that provider-boundary count.
+
+### Git state and baseline
+
+| Check | Result |
+| --- | --- |
+| Branch | `main` |
+| HEAD | `56cbd0b509494d452e2a1e9472ef3e01830792d7` |
+| `origin/main` | `a8ac19af7cf6457e30f3eb284965c4966ecf033b` |
+| Remote `main` | Matches `origin/main` at `a8ac19af7cf6457e30f3eb284965c4966ecf033b` |
+| Local divergence | One commit ahead, zero behind |
+| Remediation commit | `40196001536b6d07084b8bbd671d646bdd674d32` is an ancestor of HEAD |
+| Staged changes | None |
+| Worktree | Dirty; seven tracked files modified and seven new E07 test files untracked |
+| `.env` worktree state | No modified or untracked `.env` paths reported; ignored values were not read |
+| Approved immutable baseline | **NOT ESTABLISHED** |
+
+Checkpoint runtime: Go `go1.23.0 linux/amd64`; environment `Linux amd64`;
+Codex CLI `codex-cli 0.164.0-alpha.11.1` as observed by the isolated synthetic
+canary; `bwrap` is present. The prior supplemental real-provider pass used
+`deepseek-v4.1-flash`. No model-availability probe or provider request was made
+in this checkpoint.
+
+The Phase 8B inventory contained 29 E07 artifacts. Four existing test helpers
+and the README are modified; seven new test files are untracked; the two
+validation reports are updated. These 14 pending files were observed at that
+checkpoint; the execution-plan authorization update recorded later in this
+report added `docs/validation/E07-final-e2e-execution-plan.md`, for 15 in
+total:
+
+- `README.md`
+- `cmd/ai-hub/e07_live_codex_test.go`
+- `cmd/ai-hub/e07_live_scenarios_test.go`
+- `cmd/ai-hub/e07_live_setup_test.go`
+- `cmd/ai-hub/e07_observer_support_test.go`
+- `cmd/ai-hub/e07_codex_env_policy_support_test.go`
+- `cmd/ai-hub/e07_codex_env_policy_test.go`
+- `cmd/ai-hub/e07_codex_environment_support_test.go`
+- `cmd/ai-hub/e07_codex_policy_provider_test.go`
+- `cmd/ai-hub/e07_codex_process_linux_test.go`
+- `cmd/ai-hub/e07_codex_process_other_test.go`
+- `cmd/ai-hub/e07_codex_tree_manifest_test.go`
+- `docs/validation/E07-codex-first-harness-integration.md`
+- `docs/validation/E07-environment-blocker-resolution.md`
+
+This report update does not stage, commit, or discard any artifact. The full
+E07 worktree therefore cannot be treated as a clean approved baseline for
+provider traffic.
+
+### Codex subprocess policy and local canary
+
+The [official Codex configuration reference](https://developers.openai.com/codex/config-reference/)
+documents
+`shell_environment_policy.inherit` (`all`, `core`, or `none`), `set` as a
+string map, `ignore_default_excludes`, and `experimental_use_profile`. The
+validation helper now writes `inherit = "none"`, an explicit non-secret
+allowlist in `set`, `ignore_default_excludes = false`, and
+`experimental_use_profile = false`. Codex's parent environment is built from
+an allowlist and supplies the gateway credential only under `AIHUB_CLIENT_KEY`;
+temporary `HOME`, `CODEX_HOME`, temporary directories, and XDG config/data/cache/
+state/runtime roots are asserted to remain under one temporary root. Normal
+`workspace-write` sandboxing remains enabled, no approval override is written,
+and the tool invocation does not bypass approvals or sandboxing.
+
+`TestE07CodexShellPolicyDisablesUserProfile` first failed because the generated
+policy omitted the profile setting, then passed after the setting was added.
+`TestE07CodexEnvironmentExcludesProviderCredentials` passed with synthetic
+values and checks the parent and shell-environment builders against
+`OPENCODE_API_KEY` and `AIHUB_PROVIDER_OPENCODEGO_API_KEY`. These unit tests do
+not establish effective CLI behavior by themselves.
+
+| Regression test | Red evidence | Green correction |
+| --- | --- | --- |
+| `TestE07CodexTreeRootsTrackOnlyCodexManagedLocations` | The manifest included XDG locations outside the Codex-managed roots. | Snapshot roots now follow the installed Codex state locations; the test passes. |
+| `TestE07CodexTreeMetadataExcludesDirectoryAccessTimes` | Tree enumeration changed directory access metadata and made a stable tree appear modified. | Access-time fields are excluded from stable metadata comparison; the test passes. |
+| `TestE07StableCodexPreflightRejectsActiveProcess` | Preflight proceeded while a Codex process was active. | Preflight now fails closed before taking the baseline; the test passes. |
+| `TestE07CodexShellPolicyDisablesUserProfile` | The generated shell policy omitted the setting that prevents user-profile loading. | The policy explicitly sets `experimental_use_profile = false`; the test passes. |
+| `TestE07CodexTreeSnapshotRejectsSymlinkStateRoot` and `TestE07CodexTreeSnapshotRecordsNestedSymlink` | Snapshots accepted symlinks without enumerating their targets. | A symbolic-link state root now rejects the snapshot; a nested link is recorded with its target, and retargeting it fails the comparison. Both tests pass. |
+| `TestE07CodexProcessInspectionFailsClosedOnPermissionError` | The Linux process probe treated a permission error as proof that no Codex process was active. | Only a vanished process entry is ignored; unreadable process state returns an error. The test passes. |
+| `TestE07CodexProcessUnsupportedPlatformFailsClosed` | Unsupported process inspection returned `false, nil`. | Unsupported platforms return an error, and the non-Linux test package cross-compiles. |
+
+An isolated local synthetic canary reached Codex CLI
+`codex-cli 0.164.0-alpha.11.1` and a loopback-only fake Responses server. Its
+runtime-path, configuration-redaction, gateway authentication, sandbox, and
+shell-child assertions passed for the variables included in that run; no real
+provider or AI Hub process was involved. One canary run found the global Codex
+tree unchanged; a later race-suite run detected a global-tree change during
+cleanup. The before/after manifests remained private and were deleted with the
+temporary test root. Before that private manifest was established, one
+`codex --version` probe ran in the inherited environment; it made no provider
+request and its effect on global state cannot be measured retrospectively. No
+global Codex file contents were read or copied, and no global file was
+restored or edited by this agent. A later race-suite comparison detected a
+global-tree change while Codex was active. The source cannot
+be attributed, so global-tree integrity is **FAIL** and its cause is
+**INCONCLUSIVE**. The final helper retains a fail-closed preflight: when
+another Codex process is active or the tree is unstable, validation stops
+before launching the CLI. No further Codex probe was run after the global-tree
+change was observed. Private manifest paths, hashes, contents, and identifiers
+are not included in this report.
+
+The effective canary run predates adding the AI Hub's exact provider-key
+variable to the shell-child observation. The new unit test covers that
+variable at the environment-builder boundary. **Superseded:** the later
+isolated canary section (2026-11-01) observed the exact
+`AIHUB_PROVIDER_OPENCODEGO_API_KEY` name as `ABSENT` in the Codex shell child
+inside the private namespace, so this limitation no longer applies to the
+policy proof.
+
+### Local gates and scanner
+
+All test commands explicitly removed `AIHUB_E07_LIVE` and real credential
+variables from the test process. The focused E07 run did not complete: the
+stable-tree preflight stopped before another Codex launch while a Codex process
+was active. The full race run reached the loopback synthetic canary, then
+failed its final global-tree comparison; other packages passed. Subsequent
+fail-closed preflight and environment-policy regression tests passed, but the
+Codex CLI canary was not repeated. Thus the required focused and full test
+gates are not `PASS`. Other final gate results are:
+
+| Check | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub -count=1 -run TestE07` | `BLOCKED` — no passing completion; the focused run stopped at the fail-closed preflight, and the suite was not rerun because it includes the Codex CLI canary after a global-tree change was observed |
+| `go test ./... -count=1 -race` | `FAIL` — local synthetic canary detected a global-tree delta during cleanup; other packages passed |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` |
+| Selected deterministic E07 budget, replay, fidelity, records, environment, auth, timeout, manifest, and process tests | `PASS` — 32 tests; Codex CLI and AI Hub were not started |
+| Darwin E07 test package cross-compilation | `PASS` — test binary compiled; temporary binary removed |
+| E07 modified/created Go files below 300 lines | `PASS` — the largest E07 Go file is 278 lines |
+| Repository-wide Go file limit | `FAIL` — eight pre-existing files exceed 300 lines; none is part of this E07 scope |
+| Snyk Code scan | `BLOCKED` — Snyk MCP reports that the account is unauthenticated |
+| Approved repository secret scan | `NOT RUN` — no scanner approval or verified scanner release is available |
+
+Snyk Code is not treated as a secret scanner. Gitleaks was not installed,
+executed, or approved. No repository secret-free claim is made. No existing
+tests were removed or weakened, and no production source file or E01–E06
+contract was changed.
+
+The repository-wide 300-line rule is not satisfied by existing files:
+`internal/catalog/manager_test.go` (877), `internal/catalog/store_test.go`
+(593), `internal/gateway/catalog_handler_test.go` (575),
+`internal/gateway/responses_handler_test.go` (454),
+`internal/catalog/capability_test.go` (442), `internal/catalog/manager.go`
+(397), `internal/gateway/catalog_handler.go` (386), and
+`internal/catalog/store.go` (312). They were not changed because they are
+outside the authorized E07 scope and include E01–E06 production paths.
+
+### Independent review
+
+The first `senior-code-review-judge` round returned `REJECTED` with two
+`IMPORTANT` findings: symlink targets were not represented in the snapshot,
+and process inspection could report inactive when inspection was unsupported
+or denied. Both findings were corrected in the E07 harness. The second round
+returned `APPROVED_WITH_NOTES` (`SDD APPROVED`), with no open code findings.
+The reviewer did not run a Codex canary, start AI Hub, or contact a provider.
+A separate documentation review found that the README initially passed
+credentials through `go run` and later found a non-temporary build home and
+incomplete cleanup. The README now builds Hub and test binaries with a
+temporary home/cache and no credentials, launches them directly through the
+broker, and removes temporary build/data directories. The independent
+follow-up found no open findings in the revised README setup section. These
+review results do not establish acceptance scenarios or change E07's
+`INCOMPLETE` status.
+
+### Current credential states
+
+Presence-only checks of the current tool environment report:
+
+| Variable | State |
+| --- | --- |
+| `AIHUB_GATEWAY_API_KEY` | `ABSENT` |
+| `AIHUB_CLIENT_KEY` | `ABSENT` |
+| `AIHUB_PROVIDER_OPENCODEGO_API_KEY` | `ABSENT` |
+| `OPENCODE_API_KEY` | `PRESENT` |
+
+The present `OPENCODE_API_KEY` was not read, printed, copied, or used. The
+intended Hub and Codex launch environments do not exist in this checkpoint and
+remain `NOT_VERIFIABLE`; no Hub was started. The operator must provide new,
+distinct credentials through an approved non-interactive secret facility and
+verify the exact Hub, Codex, and tool-child environments before any E2E start.
+
+### Cumulative acceptance matrix
+
+Historical scenario outcomes remain intact. A deterministic test does not
+replace the real-provider evidence required by the SPEC.
+
+| AC | Result | Evidence and limitation | Failure cause |
+| --- | --- | --- | --- |
+| AC-1 | `FAIL` | Previous real setup passed several scenarios, but global-tree integrity failed; complete process separation is not approved, and the exact AI Hub provider-key variable was not observed in a real Codex child. | `INCONCLUSIVE` |
+| AC-2 | `PASS` | The supplemental pass recorded the tested release/model and routed its Codex requests through the Hub. The local canary reconfirmed the release, but this checkpoint did not repeat the real scenario route. | None recorded |
+| AC-3 | `PASS` | The supplemental pass observed authenticated routing and invalid-auth rejection without a provider-call delta. Not repeated in this checkpoint. | None recorded |
+| AC-4 | `PASS` | Basic generation succeeded in the supplemental real-provider pass. Not repeated in this checkpoint. | None recorded |
+| AC-5 | `FAIL` | The supplemental real replay failed; current structural tests preserve separate predicates but no real replay was run. | `INCONCLUSIVE` |
+| AC-6 | `PASS` | The supplemental pass completed the bounded sandboxed tool scenario with normal controls. Not repeated in this checkpoint. | None recorded |
+| AC-7 | `FAIL` | The supplemental pass returned HTTP 400 but did not establish same-response envelope fidelity. Deterministic 400/429 response tests pass; no real error probe was run. | `INCONCLUSIVE` |
+| AC-8 | `PASS` | The supplemental pass observed progressive gateway-hop streaming. Codex stdout rendering remains `NOT_VERIFIED`, permitted by AC-8. | None recorded |
+| AC-9 | `FAIL` | Prior live records were not correlated and verified as required. Deterministic E05/E06 record assertions pass; no new live records were queried. | `INCONCLUSIVE` |
+| AC-10 | `FAIL` | Prior post-restart recovery verification failed. Deterministic fresh-context tests pass; no live restart was performed. | `INCONCLUSIVE` |
+| AC-11 | `PASS` | This report records versions, cumulative scenario results, gate outcomes, limits, and redacted environment states without payloads or generated IDs. | None recorded |
+| AC-12 | `BLOCKED` | Static analysis, lint, build, format, and diff checks pass. The focused E07 run stopped at the active-Codex preflight; the full race run failed the global-tree comparison. The required Go test gates have no passing completion. All changed E07 Go files are below 300 lines, but eight pre-existing repository files exceed the requested global limit. | `ENVIRONMENT_DEFECT` |
+| AC-13 | `PASS` | README remains explicit that support is experimental and not established; no support claim was added. | None recorded |
+| AC-14 | `FAIL` | A local synthetic run detected a changed global Codex tree; the secret scan and approved baseline are also absent. No paths, contents, hashes, or identifiers are reported. | `INCONCLUSIVE` |
+
+### E2E scenarios and operator actions
+
+| Scenario | Checkpoint result | Historical supplemental result |
+| --- | --- | --- |
+| Basic Codex generation | `BLOCKED` — no final-pass invocation | `PASS` |
+| Multi-turn replay | `BLOCKED` — no final-pass invocation | `FAIL` |
+| Sandboxed tool calling | `BLOCKED` — no final-pass invocation | `PASS` |
+| Invalid authentication | `BLOCKED` — no final-pass invocation | `PASS` |
+| Upstream error passthrough | `BLOCKED` — no final-pass invocation | `FAIL` |
+| Streaming | `BLOCKED` — no final-pass invocation | `PASS` |
+| Execution-record list and lookup | `BLOCKED` — no final-pass invocation | `FAIL` |
+| Orderly shutdown, restart, and recovery | `BLOCKED` — no final-pass invocation | `FAIL` |
+
+Before the one conditionally authorized final pass can start, the operator
+must: (1) establish an approved immutable baseline and review the current
+uncommitted E07 files; (2) provide governance approval and a verified release
+for the secret scanner, then complete a redacted scan; (3) inject new distinct
+gateway/provider credentials through a secure non-interactive mechanism and
+prove the exact process presence states; and (4) close other Codex sessions and
+run the isolated preflight from a stable environment so before/after global
+tree integrity can pass. The one-pass, nine-call, 30-minute authorization is
+otherwise unchanged and remains unused. Do not retry or start a provider-bound
+scenario until every precondition passes.
+
+## Conditional final acceptance preflight — 2026-11-01
+
+The project lead's current final acceptance prompt conditionally authorizes one
+final pass with a maximum of nine provider-boundary calls, 30 minutes total,
+two minutes per provider request, and zero retries. This supersedes the earlier
+authorization statements in the plan and blocker report. The operational
+preflight did not pass, so no AI Hub process, Codex scenario, or provider-boundary
+request was started. This attempt made zero real provider calls.
+
+| Precondition | Result | Evidence |
+| --- | --- | --- |
+| Approved immutable baseline | `BLOCKED` | The initial checkout had 14 pending files (seven modified and seven untracked); `HEAD` was `56cbd0b509494d452e2a1e9472ef3e01830792d7`. No clean approved baseline was established. |
+| Approved scanner and redacted baseline scan | `BLOCKED` | No scanner approval was found; Gitleaks is not available on `PATH`. No scanner was installed or run, and no secret-free claim is made. |
+| New distinct credentials | `BLOCKED` | `AIHUB_GATEWAY_API_KEY`, `AIHUB_CLIENT_KEY`, and `AIHUB_PROVIDER_OPENCODEGO_API_KEY` were absent in the tool process. `OPENCODE_API_KEY` was present but not read or used; its provenance and distinction from a newly provisioned key are not verifiable. |
+| Exact Hub, Codex, and tool-child environments | `NOT_VERIFIABLE` | No dedicated Hub or Codex process environments were created. All local gates explicitly removed the credential variables. |
+| Codex isolation and stable global tree | `BLOCKED` | `CODEX_HOME` and XDG config/data/state/cache variables were absent. The E07 process guard read process names only to detect an active Codex process, then refused to start the isolated canary. No process details were inspected beyond that boolean and no process was terminated. |
+| Sandbox | `PASS`, limited | Codex CLI `0.164.0-alpha.11.1` and bubblewrap `0.4.0` were available. A harmless command completed inside user, PID, and network namespaces. Codex sandbox and approval behavior were not exercised. |
+| Local resources | `PASS`, limited | Go `1.23.0`, `staticcheck`, and `golangci-lint` were available; port 8080 was free and temporary storage was writable. Provider/model availability was not verifiable without a provider request. |
+| Conditional pass budget | `PASS`, authorization only | The current prompt allows one pass, at most nine real provider calls, 30 minutes, two minutes per request, and zero retries. No persistent live counter was exercised; real calls in this attempt: zero. |
+
+Local gates ran with all AI Hub and Codex credential variables removed:
+`AIHUB_E07_LIVE` and `AIHUB_LIVE_SMOKE` were absent, so no live scenario was
+enabled.
+
+| Check | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub -count=1 -run TestE07` | `FAIL` — `TestE07CodexShellEnvironmentPolicyIsEffective` failed closed because an active Codex process prevented global-tree validation; the isolated Codex was not started. |
+| `go test ./... -count=1 -race` | `FAIL` — the same environment guard failed in `cmd/ai-hub`; all other listed Go packages passed. |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` — rerun after the documentation updates |
+
+The existing AC-1 through AC-14 matrix remains cumulative historical evidence.
+No final-pass scenario was verified in this preflight. AC-1, AC-5, AC-7, AC-9,
+AC-10, and AC-14 remain unresolved; AC-12 remains blocked because the required
+test gates did not complete successfully. E07 remains `INCOMPLETE`.
+
+Operator actions required before the authorized pass can start:
+
+1. Review the 15 currently pending files (the initial checkout had 14 before
+   this authorization update) and establish a clean, immutable approved
+   baseline without discarding work.
+2. Obtain governance approval for a scanner, make its approved version
+   available, and complete the redacted scan of the baseline.
+3. Provision distinct, newly rotated credentials through separate
+   non-echoing prompts or an approved secret facility and verify the exact Hub,
+   Codex, and tool-child environments by presence only.
+4. Close other Codex sessions, then repeat the isolation preflight with a
+   dedicated `HOME`, `CODEX_HOME`, XDG directories, and temporary workspace;
+   establish stable global-tree integrity while preserving normal sandbox and
+   approval controls.
+5. Confirm provider/model availability and the shared call/time budget without
+   an unbudgeted provider request. If that cannot be established, keep the E2E
+   blocked.
+
+## Configuration evidence and isolated harness proof — 2026-11-01
+
+Status: preflight evidence only. No AI Hub process was started for a scenario,
+no Codex request reached a real provider, and no provider-boundary call was
+made. The single conditionally authorized pass remains unused: `0/1` passes and
+`0/9` provider calls consumed. This section does not establish Codex CLI
+support. E07 remains `INCOMPLETE`.
+
+### Production credential path
+
+The credential question was resolved from production code rather than from
+local configuration conventions:
+
+| Step | Evidence |
+| --- | --- |
+| Environment loading | `cmd/ai-hub/main.go` loads the dotenv file (default `-env-file .env`) through `config.LoadDotEnv` before `config.Load`. Values already present in the process environment win over file values. |
+| Provider key variable | `internal/config/types.go` declares `EnvProviderOpenCodeGoAPIKey` (`AIHUB_PROVIDER_OPENCODEGO_API_KEY`) as the only variable read for the OpenCode Go provider key. `OPENCODE_API_KEY` is not referenced by any production file. |
+| Startup probe | A temporary build started with `-env-file .env` failed closed with `ai-hub: gateway.api_key is invalid: api key must contain between 32 and 512 ASCII characters`. This proves the dotenv file was read and validated by the real configuration path; it also proves the file does not provide a usable gateway key. No provider request was attempted. |
+
+Presence states were collected without reading values. The `.env` file was
+inspected by variable name only, without printing, echoing, hashing, or
+measuring any value, and was not modified:
+
+| Variable | In `.env` | In the agent process |
+| --- | --- | --- |
+| `AIHUB_PROVIDER_OPENCODEGO_API_KEY` | `DECLARED` — one declaration | `ABSENT` |
+| `OPENCODE_API_KEY` | `DECLARED` — one declaration, not consumed by production code | `ABSENT` |
+| `AIHUB_GATEWAY_API_KEY` | `ABSENT` | `ABSENT` |
+| `AIHUB_CLIENT_KEY` | `ABSENT` (injected at launch only) | `ABSENT` |
+
+No duplicate declarations were found. `.env.example` documents
+`AIHUB_GATEWAY_API_KEY` as mandatory and does not reference `OPENCODE_API_KEY`
+as a provider credential.
+
+### Provider credential source corrected
+
+The approved design allowed the live setup helper to read the provider
+credential from `AIHUB_PROVIDER_OPENCODEGO_API_KEY`, the existing
+`OPENCODE_API_KEY`, or `.env`. Under the current authorization that fallback is
+not acceptable: only the production-consumed variable may be treated as the
+provider credential, because equivalence between `OPENCODE_API_KEY` and the
+OpenCode Go key is unproven. The old code also copied a legacy-sourced value
+into `AIHUB_PROVIDER_OPENCODEGO_API_KEY`, which would have masked a missing
+production configuration and made the run appear provisioned.
+
+`e07ProviderCredential` now reads only `AIHUB_PROVIDER_OPENCODEGO_API_KEY` and
+returns an empty value otherwise. `TestE07ProviderCredentialUsesOnlyProductionVariable`
+is the regression test: the historical name yields an empty value, the
+production name resolves, and an absent environment yields an empty value. The
+setup also logs `provider_credential_origin=environment|dotenv` without printing
+any value, so a future report can distinguish an operator-provisioned key from
+one loaded out of `.env`. The report does not treat a `.env`-sourced key as
+provisioning evidence.
+
+### Isolated Codex process-policy proof
+
+The previously failing `TestE07CodexShellEnvironmentPolicyIsEffective` guard
+refuses to start an isolated Codex CLI while an ambient Codex process could
+change global state, because a before/after comparison would then be
+unprovable. Four VS Code ChatGPT extension `codex` app-servers were active on
+the host. No assertion was relaxed, no guard was bypassed in-process, and no
+third-party process was signalled or terminated. The documented procedure is
+to run the canary inside a private PID and mount namespace with a fresh `HOME`:
+
+```text
+bwrap --unshare-pid --unshare-ipc --unshare-uts --ro-bind / / \
+  --dev /dev --proc /proc --tmpfs /tmp --tmpfs /run \
+  --bind "$WORK" /run/e07 \
+  --setenv HOME /run/e07/home --setenv TMPDIR /run/e07/tmp \
+  --setenv GOTOOLCHAIN local --setenv AIHUB_E07_CANARY 1 \
+  --setenv PATH "<go and codex bin dirs>" \
+  --chdir <repo> go test ./cmd/ai-hub -run TestE07 -count=1
+```
+
+`/tmp` must be a fresh writable tmpfs; otherwise the nested Codex sandbox fails
+on a read-only `/tmp`.
+
+The canary is opt-in through `AIHUB_E07_CANARY=1`. Without it the default suite
+skips the canary, so `go test ./...` no longer depends on the host's Codex
+processes; the real E2E helper remains separately gated by `AIHUB_E07_LIVE=1`.
+This matches the design's "opt-in validation test helper" boundary. The canary
+targets Linux; on its supported platform, enabling it fails closed on every
+precondition failure, including a missing CLI, an active Codex process, a
+version mismatch, sandbox failure, or an unstable tree.
+
+Result inside the namespace, with the recorded CLI available on `PATH`:
+
+| Observation | Result |
+| --- | --- |
+| `TestE07CodexShellEnvironmentPolicyIsEffective` | `PASS` (0.97s) — no skip, no relaxation |
+| Codex CLI release | `codex-cli 0.164.0-alpha.11.1` — matches the E07 target |
+| Gateway authentication | The local synthetic Responses endpoint observed Bearer authentication with the configured gateway key |
+| Tool execution | `exec_command` ran under `sandbox_mode = "workspace-write"` with no approval policy written |
+| Synthetic credential leakage | Child environment reported `AIHUB_CLIENT_KEY=ABSENT`, `OPENCODE_API_KEY=ABSENT`, `AIHUB_PROVIDER_OPENCODEGO_API_KEY=ABSENT`, `AIHUB_GATEWAY_API_KEY=ABSENT` |
+| Temporary Codex configuration | Contained no synthetic credential value |
+| Request count at the local endpoint | `2` — the expected bounded count |
+| Global Codex tree before/after | Unchanged; the comparison covers the real account `~/.codex` root, which is resolved independently of the isolated `HOME` |
+
+This proves the process and shell environment policy, not a real-provider
+scenario. It uses synthetic values against a local endpoint and therefore
+cannot satisfy AC-1, AC-2, or AC-14 on its own. The global-tree comparison now
+covers the account home even when the process `HOME` is isolated, and it
+represents nested symbolic links by target instead of following them; a
+symbolic-link state root still fails closed.
+
+Two helper corrections were included while validating the isolation: the
+private manifest directory is now checked against the repository before the
+first manifest is written (FR-12), and the temporary root is removed only by
+the single registered cleanup, so a late failure cannot produce a spurious
+integrity error. The Codex child environment also no longer inherits `USER`,
+`LOGNAME`, or `TERM`, and its `TMPDIR`, `TEMP`, and `TMP` now come from the
+isolated runtime directories instead of the parent; no assertion depends on the
+dropped names.
+
+### Local gate results
+
+Gates were executed inside the same isolation, with the recorded Codex CLI on
+`PATH` and no AI Hub or provider credentials in the process environment.
+
+| Check | Result |
+| --- | --- |
+| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub -run TestE07 -count=1 -v` | `PASS` — 57 passed, 0 failed, 1 skipped |
+| `go test ./... -count=1 -race` (no canary flag, Codex CLI on `PATH`) | `PASS` — every Go package `ok`; the canary and the live test skip by design |
+| `go test ./cmd/ai-hub -run CodexShellEnvironmentPolicy -count=1 -v` (no canary flag) | `SKIP` with an explicit reason — the default suite is host-independent |
+| `AIHUB_E07_CANARY=1` with the CLI absent from `PATH` | `FAIL` as required — the opt-in canary refuses to run instead of silently skipping |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` |
+
+In the opt-in run the only skipped test is `TestE07LiveCodexOpenCodeGo`, which
+requires `AIHUB_E07_LIVE=1` and provider credentials. Both skips are expected
+and are not counted as scenario evidence. The previous checkpoint's failures
+were caused by the active-Codex preflight only; with the documented isolation
+the same assertions pass unchanged, and with the canary disabled the default
+suite no longer depends on host Codex processes.
+
+No production source file differs from the E06 baseline. The pending change
+set is limited to the README E07 setup and test sections, E07 validation tests,
+and E07 documentation.
+
+### Residual limitations of the integrity helpers
+
+- The global Codex state comparison uses metadata identity (relative path, mode,
+  size, modification time, and stat fields except access time) rather than a
+  content digest. Reading and hashing the whole `~/.codex` tree would read
+  prompt and session contents, which FR-12 forbids reporting and which this
+  validation does not need. On the validated Linux filesystem any write changes
+  the modification time, size, or inode metadata, so the comparison still
+  detects ordinary edits; a privileged actor that rewrites content while
+  restoring timestamps and size could evade it. This trade-off is explicit and
+  the isolation proof does not depend on it.
+- Nested symbolic links inside a Codex state root are recorded by target and
+  never followed, because the real `~/.codex` contains user-managed links. A
+  symbolic-link state root still fails closed, but state written *through* a
+  nested link is outside this comparison: only the link entry itself is
+  observed. The live helper therefore reports `codex_tree_links=<n>` alongside
+  the integrity outcome, so an operator can see when linked subtrees are not
+  covered and must not treat the result as full-tree coverage.
+- When `AIHUB_GATEWAY_API_KEY` is absent, the live helper derives an ephemeral
+  in-memory gateway key as permitted by the design. The README instructs the
+  operator to supply a real gateway credential and not to rely on harness
+  generation; the ephemeral key is not a production credential and must not be
+  reported as provisioning evidence.
+- `provider_credential_origin` reports only `environment` or `dotenv`. A key
+  loaded from `.env` is exactly the credential the operator must rotate, so
+  future E2E evidence must require `environment`.
+
+### Updated acceptance matrix
+
+Only the criteria affected by this checkpoint changed value. Criteria that
+require real-provider scenarios keep their historical outcome.
+
+| AC | Result | Evidence and limitation | Failure cause |
+| --- | --- | --- | --- |
+| AC-1 | `FAIL` | The isolated canary proves the process and shell policy with synthetic values, but no real gateway/provider credential reached a real Codex child, and the AC-14 conditions are still unmet. | `INCONCLUSIVE` |
+| AC-2 | `PASS` | Unchanged from the supplemental real-provider pass; not repeated. | None recorded |
+| AC-3 | `PASS` | Unchanged from the supplemental real-provider pass; not repeated. | None recorded |
+| AC-4 | `PASS` | Unchanged from the supplemental real-provider pass; not repeated. | None recorded |
+| AC-5 | `FAIL` | No real replay was run; no new evidence. | `INCONCLUSIVE` |
+| AC-6 | `PASS` | Unchanged from the supplemental real-provider pass; not repeated. | None recorded |
+| AC-7 | `FAIL` | No real upstream error probe was run; no new evidence. | `INCONCLUSIVE` |
+| AC-8 | `PASS` | Unchanged; Codex stdout rendering remains `NOT_VERIFIED` as permitted. | None recorded |
+| AC-9 | `FAIL` | No live execution records were produced or queried. | `INCONCLUSIVE` |
+| AC-10 | `FAIL` | No live shutdown and restart was performed. | `INCONCLUSIVE` |
+| AC-11 | `PASS` | This report records versions, gate outcomes, limits, and presence-only states without payloads, credentials, or generated identifiers. | None recorded |
+| AC-12 | `PASS` | No production source file differs from the E06 baseline. `go test ./... -count=1 -race`, `go vet`, `staticcheck`, `golangci-lint`, `go build`, formatting, and `git diff --check` all pass on the E07 change set; the existing suite is entirely green; no committed test was removed or weakened; the new helper tests pass. The global Codex-tree comparison uses metadata identity instead of a content digest, and its deterministic tests were updated to that representation; the privacy trade-off and evasion window are recorded under residual limitations. | None recorded |
+| AC-13 | `PASS` | The README still states support is experimental and not established. | None recorded |
+| AC-14 | `FAIL` | Ambient Codex app-servers keep rewriting the real `~/.codex` tree, so a real before/after comparison is unprovable even though the isolated run cannot write it. No approved baseline and no approved secret scan exist. Individual canary runs inside the namespace are stable. | `ENVIRONMENT_DEPENDENCY` |
+
+### Remaining blockers
+
+| Blocker | Owner action required |
+| --- | --- |
+| Approved immutable baseline | Review and approve the current 15 pending files (8 modified, 7 untracked). Staging, commit, and push remain separately gated and were not performed. |
+| Approved secret scan | Approve a scanner and a specific version, make it available, then complete the redacted scan. No scanner was installed or approved here. |
+| Distinct, rotated credentials | Rotate the provider credential that exists in `.env` and provision `AIHUB_GATEWAY_API_KEY`; `AIHUB_GATEWAY_API_KEY` is currently absent, so Hub cannot start from `.env` alone. Both must be injected through an approved non-echoing facility. |
+| Real `~/.codex` integrity | Run the authorized pass in an environment where no ambient Codex process writes global state, or accept a scoped decision for a documented isolation boundary. |
+| Provider/model availability | Cannot be confirmed without a budgeted provider call. Not attempted. |
+
+The one-pass, nine-provider-call, two-minute-per-request, zero-retry,
+30-minute authorization remains unused and unchanged. No retry or second pass
+is authorized.
+
+## Local baseline consolidation — 2026-11-01
+
+Status: consolidation and local baseline only. No AI Hub process was started
+for a scenario, no Codex request reached a provider, and the conditionally
+authorized pass remains unused at `0/1` passes and `0/9` provider-boundary
+calls. E07 remains `INCOMPLETE`.
+
+### Final independent review corrections
+
+The final `senior-code-review-judge` round reviewed the pending change set and
+returned findings. Every in-scope finding was corrected before the baseline
+commit:
+
+| Finding | Correction |
+| --- | --- |
+| The global-tree gate resolved its root from `$HOME`, so a validation process started with an isolated `HOME` compared no tree and could report `PASS` without observing the real global state. | Snapshot roots now resolve the account home independently of `$HOME` and always include the account `~/.codex`; the process home is an additional root. `TestE07CodexTreeSnapshotKeepsAccountRootWhenProcessHomeIsIsolated` is the regression test. |
+| Nested symbolic links in the real tree were rejected outright, which made the comparison unusable on any host whose Codex home contains user-managed links. | A symbolic-link state root still fails closed, while a nested link is recorded with its target and never followed. `TestE07CodexTreeSnapshotRecordsNestedSymlink` proves a retarget changes the comparison. |
+| The real-provider helper skipped the run when the installed CLI release differed from the recorded target, reporting an environment limitation instead of a scoping failure. | A CLI release mismatch or an unreadable version now fails before any provider traffic; an absent CLI remains `NOT RUN — environment limitation`. |
+| AC-12 claimed no assertion changed while the global-tree comparison moved from a content digest to metadata identity. | The AC-12 row now states the change and refers to the recorded residual limitation. |
+| The checkpoint's 14-file list was not labelled as pre-plan-update. | The list now states that the plan-document update adds the fifteenth file. |
+| The plan's execution block ran `go test` with credentials in the environment, contradicting the hardened README procedure. | The plan now requires the prebuilt test binary and the sanitized allowlist. |
+
+Two findings were recorded without a change because both sit outside the
+authorized 15-file change set: the README's pre-existing `AIHUB_LIVE_SMOKE`
+example passes a placeholder credential on a command line (E02 section, not the
+E07 procedure), and the approved design still describes the original
+provider-credential fallback. The two validation reports record that
+supersession explicitly.
+
+### Final gate results
+
+| Check | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub -count=1 -run TestE07` | `PASS` — 56 passed, 0 failed, 2 skipped (opt-in canary and the `AIHUB_E07_LIVE` scenario) |
+| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub -run TestE07 -count=1 -v` inside the private namespace | `PASS` — 57 passed, 0 failed, 1 skipped |
+| `go test ./... -count=1 -race` | `PASS` — every Go package `ok` in the recorded runs; one earlier execution failed on a pre-existing E01–E06 test described below |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` |
+| E07 Go files below 300 lines | `PASS` — the largest E07 Go file is 278 lines |
+| Production source identical to `0d33ca26c15acf54fac418cb33380b5871b4d899` | `PASS` — no non-test source difference |
+| Repository-wide Go source limit | `FAIL` — the eight pre-existing E01–E06 files listed above are unchanged and outside this scope |
+| Approved secret scan | `NOT RUN` — no approved scanner is available |
+
+The opt-in canary used the recorded Codex CLI against a loopback synthetic
+Responses server with synthetic credentials only. It made no provider-boundary
+call, and the global Codex-tree comparison covers the real account root.
+
+### Pre-existing flaky test outside the E07 scope
+
+`internal/catalog/manager_test.go` (`TestManagerTimeoutIsClassified`, E01–E06)
+is timing-sensitive. Under `-race` it failed one of four full-suite executions,
+and 1 of 8 isolated `-race` repeats classified a 10-millisecond sync deadline as
+`persistence` instead of `timeout`. The file is identical to the E06 baseline
+`0d33ca26c15acf54fac418cb33380b5871b4d899` and is not part of this change set.
+It is recorded here so the `-race` gate result is not overstated; correcting it
+would require a separate E01–E06 scope decision. Re-run the suite after any E07
+test change so this pre-existing flake is not mistaken for a regression.
+
+### Baseline state
+
+The pending change set is consolidated into three ordered groups — the E07 test
+helpers, the validation evidence, and the final E2E execution plan — so each
+can be reviewed and committed locally as a single unit under separate
+authorization. Nothing is pushed and the remote ref is unchanged. The commit
+identifiers and the clean-tree verification belong to the session closeout, not
+to this committed document, and this report does not assert them.
+
+`E07-final-e2e-execution-plan.md` remains conditionally authorized and still
+blocked by its preconditions: the consolidation must be committed and approved
+as an immutable baseline, and approved scanner output, distinct rotated
+credentials, and provider/model availability are still outstanding.

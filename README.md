@@ -260,38 +260,176 @@ used `codex-cli 0.164.0-alpha.11.1`, Go `1.23.0`, Linux `amd64`, and model
 for the scenario results and limitations. Do not treat this procedure as a
 support claim.
 
-Prerequisites are Bash, Go 1.23, the recorded Codex CLI release, an available
-OpenCode Go provider credential, and the selected model. This manual smoke
-uses two separate terminal sessions. It does not edit `~/.codex`, project
-`.env` files, or tracked Codex configuration.
+Prerequisites are Bash, Python 3, Go 1.23, bubblewrap, readable Linux `/proc`,
+the recorded Codex CLI release, a newly provisioned OpenCode Go provider
+credential, and the selected model. This manual smoke uses separate terminal
+sessions. It does not edit `~/.codex`, project `.env` files, or tracked Codex
+configuration.
 
-In Terminal A, make the provider key available only to the AI Hub process,
-enter a distinct gateway key without echo, create dedicated data storage, and
-start the Hub on its loopback default:
+Provision new, distinct gateway and provider credentials before the run; do
+not reuse existing environment values. The commands below use Bash's
+non-echoing `read -s` prompt in separate terminal sessions, a method permitted
+by the E07 plan. Build the Hub binary before entering either credential. The
+Hub terminal exports the two credentials only inside a sanitized subshell that
+is replaced by the Hub process; the Codex terminal receives only the gateway
+credential as `AIHUB_CLIENT_KEY`.
 
 ```bash
-export AIHUB_PROVIDER_OPENCODEGO_API_KEY="$OPENCODE_API_KEY"
-export AIHUB_DATA_DIR="$(mktemp -d)"
-read -r -s -p 'AI Hub gateway key: ' AIHUB_GATEWAY_API_KEY
-printf '\n'
-export AIHUB_GATEWAY_API_KEY
-test -n "${AIHUB_PROVIDER_OPENCODEGO_API_KEY:-}" && test -n "${AIHUB_GATEWAY_API_KEY:-}"
-go run ./cmd/ai-hub -env-file /dev/null
+AIHUB_E07_BUILD_DIR="$(mktemp -d)"
+AIHUB_E07_BINARY="$AIHUB_E07_BUILD_DIR/ai-hub"
+AIHUB_DATA_DIR="$(mktemp -d)"
+export AIHUB_E07_BUILD_DIR AIHUB_E07_BINARY AIHUB_DATA_DIR
+mkdir -m 700 -p "$AIHUB_E07_BUILD_DIR/home" "$AIHUB_E07_BUILD_DIR/tmp"
+env -i PATH="$PATH" HOME="$AIHUB_E07_BUILD_DIR/home" \
+  GOPATH="$AIHUB_E07_BUILD_DIR/go" \
+  GOMODCACHE="$AIHUB_E07_BUILD_DIR/go/pkg/mod" \
+  GOCACHE="$AIHUB_E07_BUILD_DIR/cache" \
+  go build -o "$AIHUB_E07_BINARY" ./cmd/ai-hub
 ```
+
+In Terminal A, enter the credentials without echo. The Hub receives only the
+allowlisted runtime variables and its two credentials; the values are never
+arguments, shell-history entries, or files:
+
+```bash
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY AIHUB_CLIENT_KEY OPENCODE_API_KEY
+read -r -s -p 'Gateway API key: ' AIHUB_GATEWAY_API_KEY; printf '\n'
+read -r -s -p 'OpenCode Go provider key: ' AIHUB_PROVIDER_OPENCODEGO_API_KEY; printf '\n'
+[[ -n "$AIHUB_PROVIDER_OPENCODEGO_API_KEY" && \
+   ${#AIHUB_GATEWAY_API_KEY} -ge 32 && ${#AIHUB_GATEWAY_API_KEY} -le 512 && \
+   "$AIHUB_GATEWAY_API_KEY" =~ ^[A-Za-z0-9._~+/-]+=*$ && \
+   "$AIHUB_GATEWAY_API_KEY" != "$AIHUB_PROVIDER_OPENCODEGO_API_KEY" ]] || {
+  printf 'Credential preflight failed.\n' >&2
+  unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
+  exit 1
+}
+E07_HUB_GATE="$AIHUB_E07_BUILD_DIR/hub-launch-gate"
+E07_HUB_READY="$AIHUB_E07_BUILD_DIR/hub-ready"
+mkfifo "$E07_HUB_GATE"
+(
+  e07_path="$PATH"
+  e07_home="$AIHUB_E07_BUILD_DIR/home"
+  e07_tmpdir="$AIHUB_E07_BUILD_DIR/tmp"
+  e07_binary="$AIHUB_E07_BINARY"
+  e07_data_dir="$AIHUB_DATA_DIR"
+  while IFS= read -r e07_name; do
+    case "$e07_name" in
+      PATH|HOME|TMPDIR|AIHUB_DATA_DIR|AIHUB_GATEWAY_API_KEY|AIHUB_PROVIDER_OPENCODEGO_API_KEY) ;;
+      *) unset "$e07_name" ;;
+    esac
+  done < <(compgen -e)
+  export PATH="$e07_path" HOME="$e07_home" TMPDIR="$e07_tmpdir" \
+    AIHUB_DATA_DIR="$e07_data_dir" AIHUB_GATEWAY_API_KEY \
+    AIHUB_PROVIDER_OPENCODEGO_API_KEY
+  exec bash --noprofile --norc -c \
+    ': > "$1"; IFS= read -r -t 30 _ < "$2" || exit 1; exec "$3" -env-file /dev/null' \
+    e07-hub-launch "$E07_HUB_READY" "$E07_HUB_GATE" "$e07_binary"
+) &
+AIHUB_E07_HUB_PID=$!
+for e07_attempt in {1..100}; do
+  [[ -f "$E07_HUB_READY" ]] && break
+  sleep 0.05
+done
+if [[ ! -f "$E07_HUB_READY" ]]; then
+  kill -TERM "$AIHUB_E07_HUB_PID"
+  wait "$AIHUB_E07_HUB_PID"
+  rm -f -- "$E07_HUB_GATE" "$E07_HUB_READY"
+  unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY \
+    AIHUB_E07_HUB_PID E07_HUB_GATE E07_HUB_READY
+  exit 1
+fi
+if ! env -i PATH="$PATH" HOME="$AIHUB_E07_BUILD_DIR/home" \
+  python3 - "$AIHUB_E07_HUB_PID" <<'PY'
+from pathlib import Path
+import sys
+
+pid = sys.argv[1]
+try:
+    entries = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+except OSError:
+    print("AIHUB_GATEWAY_API_KEY=NOT_VERIFIABLE")
+    print("AIHUB_PROVIDER_OPENCODEGO_API_KEY=NOT_VERIFIABLE")
+    print("AIHUB_CLIENT_KEY=NOT_VERIFIABLE")
+    print("OPENCODE_API_KEY=NOT_VERIFIABLE")
+    raise SystemExit(2)
+names = {entry.partition(b"=")[0] for entry in entries if b"=" in entry}
+expected = {
+    "AIHUB_GATEWAY_API_KEY": True,
+    "AIHUB_PROVIDER_OPENCODEGO_API_KEY": True,
+    "AIHUB_CLIENT_KEY": False,
+    "OPENCODE_API_KEY": False,
+}
+passed = True
+for name, should_exist in expected.items():
+    present = name.encode() in names
+    status = "PRESENT" if present else "ABSENT"
+    print(f"{name}={status}")
+    passed = passed and present == should_exist
+raise SystemExit(0 if passed else 1)
+PY
+then
+  kill -TERM "$AIHUB_E07_HUB_PID"
+  wait "$AIHUB_E07_HUB_PID"
+  rm -f -- "$E07_HUB_GATE" "$E07_HUB_READY"
+  unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY \
+    AIHUB_E07_HUB_PID E07_HUB_GATE E07_HUB_READY
+  exit 1
+fi
+rm -f -- "$E07_HUB_READY"
+printf 'launch\n' > "$E07_HUB_GATE"
+rm -f -- "$E07_HUB_GATE"
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
+```
+
+The PID check runs before the launch gate opens, so it verifies the exact
+allowlisted environment before the Hub starts. The wrapper's PID and
+environment remain unchanged by `exec`, so that PID becomes the Hub process.
+The check reads `/proc/<pid>/environ` and prints only `PRESENT`/`ABSENT`; no
+provider request is made. Keep Terminal A separate from Terminal B.
 
 The gateway key must be 32–512 characters in E04's `b64token` grammar and
 must differ from the provider key. Do not place either value in a command,
 Codex TOML, or repository file.
 
-In Terminal B, create `CODEX_HOME` before writing its configuration. The
-provider uses the local Responses endpoint and reads the gateway key from the
-environment variable named by `env_key`:
+In Terminal B, enter the same gateway credential without echo. Do not enter
+the provider credential in this terminal. Keep the gateway variable unexported
+in the parent shell; the existing environment allowlist exports it only to the
+Codex process and excludes it from Codex shell tools. Create `CODEX_HOME`
+before writing its configuration. The provider uses the local Responses
+endpoint and reads the gateway key from the environment variable named by
+`env_key`. Codex state, SQLite state, XDG paths, and temporary files stay under
+this temporary home:
 
 ```bash
+unset AIHUB_CLIENT_KEY AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY OPENCODE_API_KEY
+read -r -s -p 'Gateway API key for Codex: ' AIHUB_CLIENT_KEY; printf '\n'
+test -n "$AIHUB_CLIENT_KEY"
 export CODEX_HOME="$(mktemp -d)"
-mkdir -m 700 -p "$CODEX_HOME"
-cat > "$CODEX_HOME/config.toml" <<'EOF'
-model = "deepseek-v4.1-flash"
+export CODEX_SQLITE_HOME="$CODEX_HOME"
+export TMPDIR="$CODEX_HOME/tmp"
+export XDG_CONFIG_HOME="$CODEX_HOME/xdg/config"
+export XDG_DATA_HOME="$CODEX_HOME/xdg/data"
+export XDG_CACHE_HOME="$CODEX_HOME/xdg/cache"
+export XDG_STATE_HOME="$CODEX_HOME/xdg/state"
+export XDG_RUNTIME_DIR="$CODEX_HOME/xdg/runtime"
+mkdir -m 700 -p "$TMPDIR" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" \
+  "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
+env -i PATH="$PATH" CODEX_HOME="$CODEX_HOME" TMPDIR="$TMPDIR" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+home = Path(os.environ["CODEX_HOME"])
+shell_values = {
+    "PATH": os.environ["PATH"],
+    "HOME": str(home),
+    "TMPDIR": os.environ["TMPDIR"],
+}
+shell_set = ", ".join(
+    f"{json.dumps(name)} = {json.dumps(value)}"
+    for name, value in shell_values.items()
+)
+config = f'''model = "deepseek-v4.1-flash"
 model_provider = "aihub"
 sandbox_mode = "workspace-write"
 
@@ -302,39 +440,188 @@ wire_api = "responses"
 env_key = "AIHUB_CLIENT_KEY"
 request_max_retries = 0
 stream_max_retries = 0
-EOF
-read -r -s -p 'AI Hub gateway key: ' AIHUB_CLIENT_KEY
-printf '\n'
-export AIHUB_CLIENT_KEY
+
+[shell_environment_policy]
+inherit = "none"
+ignore_default_excludes = false
+set = {{ {shell_set} }}
+experimental_use_profile = false
+'''
+(home / "config.toml").write_text(config, encoding="utf-8")
+os.chmod(home / "config.toml", 0o600)
+PY
 unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY OPENCODE_API_KEY
-test -n "${AIHUB_CLIENT_KEY:-}"
-WORKDIR="$(mktemp -d)"
-printf 'Reply with exactly E07_BASIC_OK and no other text.\n' |
-  (cd "$WORKDIR" && HOME="$CODEX_HOME" codex exec --sandbox workspace-write --skip-git-repo-check -)
-unset AIHUB_CLIENT_KEY
+test -n "$AIHUB_CLIENT_KEY"
+WORKDIR="$(mktemp -d "$TMPDIR/e07-work.XXXXXX")"
+E07_CODEX_GATE="$CODEX_HOME/launch-gate"
+E07_CODEX_READY="$CODEX_HOME/codex-ready"
+mkfifo "$E07_CODEX_GATE"
+(
+  unset e07_name e07_path e07_home e07_sqlite_home e07_tmpdir \
+    e07_xdg_config e07_xdg_data e07_xdg_cache e07_xdg_state \
+    e07_xdg_runtime e07_client_key
+  e07_path="$PATH"
+  e07_home="$CODEX_HOME"
+  e07_sqlite_home="$CODEX_SQLITE_HOME"
+  e07_tmpdir="$TMPDIR"
+  e07_xdg_config="$XDG_CONFIG_HOME"
+  e07_xdg_data="$XDG_DATA_HOME"
+  e07_xdg_cache="$XDG_CACHE_HOME"
+  e07_xdg_state="$XDG_STATE_HOME"
+  e07_xdg_runtime="$XDG_RUNTIME_DIR"
+  e07_client_key="$AIHUB_CLIENT_KEY"
+  while IFS= read -r e07_name; do
+    if [[ "$e07_name" != PATH ]]; then
+      unset "$e07_name"
+    fi
+  done < <(compgen -e)
+  export PATH="$e07_path" HOME="$e07_home" CODEX_HOME="$e07_home" \
+    CODEX_SQLITE_HOME="$e07_sqlite_home" TMPDIR="$e07_tmpdir" \
+    XDG_CONFIG_HOME="$e07_xdg_config" XDG_DATA_HOME="$e07_xdg_data" \
+    XDG_CACHE_HOME="$e07_xdg_cache" XDG_STATE_HOME="$e07_xdg_state" \
+    XDG_RUNTIME_DIR="$e07_xdg_runtime" AIHUB_CLIENT_KEY="$e07_client_key"
+  cd "$WORKDIR"
+  exec bash --noprofile --norc -c \
+    'cd "$1" || exit 1; : > "$2"; IFS= read -r -t 30 _ < "$3" || exit 1; exec codex exec --sandbox workspace-write --skip-git-repo-check - <<< "Reply with exactly E07_BASIC_OK and no other text."' \
+    e07-codex-launch "$WORKDIR" "$E07_CODEX_READY" "$E07_CODEX_GATE"
+) &
+e07_codex_pid=$!
+for e07_attempt in {1..100}; do
+  [[ -f "$E07_CODEX_READY" ]] && break
+  sleep 0.05
+done
+if [[ ! -f "$E07_CODEX_READY" ]]; then
+  kill -TERM "$e07_codex_pid"
+  wait "$e07_codex_pid"
+  rm -f -- "$E07_CODEX_GATE" "$E07_CODEX_READY"
+  unset AIHUB_CLIENT_KEY e07_codex_pid E07_CODEX_GATE E07_CODEX_READY
+  exit 1
+fi
+if ! env -i PATH="$PATH" HOME="$CODEX_HOME" \
+  python3 - "$e07_codex_pid" <<'PY'
+from pathlib import Path
+import sys
+
+pid = sys.argv[1]
+expected = {
+    "AIHUB_CLIENT_KEY": True,
+    "AIHUB_GATEWAY_API_KEY": False,
+    "AIHUB_PROVIDER_OPENCODEGO_API_KEY": False,
+    "OPENCODE_API_KEY": False,
+}
+try:
+    entries = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+except OSError:
+    for name in expected:
+        print(f"{name}=NOT_VERIFIABLE")
+    raise SystemExit(2)
+names = {entry.partition(b"=")[0] for entry in entries if b"=" in entry}
+passed = True
+for name, should_exist in expected.items():
+    present = name.encode() in names
+    status = "PRESENT" if present else "ABSENT"
+    print(f"{name}={status}")
+    passed = passed and present == should_exist
+raise SystemExit(0 if passed else 1)
+PY
+then
+  kill -TERM "$e07_codex_pid"
+  wait "$e07_codex_pid"
+  rm -f -- "$E07_CODEX_GATE" "$E07_CODEX_READY"
+  unset AIHUB_CLIENT_KEY e07_codex_pid E07_CODEX_GATE E07_CODEX_READY
+  exit 1
+fi
+rm -f -- "$E07_CODEX_READY"
+printf 'launch\n' > "$E07_CODEX_GATE"
+wait "$e07_codex_pid"
+rm -f -- "$E07_CODEX_GATE"
+unset AIHUB_CLIENT_KEY e07_codex_pid E07_CODEX_GATE E07_CODEX_READY \
+  CODEX_SQLITE_HOME TMPDIR XDG_CONFIG_HOME XDG_DATA_HOME \
+  XDG_CACHE_HOME XDG_STATE_HOME XDG_RUNTIME_DIR
 rm -r -- "$CODEX_HOME" "$WORKDIR"
+unset CODEX_HOME WORKDIR
 ```
 
-The Codex process receives only the gateway credential; it does not inherit
-the provider credential or the Hub's gateway variable. Keep sandbox and
-approval behavior enabled. After the manual smoke, stop the Hub gracefully
-with Ctrl-C and remove only the temporary `CODEX_HOME`, `WORKDIR`, and data
-directories created for this run:
+The Codex process receives the gateway credential and temporary runtime paths
+through an explicit environment allowlist. Shell tools receive only `PATH`,
+temporary `HOME`, and `TMPDIR`; neither the gateway nor provider credential is
+passed to them. The Codex PID check reads `/proc/<pid>/environ` while the
+process waits at a launch gate; `exec` retains that PID and environment. The
+gate opens only when the expected credential states pass, before the Codex
+request starts. Keep sandbox and approval behavior enabled. After the manual
+smoke, stop the Hub gracefully and remove only the temporary `CODEX_HOME`,
+`WORKDIR`, AI Hub build/cache, and data directories created for this run:
 
 ```bash
-unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
-rm -r -- "$AIHUB_DATA_DIR"
+kill -INT "$AIHUB_E07_HUB_PID"
+wait "$AIHUB_E07_HUB_PID"
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY AIHUB_E07_HUB_PID
+rm -r -- "$AIHUB_E07_BUILD_DIR" "$AIHUB_DATA_DIR"
 ```
 
 The opt-in E07 validator exercises records, probes, streaming, restart, and
-before/after integrity checks in one bounded pass. Supply the provider
-credential through `AIHUB_PROVIDER_OPENCODEGO_API_KEY` or the existing
-`OPENCODE_API_KEY` environment variable. If `AIHUB_GATEWAY_API_KEY` is unset,
-the validator generates a distinct temporary gateway key in memory and passes
-it to the Hub and Codex child without printing or persisting it. Then run:
+before/after integrity checks in one bounded pass. Build its test binary in a
+separate credential-free environment, using temporary home and Go caches:
 
 ```bash
-AIHUB_E07_LIVE=1 go test ./cmd/ai-hub -run '^TestE07LiveCodexOpenCodeGo$' -count=1 -v
+AIHUB_E07_TEST_DIR="$(mktemp -d)"
+AIHUB_DATA_DIR="$(mktemp -d)"
+mkdir -m 700 -p "$AIHUB_E07_TEST_DIR/home" "$AIHUB_E07_TEST_DIR/tmp"
+export AIHUB_E07_TEST_DIR AIHUB_DATA_DIR
+env -i PATH="$PATH" HOME="$AIHUB_E07_TEST_DIR/home" \
+  GOPATH="$AIHUB_E07_TEST_DIR/go" \
+  GOMODCACHE="$AIHUB_E07_TEST_DIR/go/pkg/mod" \
+  GOCACHE="$AIHUB_E07_TEST_DIR/cache" \
+  go test -c -o "$AIHUB_E07_TEST_DIR/ai-hub-e07.test" ./cmd/ai-hub
+```
+
+In Terminal C, enter new, distinct gateway and provider credentials using
+separate non-echoing prompts. Do not reuse `OPENCODE_API_KEY` or allow the
+harness to generate a replacement credential. Keep the values unexported in
+the parent shell, then run the prebuilt test binary in a sanitized subshell.
+Its explicit environment includes `PATH` so `exec.LookPath("codex")` can find
+the CLI, plus only the test flag, dedicated data directory, and credentials
+needed by the harness. The harness constructs a separate Codex child
+environment that excludes the provider credential. Do not put values in
+command text, arguments, files, or run `go test` while credentials are present:
+
+```bash
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY OPENCODE_API_KEY AIHUB_CLIENT_KEY
+read -r -s -p 'Gateway API key: ' AIHUB_GATEWAY_API_KEY; printf '\n'
+read -r -s -p 'OpenCode Go provider key: ' AIHUB_PROVIDER_OPENCODEGO_API_KEY; printf '\n'
+[[ -n "$AIHUB_PROVIDER_OPENCODEGO_API_KEY" && \
+   ${#AIHUB_GATEWAY_API_KEY} -ge 32 && ${#AIHUB_GATEWAY_API_KEY} -le 512 && \
+   "$AIHUB_GATEWAY_API_KEY" =~ ^[A-Za-z0-9._~+/-]+=*$ && \
+   "$AIHUB_GATEWAY_API_KEY" != "$AIHUB_PROVIDER_OPENCODEGO_API_KEY" ]] || {
+  printf 'Credential preflight failed.\n' >&2
+  unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
+  exit 1
+}
+(
+  e07_path="$PATH"
+  e07_home="$AIHUB_E07_TEST_DIR/home"
+  e07_tmpdir="$AIHUB_E07_TEST_DIR/tmp"
+  e07_test_binary="$AIHUB_E07_TEST_DIR/ai-hub-e07.test"
+  e07_data_dir="$AIHUB_DATA_DIR"
+  while IFS= read -r e07_name; do
+    case "$e07_name" in
+      PATH|HOME|TMPDIR|AIHUB_E07_LIVE|AIHUB_DATA_DIR|AIHUB_GATEWAY_API_KEY|AIHUB_PROVIDER_OPENCODEGO_API_KEY) ;;
+      *) unset "$e07_name" ;;
+    esac
+  done < <(compgen -e)
+  export PATH="$e07_path" HOME="$e07_home" TMPDIR="$e07_tmpdir" \
+    AIHUB_E07_LIVE=1 AIHUB_DATA_DIR="$e07_data_dir" \
+    AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
+  exec "$e07_test_binary" -test.run '^TestE07LiveCodexOpenCodeGo$' -test.count=1 -test.v
+)
+unset AIHUB_GATEWAY_API_KEY AIHUB_PROVIDER_OPENCODEGO_API_KEY
+```
+
+After the test process exits, remove the temporary test-build and data
+directories from the setup shell after the credential variables have been unset:
+
+```bash
+rm -r -- "$AIHUB_E07_TEST_DIR" "$AIHUB_DATA_DIR"
 ```
 
 The validator creates and removes isolated Codex, data, and tool-workspace
@@ -350,6 +637,17 @@ go vet ./...
 staticcheck ./...
 golangci-lint run ./...
 ```
+
+The isolated Codex shell canary is opt-in because it requires the exact
+validated CLI release and a global Codex tree that no ambient Codex process is
+modifying. It is skipped by the default suite and fails closed when enabled:
+
+```bash
+AIHUB_E07_CANARY=1 go test ./cmd/ai-hub \
+  -run '^TestE07CodexShellEnvironmentPolicyIsEffective$' -count=1 -v
+```
+
+The real-provider validator remains separately gated by `AIHUB_E07_LIVE=1`.
 
 ## Documentation
 
