@@ -481,6 +481,7 @@ gates are not `PASS`. Other final gate results are:
 | `go build ./...` | `PASS` |
 | `gofmt -l cmd internal` | `PASS` — empty output |
 | `git diff --check` | `PASS` |
+| Independent readonly review | `APPROVED` — confirmed the restored `.env` assertion, symlink no-read behavior, local resume fix, AC-14 limitation, and file scope; no tests or E2E were run by the reviewer |
 | Selected deterministic E07 budget, replay, fidelity, records, environment, auth, timeout, manifest, and process tests | `PASS` — 32 tests; Codex CLI and AI Hub were not started |
 | Darwin E07 test package cross-compilation | `PASS` — test binary compiled; temporary binary removed |
 | E07 modified/created Go files below 300 lines | `PASS` — the largest E07 Go file is 278 lines |
@@ -1062,3 +1063,577 @@ still **INCOMPLETE**.
 
 The report is the only repository file changed. No production code, `.env`, or
 `.bashrc` was modified. No commit or push was made.
+
+## Authorized integrity correction and final execution checkpoint (2026-11-01)
+
+Status: **INCOMPLETE — the integrity correction is implemented and reviewed, but
+the real E2E scenarios did not start because the global Codex state tree was
+unstable before launch.** No Hub was started and no provider-boundary request
+was attempted in either preflight invocation.
+
+### Integrity correction
+
+The E07-only integrity helpers now classify root and nested `.env` and
+secret-bearing `.env.*` entries before opening a file or following a symlink.
+Their content is excluded from tree, dotenv, tracked-file, and Git-state
+content fingerprints. The metadata-only dotenv fingerprint records relative
+names and stable file metadata fields, excluding access time; it does not
+record or hash content. It detects ordinary edits that change metadata but
+cannot prove byte-for-byte equality if content is rewritten while preserving
+those fields. `.env.example` remains included in ordinary file-content
+fingerprints. Non-secret tracked and untracked source contents remain covered,
+and source changes remain detectable. The secret paths are excluded from the
+Git status scope. The file-hashing helper was extracted to keep the tree helper
+below the repository's preventive file-length threshold.
+
+The deterministic bubblewrap test mounts a synthetic repository read-only,
+loads its `.env` with the production dotenv parser, and verifies that writes to
+both `.env` and a source file are rejected. The live command was configured to
+mount the host root read-only and use private temporary runtime paths; the
+external host remains able to update its own Codex state outside that mount
+namespace, which is why the before/after Codex-tree check remains mandatory.
+
+### Regression tests and local gates
+
+The commands below were executed by this implementation session. The
+independent reviewer inspected the code and considered the supplied test
+evidence; the reviewer did not rerun these commands.
+
+| Evidence | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub -count=1` | `PASS` |
+| E07 protected dotenv and read-only mount tests with `-v` | `PASS`, both tests executed without skips |
+| Fingerprint, dotenv non-read, symlink, and source-change tests inside an outer read-only bubblewrap mount with private scratch | `PASS`, six selected tests |
+| `go test ./... -count=1 -race` | `PASS` on a sequential rerun. An initial parallel gate run had a timing failure in `internal/catalog/TestManagerTimeoutIsClassified`; the test passed in isolation and the sequential full rerun passed. |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS`, zero issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS`, empty output |
+| `git diff --check` | `PASS` |
+| Independent `senior-code-review-judge` review of the E07 code correction | `APPROVED`, no critical, important, or minor findings |
+| Secret scanner | `NOT RUN — operator-approved exception` |
+
+All changed or new Go files are below 250 lines. The code change is limited to
+`cmd/ai-hub/e07_*` helpers and tests; no E01–E06 production file, `.env`, or
+`.bashrc` was changed. No commit or push was made. The scanner exception does
+not establish that the repository is secret-free.
+
+### Real E2E launch attempts
+
+The authorized test command was invoked twice in preflight mode. Each invocation
+started the harness wall-clock timer before setup and stopped before dotenv
+loading, Codex version inspection, Hub startup, or provider traffic.
+
+| Preflight | Result | Provider-call counter | Elapsed |
+| --- | --- | ---: | ---: |
+| Initial read-only bubblewrap launch | `BLOCKED` — a host Codex process was visible to the process guard | `NOT INITIALIZED`; setup exited before Hub startup | `0.002193 s` |
+| Read-only bubblewrap launch with a private PID namespace | `BLOCKED` — the global Codex tree changed during the 250 ms stability check | `NOT INITIALIZED`; setup exited before Hub startup | `0.450396 s` |
+
+The PID namespace limited process inspection to the validation process view.
+The second invocation still detected a metadata change in the actual global
+Codex tree. The root mount was read-only for the validation process, but that
+namespace cannot prevent an external host process from changing the underlying
+global tree. Continuing would make AC-14 unverifiable.
+
+Both failures occurred before the observer and provider-call budget were
+created. The cleanup log's zero fields were default values for a nil observer,
+not an initialized counter snapshot. Control flow confirms that no Hub or
+provider request was started; report provider calls as `0 confirmed`, with the
+counter `NOT INITIALIZED`. Eight calls were expected and nine remained the
+maximum. The tenth call remains covered by the deterministic budget test, which
+proves rejection before transport. No provider request was retried; none began.
+
+| Required live scenario | Result in this checkpoint |
+| --- | --- |
+| Basic generation | `NOT RUN — Codex-tree preflight failed` |
+| Gateway authentication and rejection | `NOT RUN — Codex-tree preflight failed` |
+| Multi-turn replay | `NOT RUN — Codex-tree preflight failed` |
+| Sandboxed tool calling | `NOT RUN — Codex-tree preflight failed` |
+| Upstream error passthrough | `NOT RUN — Codex-tree preflight failed` |
+| Gateway streaming | `NOT RUN — Codex-tree preflight failed` |
+| Execution-record persistence and correlation | `NOT RUN — Codex-tree preflight failed` |
+| Listing and by-ID retrieval | `NOT RUN — Codex-tree preflight failed` |
+| Graceful shutdown, restart, and recovery | `NOT RUN — Codex-tree preflight failed` |
+| Credential isolation and repository/Codex integrity | `NOT RUN — Codex-tree preflight failed` |
+
+### Cumulative AC-1 through AC-14 checkpoint
+
+Historical results above remain unchanged. `PASS (historical)` identifies
+criteria with prior real-provider evidence that were not repeated in this
+checkpoint; it does not combine that evidence with a new E2E run.
+
+| AC | Current status | Checkpoint evidence |
+| --- | --- | --- |
+| AC-1 | `BLOCKED` | The isolated live setup did not proceed; its required AC-14 integrity dependency is unresolved. |
+| AC-2 | `PASS (historical)` | No Codex request was sent in this checkpoint. |
+| AC-3 | `PASS (historical)` | No authenticated or unauthenticated live request was sent in this checkpoint. |
+| AC-4 | `PASS (historical)` | No basic generation request was sent in this checkpoint. |
+| AC-5 | `FAIL` | No real replay was run; the previous cumulative matrix records replay failure. |
+| AC-6 | `PASS (historical)` | No tool task was run in this checkpoint. |
+| AC-7 | `FAIL` | No real upstream-error probe was run in this checkpoint. |
+| AC-8 | `PASS (historical)` | No live stream was run in this checkpoint. |
+| AC-9 | `FAIL` | No live execution records were created or queried in this checkpoint. |
+| AC-10 | `FAIL` | No live shutdown, restart, or recovery was run in this checkpoint. |
+| AC-11 | `BLOCKED` | This entry records the preflight outcomes, durations, and call counters without credentials, payloads, or generated identifiers; current live runtime metadata was not reached. |
+| AC-12 | `PASS` | Production remains unchanged and all listed local quality gates passed on the E07 helper change set. |
+| AC-13 | `PASS` | No Codex support claim was added; the existing incomplete/experimental wording remains. |
+| AC-14 | `BLOCKED` | Read-only fixture and repository tests pass, but the global Codex tree changes during the stability window. The scanner remains `NOT RUN — operator-approved exception`. |
+
+E07 remains **INCOMPLETE**. The authorization and provider-call budget remain
+unchanged, and this checkpoint made zero provider calls. Resuming the real pass
+requires a quiescent host Codex state tree for the full before/after comparison;
+the active writer has not been identified or stopped by this validation. Do not
+claim Codex CLI support or repository secret-free status from this checkpoint.
+
+## Isolated final E2E execution — 2026-11-01
+
+Status: **INCOMPLETE — the isolated real-provider pass ran once; multi-turn
+replay failed, and AC-14's literal host-global unchanged-tree condition was not
+met.** The operator-approved scanner exception remains in effect. No support
+claim is made.
+
+### Global-tree diagnosis and isolation
+
+Read-only `/proc` inspection before execution found two ambient `codex
+app-server` processes with 65 write-capable open descriptors under the account
+Codex tree. This establishes that app-server processes could write there, but
+does not associate a particular historical metadata change with a process or
+write event. The source of the changes therefore remains **UNDETERMINED**.
+Process names, arguments, descriptor paths, and Codex state contents were not
+published.
+
+The live test and its descendants ran inside a private mount and PID namespace.
+The host root and repository, including `.env`, were read-only. An empty,
+read-only bind mount covered the real account `~/.codex`; the dedicated private
+runtime bind was read-write. `HOME`, `CODEX_HOME`, `CODEX_SQLITE_HOME`,
+`TMPDIR`, `TEMP`, `TMP`, and all configured XDG paths resolved under the private
+runtime. The shell policy used `inherit = "none"` and
+`experimental_use_profile = false`; Codex retained `workspace-write` and its
+normal approval behavior. Network access remained available for OpenCode Go.
+
+The deterministic `TestE07CodexMountBoundaryHidesGlobalState` verified the
+empty read-only global mount, writable private state, before/after private
+state snapshots, and an actual child process in the same mount namespace. The
+live setup guard repeated the mount/path checks before launching Codex. The
+live pass recorded seven private state roots before and after, and all nine
+per-scenario isolation/repository checkpoints passed.
+
+One launcher assembly attempt ended before the test binary started because it
+mounted a private `/tmp` before binding sources located under host `/tmp`. It
+started no Hub and made zero provider calls. The corrected launcher bound the
+private runtime, empty global mount, and test binary before mounting private
+`/tmp`. The scenario pass then ran exactly once; no scenario was retried.
+
+The host-side metadata-only comparison reported the real global Codex tree as
+`CHANGED_EXTERNALLY` during both the failed launcher window and the isolated
+pass. The E2E process could not see or modify that host tree, and this external
+delta was not classified as an E2E isolation failure. No global file was read,
+restored, or modified by the validation process.
+
+### Execution environment and budget
+
+| Item | Result |
+| --- | --- |
+| AI Hub production baseline | `0d33ca26c15acf54fac418cb33380b5871b4d899`; no production source changed |
+| E07 test worktree revision | `a4027c24ffdb788136a60956b4f270834f99cce9`, with the reviewed E07 worktree mounted read-only |
+| Runtime | Go `go1.23.0`, Codex CLI `0.164.0-alpha.11.1`, bubblewrap `0.4.0`, Linux `amd64` |
+| Model | `deepseek-v4.1-flash` |
+| Credential source | Existing `.env`, loaded by the production dotenv parser; provider origin reported as `dotenv`; values were not printed, copied, rotated, or regenerated |
+| Scanner | `NOT RUN — operator-approved exception`; no secret-free claim is made |
+| Scenario passes | `1/1` |
+| Provider calls | `8/9` maximum; attempted `8`, forwarded `8`, rejected `0`; no retry |
+| Wall-clock duration | `17.019 s`, from corrected namespace launch through cleanup |
+| Host `~/.codex` metadata | `CHANGED_EXTERNALLY`; no attribution to a process was established |
+| Repository, dotenv metadata, tracked files, Git scope | `PASS` against the reviewed E07 worktree baseline |
+
+The launcher-only failure took 1.002 seconds and had no initialized provider
+observer; control flow and the absent test-binary start confirm zero provider
+calls. It is not counted as an E2E scenario pass. The successful scenario run
+used eight provider-boundary calls, with one call remaining under the hard
+ceiling of nine. No model-availability probe or other provider diagnostic was
+made outside this pass.
+
+### Scenario results
+
+| Scenario | Result | Evidence |
+| --- | --- | --- |
+| Basic generation | `PASS` | Non-empty successful response; one Codex Responses request reached the Hub. |
+| Authentication and rejection | `PASS` | Authenticated route worked; unauthenticated request returned `401` with zero provider-call delta. |
+| Multi-turn replay | `FAIL` | Turn one passed. The second Codex invocation produced no second Hub request: one of the expected two replay requests reached the provider. The first divergence was between the second Codex invocation and Hub ingress. Marker recall and prior-turn-context predicates failed; `previous_response_id` was absent. No retry was made. |
+| Sandboxed tool round trip | `PASS` | The bounded write/read task completed in the temporary workspace under `workspace-write` with normal approvals. |
+| Upstream error passthrough | `PASS` | Same-response status, content type, complete-body digest, and generic envelope checks all passed for one provider call. |
+| Gateway streaming | `PASS` | 118 SSE data events; first at `1.954 s`, last at `3.849 s`, completion at `3.850 s`. Codex stdout progressive rendering remains `NOT VERIFIED`. |
+| Execution records, correlation, listing, and by-ID lookup | `PASS` | Pre-stop: 6 expected and 6 matched; list, correlation, outcome, schema, and all 6 by-ID assertions passed. |
+| Graceful shutdown, restart, and recovery | `PASS` | Post-restart: 6 expected and 6 matched; all independent record assertions passed. |
+| Credential and filesystem isolation | `PASS` | The exact Codex parent environment contained the gateway key and excluded provider/Hub-only keys; config contained no credential values. Private mounts and runtime paths passed at each checkpoint. |
+| Codex stdout progressive rendering | `NOT VERIFIED` | The CLI provided no measurable progressive-rendering signal; gateway-hop streaming passed. |
+
+### Focused verification and review
+
+| Check | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub -count=1 -run '^(TestE07CodexMountBoundaryHidesGlobalState|TestE07ReadOnlyMountLoadsDotEnvAndRejectsWrites)$' -v` | `PASS` — both tests ran without skips |
+| `git diff --check` | `PASS` |
+| E07 Go file limit | `PASS` — all changed/new Go files are below 250 lines |
+| Targeted independent review | Final re-review found no open findings. Initial review findings on empty/read-only mount proof, scenario continuation, and child environment allowlisting were corrected. The reviewer did not run tests or E2E. |
+| Full local gate matrix after the isolation delta | `NOT RUN` — only the focused checks were repeated, as requested; prior broad gate results predate this delta |
+
+### AC-1 through AC-14 disposition at the end of the real E2E run
+
+| AC | Current result | Evidence and limitation |
+| --- | --- | --- |
+| AC-1 | `NOT ESTABLISHED` | Process and credential isolation passed; the required AC-14 global unchanged-tree condition did not. |
+| AC-2 | `PASS` | Four Codex Responses requests reached the Hub; none used a direct provider route. |
+| AC-3 | `PASS` | Authenticated routing and `401` rejection passed with zero provider-call delta for the rejected request. |
+| AC-4 | `PASS` | Basic real-provider generation succeeded. |
+| AC-5 | `FAIL` | The second Codex invocation did not reach Hub ingress; replay and marker recall were not established. |
+| AC-6 | `PASS` | Real sandboxed tool round trip passed with normal controls. |
+| AC-7 | `PASS` | Same-response upstream error fidelity passed. |
+| AC-8 | `PASS` | Progressive gateway streaming passed; Codex stdout rendering is `NOT VERIFIED`, permitted by AC-8. |
+| AC-9 | `PASS` | Six records passed list, correlation, outcome, schema, and by-ID assertions. |
+| AC-10 | `PASS` | Six records remained queryable after orderly restart. |
+| AC-11 | `PASS` | This checkpoint records versions, budget, outcomes, and limitations without credentials, payloads, paths, hashes, or generated request/record identifiers. |
+| AC-12 | `NOT VERIFIED` | Focused isolation tests and diff checks passed. The full required gate matrix was not rerun after the isolation delta. |
+| AC-13 | `PASS` | The README remains experimental and makes no Codex support claim. |
+| AC-14 | `FAIL — literal unchanged-tree clause` | The host-side metadata comparison changed, while process isolation passed. The report does not attribute the external change to the E2E. The secret scanner exception also leaves the no-secret-added subcondition unverified. |
+
+The approved SPEC's AC-14 expressly requires before/after evidence that
+`~/.codex` is unchanged. The isolated E2E proves it could not read or write the
+host tree; that does not satisfy the literal unchanged-tree assertion when the
+host-side metadata comparison changes. This distinction is recorded without
+changing AC-14 or treating unrelated host activity as an E2E process failure.
+
+At the end of the real E2E run, E07 remained **INCOMPLETE** because AC-5
+failed, AC-12 had not been rerun, and AC-14 did not pass. Do not retry the
+multi-turn scenario or start another provider pass without a new authorization.
+No commit or push was made.
+
+## Local AC-5 correction and AC-12 verification — 2026-11-01
+
+Status: the E07 resume invocation was corrected and verified with the recorded
+Codex CLI against a loopback synthetic Responses endpoint. No AI Hub real
+provider pass or provider-boundary request was made. The real E2E results above
+remain unchanged; AC-5 is not marked PASS without a new authorized real run.
+
+### AC-5 root cause and correction
+
+The real run created the first conversation in a temporary workspace outside a
+Git repository with `--skip-git-repo-check`. Its second invocation resumed the
+explicit thread ID from the same temporary workspace but omitted that option.
+The installed Codex CLI exposes `--skip-git-repo-check` for `exec resume` as
+well as `exec`.
+
+`TestE07CodexResumeContinuesFromTemporaryWorkspace` reproduced the failure
+before the fix: the first invocation completed two requests against the local
+synthetic endpoint, then `exec resume` exited with code 1 before issuing its
+request. Adding `--skip-git-repo-check` to the resume invocation made the same
+test pass and produced the expected third local request. The live E07 scenario
+now passes that option when resuming. Sandbox mode and approval behavior were
+not changed.
+
+This A/B reproduction confirms the validation harness cause for the missing
+second request. It does not establish real-provider marker recall or full
+replay, so AC-5 remains pending a newly authorized E2E pass.
+
+### AC-12 gates after the correction
+
+All commands below ran after the resume fix. The live-provider and canary
+environment flags were unset for the package and repository suites.
+
+| Check | Result |
+| --- | --- |
+| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub -count=1 -run '^TestE07CodexResumeContinuesFromTemporaryWorkspace$' -v` | `PASS` — actual Codex CLI, temporary state, loopback synthetic endpoint; no provider call |
+| `go test ./cmd/ai-hub/ -count=1 -run TestE07` | `PASS` |
+| `go test ./... -count=1 -race` | `PASS` — all Go packages |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` |
+
+### Updated disposition after local verification
+
+| AC | Current disposition | Remaining evidence |
+| --- | --- | --- |
+| AC-1 | `NOT ESTABLISHED` | The real credential and process isolation checks passed, but AC-1 also requires the AC-14 before/after conditions. |
+| AC-5 | `REAL E2E FAIL; LOCAL CAUSE CORRECTED` | A new authorized real-provider run must prove that the resumed request reaches the Hub, includes prior-turn context, omits `previous_response_id`, and recalls the marker. |
+| AC-12 | `PASS` | All required local gates above passed after the latest code change. |
+| AC-14 | `FAIL — literal unchanged-tree clause` | The last real run observed a global Codex metadata delta. Process isolation passed, but the exact writer remains undetermined. A dedicated homologation account or host with a stable account-level `~/.codex` tree and no ambient Codex writer is required for the literal comparison; a temporary `CODEX_HOME` alone is insufficient. The no-secret-added subcondition also remains unverified under the approved scanner exception. |
+
+AC-7, AC-9, and AC-10 remain `PASS` from the latest real E2E run. No new
+evidence indicates regression, so they were not reopened. AC-2, AC-3, AC-4,
+AC-6, AC-8, AC-11, and AC-13 retain their latest real-run outcomes above.
+E07 remains **INCOMPLETE**; no support claim was added.
+
+## Integrity symlink correction and refreshed AC-12 gates — 2026-11-01
+
+No real E2E or provider call was made. The existing real-run results and the
+consumed authorization remain unchanged. The live and canary flags were unset
+for the local gate matrix.
+
+The integrity regression exposed that a symlink pointing to a secret dotenv
+file was classified before its target was inspected. The fingerprint therefore
+captured only the symlink metadata, so a target metadata change could be missed.
+The traversal now records both link and target metadata for secret dotenv
+links. It continues to avoid opening secret dotenv contents, including when a
+link itself is named `.env` or `.env.*`. The existing repository snapshot test
+still requires a changed `.env` snapshot to compare unequal; it was not relaxed.
+
+Focused checks passed for secret dotenv change detection, protected-file read
+guards, secret symlink target changes, the read-only repository mount, and the
+repository snapshot regression. The following AC-12 gates passed after this
+integrity correction:
+
+| Check | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub/ -count=1 -run TestE07` | `PASS` |
+| `go test ./... -count=1 -race` | `PASS` — all Go packages |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` |
+
+### Remaining AC-1 and AC-14 evidence
+
+AC-1 remains `NOT ESTABLISHED`: the real run proved credential and process
+isolation, but its AC-14 prerequisite did not pass. Its remaining evidence is a
+validation from a dedicated homologation account or host where the account-level
+`~/.codex` tree has no concurrent Codex writer, plus all literal AC-14 checks.
+Using a temporary `CODEX_HOME` does not satisfy the SPEC's account-level
+before/after condition.
+
+The symlink correction is locally fixable and now covered by regression tests.
+The last real run's global `~/.codex` metadata delta is an environment issue:
+the exact writer was not identified, so it cannot be attributed to the E2E.
+The approved execution plan also explicitly prohibits installing or running a
+secret scanner. Consequently the no-secret-added condition remains unverified;
+no secret-free claim is made. The metadata-only dotenv check does not inspect or
+retain file contents, so its evidence is limited to filesystem metadata and
+does not establish byte-for-byte equality when metadata is preserved.
+
+| AC | Current disposition | Remaining evidence |
+| --- | --- | --- |
+| AC-1 | `NOT ESTABLISHED` | Dedicated homologation environment, literal AC-14 checks, and a new authorized real validation. |
+| AC-5 | `REAL E2E FAIL; LOCAL CAUSE CORRECTED` | A new authorized real run must prove Hub ingress, prior-turn context, absent `previous_response_id`, and marker recall. |
+| AC-12 | `PASS` | All SPEC-required local gates passed after the latest integrity code change. |
+| AC-14 | `FAIL — literal unchanged-tree clause` | Dedicated stable account/host needed for the global Codex tree comparison; scanner execution is prohibited by the approved plan; dotenv metadata cannot prove byte-for-byte equality if metadata is preserved. |
+
+AC-7, AC-9, and AC-10 remain `PASS` from the latest real E2E run; no concrete
+regression evidence was found. No historical real-run result was changed.
+
+## Isolated homologation preflight and authorization checkpoint — 2026-11-01
+
+Status: **PREPARED FOR REVIEW — no new real E2E pass was authorized or started.**
+This checkpoint made zero provider calls. The previous real pass remains
+consumed, and none of its outcomes is retroactively changed by this local
+preflight.
+
+### Global Codex writer investigation
+
+The integrity helper resolves the account home with Go's account lookup,
+independently of `HOME`. For the current host identity, that home is
+`/home/rafael`, so its account-level root is `/home/rafael/.codex`. One
+metadata-only `/proc` inspection found three processes named `codex` with 124
+write-capable descriptors under that tree. It did not inspect process
+arguments, descriptor target names, or Codex state contents. This establishes
+write capability only; it does not identify whether a process was a CLI,
+app-server, or extension child, and it does not attribute any historical tree
+change to a specific process. The historical cause remains **UNDETERMINED**.
+No process was signalled or modified.
+
+### Tested isolated Linux environment
+
+The selected preflight uses the installed Bubblewrap 0.4.0 with private mount
+and PID namespaces. A temporary `/etc/passwd` view names the executing UID and
+GID `1000:1000` as `e07-homologation`, with account home
+`/home/e07-homologation`; this entry exists only inside the namespace. No host
+account, package, permission, or system configuration was changed. The
+namespace-scoped account root monitored by the helper is exactly
+`/home/e07-homologation/.codex`. It is an empty read-only mount on a private
+tmpfs home. The identity shares the host's numeric UID, so its isolation comes
+from the mount and PID namespaces, not from a distinct host UID.
+
+The tested mount layout hides the developer's `/home` behind tmpfs, mounts the
+repository read-only at `/tmp/e07/repository`, and keeps the per-run runtime,
+`HOME`, `CODEX_HOME`, `CODEX_SQLITE_HOME`, XDG directories, and temporary files
+under a private tmpfs runtime. The repository `.env` is readable through the
+read-only repository mount and cannot be written through that mount. The
+production `config.LoadDotEnv` parser reported only that
+`AIHUB_GATEWAY_API_KEY` and `AIHUB_PROVIDER_OPENCODEGO_API_KEY` are present;
+their values were not printed, copied, hashed, or measured. The developer's
+global Codex tree was not visible in the namespace. A child-process probe
+confirmed the same mount and PID namespaces; a same-UID parent could not read
+a synthetic file through `/proc/<pid>/root`.
+
+An explicit UID-0 user-namespace variant was rejected: its nested Codex
+Bubblewrap sandbox failed with `Operation not permitted`. The tested launcher
+therefore retains the current numeric UID and uses the namespace-local account
+view. Under that configuration, the normal `workspace-write` Codex sandbox
+and approval behavior worked without a bypass.
+
+### Local AC-5 and AC-12 evidence
+
+`TestE07CodexResumeContinuesFromTemporaryWorkspace` passed inside the tested
+namespace with Codex CLI `0.164.0-alpha.11.1`. It used a loopback synthetic
+Responses endpoint, not AI Hub or the real provider. The initial invocation
+made two synthetic requests, and `exec resume` made the expected third request.
+Both invocations included `--skip-git-repo-check`; the regression exercises
+the second invocation and verifies its request reached the synthetic endpoint.
+This confirms the local launcher correction only. AC-5 remains a real E2E
+failure until a newly authorized pass proves the replay through AI Hub and
+marker recall.
+
+The focused `TestE07` package run passed with `AIHUB_E07_CANARY=1`; the live
+flag was unset. The current working tree also passed the complete AC-12 gate
+set in the isolated environment:
+
+| Check | Result |
+| --- | --- |
+| `go test ./... -count=1 -race` | `PASS` |
+| `go vet ./...` | `PASS` |
+| `staticcheck ./...` | `PASS` |
+| `golangci-lint run ./...` | `PASS` — 0 issues |
+| `go build ./...` | `PASS` |
+| `gofmt -l cmd internal` | `PASS` — empty output |
+| `git diff --check` | `PASS` |
+
+No real E2E scenario, AI Hub live setup, or provider-boundary request ran in
+these checks.
+
+### Current cumulative acceptance disposition
+
+| AC | Current disposition | Evidence and remaining limitation |
+| --- | --- | --- |
+| AC-1 | `NOT ESTABLISHED` | Depends on the literal AC-14 conditions and a new authorized real run. |
+| AC-2 | `PASS` | Latest real E2E routed all tested Codex Responses traffic through AI Hub. |
+| AC-3 | `PASS` | Latest real E2E authenticated routing and rejection passed. |
+| AC-4 | `PASS` | Latest real E2E basic generation passed. |
+| AC-5 | `REAL E2E FAIL; LOCAL CAUSE CORRECTED` | Local resume regression passed; real replay, context forwarding, and marker recall remain unverified. |
+| AC-6 | `PASS` | Latest real E2E sandboxed tool round trip passed. |
+| AC-7 | `PASS` | Latest real E2E same-response upstream error fidelity passed. |
+| AC-8 | `PASS` | Gateway streaming passed; Codex stdout progressive rendering remains `NOT VERIFIED`. |
+| AC-9 | `PASS` | Latest real E2E record correlation, listing, and by-ID checks passed. |
+| AC-10 | `PASS` | Latest real E2E restart and recovery checks passed. |
+| AC-11 | `PASS` | Latest report records the run without payloads, credentials, or generated identifiers. |
+| AC-12 | `PASS` | Full required local gates passed after the latest E07 helper changes. |
+| AC-13 | `PASS` | No Codex support claim was added. |
+| AC-14 | `FAIL — literal unchanged-tree clause` | The last real run observed a host-global Codex metadata delta. The namespace preflight is not a real-run before/after result. The operator-approved scanner exception also leaves the literal no-secret-added subcondition unverified. |
+
+The scanner remains `NOT RUN — operator-approved exception`; no secret-free
+claim is made. The namespace preflight does not prove that no secret was added
+to the repository, and AC-14 is not marked `PASS`. E07 remains
+**INCOMPLETE**. No commit, push, or support claim was made.
+
+### Independent review and enforced execution deadline — 2026-11-01
+
+The first independent review returned SDD `NEEDS_FIX`: the plan stated a
+30-minute ceiling but did not enforce it, and the live-test elapsed timer began
+after setup. No provider call or real E2E pass occurred during that review.
+
+The execution plan now requires `/usr/bin/timeout --signal=KILL 30m` as the
+outermost supervisor before preflight/setup. The deadline covers test-binary
+compilation, namespace startup, live setup, scenarios, shutdown, integrity
+comparison, and cleanup. All writable run artifacts are specified under
+namespace tmpfs; a timeout is `INCONCLUSIVE`, leaves after-state integrity
+`NOT VERIFIED`, and permits no retry. The live-test elapsed measurement now
+starts before `e07PrepareLiveSetup` and includes its registered cleanup.
+
+Local evidence after this correction:
+
+| Check | Result |
+| --- | --- |
+| Focused E07 resume, mount-boundary, dotenv-read-only, and secret-symlink tests | `PASS` |
+| GNU `timeout` availability | `PASS` — coreutils 8.30 |
+| Synthetic watchdog check | `PASS` — a one-second watchdog terminated a local sleep process with exit status 137 |
+| `git diff --check` | `PASS` |
+| New provider calls / real E2E | `NONE` |
+
+The independent reviewer must recheck the deadline correction before a new
+real E2E authorization is requested. The historical provider run, AC-5
+disposition, AC-14 literal failure, and scanner exception remain unchanged.
+
+### Final homologation preparation verification — 2026-11-01
+
+No real E2E was launched and no provider-boundary call was made in this
+checkpoint. The previously authorized real pass remains consumed.
+
+The local AC-5 launcher regression passed with Codex CLI
+`0.164.0-alpha.11.1` and a loopback synthetic Responses endpoint. The first
+turn made two synthetic requests and `exec resume` made the expected third.
+Both invocations include `--skip-git-repo-check`. This remains local evidence;
+the historical real AC-5 result remains `FAIL` pending a newly authorized
+route-level replay.
+
+The supervised preflight initially failed because the isolated `/tmp` tmpfs
+was remounted read-only, preventing Codex's nested shell sandbox from
+constructing its Bubblewrap command. The supervisor now keeps its private
+`/tmp` tmpfs writable while retaining the repository bind as read-only. The
+preflight also rejects direct `--supervised` invocation unless the parent is
+the external `/usr/bin/timeout` with the exact `--signal=KILL 30m` argv. A
+60-minute timeout carrying the internal marker was rejected before setup. The
+preflight runs an opt-in credential-presence check through the production
+dotenv parser. The parser reports only
+`AIHUB_GATEWAY_API_KEY=PRESENT` and
+`AIHUB_PROVIDER_OPENCODEGO_API_KEY=PRESENT`; no values are emitted. The
+operator-approved scanner exception remains unchanged.
+
+After those corrections, `scripts/e07-live-supervisor.sh --preflight` passed,
+including the synthetic shell-environment canary, Codex resume regression,
+read-only repository and dotenv mount checks, secret-file fingerprint tests,
+symlink handling, and child namespace checks. The direct supervised-mode
+negative check was rejected before repository discovery. The complete AC-12
+local gate set also passed: `go test ./... -count=1 -race`, `go vet ./...`,
+`staticcheck ./...`, `golangci-lint run ./...`, `go build ./...`,
+`gofmt -l cmd internal`, and `git diff --check`. No live-test flag was set.
+
+#### AC-14 literal disposition
+
+The current Bubblewrap view does not provide a dedicated host OS account. The
+host has no `e07-homologation` account; the launcher supplies a namespace-only
+passwd entry mapping the current `1000:1000` UID/GID to that name. Within that
+namespace, `e07AccountHomeDirectory()` resolves
+`/home/e07-homologation`, so the helper observes
+`/home/e07-homologation/.codex` plus the configured private `CODEX_HOME`. The
+developer's real `/home/rafael/.codex` is hidden by the `/home` tmpfs and is
+not compared by the in-namespace helper.
+
+This proves that the E2E process cannot traverse the developer home through
+its mount view and that its repository mount is read-only. It does not prove
+that the literal host `~/.codex` tree stayed unchanged during a future run,
+nor does it establish a distinct host execution identity. At the time of this
+preparation, the visible process listing contained no Codex process; this
+snapshot cannot identify the source of either historical Codex-tree delta.
+The cause remains `UNDETERMINED`; no process was signalled or modified.
+
+AC-14 remains `FAIL — literal requirement not established`. The existing
+operator-approved scanner exception leaves the required no-secret-added
+subcondition unverified, and the private namespace baseline is not a substitute
+for a before/after observation of the exact host account root. No secret-free
+claim is made. A dedicated host identity and an approved read-only way for its
+AI Hub process to load the existing mode-`0600` `.env` are required before the
+environment can be called fully isolated and proven. No system account,
+permission, package, `.env`, or shell-profile change was made. The current
+`.env` is owner-only, so a distinct UID cannot read it through the repository
+bind. Changing its mode or ACL is outside the approved boundary; a privileged
+read-only descriptor handoff to the production dotenv parser is one possible
+mechanism, but it has not been designed or implemented.
+
+Creating a distinct host account alone would not correct the root mismatch:
+the current supervisor still supplies a namespace-only `/etc/passwd` entry
+and hides the account home behind a synthetic `/home` tmpfs. Before another
+real pass can be authorized, the supervisor must preserve the approved
+execution identity so `user.Current().HomeDir` resolves to that account's
+actual independent home, then prove that the helper monitors the SPEC's exact
+`~/.codex` root. Even after this is fixed, a new E2E could establish AC-5 and
+recheck other runtime scenarios, but cannot complete E07 or pass AC-14 while
+the scanner subcondition remains unverified.
+
+E07 remains `INCOMPLETE`. The next real E2E is not yet ready for authorization:
+the namespace preflight and local regression are green, but the literal AC-14
+root and identity requirements remain unresolved. The next real pass, if later
+authorized after that boundary is proven, remains limited to 9 provider calls,
+30 minutes total, 2 minutes per request, and zero retries.

@@ -137,7 +137,7 @@ func e07SnapshotCodexTreeAt(roots []e07CodexTreeRoot) ([]e07CodexTreeEntry, erro
 // without reading anything behind it; a symbolic-link state root still fails
 // closed because the protected tree would then be outside the observed path.
 func e07CodexEntryMetadata(path, root string, info os.FileInfo) (string, error) {
-	metadata := e07CodexStableMetadata(info)
+	metadata := e07StableFileMetadata(info)
 	if info.Mode()&os.ModeSymlink == 0 {
 		return metadata, nil
 	}
@@ -151,7 +151,7 @@ func e07CodexEntryMetadata(path, root string, info os.FileInfo) (string, error) 
 	return metadata + "|target=" + target, nil
 }
 
-func e07CodexStableMetadata(info os.FileInfo) string {
+func e07StableFileMetadata(info os.FileInfo) string {
 	value := reflect.ValueOf(info.Sys())
 	if !value.IsValid() {
 		return ""

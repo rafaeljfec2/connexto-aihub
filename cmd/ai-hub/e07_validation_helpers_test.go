@@ -41,7 +41,10 @@ func e07MeasureSSE(url, gatewayKey string, payload []byte) (e07SSEObservation, e
 	request.Header.Set("Authorization", "Bearer "+gatewayKey)
 	request.Header.Set("Content-Type", "application/json")
 	started := time.Now()
-	response, err := (&http.Client{Timeout: 10 * time.Minute}).Do(request)
+	response, err := (&http.Client{
+		Timeout:       e07LiveRequestTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}).Do(request)
 	if err != nil {
 		return e07SSEObservation{}, errors.New("streaming request failed")
 	}

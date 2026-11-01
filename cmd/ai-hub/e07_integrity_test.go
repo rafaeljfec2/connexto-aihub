@@ -114,8 +114,7 @@ func e07ResolveDirectory(path string) (string, error) {
 	return resolved, nil
 }
 
-// e07EnvFiles lists every existing .env file below the repository root,
-// including nested directories, as repository-relative slash paths.
+// e07EnvFiles lists secret-bearing dotenv files without reading their contents.
 func e07EnvFiles(root string) ([]string, error) {
 	files := make([]string, 0, 4)
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
@@ -129,8 +128,11 @@ func e07EnvFiles(root string) ([]string, error) {
 
 			return nil
 		}
-		name := entry.Name()
-		if name != ".env" && (!strings.HasPrefix(name, ".env.") || name == ".env.example") {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return errors.New("environment-file metadata could not be inspected")
+		}
+		if !e07IsSecretEnvironmentEntry(path, entry.Name(), info) {
 			return nil
 		}
 		relative, err := filepath.Rel(root, path)
@@ -171,9 +173,8 @@ func e07FingerprintEnvFiles(root string, files []string) (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-// e07SnapshotRepository captures every category used by the integrity gate:
-// the complete tree (tracked, already-dirty, and untracked files), every
-// environment file, tracked-file content, and the Git status digest.
+// e07SnapshotRepository captures source content, dotenv metadata, and Git state
+// without reading secret-bearing dotenv files.
 func e07SnapshotRepository(root string) (e07IntegritySnapshot, error) {
 	tree, err := e07FingerprintTree(root)
 	if err != nil {

@@ -31,7 +31,7 @@ type e07Hub struct {
 }
 
 func startE07Hub(cfg config.Config, observer *e07ProviderObserver, logger *slog.Logger) (*e07Hub, error) {
-	providerClient, err := providers.NewClient(cfg.Provider.OpenCodeGo, e07ProviderHTTPClient(observer, 2*time.Minute))
+	providerClient, err := providers.NewClient(cfg.Provider.OpenCodeGo, e07ProviderHTTPClient(observer, e07LiveRequestTimeout))
 	if err != nil {
 		return nil, errors.New("provider client setup failed")
 	}

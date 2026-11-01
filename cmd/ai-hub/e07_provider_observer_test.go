@@ -25,6 +25,7 @@ type e07ProviderObserver struct {
 	responseMu    sync.Mutex
 	captureNext   bool
 	response      *e07ResponseFidelityObservation
+	integrity     *e07LiveIntegrityGuard
 }
 
 func newE07ProviderObserver(base http.RoundTripper, marker string) *e07ProviderObserver {

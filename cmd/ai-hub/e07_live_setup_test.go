@@ -27,10 +27,15 @@ type e07LiveSetup struct {
 	CodexVersion string
 	GoVersion    string
 	OSClass      string
+	observer     *e07ProviderObserver
+	integrity    *e07LiveIntegrityGuard
 }
 
 func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 	t.Helper()
+	if err := e07RequirePrivateCodexMount(os.Getenv(e07PrivateRootEnv)); err != nil {
+		t.Fatal("live E2E requires a read-only hidden host Codex mount and private runtime paths")
+	}
 	root, err := e07RepositoryRoot("")
 	if err != nil {
 		t.Fatal("repository root could not be resolved")
@@ -44,10 +49,10 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 		t.Fatal("isolated validation state could not be protected")
 	}
 	beforeEnvironment := e07EnvironmentSnapshot()
-	beforeCodex, err := e07RequireStableCodexTree()
+	beforeCodex, err := e07SnapshotCodexTree()
 	if err != nil {
 		_ = os.RemoveAll(tempRoot)
-		t.Fatalf("global Codex tree is not stable; provider preflight was not started: %s", err)
+		t.Fatal("private Codex state baseline could not be captured")
 	}
 	manifestDirectory, err := e07PrivateManifestDirectory(root, tempRoot)
 	if err != nil {
@@ -82,42 +87,42 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 		_ = os.RemoveAll(tempRoot)
 		t.Fatal("isolated Codex runtime directories could not be prepared")
 	}
+	privateRoot := os.Getenv(e07PrivateRootEnv)
+	if !e07PathWithinRoot(privateRoot, tempRoot) || e07PathWithinRoot(root, tempRoot) {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("validation state is outside the private runtime mount")
+	}
+	for _, directory := range e07CodexRuntimeDirectories(codexHome) {
+		if !e07PathWithinRoot(privateRoot, directory) {
+			_ = os.RemoveAll(tempRoot)
+			t.Fatal("Codex state is outside the private runtime mount")
+		}
+	}
+	beforePrivateCodex, err := e07SnapshotPrivateCodexState(codexHome)
+	if err != nil {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("private Codex state baseline could not be captured")
+	}
+	beforePrivateManifest, err := e07SaveCodexTreeManifest(manifestDirectory, "private-before", beforePrivateCodex)
+	if err != nil {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("private Codex state baseline could not be saved")
+	}
+	var setup *e07LiveSetup
+	integrityState := e07LiveIntegrityState{
+		root: root, tempRoot: tempRoot, manifestDirectory: manifestDirectory,
+		beforeEnvironment: beforeEnvironment, beforeCodexManifest: beforeCodexManifest,
+		beforePrivateManifest: beforePrivateManifest, privateCodexHome: codexHome,
+		manifestPath: manifestPath,
+	}
 	cleanup := func() {
-		e07RestoreEnvironment(beforeEnvironment)
-		afterCodex, codexErr := e07SnapshotCodexTree()
-		afterCodexManifest, saveErr := e07SaveCodexTreeManifest(manifestDirectory, "after", afterCodex)
-		beforeCodexSaved, beforeManifestErr := e07LoadCodexTreeManifest(beforeCodexManifest)
-		afterCodexSaved, afterManifestErr := e07LoadCodexTreeManifest(afterCodexManifest)
-		codexResult := e07IntegrityResult(codexErr == nil && saveErr == nil && beforeManifestErr == nil &&
-			afterManifestErr == nil && e07CodexTreeUnchanged(beforeCodexSaved, afterCodexSaved))
-		if codexResult != "PASS" {
-			t.Error("environment integrity: global Codex tree changed")
+		var observer *e07ProviderObserver
+		if setup != nil {
+			observer = setup.observer
 		}
-		t.Logf("E07 codex_tree_links=%d", e07CodexTreeLinkCount(afterCodexSaved))
-		beforeManifest, manifestErr := e07LoadIntegrityManifest(manifestPath)
-		afterRepository, repositoryErr := e07SnapshotRepository(root)
-		if manifestErr != nil || repositoryErr != nil {
-			t.Error("environment integrity: repository snapshot could not be verified")
-			t.Logf("E07 environment_integrity codex_tree=%s repository_snapshot=UNVERIFIED", codexResult)
-		} else {
-			comparison := e07CompareIntegrity(beforeManifest, afterRepository)
-			if !comparison.Tree {
-				t.Error("environment integrity: repository tree changed during validation")
-			}
-			if !comparison.Env {
-				t.Error("environment integrity: project environment files changed")
-			}
-			if !comparison.Tracked {
-				t.Error("environment integrity: tracked file content changed during validation")
-			}
-			if !comparison.GitState {
-				t.Error("environment integrity: Git state changed during validation")
-			}
-			t.Logf("E07 environment_integrity codex_tree=%s %s", codexResult, comparison.Summary())
-		}
-		if err := os.RemoveAll(tempRoot); err != nil {
-			t.Error("isolated validation state could not be removed")
-		}
+		e07RunLiveCleanupScenario(t, observer, "credential_isolation_repository_integrity", func() string {
+			return e07FinalizeLiveIntegrity(t, integrityState)
+		})
 	}
 	t.Cleanup(cleanup)
 	environmentHadProviderKey := e07EnvironmentHasKey(os.Environ(), config.EnvProviderOpenCodeGoAPIKey)
@@ -144,12 +149,12 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 	if err != nil {
 		t.Fatal("Git revision could not be captured")
 	}
-	gatewayKey := os.Getenv(config.EnvGatewayAPIKey)
+	gatewayKey := e07GatewayCredential(os.Environ())
 	if gatewayKey == "" {
-		gatewayKey, err = e07TemporaryGatewayKey(providerKey)
+		t.Fatal("configured gateway credential is unavailable")
 	}
-	if err != nil || os.Setenv(config.EnvGatewayAPIKey, gatewayKey) != nil {
-		t.Fatal("temporary gateway credential could not be prepared")
+	if err := os.Setenv(config.EnvGatewayAPIKey, gatewayKey); err != nil {
+		t.Fatal("configured gateway credential could not be installed in the Hub environment")
 	}
 	codexPath, err := exec.LookPath("codex")
 	if err != nil {
@@ -171,13 +176,17 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 	if value := os.Getenv(config.EnvProviderOpenCodeGoBaseURL); value != "" {
 		cfg.Provider.OpenCodeGo.BaseURL = value
 	}
-	setup := &e07LiveSetup{
+	setup = &e07LiveSetup{
 		Config: cfg, GatewayKey: gatewayKey, ProviderKey: providerKey,
 		CodexPath: codexPath, CodexHome: codexHome,
 		DataDir: filepath.Join(tempRoot, "hub-data"), BasicDir: filepath.Join(tempRoot, "basic-workspace"),
 		ReplayDir: filepath.Join(tempRoot, "replay-workspace"), ToolDir: filepath.Join(tempRoot, "tool-workspace"),
 		TempRoot: tempRoot, Revision: revision, CodexVersion: codexVersion,
 		GoVersion: runtime.Version(), OSClass: runtime.GOOS + "/" + runtime.GOARCH,
+		integrity: &e07LiveIntegrityGuard{
+			root: root, privateCodexHome: codexHome, baselineCodex: beforeCodex,
+			baselineRepository: beforeRepository,
+		},
 	}
 	if err := os.Setenv(config.EnvDataDir, setup.DataDir); err != nil {
 		t.Fatal("dedicated AI Hub data directory could not be configured")
