@@ -20,7 +20,12 @@ func TestE07LiveCodexOpenCodeGo(t *testing.T) {
 	}
 	setup := e07PrepareLiveSetup(t)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	observer := newE07ProviderObserver(http.DefaultTransport, e07ReplayMarker)
+	providerTransport, err := newE07ProviderTransport()
+	if err != nil {
+		t.Fatal("non-retrying provider transport could not be prepared")
+	}
+	defer providerTransport.CloseIdleConnections()
+	observer := newE07ProviderObserver(providerTransport, e07ReplayMarker)
 	setup.Config.Catalog.DataDir = setup.DataDir
 	if err := setup.Config.Validate(); err != nil {
 		t.Fatal("isolated AI Hub configuration is invalid")
@@ -127,7 +132,7 @@ func TestE07LiveCodexOpenCodeGo(t *testing.T) {
 	} else {
 		results["gateway_authentication"] = "FAIL"
 	}
-	upstreamProbe := e07UpstreamErrorProbe(hub, setup.GatewayKey)
+	upstreamProbe := e07UpstreamErrorProbe(hub, setup.GatewayKey, observer)
 	if upstreamProbe.PassthroughObserved() {
 		results["upstream_error_passthrough"] = "PASS"
 	} else {
@@ -192,8 +197,8 @@ func TestE07LiveCodexOpenCodeGo(t *testing.T) {
 			t.Errorf("E07 scenario failed: %s", name)
 		}
 	}
-	t.Logf("E07 aggregate records_expected=%d records_matched=%d provider_calls=%d unauth_status=%d upstream_error_status=%d stream_events=%d stream_first=%s stream_last=%s stream_complete=%s",
-		preStop.Expected, preStop.Matched, observer.Snapshot().Calls, unauthStatus, upstreamProbe.HubStatus,
+	t.Logf("E07 aggregate records_expected=%d records_matched=%d provider_calls=%d unauth_status=%d upstream_error_calls=%d stream_events=%d stream_first=%s stream_last=%s stream_complete=%s",
+		preStop.Expected, preStop.Matched, observer.Snapshot().Calls, unauthStatus, upstreamProbe.ProviderCalls,
 		stream.DataEvents, stream.FirstDataAt, stream.LastDataAt, stream.CompleteAt)
 	t.Logf("E07 aggregate codex_responses=%d", codexResponseCount)
 }

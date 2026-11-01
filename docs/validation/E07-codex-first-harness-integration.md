@@ -68,8 +68,10 @@ Focused deterministic tests added or extended:
 - `TestE07ReplayDiagnostics*` — every replay condition and failure branch,
   including the environment-limited branch.
 - `TestE07UpstreamErrorEnvelopeClassification` and
-  `TestE07UpstreamProbeDoesNotRequireCrossCallBodyEquality` — envelope-only
-  classification, status preservation, and no cross-call body equality.
+  `TestE07UpstreamProbeRequiresSameResponseFidelity` — envelope classification
+  and same-response status/content-type/digest observation. The supporting
+  fidelity tests are `TestE07ResponseObserverComparesOneCompleteResponseAtBothBoundaries`
+  and `TestE07ResponseObserverDoesNotAcceptIncompleteOrFailedReads`.
 
 Local verification for this remediation:
 
@@ -102,6 +104,111 @@ command entry point, but it is a separate validation composition, and its
 injected transport does not inherit the production client's transport timeouts.
 Record recovery is exercised only for normal operation and orderly restart, not
 for overflow, storage failure, crash, retention, or flush expiry.
+
+## Final test readiness remediation (2026-10-31)
+
+Status: test-only preparation. No AI Hub process configured with real
+credentials, Codex scenario, OpenCode Go request, or E2E pass was started. The
+original and supplemental passes remain consumed. E07 remains **INCOMPLETE**,
+and the six pending acceptance criteria remain unchanged: AC-1, AC-5, AC-7,
+AC-9, AC-10, and AC-14.
+
+### Test organization
+
+The four E07 test files that exceeded 300 lines were split by responsibility.
+All modified and new Go files remain at or below 300 lines.
+
+| Area | Resulting files and line counts |
+| --- | --- |
+| Repository snapshot and manifest | `e07_integrity_remediation_test.go` (239), `e07_integrity_manifest_test.go` (189), `e07_integrity_test.go` (209), `e07_integrity_manifest_support_test.go` (82), `e07_integrity_tree_test.go` (249) |
+| E06 HTTP record lookup and assertions | `e07_live_http_test.go` (153), `e07_live_record_assertions_test.go` (198) |
+| E05/E06 record behavior and contexts | `e07_records_test.go` (153), `e07_record_outcomes_test.go` (83), `e07_record_assertions_test.go` (182), `e07_record_context_test.go` (74) |
+| Provider-call budget and transport | `e07_provider_budget_support_test.go` (66), `e07_provider_observer_test.go` (138), `e07_provider_budget_test.go` (216) |
+| Upstream response and same-response fidelity | `e07_response_fidelity_test.go` (154), `e07_upstream_response_test.go` (85) |
+| Observer and scenario orchestration | `e07_observer_support_test.go` (82), `e07_live_hub_test.go` (188), `e07_live_scenario_support_test.go` (214), `e07_live_scenarios_test.go` (204), `e07_live_auth_support_test.go` (43), `e07_live_auth_test.go` (29), `e07_provider_timeout_test.go` (38) |
+
+Of the 32 existing E07 test functions, 31 remain unchanged by name through the
+splits. The former cross-call error-probe test was replaced by a stricter
+same-response fidelity test, and ten deterministic budget, transport, fidelity,
+and timeout tests were added. No test was removed to reduce file size or to make
+the suite pass.
+
+### Hard provider-call budget
+
+The injected E07 transport now reserves one unit under a mutex before calling
+the underlying transport. The shared budget accepts configured limits from one
+through nine and has no reset operation. Its snapshot distinguishes attempted,
+admitted, rejected, and forwarded calls. The same observer instance is retained
+across the planned Hub restart, so readiness requests consume the same budget.
+The validation transport disables keep-alive reuse to prevent `http.Transport`
+from retrying an idempotent request on a previously used connection; redirect
+attempts still pass through the budget. The Hub error probe also refuses
+redirects so a provider response cannot cause a client-side request outside the
+observed boundary. The test Hub's provider `http.Client` has an explicit
+two-minute timeout, including while reading a streaming response body, matching
+the per-request limit in the final E2E plan. A deterministic cancellation test
+uses a 20 ms timeout and confirms the fake transport receives context
+cancellation after exactly one forwarded attempt.
+
+Red evidence from the pre-implementation tests showed 10 sequential calls, 50
+concurrent calls, and 10 redirect attempts reaching the fake underlying
+transport. Green tests observe exactly nine underlying calls in each case.
+Additional deterministic tests verify limit validation, the four counters,
+startup and restart readiness accounting, zero budget change for an
+unauthenticated `401`, shared state across observer instances, no automatic
+transport retry, and same-response status/content-type/digest matching only
+after complete reads through EOF. Incomplete reads and read errors remain
+unverified. Digests and response bytes are discarded after comparison; the
+scenario summary contains only booleans and the aggregate provider-call count.
+
+The former two-call upstream error probe now makes one authenticated Hub
+request and observes that same upstream response at the provider transport and
+Hub client boundaries. Its provider-call count must equal one for a pass. This
+change aligns the helper with the approved final execution plan and does not
+change the historical E2E results above.
+
+### Local verification
+
+The gates below ran with `AIHUB_E07_LIVE` and `AIHUB_LIVE_SMOKE` unset. They
+used only local fakes and deterministic tests; no live provider credential or
+OpenCode Go request was used.
+
+| Check | Result |
+| --- | --- |
+| `go test ./cmd/ai-hub -count=1 -run TestE07` | PASS |
+| `go test ./cmd/ai-hub -run '^TestE07ProviderHTTPClientCancelsRequestAtTimeout$' -count=1` | PASS — fake transport observed cancellation; one attempt was forwarded |
+| `go test ./... -count=1 -race` | PASS |
+| `go vet ./...` | PASS |
+| `staticcheck ./...` | PASS |
+| `golangci-lint run ./...` | PASS — 0 issues |
+| `go build ./...` | PASS |
+| `gofmt -l cmd internal` | PASS — empty |
+| `git diff --check` | PASS; untracked E07 Go files also passed a separate whitespace check |
+
+No production source, API, dependency, ADR, or E01–E06 behavior was changed.
+The E06 baseline remains the production comparison target.
+
+### Environment limitations and remaining acceptance work
+
+- Approved secret scanner: **BLOCKED — APPROVED SECRET SCANNER UNAVAILABLE**.
+  `gitleaks`, `trufflehog`, and `detect-secrets` were unavailable; no tool was
+  installed. This does not establish that the repository is secret-free.
+- Gateway credential: **BLOCKED — GATEWAY CREDENTIAL NOT AVAILABLE**. The
+  presence-only check found it absent. No value was requested or read.
+- Provider credential: present by presence-only check; its value was not read
+  or used.
+- Snyk Code scan: not completed because the Snyk MCP reported that the account
+  is unauthenticated. This is separate from the approved secret-scanner check.
+- Independent `senior-code-review-judge` review: Round 1 and Round 2 were
+  **APPROVED** with no critical or important findings. Round 2 confirmed the
+  two-minute provider HTTP timeout, the shared nine-call limit, the test split,
+  and the evidence updates. The review did not execute tests or live scenarios.
+
+Before a separately authorized E2E pass, provide the distinct gateway key to
+the Hub and Codex through the approved non-echoing secret facility, and make an
+approved secret scanner available. Do not send either credential through chat.
+These test-only results do not establish any real-provider acceptance
+criterion, and no support claim is permitted.
 
 ## Supplemental E2E pass — executed once
 
@@ -226,9 +333,9 @@ and makes no Codex support claim.
 
 The validation harness remediation above corrects the confirmed helper defects
 and adds deterministic evidence for them. It does not re-establish any
-real-provider acceptance criterion: AC-5, AC-7, AC-9, AC-10, and AC-14 still
-require a newly authorized real validation pass. The global Codex-tree change
-source remains `UNDETERMINED`.
+real-provider acceptance criterion: AC-1, AC-5, AC-7, AC-9, AC-10, and AC-14
+still require a newly authorized real validation pass. The global Codex-tree
+change source remains `UNDETERMINED`.
 
 Execution-record guarantees remain E06 best-effort and at-most-once. The
 writer's drain window is two seconds; queue overflow, storage failure, crash,

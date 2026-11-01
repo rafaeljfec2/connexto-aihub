@@ -22,12 +22,12 @@ func (e07StaticRoundTripper) RoundTrip(request *http.Request) (*http.Response, e
 	}, nil
 }
 
-func e07StartAuthProbeHub(t *testing.T) (*e07Hub, *e07ProviderObserver, error) {
+func e07StartAuthProbeHub(t *testing.T) (*e07Hub, *e07ProviderObserver, config.Config, error) {
 	t.Helper()
 	providerKey := "e07-synthetic-provider-boundary-key"
 	gatewayKey, err := e07TemporaryGatewayKey(providerKey)
 	if err != nil {
-		return nil, nil, errors.New("probe gateway credential could not be created")
+		return nil, nil, config.Config{}, errors.New("probe gateway credential could not be created")
 	}
 	cfg := config.Default()
 	cfg.Gateway.APIKey = gatewayKey
@@ -37,7 +37,7 @@ func e07StartAuthProbeHub(t *testing.T) (*e07Hub, *e07ProviderObserver, error) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	hub, err := startE07Hub(cfg, observer, logger)
 	if err != nil {
-		return nil, nil, errors.New("probe gateway could not start")
+		return nil, nil, config.Config{}, errors.New("probe gateway could not start")
 	}
-	return hub, observer, nil
+	return hub, observer, cfg, nil
 }

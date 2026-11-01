@@ -5,7 +5,7 @@ import (
 )
 
 func TestE07UnauthenticatedGatewayRequestDoesNotReachProvider(t *testing.T) {
-	hub, observer, err := e07StartAuthProbeHub(t)
+	hub, observer, _, err := e07StartAuthProbeHub(t)
 	if err != nil {
 		t.Fatal("isolated authentication probe hub could not start")
 	}

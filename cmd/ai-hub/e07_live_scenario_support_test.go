@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"aihub/internal/providers"
 )
 
 const (
@@ -16,30 +14,33 @@ const (
 	e07ReplayExpectedRequests = 2
 )
 
-// e07UpstreamProbeObservation keeps status and body observations separate and
-// never retains body content.
+// e07UpstreamProbeObservation keeps same-response boundary facts only.
 type e07UpstreamProbeObservation struct {
-	DirectStatus    int
-	HubStatus       int
-	EnvelopePresent bool
-	HubBodyRead     bool
+	StatusPreserved      bool
+	ContentTypePreserved bool
+	BodyDigestMatches    bool
+	BodyComplete         bool
+	ClientErrorStatus    bool
+	EnvelopePresent      bool
+	ProviderCalls        uint64
 }
 
-// PassthroughObserved reports the real-provider scenario invariant: the Hub
-// returned the upstream client-error class with a generic error envelope. Body
-// equality across independent provider calls is deliberately not asserted.
+// PassthroughObserved requires complete same-response observations at both
+// sides of the Hub and a generic upstream error envelope.
 func (observation e07UpstreamProbeObservation) PassthroughObserved() bool {
-	return observation.HubBodyRead && observation.DirectStatus >= http.StatusBadRequest &&
-		observation.DirectStatus < http.StatusInternalServerError &&
-		observation.HubStatus == observation.DirectStatus && observation.EnvelopePresent
+	return observation.ProviderCalls == 1 && observation.StatusPreserved && observation.ContentTypePreserved &&
+		observation.BodyDigestMatches && observation.BodyComplete && observation.ClientErrorStatus &&
+		observation.EnvelopePresent
 }
 
 func (observation e07UpstreamProbeObservation) Summary() string {
-	return "E07 upstream_error direct_status=" + strconv.Itoa(observation.DirectStatus) +
-		" hub_status=" + strconv.Itoa(observation.HubStatus) +
-		" status_preserved=" + strconv.FormatBool(observation.HubStatus == observation.DirectStatus) +
+	return "E07 upstream_error status_preserved=" + strconv.FormatBool(observation.StatusPreserved) +
+		" content_type_preserved=" + strconv.FormatBool(observation.ContentTypePreserved) +
+		" body_digest_match=" + strconv.FormatBool(observation.BodyDigestMatches) +
+		" body_complete=" + strconv.FormatBool(observation.BodyComplete) +
 		" envelope=" + strconv.FormatBool(observation.EnvelopePresent) +
-		" body_read=" + strconv.FormatBool(observation.HubBodyRead)
+		" provider_calls=" + strconv.FormatUint(observation.ProviderCalls, 10) +
+		" passthrough=" + strconv.FormatBool(observation.PassthroughObserved())
 }
 
 // e07ReplayDiagnostics separates every independent replay condition so a single
@@ -172,40 +173,42 @@ func e07UnauthenticatedProbe(hub *e07Hub, observer *e07ProviderObserver) (int, b
 	return response.StatusCode, before == after, requestID
 }
 
-// e07UpstreamErrorProbe observes the direct provider status and the Hub
-// response separately. It never compares bodies from independent provider
-// calls; the deterministic test proves exact byte forwarding with a fixed
-// upstream response.
-func e07UpstreamErrorProbe(hub *e07Hub, gatewayKey string) e07UpstreamProbeObservation {
-	observation := e07UpstreamProbeObservation{}
+// e07UpstreamErrorProbe observes one response at the provider and Hub client
+// boundaries. It retains body digests in memory only until the comparison.
+func e07UpstreamErrorProbe(hub *e07Hub, gatewayKey string, observer *e07ProviderObserver) (probe e07UpstreamProbeObservation) {
+	callsBefore := observer.Snapshot().Calls
+	defer func() { probe.ProviderCalls = observer.Snapshot().Calls - callsBefore }()
 	payload := []byte(`{"model":"e07-intentionally-unknown-model","input":"Return one short response."}`)
 
-	upstreamContext, cancelUpstream := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancelUpstream()
-	upstream, err := hub.provider.OpenTargetResponses(upstreamContext, providers.ResponsesTarget{ProviderID: providers.OpenCodeGoID}, payload, "application/json", "")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, hub.baseURL+"/v1/responses", bytes.NewReader(payload))
 	if err != nil {
-		return observation
-	}
-	observation.DirectStatus = upstream.StatusCode
-	_, _ = e07ReadResponse(upstream)
-
-	request, err := http.NewRequest(http.MethodPost, hub.baseURL+"/v1/responses", bytes.NewReader(payload))
-	if err != nil {
-		return observation
+		return probe
 	}
 	request.Header.Set("Authorization", "Bearer "+gatewayKey)
 	request.Header.Set("Content-Type", "application/json")
-	response, err := (&http.Client{Timeout: 2 * time.Minute}).Do(request)
-	if err != nil {
-		return observation
+	observer.armResponseFidelityObservation()
+	httpClient := &http.Client{
+		Timeout:       2 * time.Minute,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	observation.HubStatus = response.StatusCode
+	response, err := httpClient.Do(request)
+	if err != nil {
+		_ = observer.takeResponseFidelityObservation()
+		return probe
+	}
 	body, err := e07ReadResponse(response)
-	if err != nil {
-		return observation
+	client := e07ClientResponseObservation(response, body, err)
+	upstream := observer.takeResponseFidelityObservation()
+	probe.StatusPreserved = upstream.StatusCode == client.StatusCode
+	probe.ContentTypePreserved = upstream.ContentType == client.ContentType
+	probe.BodyComplete = upstream.BodyComplete && client.BodyComplete
+	probe.BodyDigestMatches = probe.BodyComplete && upstream.BodyDigest == client.BodyDigest
+	probe.ClientErrorStatus = client.StatusCode >= http.StatusBadRequest && client.StatusCode < http.StatusInternalServerError
+	if err == nil {
+		probe.EnvelopePresent = e07ErrorEnvelopePresent(body)
 	}
-	observation.HubBodyRead = true
-	observation.EnvelopePresent = e07ErrorEnvelopePresent(body)
-
-	return observation
+	clear(body)
+	return probe
 }
