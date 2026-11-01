@@ -921,3 +921,144 @@ to this committed document, and this report does not assert them.
 blocked by its preconditions: the consolidation must be committed and approved
 as an immutable baseline, and approved scanner output, distinct rotated
 credentials, and provider/model availability are still outstanding.
+
+## Final real E2E execution preflight — 2026-11-01
+
+Status: **BLOCKED — a mandatory credential preflight failed.** The real E2E
+pass was not started, no AI Hub scenario process or Codex scenario was run, and
+no provider-boundary request was made. E07 remains **INCOMPLETE**. This is a
+new preflight disposition; it does not rewrite or combine any historical pass.
+
+### Baseline and preflight
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Repository baseline at preflight start | `PASS` | Branch `main`, HEAD `6771918954f02c53e517b94ffc152630223daf2d`, clean working tree. The checkout is 0 commits ahead of `origin/main`, while the prompt's auxiliary status said 4; the expected HEAD and clean-tree conditions match. |
+| Runtime binaries | `PASS` | Go `1.23.0`, Codex CLI `0.164.0-alpha.11.1`, and bubblewrap `0.4.0` are available. Version queries only; no Codex scenario was run. |
+| Provider credential | `MISSING` | `AIHUB_PROVIDER_OPENCODEGO_API_KEY` is missing from the configured repository `.env`. The legacy `OPENCODE_API_KEY` was not used as a fallback. No credential value or derived representation was emitted. |
+| Gateway credential in current execution process | `MISSING` | `AIHUB_GATEWAY_API_KEY` is missing from the process performing this preflight. An export declaration exists in `~/.bashrc`, but the value was not read and delivery to an AI Hub process was not verified. |
+| Codex client credential | `MISSING` | `AIHUB_CLIENT_KEY` is absent from the preflight process, as expected before Codex launch. The harness configures `env_key = "AIHUB_CLIENT_KEY"`; no main Codex process was started to verify injection. |
+| Child-process secret isolation | `NOT VERIFIED` | The harness constructs a restricted Codex shell environment and the prior isolated synthetic canary is documented. No real Codex shell or tool process was launched in this attempt. |
+| Codex isolation | `NOT VERIFIED` | Bubblewrap is available and the documented isolated canary had passed previously. The real pass did not begin, so no isolated Codex environment or read-only host mount was created in this attempt. |
+| Provider-call budget | `PASS — implementation inspection only` | The harness cap is 9, the shared observer covers initial and restarted Hub readiness, and the budget guard rejects an over-limit call before transport. The observer was not initialized for this attempt. |
+| Execution timer | `NOT STARTED` | The 30-minute timer begins with the authorized execution sequence; preflight stopped before that sequence. |
+| Harness baseline at preflight start | `PASS` | The finalized E07 harness is present at the expected HEAD with a clean working tree. |
+
+The canonical provider credential check failed, so execution stopped before
+starting AI Hub, Codex, the live test binary, or provider traffic. The existing
+gateway credential was not substituted, regenerated, or copied into another
+credential variable. The existing `~/.bashrc` was not modified.
+
+### Scanner exception and credential handling
+
+- Security scanner: `NOT RUN — operator-approved exception`.
+- No scanner was installed or run, and no secret-free repository claim is
+  made. No broad secret search was performed.
+- Provider credential source checked: repository `.env`; canonical variable
+  result: `MISSING`.
+- Gateway credential source checked: `~/.bashrc`; current execution process
+  result: `MISSING`; actual AI Hub process receipt: `NOT VERIFIED`.
+- Codex client credential result in the preflight process: `MISSING`; the
+  `env_key` injection path was not exercised.
+- No credential values, partial values, lengths, hashes, or credential-bearing
+  logs were emitted or recorded.
+
+### Final-pass scenario results
+
+The planned allocation is 8 provider-boundary calls, with an absolute ceiling
+of 9 and zero retries. This attempt made 0 provider-boundary calls; 0 calls
+were rejected, and no execution timer or live budget observer was started. The
+14 historical calls remain consumed with their original outcomes and are not
+combined with this attempt.
+
+| Scenario | Result | Timestamps, budget, and execution evidence |
+| --- | --- | --- |
+| Basic Codex generation | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, Codex result, Hub result, or correlation evidence. |
+| Gateway authentication and rejection | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, request status, or provider delta. |
+| Multi-turn conversation replay | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, replay observation, or correlation evidence. |
+| Real sandboxed Codex tool calling | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, Codex result, or workspace result. |
+| Upstream error passthrough | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, or same-response comparison. |
+| Progressive gateway streaming | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, SSE observation, or Codex stdout observation. |
+| Execution Records persistence, correlation, listing, and lookup | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, record observations, or identifiers. |
+| Ordered shutdown, restart, and recovery | `NOT VERIFIED` | Not started; no timestamps, counter snapshots, restart result, or recovery evidence. |
+| Credential isolation and Codex filesystem integrity | `NOT VERIFIED` | No real Codex process or before/after integrity comparison was performed. |
+
+### Acceptance criteria disposition
+
+This preflight produced no new acceptance evidence. The cumulative statuses
+below remain as recorded in the preceding acceptance matrix; historical results
+were not repeated or reinterpreted.
+
+| Criterion | Final status | Current-attempt evidence |
+| --- | --- | --- |
+| AC-1 | `FAIL` | No real credential-backed Codex run or new integrity evidence. |
+| AC-2 | `PASS` | Historical cumulative evidence only; not repeated. |
+| AC-3 | `PASS` | Historical cumulative evidence only; not repeated. |
+| AC-4 | `PASS` | Historical cumulative evidence only; not repeated. |
+| AC-5 | `FAIL` | No real multi-turn replay was run. |
+| AC-6 | `PASS` | Historical cumulative evidence only; not repeated. |
+| AC-7 | `FAIL` | No real upstream error passthrough scenario was run. |
+| AC-8 | `PASS` | Historical gateway-streaming evidence only; not repeated. |
+| AC-9 | `FAIL` | No live execution records were created or queried. |
+| AC-10 | `FAIL` | No live shutdown, restart, or recovery scenario was run. |
+| AC-11 | `PASS` | This report records the blocked disposition and scenario limits without credential values, payloads, or generated identifiers. |
+| AC-12 | `PASS` | Historical local gate evidence remains applicable; this attempt made no code or test changes. |
+| AC-13 | `PASS` | No README support claim was added; the prior experimental-support wording remains. |
+| AC-14 | `FAIL` | No before/after global Codex, `.env`, repository, or Git integrity comparison was performed for a real pass. |
+
+E07 remains **INCOMPLETE**. The authorized real E2E pass remains available but
+blocked until the existing canonical provider credential is available in the
+repository `.env` and the existing gateway credential can be securely
+delivered from its configured source to the actual Hub process. Do not use the
+legacy provider variable or generate a replacement credential. This preflight
+did not consume the authorized real E2E pass.
+
+After recording this disposition, the only repository change is this E07
+validation report. `git diff --check` passed. No `.env` or `~/.bashrc` change,
+commit, or push was made.
+
+## Final real E2E preflight — stopped before execution (2026-11-01)
+
+Status: **BLOCKED — the approved live harness hashes credential-bearing `.env`
+contents before starting the scenarios.** The execution timer was not started,
+no live Hub or Codex scenario was run, and this attempt made 0 provider-boundary
+calls. The one authorized real E2E pass remains unconsumed. E07 remains
+**INCOMPLETE**.
+
+### Corrected credential status and baseline
+
+The prior preflight above records a false-negative credential result from a
+simplified dotenv verifier. The operator has since confirmed that the
+production dotenv parser loads both canonical credentials from the repository
+`.env`, including entries with spaces around `=`, and that `.env` remains
+owner-only and ignored by Git. This operator-confirmed configuration supersedes
+the earlier missing-variable diagnosis; no credential value was read, copied,
+logged, measured, or hashed during this preflight.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Git baseline | `PASS` | Branch `main`, HEAD `6771918954f02c53e517b94ffc152630223daf2d`; only this validation report was modified at preflight start. `.env` is ignored by Git. |
+| Scanner | `NOT RUN — operator-approved exception` | No scanner was installed or run. No secret-free repository claim is made. |
+| Provider and gateway credentials | `OPERATOR-CONFIRMED PRESENT` | The corrected production dotenv result was supplied by the operator. This attempt did not inspect or emit either value. |
+| Integrity preflight | `BLOCKED` | `e07PrepareLiveSetup` snapshots the repository before calling `config.LoadDotEnv` (`cmd/ai-hub/e07_live_setup_test.go`). The snapshot includes a complete tree digest and `.env` fingerprint (`cmd/ai-hub/e07_integrity_test.go`); `e07FingerprintTree` and `e07FingerprintEnvFiles` feed regular-file bytes to SHA-256 (`cmd/ai-hub/e07_integrity_tree_test.go`). |
+| Provider-call budget | `NOT INITIALIZED` | The harness defines a nine-call cap, but execution stopped before creating its observer. No request was attempted or rejected. |
+| Execution timer | `NOT STARTED` | The 30-minute window begins immediately before the live execution sequence, which was not entered. |
+
+Hashing the `.env` file would hash the credential values it contains, contrary
+to the explicit credential-handling constraint. Therefore the live harness was
+not invoked and no attempt was made to bypass, alter, or substitute its
+integrity checks. Resolving this blocker requires an authorized test-harness
+integrity method that verifies `.env` stability without hashing its contents;
+that harness change is outside this execution-only pass.
+
+### Scenario and acceptance-criteria status
+
+All scenarios in the authorized pass are `NOT VERIFIED` for this attempt. No
+provider-call counter was initialized, no timestamps or execution identifiers
+were produced, and no new acceptance evidence was collected. Historical E2E
+results and the previously recorded cumulative AC-1 through AC-14 statuses
+remain unchanged; they are not combined with this stopped preflight. E07 is
+still **INCOMPLETE**.
+
+The report is the only repository file changed. No production code, `.env`, or
+`.bashrc` was modified. No commit or push was made.
