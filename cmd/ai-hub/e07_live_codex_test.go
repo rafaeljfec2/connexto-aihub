@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -43,10 +44,15 @@ type e07CodexEvent struct {
 	} `json:"item"`
 }
 
-func e07WriteCodexConfig(home, baseURL string) error {
+func e07WriteCodexConfig(home, baseURL string, processEnvironment []string) error {
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return errors.New("isolated Codex home could not be created")
 	}
+	shellEnvironment, err := e07CodexShellEnvironment(processEnvironment)
+	if err != nil {
+		return err
+	}
+	shellPolicy := e07CodexShellPolicyTOML(shellEnvironment)
 	config := fmt.Sprintf(`model = %s
 model_provider = "aihub"
 sandbox_mode = "workspace-write"
@@ -58,19 +64,37 @@ wire_api = "responses"
 env_key = %q
 request_max_retries = 0
 stream_max_retries = 0
-`, strconv.Quote(e07ModelID), strconv.Quote(baseURL+"/v1"), e07ClientKeyEnv)
+`, strconv.Quote(e07ModelID), strconv.Quote(baseURL+"/v1"), e07ClientKeyEnv) + shellPolicy
 	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(config), 0o600); err != nil {
 		return errors.New("isolated Codex configuration could not be written")
 	}
 	return nil
 }
 
+func e07CodexShellPolicyTOML(environment []string) string {
+	entries := append([]string(nil), environment...)
+	sort.Strings(entries)
+	quoted := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		name, value, found := strings.Cut(entry, "=")
+		if found {
+			quoted = append(quoted, name+" = "+strconv.Quote(value))
+		}
+	}
+	return "\n[shell_environment_policy]\ninherit = \"none\"\nignore_default_excludes = false\nset = { " +
+		strings.Join(quoted, ", ") + " }\nexperimental_use_profile = false\n"
+}
+
 func runE07Codex(codexPath, codexHome, gatewayKey, workdir, prompt string, args ...string) (e07CodexRun, error) {
+	return runE07CodexWithParentEnvironment(codexPath, codexHome, gatewayKey, os.Environ(), workdir, prompt, args...)
+}
+
+func runE07CodexWithParentEnvironment(codexPath, codexHome, gatewayKey string, parentEnvironment []string, workdir, prompt string, args ...string) (e07CodexRun, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(ctx, codexPath, args...)
 	command.Dir = workdir
-	command.Env = e07CodexEnvironment(os.Environ(), codexHome, gatewayKey)
+	command.Env = e07CodexEnvironment(parentEnvironment, codexHome, gatewayKey)
 	command.Stdin = strings.NewReader(prompt)
 	stdout, err := command.StdoutPipe()
 	if err != nil {

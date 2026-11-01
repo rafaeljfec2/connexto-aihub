@@ -42,12 +42,12 @@ func TestE07LiveCodexOpenCodeGo(t *testing.T) {
 			}
 		}
 	})
-	if err := e07WriteCodexConfig(setup.CodexHome, hub.baseURL); err != nil {
+	codexEnvironment := e07CodexEnvironment(os.Environ(), setup.CodexHome, setup.GatewayKey)
+	if err := e07WriteCodexConfig(setup.CodexHome, hub.baseURL, codexEnvironment); err != nil {
 		t.Fatal("isolated Codex configuration could not be written")
 	}
 	results := make(map[string]string)
 	providerEnvironment := os.Environ()
-	codexEnvironment := e07CodexEnvironment(os.Environ(), setup.CodexHome, setup.GatewayKey)
 	if !e07EnvironmentHasKey(os.Environ(), config.EnvGatewayAPIKey) ||
 		!e07EnvironmentHasKey(os.Environ(), config.EnvDataDir) ||
 		!e07EnvironmentHasKey(providerEnvironment, config.EnvProviderOpenCodeGoAPIKey) ||

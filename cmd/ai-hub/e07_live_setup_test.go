@@ -35,10 +35,6 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 	if err != nil {
 		t.Fatal("repository root could not be resolved")
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatal("user home directory could not be resolved")
-	}
 	tempRoot, err := os.MkdirTemp("", "aihub-e07-")
 	if err != nil {
 		t.Fatal("isolated validation state could not be created")
@@ -48,20 +44,29 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 		t.Fatal("isolated validation state could not be protected")
 	}
 	beforeEnvironment := e07EnvironmentSnapshot()
-	beforeCodex, err := e07FingerprintTree(filepath.Join(home, ".codex"))
+	beforeCodex, err := e07RequireStableCodexTree()
 	if err != nil {
 		_ = os.RemoveAll(tempRoot)
-		t.Fatalf("global Codex integrity baseline could not be captured: %s", err)
-	}
-	beforeRepository, err := e07SnapshotRepository(root)
-	if err != nil {
-		_ = os.RemoveAll(tempRoot)
-		t.Fatal("repository integrity baseline could not be captured")
+		t.Fatalf("global Codex tree is not stable; provider preflight was not started: %s", err)
 	}
 	manifestDirectory, err := e07PrivateManifestDirectory(root, tempRoot)
 	if err != nil {
 		_ = os.RemoveAll(tempRoot)
 		t.Fatal("private integrity manifest directory could not be resolved")
+	}
+	if err := os.MkdirAll(manifestDirectory, 0o700); err != nil {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("private integrity manifest directory could not be created")
+	}
+	beforeCodexManifest, err := e07SaveCodexTreeManifest(manifestDirectory, "before", beforeCodex)
+	if err != nil {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("private global Codex metadata manifest could not be saved")
+	}
+	beforeRepository, err := e07SnapshotRepository(root)
+	if err != nil {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("repository integrity baseline could not be captured")
 	}
 	manifestPath, err := e07SaveIntegrityManifest(manifestDirectory, beforeRepository)
 	if err != nil {
@@ -73,13 +78,22 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 		_ = os.RemoveAll(tempRoot)
 		t.Fatal("isolated CODEX_HOME could not be created")
 	}
+	if err := e07EnsureCodexRuntimeDirectories(codexHome); err != nil {
+		_ = os.RemoveAll(tempRoot)
+		t.Fatal("isolated Codex runtime directories could not be prepared")
+	}
 	cleanup := func() {
 		e07RestoreEnvironment(beforeEnvironment)
-		afterCodex, codexErr := e07FingerprintTree(filepath.Join(home, ".codex"))
-		codexResult := e07IntegrityResult(codexErr == nil && beforeCodex == afterCodex)
+		afterCodex, codexErr := e07SnapshotCodexTree()
+		afterCodexManifest, saveErr := e07SaveCodexTreeManifest(manifestDirectory, "after", afterCodex)
+		beforeCodexSaved, beforeManifestErr := e07LoadCodexTreeManifest(beforeCodexManifest)
+		afterCodexSaved, afterManifestErr := e07LoadCodexTreeManifest(afterCodexManifest)
+		codexResult := e07IntegrityResult(codexErr == nil && saveErr == nil && beforeManifestErr == nil &&
+			afterManifestErr == nil && e07CodexTreeUnchanged(beforeCodexSaved, afterCodexSaved))
 		if codexResult != "PASS" {
 			t.Error("environment integrity: global Codex tree changed")
 		}
+		t.Logf("E07 codex_tree_links=%d", e07CodexTreeLinkCount(afterCodexSaved))
 		beforeManifest, manifestErr := e07LoadIntegrityManifest(manifestPath)
 		afterRepository, repositoryErr := e07SnapshotRepository(root)
 		if manifestErr != nil || repositoryErr != nil {
@@ -106,21 +120,19 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 		}
 	}
 	t.Cleanup(cleanup)
+	environmentHadProviderKey := e07EnvironmentHasKey(os.Environ(), config.EnvProviderOpenCodeGoAPIKey)
 	if err := config.LoadDotEnv(filepath.Join(root, ".env")); err != nil && !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("provider environment could not be loaded")
 	}
-	providerKey := os.Getenv(config.EnvProviderOpenCodeGoAPIKey)
-	if providerKey == "" {
-		providerKey = os.Getenv("OPENCODE_API_KEY")
-	}
+	providerKey := e07ProviderCredential(os.Environ())
 	if providerKey == "" {
 		t.Skip("NOT RUN — provider credential is unavailable")
 	}
-	if os.Getenv(config.EnvProviderOpenCodeGoAPIKey) == "" {
-		if err := os.Setenv(config.EnvProviderOpenCodeGoAPIKey, providerKey); err != nil {
-			t.Fatal("provider credential could not be assigned to the Hub environment")
-		}
+	providerKeyOrigin := "dotenv"
+	if environmentHadProviderKey {
+		providerKeyOrigin = "environment"
 	}
+	t.Logf("E07 provider_credential_origin=%s", providerKeyOrigin)
 	matchesBaseline, err := e07ProductionBaselineMatches(root, e07BaselineRevision)
 	if err != nil {
 		t.Fatal("production baseline could not be verified")
@@ -147,11 +159,11 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 	versionCommand.Env = e07CodexEnvironment(os.Environ(), codexHome, gatewayKey)
 	versionOutput, err := versionCommand.Output()
 	if err != nil {
-		t.Skip("NOT RUN — Codex CLI version could not be read")
+		t.Fatal("Codex CLI version could not be read before the bounded scenario")
 	}
 	codexVersion := strings.TrimSpace(string(versionOutput))
 	if codexVersion != e07CodexVersion {
-		t.Skip("NOT RUN — Codex CLI release differs from the recorded validation target")
+		t.Fatalf("Codex CLI release differs from the recorded validation target %q", e07CodexVersion)
 	}
 	cfg := config.Default()
 	cfg.Gateway.APIKey = gatewayKey
@@ -172,7 +184,6 @@ func e07PrepareLiveSetup(t *testing.T) *e07LiveSetup {
 	}
 	for _, directory := range []string{setup.CodexHome, setup.DataDir, setup.BasicDir, setup.ReplayDir, setup.ToolDir} {
 		if err := os.MkdirAll(directory, 0o700); err != nil {
-			_ = os.RemoveAll(tempRoot)
 			t.Fatal("isolated validation directory could not be created")
 		}
 	}
@@ -199,5 +210,29 @@ func e07RestoreEnvironment(before map[string]string) {
 	}
 	for key, value := range before {
 		_ = os.Setenv(key, value)
+	}
+}
+
+// e07ProviderCredential resolves the provider credential from the only variable
+// the AI Hub production configuration consumes. The historical OPENCODE_API_KEY
+// name appears in local configuration but is never read by the runtime, so it
+// must not be substituted for the production variable.
+func e07ProviderCredential(environment []string) string {
+	if !e07EnvironmentHasKey(environment, config.EnvProviderOpenCodeGoAPIKey) {
+		return ""
+	}
+
+	return environmentMap(environment)[config.EnvProviderOpenCodeGoAPIKey]
+}
+
+func TestE07ProviderCredentialUsesOnlyProductionVariable(t *testing.T) {
+	if value := e07ProviderCredential([]string{"OPENCODE_API_KEY=synthetic-legacy-value"}); value != "" {
+		t.Fatal("historical credential name was accepted as the provider credential")
+	}
+	if value := e07ProviderCredential([]string{config.EnvProviderOpenCodeGoAPIKey + "=synthetic-canonical-value"}); value != "synthetic-canonical-value" {
+		t.Fatal("production provider credential variable was not resolved")
+	}
+	if value := e07ProviderCredential(nil); value != "" {
+		t.Fatal("absent provider credential was reported as present")
 	}
 }

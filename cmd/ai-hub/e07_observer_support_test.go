@@ -70,13 +70,14 @@ func e07CodexEnvironment(parentEnvironment []string, codexHome, gatewayKey strin
 		}
 	}
 
-	allowed := []string{"PATH", "USER", "LOGNAME", "LANG", "LC_ALL", "TERM", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "WINDIR"}
-	environment := make([]string, 0, len(allowed)+2)
+	allowed := []string{"PATH", "LANG", "LC_ALL", "SYSTEMROOT", "WINDIR"}
+	environment := make([]string, 0, len(allowed)+len(e07CodexRuntimeEnvironment(codexHome))+1)
 	for _, key := range allowed {
 		if value, exists := parent[key]; exists {
 			environment = append(environment, key+"="+value)
 		}
 	}
-	environment = append(environment, "HOME="+codexHome, "CODEX_HOME="+codexHome, "AIHUB_CLIENT_KEY="+gatewayKey)
+	environment = append(environment, e07CodexRuntimeEnvironment(codexHome)...)
+	environment = append(environment, "AIHUB_CLIENT_KEY="+gatewayKey)
 	return environment
 }
