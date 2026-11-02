@@ -5,9 +5,10 @@ documented in [`AI-Hub-Product-Architecture-Kickoff.md`](AI-Hub-Product-Architec
 
 **Current status:** E01 (Core Foundation), E02 (OpenCode Go provider
 integration, Responses pass-through), E03 (Model Catalog), E04 (Gateway
-hardening and access control), E05 (execution lifecycle) and E06 (execution
-records) implemented. Routing, learning, quotas and multi-provider orchestration
-are not implemented yet.
+hardening and access control), E05 (execution lifecycle), E06 (execution
+records), and E07 (Codex CLI harness) are implemented. E07 is validated for
+Codex CLI `0.164.0-alpha.11.1` on Linux `amd64`; AC-14 is `OUT OF SCOPE`.
+Routing, learning, quotas and multi-provider orchestration are not implemented.
 
 ## Scope implemented
 
@@ -252,13 +253,16 @@ success.
 
 See also the [Codex E07 report](docs/validation/E07-codex-first-harness-integration.md).
 
-### Codex CLI validation (experimental; E07 incomplete)
+### Codex CLI support (validated release and environment)
 
-E07 has not established Codex CLI support. The latest real-provider attempt
-used `codex-cli 0.164.0-alpha.11.1`, Go `1.23.0`, Linux `amd64`, and model
-`deepseek-v4.1-flash`; see the [E07 validation report](docs/validation/E07-codex-first-harness-integration.md)
-for the scenario results and limitations. Do not treat this procedure as a
-support claim.
+E07 validated Codex CLI `0.164.0-alpha.11.1` on Linux `amd64` as the AI Hub's
+first supported harness, using the Responses wire API and OpenCode Go through
+the AI Hub. The tested model was `deepseek-v4.1-flash`. This support claim is
+limited to that exact CLI release and environment class; it does not imply
+support for other Codex releases or harnesses. Gateway-hop streaming passed;
+Codex stdout progressive rendering remains `NOT VERIFIED`. See the
+[E07 validation report](docs/validation/E07-codex-first-harness-integration.md)
+for scenario evidence and limitations.
 
 Prerequisites are Bash, Python 3, Go 1.23, bubblewrap, readable Linux `/proc`,
 the recorded Codex CLI release, a newly provisioned OpenCode Go provider
@@ -626,8 +630,8 @@ rm -r -- "$AIHUB_E07_TEST_DIR" "$AIHUB_DATA_DIR"
 
 The validator creates and removes isolated Codex, data, and tool-workspace
 directories. Its report emits scenario statuses and aggregate measurements
-only. A skipped or failed required scenario leaves E07 incomplete; do not add
-a Codex support claim until every required scenario passes.
+only. A skipped or failed required scenario leaves E07 incomplete; the support
+claim above applies only to the validated release and environment.
 
 ## Tests and validation
 
@@ -662,7 +666,8 @@ The real-provider validator remains separately gated by `AIHUB_E07_LIVE=1`.
 - [`docs/design/E06-execution-records-design.md`](docs/design/E06-execution-records-design.md) — E06 technical design.
 - [`docs/specs/E07-codex-first-harness-integration.md`](docs/specs/E07-codex-first-harness-integration.md) — approved E07 scope and acceptance criteria.
 - [`docs/design/E07-codex-first-harness-integration-design.md`](docs/design/E07-codex-first-harness-integration-design.md) — E07 validation design.
-- [`docs/validation/E07-codex-first-harness-integration.md`](docs/validation/E07-codex-first-harness-integration.md) — incomplete E07 scenario evidence.
+- [`docs/validation/E07-codex-first-harness-integration.md`](docs/validation/E07-codex-first-harness-integration.md) — completed E07 scenario evidence and scoped support result.
+- [`docs/validation/E01-E07-execution-history.md`](docs/validation/E01-E07-execution-history.md) — cross-epic delivery history, validation status, recorded corrections and lessons.
 - [`docs/discovery/E06-discovery.md`](docs/discovery/E06-discovery.md) — E06 discovery evidence.
 - [`docs/research/opencode-go-protocol-spike.md`](docs/research/opencode-go-protocol-spike.md) — validated integration evidence.
 - [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 through ADR-013).

@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
-Decisions taken during E01–E05. Each record states context, decision, rationale
-and consequences.
+Decisions taken during E01–E06. Each record states context, decision, rationale
+and consequences. E07 is a validation-only harness integration and adds no
+runtime architecture decision or ADR.
 
 | ADR     | Decision                                                        |
 | ------- | --------------------------------------------------------------- |

@@ -1,6 +1,6 @@
 # E07 Final E2E Execution Plan
 
-Status: **E07 remains INCOMPLETE. The authorized pass recorded below remains unused; this scope amendment does not start, renew, or expand it.**
+Status: **E07 PASS/COMPLETE for AC-1 through AC-13; AC-14 remains OUT OF SCOPE. The authorized full pass ran once on 2026-11-02 under the limits below.**
 
 Plan drafted: 2026-10-31. Conditional authorization recorded: 2026-11-01.
 
@@ -13,15 +13,11 @@ real-provider pass over:
 Codex CLI → AI Hub → OpenCode Go → Provider
 ```
 
-The original and supplemental passes are consumed. The project lead's
-2026-11-01 final acceptance prompt authorized one additional pass, which ran
-once as documented in the validation report. A further pass was authorized
-on 2026-11-02 and remained unused at the latest recorded checkpoint. That
-authorization is not part of this documentation amendment and is neither
-renewed nor expanded here. No host external-symlink integrity condition is an
-E07 start gate because AC-14 is out of product scope. If a scenario fails
-after a pass starts, do not retry or rerun it; report the result and require a
-new decision before any later attempt.
+The original, supplemental, and 2026-11-01 final acceptance passes are
+historical and consumed. The subsequent 2026-11-02 full pass is recorded in §11
+and is also consumed. No host external-symlink integrity condition is an E07
+start gate because AC-14 is out of product scope. If a future separately
+authorized scenario fails, do not retry or rerun it.
 
 The pass is limited to loopback, synthetic prompts/markers, isolated Codex and
 Hub state, one selected model, and the existing E05/E06 behavior. Do not alter
@@ -32,10 +28,9 @@ behavior. Do not install tools or bypass Codex sandbox/approval controls.
 
 All conditions below must pass before the first provider-boundary request:
 
-1. The separately recorded 2026-11-02 authorization remains unused and is
-   subject to the limits in §3; this documentation amendment neither consumes
-   nor renews it. All operational preconditions below still must pass before
-   any separately authorized execution.
+1. The 2026-11-02 full-pass authorization was consumed by the completed run in
+    §11. Any future real-provider execution requires a new explicit
+   authorization and a fresh budget.
 2. The final helper change set is reviewed and contains a hard provider-call
    cap. A call above budget must be rejected before reaching OpenCode Go.
 3. The four E07 test source files exceeding 300 lines have been split within
@@ -514,7 +509,11 @@ previously passing scenarios. It cannot complete E07 or make AC-14 pass while
 the scanner subcondition remains unverified. This correction does not start or
 authorize a new real pass.
 
-### 2026-11-02 authorization and integrity gate disposition
+### Historical 2026-11-02 authorization and integrity gate disposition
+
+The host-side target-integrity gate below belongs to a pre-disposition
+checkpoint. It is preserved as history and is superseded for current E07
+acceptance by AC-14's `OUT OF SCOPE` disposition and current §2.8.
 
 The user-provided AC-14 resolution request authorizes one additional E2E pass
 under this plan's existing scenario and budget limits. The authorization is
@@ -528,3 +527,72 @@ target cannot be observed safely. Do not start the authorized E2E pass until
 the host-side target-integrity precondition can be established. The
 operator-approved scanner exception remains recorded and unresolved; no
 secret-free claim is made.
+
+### Historical initial E2E preflight — blocked before Codex discovery (2026-11-02)
+
+The user authorized one complete E07 pass under this plan's existing limits.
+The authorization remains unused because preflight stopped before the live
+supervisor or any scenario started.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Repository baseline | `PASS` | Clean `main` worktree before this documentation update; `HEAD` equals `origin/main` at `3cabf795bc7d84414655c0ba8944dd59d260df5a`. |
+| Go | `PASS` | Go `1.23.0 linux/amd64` is available at `/usr/local/go/bin/go`. |
+| Bubblewrap and watchdog utility | `PASS` | `/usr/bin/bwrap` and `/usr/bin/timeout` are available. The watchdog itself was not started. |
+| Codex CLI at initial PATH check | `BLOCKED` | `command -v codex` returned exit status 1; the executable was not discoverable through the agent shell's `PATH` at that check. The follow-up below supersedes this availability result. |
+| Provider credentials, AI Hub startup, and provider readiness | `NOT VERIFIED` | No live process was started and no credential or provider probe was performed. |
+
+Stop before provider traffic. All scenarios in §4 are `NOT TESTED` for this
+attempt. No provider call occurred (`0 confirmed`); no provider counter was
+initialized and no retry occurred. The 30-minute execution watchdog and
+scenario timer were not started. Resume only when the required Codex CLI is
+available in the approved isolated execution environment; then use one
+complete pass with the existing nine-call ceiling, zero retries, and no extra
+provider probes. This preflight does not alter historical results or AC
+definitions; AC-14 remains `OUT OF SCOPE` under the current SPEC.
+
+### Preflight continuation before final pass — runner aligned with §2.8 (2026-11-02)
+
+The extension-bundled Codex CLI was located read-only and its version was
+verified in an isolated temporary home as `0.164.0-alpha.11.1`. It is not on
+the agent shell's ordinary `PATH`; the VS Code plugin's state and processes
+were not inspected or modified.
+
+Before live execution, the supervisor's host-side `e07_host_integrity.py`
+snapshots were found to fingerprint the host-global Codex tree and environment
+files, contrary to §2.8. Those two host-level snapshots were removed from the
+validation-only supervisor. The remaining `e07SnapshotCodexTree` call is
+inside Bubblewrap and resolves the namespace-local `e07-homologation` account
+under tmpfs with an empty read-only `.codex` mount; it does not observe the
+host-global tree or VS Code plugin state.
+
+The focused regression was RED before the supervisor correction and GREEN
+after it. The Python helper suite passed 20/20, `go test ./... -count=1`
+passed, and the supervisor passed `bash -n` and `git diff --check`. The
+independent review approved the runner change and requested this clarification.
+At this checkpoint, no live run, watchdog, or provider request had started and
+the one-pass authorization remained unused. The completed pass is recorded in
+§11. This alignment did not evaluate or reopen AC-14, change production
+behavior, or weaken in-scope private-state and credential assertions.
+
+## 11. Final full E2E execution — 2026-11-02
+
+The single authorized full pass completed with Codex CLI
+`0.164.0-alpha.11.1`, Go `1.23.0`, Linux `amd64`, and
+`deepseek-v4.1-flash`. The run used nine provider calls, the hard maximum; all
+nine were forwarded, none was rejected, and zero retries occurred. The
+supervised wall-clock duration was 26.350 seconds. All required scenarios
+passed; Codex stdout progressive rendering remains `NOT VERIFIED`, which the
+SPEC permits when gateway-hop streaming passes. AC-14 remains `OUT OF SCOPE`
+and was not evaluated.
+
+Observed call allocation differed from the planned estimate of four Codex
+Responses requests: the sandboxed tool round trip required two Responses
+requests, so five Codex requests were observed. Together with the error probe,
+streaming request, and two startup/restart calls, the total was nine. This
+variance remained within the hard ceiling and caused no rejection or retry.
+
+See the validation report's **Final complete E2E homologation** section for
+scenario timestamps, boundary counts, AC-5 evidence, records recovery, the
+final acceptance matrix, and local verification. No further pass or provider
+calls are authorized by this run.

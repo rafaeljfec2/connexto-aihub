@@ -79,16 +79,6 @@ if [[ ! -r "$repository_root/.env" || ! -d "$module_cache" || ! -d "$codex_bin_d
 	exit 1
 fi
 
-if ! host_snapshot_before="$(/usr/bin/python3 "$script_directory/e07_host_integrity.py" snapshot "$repository_root")"; then
-	printf 'E07 host integrity baseline codex=NOT_VERIFIED env=NOT_VERIFIED\n' >&2
-	exit 1
-fi
-read -r host_codex_before host_env_before <<<"$host_snapshot_before"
-if [[ ! "$host_codex_before" =~ ^[0-9a-f]{64}$ || ! "$host_env_before" =~ ^[0-9a-f]{64}$ ]]; then
-	printf 'E07 host integrity baseline codex=NOT_VERIFIED env=NOT_VERIFIED\n' >&2
-	exit 1
-fi
-
 private_root=/run/e07/private
 go_cache="$private_root/go-cache"
 test_binary="$private_root/bin/ai-hub-e07.test"
@@ -182,26 +172,6 @@ print(\"E07 repository dotenv mount: read-only\")"
 	run_status=0
 else
 	run_status=$?
-fi
-
-if host_snapshot_after="$(/usr/bin/python3 "$script_directory/e07_host_integrity.py" snapshot "$repository_root")"; then
-	read -r host_codex_after host_env_after <<<"$host_snapshot_after"
-	if [[ "$host_codex_after" =~ ^[0-9a-f]{64}$ && "$host_env_after" =~ ^[0-9a-f]{64}$ ]]; then
-		codex_integrity=FAIL
-		environment_integrity=FAIL
-		[[ "$host_codex_before" == "$host_codex_after" ]] && codex_integrity=PASS
-		[[ "$host_env_before" == "$host_env_after" ]] && environment_integrity=PASS
-		printf 'E07 host_integrity codex_tree=%s project_env_files=%s\n' "$codex_integrity" "$environment_integrity"
-		if [[ "$codex_integrity" != "PASS" || "$environment_integrity" != "PASS" ]]; then
-			run_status=1
-		fi
-	else
-		printf 'E07 host_integrity codex_tree=NOT_VERIFIED project_env_files=NOT_VERIFIED\n' >&2
-		run_status=1
-	fi
-else
-	printf 'E07 host_integrity codex_tree=NOT_VERIFIED project_env_files=NOT_VERIFIED\n' >&2
-	run_status=1
 fi
 
 exit "$run_status"

@@ -1,33 +1,30 @@
-# AI Hub — Implemented Architecture (E01–E04)
+# AI Hub — Implemented Architecture (E01–E06; E07 Validation)
 
-This document describes what exists today. Product vision and future layers are
-in `AI-Hub-Product-Architecture-Kickoff.md`; E02 (first provider integration
-plus gateway passthrough) and E03 (model catalog) are implemented alongside E01.
+This document describes the current runtime through E06. E07 validates Codex
+CLI as the first supported harness but adds no production runtime behavior or
+durable AI Hub conversation state. The original product vision and proposed
+future layers remain in `AI-Hub-Product-Architecture-Kickoff.md`.
 
 ## Runtime model
 
-Single Go binary, modular monolith, local-first. No database, queue, cache or
-external service is required.
+Single Go binary, modular monolith, local-first. No external database, queueing
+service, cache, or other runtime service is required; E06 uses a bounded
+in-process records queue.
 
 ```text
 cmd/ai-hub/main.go
-         |
-         v
-    internal/app  (lifecycle)
-         |
-         v
-  internal/providers (opencode-go adapter, E02)
-         |
-         v
- internal/server (HTTP transport)
-   |    |          |
-   v    v          v
-internal/access  internal/gateway
-(E04 trust       (E02/E03 handlers)
- boundary)
-         |
-         v
- internal/observability
+    |
+    +--> app lifecycle: guarded providers -> catalog -> records -> HTTP/execution
+    |
+    +--> server/router --> access policy (E04) --> gateway (E02/E03/E06)
+    |                                              |
+    |                                              +--> execution.Manager (E05)
+    |                                                       |
+    |                                                       +--> OpenCode Go (E02)
+    |                                                       |
+    |                                                       +--> terminal observer
+    |                                                             -> records (E06)
+    +--> observability
 ```
 
 Health endpoints are served by `health`; provider endpoints are injected as
@@ -53,7 +50,9 @@ depend on the standard library only.
 | `internal/observability` | `slog` construction and correlation ID context propagation.                                               |
 | `internal/providers`     | OpenCode Go adapter: credential handling, catalog descriptors, Responses execution, provider state (E02). |
 | `internal/catalog`       | Model catalog domain, JSON snapshot, synchronization and queries (E03).                                   |
-| `internal/gateway`       | Provider passthrough handlers (E02) and catalog handlers (E03).                                           |
+| `internal/gateway`       | Provider passthrough (E02), catalog (E03) and records query handlers (E06).                              |
+| `internal/execution`     | Per-request execution lifecycle, cancellation, terminal arbitration and drain coordination (E05).         |
+| `internal/records`       | Content-free execution records, bounded writer, JSONL persistence, retention and query index (E06).       |
 
 `providers` is a concrete adapter, not an interface-driven layer: the spike
 validated exactly one adapter shape (Responses in, Responses out); an
@@ -65,11 +64,14 @@ abstraction will be introduced only when a second provider exists.
    key and access policy. Invalid input aborts before any listener is created.
 2. The logger is built from the validated log settings.
 3. Modules are constructed explicitly and injected into `app.New`.
-4. `App.Start` starts modules in order (`providers` → `catalog` → `http-server`),
-   stopping already started modules in reverse order if one fails.
+4. `App.Start` starts modules in order (`guarded providers` → `catalog` →
+   `records` → `http/execution lifecycle`), stopping already started modules in
+   reverse order if one fails.
 5. The process waits for `SIGINT`/`SIGTERM` or a fatal serving error.
-6. `App.Stop` runs with a context limited by `server.shutdown_timeout` and stops
-   modules in reverse order, joining errors.
+6. `App.Stop` runs with a context limited by `server.shutdown_timeout`. The
+   HTTP/execution lifecycle closes execution admission and drains or cancels
+   work; records then drains for at most two seconds; the guarded provider is
+   released only after E05 confirms its executions are drained.
 
 `server.Start` binds the listener synchronously, so port conflicts fail startup
 instead of surfacing asynchronously. The bound address is checked after
@@ -100,6 +102,8 @@ http.ServeMux ->  GET /healthz | GET /readyz
    |              | POST /v1/responses    (streaming, byte-for-byte pass-through)
    |              | GET /v1/catalog/models | GET /v1/catalog/models/{provider}/{model...}
    |              | GET /v1/catalog/providers | POST /v1/catalog/sync
+   |              | GET /v1/records/executions
+   |              | GET /v1/records/executions/{execution_id}
 ```
 
 The access log intentionally excludes headers, query strings and bodies, so
@@ -245,6 +249,35 @@ corrupt or unsupported snapshot is quarantined under a unique name before the
 catalog starts empty; if quarantine fails, writes are disabled for the session
 so recoverable data is never overwritten. One process owns the data directory.
 
+## Execution lifecycle and records (E05/E06)
+
+E05 creates one in-process execution for each request admitted to
+`POST /v1/responses`. The Execution Manager owns upstream-body reading,
+cancellation, timeout classification, terminal arbitration and shutdown drain;
+the Gateway remains the HTTP writer and preserves progressive streaming. E05
+executes an explicit target and opaque provider-ready payload: it does not
+classify tasks, choose providers/models, retry, or persist conversations.
+
+E06 observes the immutable terminal result through a narrow execution-owned
+observer. The callback only performs a bounded, non-blocking enqueue; a single
+writer persists minimized schema-v1 records as append-only JSONL under
+`AIHUB_DATA_DIR/records`. Records contain operational metadata only—no payloads,
+responses, provider sessions, headers, or credentials. `usage` is always `null`
+in schema v1. Delivery is best-effort and at-most-once: queue/storage failures
+cannot change the execution result, and orderly shutdown gives the writer a
+fixed two-second drain before guarded provider release.
+
+## First harness validation (E07)
+
+E07 validates Codex CLI through the existing Responses route; it adds no
+production adapter, protocol translation, retry policy, or durable AI Hub
+session. The validated support boundary is Codex CLI
+`0.164.0-alpha.11.1` on Linux `amd64`, using OpenCode Go through AI Hub. Full
+conversation context is replayed by the harness; `previous_response_id` is not
+used. AC-14 is `OUT OF SCOPE`. The final E2E matrix and historical failures are
+in [`docs/validation/E01-E07-execution-history.md`](validation/E01-E07-execution-history.md)
+and the [E07 validation report](validation/E07-codex-first-harness-integration.md).
+
 ## Error handling
 
 Errors are wrapped with context and propagated upward; `main` prints the failure
@@ -267,6 +300,10 @@ codes. Panics are recovered, logged, and answered with `500`.
   close and directory-`fsync` failures, plus handler contracts.
 - `internal/catalog/live_smoke_test.go` performs a real catalog sync when
   `AIHUB_LIVE_SMOKE=1` and a credential are present.
+- `internal/execution` and `internal/records` tests cover terminal arbitration,
+  cancellation, shutdown, bounded enqueue, JSONL recovery, retention and query
+  contracts. The E07 live validator is separately gated and exercises the real
+  Codex/OpenCode Go route only under its approved execution plan.
 - E04 tests cover key grammar and bearer forms, Host/Origin normalization,
   middleware precedence, body limits and chunked overflow, media/encoding
   rejection, session generation/preservation, listener refusal, response

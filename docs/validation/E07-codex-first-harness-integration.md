@@ -1,6 +1,6 @@
 # E07 Codex First Harness Validation Report
 
-Status: **INCOMPLETE — AC-14 is OUT OF SCOPE; AC-5 remains failed by the latest real E2E evidence, so Codex CLI support is not established.**
+Status: **COMPLETE — AC-1 through AC-13 PASS; AC-14 is OUT OF SCOPE. Codex CLI support is limited to the validated release and environment recorded below.**
 
 Report date: 2026-10-31.
 
@@ -1831,12 +1831,12 @@ agent processes, request/response security, and consumption governance.
 Repository integrity and Git-scope checks remain development hygiene and are
 not product features or AC-14 evidence.
 
-### Current acceptance matrix
+### Acceptance matrix before the authorized full E2E — preserved history
 
-The matrix below uses the latest recorded real E2E run (2026-11-01), the
-subsequent local AC-12/helper verification records, and the scope decision in
-this addendum. Historical status tables above remain unchanged and apply to
-their named checkpoints.
+The matrix below records the disposition before the final full E2E run. It uses
+the 2026-11-01 real run, subsequent local AC-12/helper verification, and the
+AC-14 scope decision. It is preserved as the pre-run baseline; the current
+disposition is recorded in the final execution section below.
 
 | AC | Current disposition | Evidence and limitation |
 | --- | --- | --- |
@@ -1855,15 +1855,9 @@ their named checkpoints.
 | AC-13 | `PASS` | The README retains experimental wording and makes no Codex support claim. |
 | AC-14 | `OUT OF SCOPE` | Excluded from AI Hub product acceptance by the architectural decision above; no historical failure is reclassified as PASS. |
 
-E07 remains **INCOMPLETE** because AC-5 is `FAIL`. AC-14's removal does not
-approve E07 or establish Codex support. The separately recorded additional E2E
-authorization remains unused; this documentation change neither consumes nor
-renews it. Documentary verification for this update: `rtk git diff --check`
-passed with exit code `0`. No provider call, E2E, preflight, or secret scan was
-performed for this scope decision.
-
-The only currently pending E07 acceptance criterion is AC-5. All other
-in-scope criteria are `PASS` in the current matrix above.
+At this pre-run checkpoint, E07 remained **INCOMPLETE** because AC-5 was
+`FAIL`. The authorization and outcome of the subsequent full E2E are recorded
+below. AC-14's removal alone did not approve E07 or establish Codex support.
 
 ### Preserved history and current references
 
@@ -1880,3 +1874,163 @@ AC-14 in `docs/specs/E04-gateway-hardening-access-control.md` and
 `docs/design/E04-gateway-hardening-access-control-design.md`, and FR-12 in
 `docs/specs/E06-execution-records.md`, belong to those epics and are unrelated
 to this E07 disposition.
+
+## Final complete E2E homologation — 2026-11-02
+
+**Result: PASS for AC-1 through AC-13; AC-14 remains OUT OF SCOPE.** The
+authorized full pass ran once through the isolated supervisor. AI Hub used its
+live validation composition of the production gateway, execution, provider,
+records, and lifecycle modules with the real Codex CLI and OpenCode Go provider.
+This was the composition specified by the E07 design, not a separately
+launched Hub executable.
+
+| Run metadata | Observed result |
+| --- | --- |
+| AI Hub checkout revision | `3cabf795bc7d84414655c0ba8944dd59d260df5a`; production paths matched the E06 baseline. |
+| Codex CLI | `codex-cli 0.164.0-alpha.11.1` |
+| Go / environment | `go1.23.0`, Linux `amd64` |
+| Provider / model | OpenCode Go / `deepseek-v4.1-flash` |
+| Credential origin | `dotenv`; presence and process isolation were checked without logging values. |
+| Isolation | PASS at every checkpoint; private `HOME`, `CODEX_HOME`, and XDG paths were used. The host Codex directory was hidden by the mount namespace. |
+| Provider boundary | 9 attempted, 9 forwarded, 0 rejected; hard maximum 9. |
+| Codex Responses requests | 5 total: basic 1, replay 2, sandboxed tool round trip 2. |
+| Retry policy | 0 retries; Codex request and stream retry settings were zero. |
+| Duration | 26.350 seconds for the supervised command; the live test's monotonic elapsed timer reported 20.814 seconds. Logged UTC endpoints were `04:13:16.761Z` and `04:13:37.563Z` (20.802 seconds by wall-clock subtraction). |
+| Watchdog | 30-minute outer watchdog completed normally. |
+
+The plan expected eight provider calls and allowed at most nine. The pass used
+all nine: five Codex Responses requests, one upstream-error request, one
+streaming request, and two startup/restart provider-boundary calls. The
+sandboxed tool task required two Responses requests. The hard limit was not
+exceeded; no request was rejected, and no retry or extra probe occurred.
+
+| Scenario / AC | Start–end (UTC) | Hub/provider observations | Result |
+| --- | --- | --- | --- |
+| `credential_isolation_preflight` / AC-1 | `04:13:17.314721498`–`04:13:17.328833480` | Process/config presence checks passed; no scenario provider-call delta. | `PASS` |
+| `basic_generation` / AC-2, AC-3, AC-4 | `04:13:17.328852756`–`04:13:20.669787685` | One Codex Responses request reached Hub and provider; Codex received a non-empty successful result. | `PASS` |
+| `gateway_authentication` / AC-3 | `04:13:20.669797312`–`04:13:20.686273393` | Unauthenticated Hub request returned `401`; provider-call delta was zero. | `PASS` |
+| `multi_turn_replay` / AC-2, AC-5 | `04:13:20.686283774`–`04:13:26.269807044` | Two sequential Hub requests and two provider forwards. Both Codex turns completed; turn one yielded a non-empty thread ID captured in memory, and turn two resumed it using `--skip-git-repo-check`. During resume, prior context was present, `previous_response_id` was absent, and the synthetic marker was recalled. No ID or payload was retained in the report. | `PASS` |
+| `sandboxed_tool_calling` / AC-2, AC-6 | `04:13:26.269816892`–`04:13:31.812418012` | Two Codex Responses requests were forwarded; the bounded write/read task completed under `workspace-write` with normal approval behavior. | `PASS` |
+| `upstream_error_passthrough` / AC-7 | `04:13:31.812426509`–`04:13:32.312580473` | One request; status class, content type, complete-body digest, and generic error envelope were preserved at both boundaries. | `PASS` |
+| `gateway_streaming` / AC-8 | `04:13:32.312590519`–`04:13:36.847990129` | One request; 174 SSE data events. First event at `1.493s`, last at `4.477s`, completion at `4.477s`. | `PASS` |
+| `execution_record_listing_and_by_id` / AC-9 | `04:13:36.848003142`–`04:13:36.919667572` | Seven expected records; list, correlation, outcome, schema, and all seven by-ID checks matched. | `PASS` |
+| `shutdown_restart_recovery` / AC-10 | `04:13:36.919692925`–`04:13:37.439193325` | Graceful stop/restart completed; seven expected records remained queryable and all seven by-ID checks matched. One provider-boundary call occurred during restart readiness. | `PASS` |
+| `credential_isolation_repository_integrity` / AC-1, AC-11, AC-12 | `04:13:37.439230121`–`04:13:37.563348379` | Namespace-private Codex snapshot, repository/environment-file checks, tracked-file and Git-scope checks passed. This was not a host-global Codex snapshot and is not AC-14 evidence. | `PASS` |
+| Codex stdout progressive rendering / AC-8 | Within the streaming scenario | No measurable progressive-rendering signal was emitted by the CLI; gateway-hop streaming passed. | `NOT VERIFIED` (permitted) |
+
+### AC-5 boundary evidence
+
+1. The first real Codex invocation exited successfully; its JSON `thread.started` event yielded a non-empty thread ID in memory.
+2. The first-turn request reached Hub ingress and was forwarded to the provider. Process start alone was not used as request evidence.
+3. The second invocation used `exec resume` with the captured thread ID and `--skip-git-repo-check`; the exact argument vector is in `cmd/ai-hub/e07_live_scenarios_test.go`.
+4. The replay window observed exactly two Hub requests and two provider forwards. The structural observer, enabled during resume, saw prior context and no `previous_response_id`.
+5. The second Codex result recalled the synthetic marker from turn one. Only structural booleans and aggregate counts were emitted; no thread ID, prompt, response, or request body was retained.
+
+### Final acceptance matrix
+
+| AC | Result | Evidence |
+| --- | --- | --- |
+| AC-1 | `PASS` | Credential isolation and private runtime checks passed. |
+| AC-2 | `PASS` | All five Codex Responses requests were routed through Hub/provider boundaries; no direct provider route was used. |
+| AC-3 | `PASS` | Authenticated generation succeeded; unauthenticated request returned `401` with zero provider delta. |
+| AC-4 | `PASS` | Real Codex basic generation returned a non-empty successful result. |
+| AC-5 | `PASS` | Two-turn real replay, resumed thread, both boundary requests, prior context, absent `previous_response_id`, and marker recall passed. |
+| AC-6 | `PASS` | Sandboxed tool round trip completed with normal controls. |
+| AC-7 | `PASS` | Same-response upstream error fidelity passed. |
+| AC-8 | `PASS` | Gateway-hop SSE was progressive; Codex stdout rendering remains `NOT VERIFIED`, permitted by the SPEC. |
+| AC-9 | `PASS` | Seven records passed list, correlation, outcome, schema, and by-ID checks. |
+| AC-10 | `PASS` | Seven records remained queryable after orderly restart. |
+| AC-11 | `PASS` | Evidence contains no credential values, payloads, or generated request/record identifiers. |
+| AC-12 | `PASS` | Current race suite, vet, build, formatting, Python helper tests, shell syntax, and diff checks passed. Prior `staticcheck` and `golangci-lint` passes remain applicable; no Go source changed. |
+| AC-13 | `PASS` | The README support claim is limited to the exact tested CLI release and Linux amd64 environment. |
+| AC-14 | `OUT OF SCOPE` | Excluded by the current E07 SPEC; not run or reclassified. |
+
+E07 is **PASS/COMPLETE** for its in-scope criteria. No secret scanner, further
+provider call, retry, commit, or push was performed. The support claim does not
+generalize to other Codex releases, environment classes, or harnesses.
+
+### Local verification after runner correction
+
+| Check | Result |
+| --- | --- |
+| `scripts/test_e07_live_supervisor.py` before correction | `RED` — host-snapshot guard failed; private-mount guard passed. |
+| `scripts/test_e07_live_supervisor.py` after correction | `PASS` — 2/2. |
+| Python helper suite | `PASS` — 20/20. |
+| `go test ./... -count=1` | `PASS`. |
+| `go test ./... -count=1 -race` | `PASS`. |
+| `go vet ./...` / `go build ./...` | `PASS` / `PASS`. |
+| `gofmt -l cmd internal` | `PASS` — no output. |
+| `bash -n scripts/e07-live-supervisor.sh` | `PASS`. |
+| `git diff --check` | `PASS` after final documentation edits. |
+| `staticcheck ./...` / `golangci-lint run ./...` | Not rerun; executables were unavailable on this session's `PATH`. The latest recorded passes remain applicable because no Go source changed. |
+| Independent review | `APPROVED` after the runner correction and report clarification. |
+
+### Historical initial E2E preflight — blocked before binary recovery (2026-11-02)
+
+This records the initial checkpoint before the extension-bundled Codex binary
+was located, the supervisor was aligned with §2.8, and the completed pass
+above. Its blocked/not-tested statuses apply only to that checkpoint.
+
+The user authorized one complete E07 E2E pass under the current plan limits:
+one pass, at most nine provider-boundary calls, zero retries, a 30-minute
+watchdog, and a two-minute per-request limit. This authorization was not
+consumed: the preflight stopped before the live supervisor, test binary, AI
+Hub, Codex scenario, or provider boundary was started.
+
+| Preflight item | Result | Evidence |
+| --- | --- | --- |
+| Repository | `PASS` | Branch `main`; `HEAD` and `origin/main` both resolve to `3cabf795bc7d84414655c0ba8944dd59d260df5a`; worktree clean before this documentation update. |
+| Go | `PASS` | `/usr/local/go/bin/go version` reported `go1.23.0 linux/amd64`. |
+| Bubblewrap and timeout | `PASS` | `bwrap` resolves to `/usr/bin/bwrap`; `timeout` resolves to `/usr/bin/timeout`. |
+| Codex CLI at initial PATH check | `BLOCKED` | `command -v codex` returned exit status 1; the executable was not discoverable through the agent shell's `PATH` at that check. The follow-up below supersedes this availability result. |
+| Gateway/provider credentials in intended processes | `NOT VERIFIED` | No live process was created and no credential values or `.env` contents were inspected. |
+| AI Hub, OpenCode Go, provider, isolated Codex configuration, live observer, and graceful shutdown | `NOT TESTED` | The Codex availability gate failed before the live execution sequence. |
+| Watchdog execution | `NOT STARTED` | The 30-minute supervisor was not launched because a required precondition had failed. |
+
+No scenario ran in this attempt. Basic generation, authentication, replay,
+sandboxed tool use, upstream error passthrough, streaming, records, and
+restart/recovery are all `NOT TESTED` for this attempt. Provider calls: `0
+confirmed`; the live provider counter was not initialized. Retries: `0`. The
+E2E elapsed time is not applicable because the supervised run did not start.
+
+At this initial checkpoint, the pre-run matrix remained the evidence-based
+disposition: AC-1 through AC-4 and AC-6 through AC-13 retained their recorded
+results; AC-5 was `FAIL` for real E2E and locally corrected; AC-14 was
+`OUT OF SCOPE`. The completed run above supersedes the applicable current
+results. No credentials, `.env`,
+`.bashrc`, production source, or Codex state were changed. No secret scanner,
+commit, or push was performed.
+
+### Historical preflight continuation — Codex located and runner aligned before the final pass
+
+After the operator reported that Codex CLI was installed, a read-only filename
+search located the binary in the VS Code server extension bundle. An isolated
+`env -i` version query, using a separate temporary `HOME`,
+`CODEX_HOME`, and XDG directories, returned
+`codex-cli 0.164.0-alpha.11.1`. The VS Code plugin's process and state were not
+inspected, stopped, or modified. The binary is not on the agent shell's
+ordinary `PATH`.
+
+Before live execution, source inspection found that
+`scripts/e07-live-supervisor.sh` invoked host snapshots that fingerprinted the
+global Codex tree and environment files, contrary to plan §2.8. The live test's
+`e07SnapshotCodexTree` call is different: it runs inside Bubblewrap, where
+`/etc/passwd` maps the process to `e07-homologation`, `/home` is a namespace
+tmpfs, and `.codex` is an empty read-only mount. It observes only private
+namespace state and does not inspect the VS Code plugin's host state.
+
+The validation-only supervisor was corrected to remove only its host-level
+before/after snapshots. The private mount, namespace-local Codex snapshot,
+credential allowlist, repository checks, call budget, and watchdog remain.
+`test_e07_live_supervisor.py` first failed on the host snapshot invocation and
+passed after the correction (2/2). The complete Python helper suite passed
+(20/20); `go test ./... -count=1`, `bash -n scripts/e07-live-supervisor.sh`,
+and `git diff --check` passed. An independent review approved the runner change
+and requested this documentation clarification.
+
+At this checkpoint, no live supervisor, test binary, AI Hub process, Codex
+scenario, watchdog, or provider request had started; calls were `0 confirmed`
+and retries were `0`. The one-pass authorization was still unused then. The
+runner/plan mismatch was corrected before the completed run above, without
+evaluating AC-14. The plugin's process and state were not inspected, stopped,
+or modified. AC-14 remains `OUT OF SCOPE`.
