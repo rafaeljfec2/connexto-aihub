@@ -63,4 +63,12 @@ func TestConfigModuleRestoresMultipleProviderCredentialsIndependently(t *testing
 	if restartedOpenCode.settings.APIKey != "opencode-test-credential" || restartedOpenRouter.settings.APIKey != "openrouter-test-credential" {
 		t.Fatal("restart did not recover independent persisted credentials")
 	}
+	manager := providers.NewRegistryManager(nil, restartedRegistry)
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("provider Manager startup after recovery = %v", err)
+	}
+	statuses := manager.Statuses()
+	if len(statuses) != 2 || statuses[0].State != providers.StateUnknown || statuses[1].State != providers.StateUnknown {
+		t.Fatalf("provider states after credential recovery = %+v, want unknown without probes", statuses)
+	}
 }

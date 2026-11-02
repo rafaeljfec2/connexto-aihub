@@ -36,10 +36,12 @@ func TestManagerStartsWithDisabledStateWithoutCredential(t *testing.T) {
 	})
 }
 
-func TestManagerReportsHealthyAfterConnectivityCheck(t *testing.T) {
+func TestManagerStartsEnabledProviderWithoutConnectivityCheck(t *testing.T) {
 	logger, buffer := newTestLogger()
+	hits := 0
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
 		if r.URL.Path != "/v1/models" {
 			t.Errorf("models path = %q, want /v1/models", r.URL.Path)
 		}
@@ -57,18 +59,23 @@ func TestManagerReportsHealthyAfterConnectivityCheck(t *testing.T) {
 	assertStatuses(t, manager, providers.Status{
 		ID:      providers.OpenCodeGoID,
 		Enabled: true,
-		State:   providers.StateHealthy,
+		State:   providers.StateUnknown,
 	})
+	if hits != 0 {
+		t.Fatalf("startup made %d upstream requests, want zero", hits)
+	}
 
 	if bytes.Contains(buffer.Bytes(), []byte(testCredential)) {
 		t.Fatalf("provider logs leaked the credential: %q", buffer.String())
 	}
 }
 
-func TestManagerReportsUnhealthyAndStillStarts(t *testing.T) {
+func TestManagerDoesNotProbeUnhealthyProviderAtStartup(t *testing.T) {
 	logger, _ := newTestLogger()
+	hits := 0
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
 		if r.URL.Path != "/v1/models" {
 			t.Errorf("models path = %q, want /v1/models", r.URL.Path)
 		}
@@ -86,14 +93,21 @@ func TestManagerReportsUnhealthyAndStillStarts(t *testing.T) {
 	assertStatuses(t, manager, providers.Status{
 		ID:      providers.OpenCodeGoID,
 		Enabled: true,
-		State:   providers.StateUnhealthy,
+		State:   providers.StateUnknown,
 	})
+	if hits != 0 {
+		t.Fatalf("startup made %d upstream requests, want zero", hits)
+	}
 }
 
-func TestManagerStopClosesIdleConnections(t *testing.T) {
+func TestManagerStopIsIdempotentAfterNoProbeStartup(t *testing.T) {
 	logger, _ := newTestLogger()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
 
-	manager := providers.NewManager(logger, mustClient(t, newEnabledClientConfig("https://example.com/go")))
+	manager := providers.NewManager(logger, mustClient(t, newEnabledClientConfig(upstream.URL)))
 
 	if err := manager.Start(context.Background()); err != nil {
 		t.Fatalf("Start() returned error: %v", err)

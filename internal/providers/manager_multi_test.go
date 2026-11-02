@@ -37,18 +37,18 @@ func TestRegistryManagerTracksProviderAvailabilityIndependently(t *testing.T) {
 		t.Fatalf("Start() error = %v", err)
 	}
 	statuses := manager.Statuses()
-	if len(statuses) != 2 || statuses[0].ID != providers.OpenCodeGoID || statuses[0].State != providers.StateHealthy ||
-		statuses[1].ID != providers.OpenRouterID || statuses[1].State != providers.StateUnhealthy {
-		t.Fatalf("statuses = %+v", statuses)
+	if len(statuses) != 2 || statuses[0].ID != providers.OpenCodeGoID || statuses[0].State != providers.StateUnknown ||
+		statuses[1].ID != providers.OpenRouterID || statuses[1].State != providers.StateUnknown {
+		t.Fatalf("startup statuses = %+v, want both enabled providers unknown", statuses)
 	}
-	if openCode.hits != 1 || openRouter.hits != 1 {
-		t.Fatalf("probe hits = %d/%d", openCode.hits, openRouter.hits)
+	if openCode.hits != 0 || openRouter.hits != 0 {
+		t.Fatalf("startup probe hits = %d/%d, want zero", openCode.hits, openRouter.hits)
 	}
 	if err := openRouter.Reconfigure(providers.Settings{BaseURL: "https://openrouter.example.test", Enabled: false}); err != nil {
 		t.Fatal(err)
 	}
 	statuses = manager.Statuses()
-	if statuses[1].Enabled || statuses[1].State != providers.StateDisabled || statuses[0].State != providers.StateHealthy {
+	if statuses[1].Enabled || statuses[1].State != providers.StateDisabled || statuses[0].State != providers.StateUnknown {
 		t.Fatalf("disable affected wrong provider: %+v", statuses)
 	}
 }

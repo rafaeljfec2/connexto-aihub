@@ -11,8 +11,8 @@ import (
 const ConfigModuleName = "provider-config"
 
 // ConfigModule loads the persisted provider configuration at startup, seeding
-// it from the environment on first boot. It must start after the database
-// migrations and before the provider module verifies connectivity.
+// it from the environment on first boot. It must start after database
+// migrations and before the provider Manager initializes runtime state.
 type ConfigModule struct {
 	service    *Service
 	bootstraps []BootstrapInput

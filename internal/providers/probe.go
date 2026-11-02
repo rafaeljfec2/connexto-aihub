@@ -11,9 +11,8 @@ import (
 
 const probeTimeout = 10 * time.Second
 
-// ProbeEndpoint checks the model endpoint of an OpenCode Go configuration with
-// the same request the startup connectivity check uses. Errors never include
-// the credential.
+// ProbeEndpoint checks the model endpoint of an OpenCode Go configuration for
+// an explicit connectivity check. Errors never include the credential.
 func ProbeEndpoint(ctx context.Context, endpoint, credential string) error {
 	client, err := NewClient(config.ProviderOpenCodeGo{BaseURL: endpoint, APIKey: credential}, nil)
 	if err != nil {

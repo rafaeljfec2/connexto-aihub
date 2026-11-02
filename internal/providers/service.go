@@ -93,6 +93,9 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Rec
 	if err != nil {
 		return Record{}, err
 	}
+	if input.Endpoint == nil && input.Credential == nil {
+		return record, nil
+	}
 
 	return record, s.apply(ctx, record)
 }
@@ -108,9 +111,10 @@ func (s *Service) Disable(ctx context.Context, id string) (Record, error) {
 	return s.setEnabled(ctx, id, false)
 }
 
-// Validate checks upstream connectivity with the stored endpoint and
-// credential. It changes no state.
+// Validate checks the stored endpoint and credential and reports the result to
+// the runtime health observer without changing persisted configuration.
 func (s *Service) Validate(ctx context.Context, id string) error {
+	version := s.registry.healthCheckVersion(id)
 	record, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return err
@@ -118,18 +122,28 @@ func (s *Service) Validate(ctx context.Context, id string) error {
 
 	credential, err := s.credentialOf(ctx, record)
 	if err != nil {
+		s.registry.reportHealthCheck(id, version, err)
 		return err
 	}
 
 	if credential == "" {
-		return ErrNoCredential
+		err = ErrNoCredential
+		s.registry.reportHealthCheck(id, version, err)
+		return err
 	}
 
 	probe, ok := s.probes[record.Type]
 	if !ok || probe == nil {
-		return ErrProbeUnavailable
+		err = ErrProbeUnavailable
+		s.registry.reportHealthCheck(id, version, err)
+		return err
 	}
-	return probe(ctx, record.Endpoint, credential)
+
+	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	err = probe(probeContext, record.Endpoint, credential)
+	s.registry.reportHealthCheck(id, version, err)
+	return err
 }
 
 func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) (Record, error) {
@@ -177,7 +191,7 @@ func (s *Service) buildChanges(id string, input UpdateInput) (Changes, error) {
 // apply pushes the persisted configuration to the runtime bound to its id.
 // Configurations without a binding are administrative only.
 func (s *Service) apply(ctx context.Context, record Record) error {
-	adapter, bound := s.registry.Resolve(record.ID)
+	_, bound := s.registry.Resolve(record.ID)
 	if !bound {
 		return nil
 	}
@@ -187,7 +201,7 @@ func (s *Service) apply(ctx context.Context, record Record) error {
 		return err
 	}
 
-	if err := adapter.Reconfigure(Settings{
+	if err := s.registry.Reconfigure(record.ID, Settings{
 		BaseURL: record.Endpoint,
 		APIKey:  credential,
 		Enabled: record.Enabled,

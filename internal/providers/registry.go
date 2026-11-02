@@ -38,13 +38,19 @@ type ModelListAdapter interface {
 // the same type must not share one runtime, and only configurations with a
 // binding receive traffic. The registry holds no business rules.
 type Registry struct {
-	mu       sync.RWMutex
-	adapters map[string]Adapter
+	mu                    sync.RWMutex
+	adapters              map[string]Adapter
+	runtimeVersions       map[string]uint64
+	runtimeChangeObserver func(string)
+	healthCheckObserver   func(string, error)
 }
 
 // NewRegistry builds an empty registry.
 func NewRegistry() *Registry {
-	return &Registry{adapters: make(map[string]Adapter)}
+	return &Registry{
+		adapters:        make(map[string]Adapter),
+		runtimeVersions: make(map[string]uint64),
+	}
 }
 
 // Bind attaches the runtime adapter to a provider id.
@@ -63,6 +69,68 @@ func (r *Registry) Resolve(providerID string) (Adapter, bool) {
 	adapter, ok := r.adapters[providerID]
 
 	return adapter, ok
+}
+
+// SetRuntimeChangeObserver registers the consumer that invalidates observed
+// provider state after an adapter has been reconfigured.
+func (r *Registry) SetRuntimeChangeObserver(observer func(string)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.runtimeChangeObserver = observer
+}
+
+func (r *Registry) setHealthCheckObserver(observer func(string, error)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.healthCheckObserver = observer
+}
+
+func (r *Registry) healthCheckVersion(providerID string) uint64 {
+	if r == nil {
+		return 0
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.runtimeVersions[providerID]
+}
+
+func (r *Registry) reportHealthCheck(providerID string, version uint64, err error) {
+	if r == nil {
+		return
+	}
+	r.mu.RLock()
+	if r.runtimeVersions[providerID] != version {
+		r.mu.RUnlock()
+		return
+	}
+	observer := r.healthCheckObserver
+	if observer != nil {
+		// Keep the read lock through the state update so a reconfiguration
+		// cannot be followed by a stale health result.
+		observer(providerID, err)
+	}
+	r.mu.RUnlock()
+}
+
+// Reconfigure applies settings to the adapter bound to providerID. An
+// unbound provider remains administrable without affecting another runtime.
+func (r *Registry) Reconfigure(providerID string, settings Settings) error {
+	adapter, ok := r.Resolve(providerID)
+	if !ok {
+		return nil
+	}
+	if err := adapter.Reconfigure(settings); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	r.runtimeVersions[providerID]++
+	observer := r.runtimeChangeObserver
+	r.mu.Unlock()
+	if observer != nil {
+		observer(providerID)
+	}
+	return nil
 }
 
 // ProviderIDs returns the bound IDs in stable order.

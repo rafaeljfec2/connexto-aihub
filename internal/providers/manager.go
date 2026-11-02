@@ -2,10 +2,8 @@ package providers
 
 import (
 	"context"
-	"fmt"
-	"io"
+	"errors"
 	"log/slog"
-	"net/http"
 	"sync"
 )
 
@@ -26,7 +24,7 @@ type Status struct {
 	State   State  `json:"state"`
 }
 
-// Manager owns startup probes and diagnostics for bound provider runtimes.
+// Manager owns initial provider state and diagnostics for bound runtimes.
 type Manager struct {
 	logger   *slog.Logger
 	registry *Registry
@@ -49,15 +47,29 @@ func NewRegistryManager(logger *slog.Logger, registry *Registry) *Manager {
 	if registry == nil {
 		registry = NewRegistry()
 	}
-	return &Manager{logger: logger, registry: registry, states: make(map[string]State)}
+	manager := &Manager{logger: logger, registry: registry, states: make(map[string]State)}
+	registry.SetRuntimeChangeObserver(func(providerID string) {
+		manager.setState(providerID, StateUnknown)
+	})
+	registry.setHealthCheckObserver(func(providerID string, err error) {
+		state := StateHealthy
+		switch {
+		case errors.Is(err, context.Canceled):
+			state = StateUnknown
+		case err != nil:
+			state = StateUnhealthy
+		}
+		manager.setState(providerID, state)
+	})
+	return manager
 }
 
 func (m *Manager) Name() string {
 	return "providers"
 }
 
-// Start probes each enabled runtime independently; provider failures do not fail startup.
-func (m *Manager) Start(ctx context.Context) error {
+// Start initializes provider state without making external connectivity requests.
+func (m *Manager) Start(_ context.Context) error {
 	for _, id := range m.registry.ProviderIDs() {
 		adapter, ok := m.registry.Resolve(id)
 		if !ok {
@@ -69,13 +81,7 @@ func (m *Manager) Start(ctx context.Context) error {
 			continue
 		}
 		m.setState(id, StateUnknown)
-		if err := verifyRuntime(ctx, adapter); err != nil {
-			m.setState(id, StateUnhealthy)
-			m.logger.Warn("provider connectivity check failed", "provider", id, "error", err)
-			continue
-		}
-		m.setState(id, StateHealthy)
-		m.logger.Info("provider connectivity verified", "provider", id)
+		m.logger.Info("provider health check pending", "provider", id)
 	}
 	return nil
 }
@@ -109,23 +115,6 @@ func (m *Manager) Statuses() []Status {
 		statuses = append(statuses, Status{ID: id, Enabled: enabled, State: state})
 	}
 	return statuses
-}
-
-func verifyRuntime(ctx context.Context, adapter Adapter) error {
-	models, ok := adapter.(ModelListAdapter)
-	if !ok {
-		return fmt.Errorf("provider does not expose a model-list endpoint")
-	}
-	response, err := models.ListModels(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode != http.StatusOK {
-		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
-		return fmt.Errorf("connectivity check returned status %d", response.StatusCode)
-	}
-	return nil
 }
 
 func (m *Manager) setState(providerID string, state State) {
