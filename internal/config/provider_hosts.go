@@ -14,7 +14,7 @@ import (
 const EnvProviderAllowedHosts = "AIHUB_PROVIDER_ALLOWED_HOSTS"
 
 // defaultProviderAllowedHosts is the production OpenCode Go host.
-var defaultProviderAllowedHosts = []string{"opencode.ai"}
+var defaultProviderAllowedHosts = []string{"opencode.ai", "openrouter.ai"}
 
 // applyProviderHostsEnvironment reads the endpoint allowlist. Entries are exact
 // DNS names or IP literals, without ports, schemes, paths or wildcards.

@@ -7,7 +7,7 @@ import (
 	"aihub/internal/config"
 )
 
-func TestLoadDefaultsProviderEndpointAllowlistToOpenCodeGo(t *testing.T) {
+func TestLoadDefaultsProviderEndpointAllowlistToSupportedProviders(t *testing.T) {
 	unsetAIHUBEnv(t)
 
 	cfg, err := config.Load()
@@ -15,7 +15,7 @@ func TestLoadDefaultsProviderEndpointAllowlistToOpenCodeGo(t *testing.T) {
 		t.Fatalf("Load() returned error: %v", err)
 	}
 
-	if want := []string{"opencode.ai"}; !reflect.DeepEqual(cfg.Provider.AllowedEndpointHosts, want) {
+	if want := []string{"opencode.ai", "openrouter.ai"}; !reflect.DeepEqual(cfg.Provider.AllowedEndpointHosts, want) {
 		t.Fatalf("allowed endpoint hosts = %v, want %v", cfg.Provider.AllowedEndpointHosts, want)
 	}
 }

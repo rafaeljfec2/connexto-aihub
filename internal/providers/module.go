@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 )
 
@@ -13,14 +14,23 @@ const ConfigModuleName = "provider-config"
 // it from the environment on first boot. It must start after the database
 // migrations and before the provider module verifies connectivity.
 type ConfigModule struct {
-	service   *Service
-	bootstrap BootstrapInput
-	logger    *slog.Logger
+	service    *Service
+	bootstraps []BootstrapInput
+	logger     *slog.Logger
 }
 
 // NewConfigModule builds the bootstrap module.
 func NewConfigModule(service *Service, bootstrap BootstrapInput, logger *slog.Logger) *ConfigModule {
-	return &ConfigModule{service: service, bootstrap: bootstrap, logger: logger}
+	bootstrap.WarnIgnoredEnvironment = true
+	return NewConfigModuleSet(service, []BootstrapInput{bootstrap}, logger)
+}
+
+// NewConfigModuleSet builds one startup module for several provider configs.
+func NewConfigModuleSet(service *Service, bootstraps []BootstrapInput, logger *slog.Logger) *ConfigModule {
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	return &ConfigModule{service: service, bootstraps: append([]BootstrapInput(nil), bootstraps...), logger: logger}
 }
 
 // Name implements app.Module.
@@ -31,32 +41,37 @@ func (m *ConfigModule) Name() string {
 // Start seeds or loads the configuration and applies it to the runtime. A
 // failure fails startup: running with an unknown provider state is unsafe.
 func (m *ConfigModule) Start(ctx context.Context) error {
-	persisted, persistedErr := m.service.Get(ctx, m.bootstrap.ID)
+	for _, bootstrap := range m.bootstraps {
+		if err := m.startProvider(ctx, bootstrap); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *ConfigModule) startProvider(ctx context.Context, bootstrap BootstrapInput) error {
+	persisted, persistedErr := m.service.Get(ctx, bootstrap.ID)
 	if persistedErr != nil && !errors.Is(persistedErr, ErrNotFound) {
 		return persistedErr
 	}
-
-	record, err := m.service.Bootstrap(ctx, m.bootstrap)
+	record, err := m.service.Bootstrap(ctx, bootstrap)
 	if err != nil {
 		return err
 	}
-
-	if persistedErr == nil {
-		m.warnIgnoredEnvironment(persisted)
+	if persistedErr == nil && bootstrap.WarnIgnoredEnvironment {
+		m.warnIgnoredEnvironment(bootstrap, persisted)
 	}
-
 	m.logger.Info("provider configuration loaded", "provider", record.ID,
 		"enabled", record.Enabled, "credential_configured", record.HasCredential)
-
 	return nil
 }
 
 // warnIgnoredEnvironment reports environment settings that the persisted
 // configuration overrides. It logs whether they were present, never their
 // values: the credential is never written to logs.
-func (m *ConfigModule) warnIgnoredEnvironment(persisted Record) {
-	endpointDiffers := m.bootstrap.Endpoint != persisted.Endpoint
-	credentialSet := m.bootstrap.Credential != ""
+func (m *ConfigModule) warnIgnoredEnvironment(bootstrap BootstrapInput, persisted Record) {
+	endpointDiffers := bootstrap.Endpoint != persisted.Endpoint
+	credentialSet := bootstrap.Credential != ""
 
 	if !endpointDiffers && !credentialSet {
 		return

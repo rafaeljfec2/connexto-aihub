@@ -43,16 +43,29 @@ func NewResponsesHandlerWithManager(client *providers.Client, manager *execution
 	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity}
 }
 
+// NewResponsesHandlerWithRegistry resolves each admitted request by provider ID.
+func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration) http.Handler {
+	if inactivity <= 0 {
+		inactivity = StreamInactivityTimeout
+	}
+	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity}
+}
+
 type responsesHandler struct {
 	client     *providers.Client
+	registry   *providers.Registry
 	manager    *execution.Manager
 	logger     *slog.Logger
 	inactivity time.Duration
 }
 
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !h.client.Enabled() {
-		writeJSONError(w, http.StatusServiceUnavailable, providerUnavailableType, providerUnavailableMsg)
+	providerID, err := requestedProviderID(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid_request", "the provider selector is invalid")
+		return
+	}
+	if !h.requireProvider(providerID, w) {
 		return
 	}
 
@@ -75,7 +88,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	result, err := h.manager.Execute(r.Context(), execution.Command{
 		RequestID: observability.CorrelationIDFrom(r.Context()),
 		Target: execution.Target{
-			ProviderID: providers.OpenCodeGoID,
+			ProviderID: providerID,
 			ModelID:    requestedModelID(payload),
 		},
 		ProviderSessionID: sessionID,

@@ -3,17 +3,15 @@ package providers
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"sync"
 )
 
-// State is the availability state of a configured provider. Configuration
-// (enabled/disabled) and availability (unknown/healthy/unhealthy) stay
-// separate, so a missing credential can never flip application readiness.
+// State is the availability state of a configured provider.
 type State string
 
-// Provider states.
 const (
 	StateDisabled  State = "disabled"
 	StateUnknown   State = "unknown"
@@ -28,97 +26,119 @@ type Status struct {
 	State   State  `json:"state"`
 }
 
-// Manager owns the provider lifecycle and its diagnostics state. It satisfies
-// the app.Module contract and never fails startup because of the provider.
+// Manager owns startup probes and diagnostics for bound provider runtimes.
 type Manager struct {
-	logger *slog.Logger
-	client *Client
-
-	mu    sync.RWMutex
-	state State
+	logger   *slog.Logger
+	registry *Registry
+	mu       sync.RWMutex
+	states   map[string]State
 }
 
-// NewManager builds the provider module.
+// NewManager preserves the single-provider composition used by existing callers.
 func NewManager(logger *slog.Logger, client *Client) *Manager {
-	return &Manager{logger: logger, client: client, state: StateUnknown}
+	registry := NewRegistry()
+	registry.Bind(OpenCodeGoID, client)
+	return NewRegistryManager(logger, registry)
 }
 
-// Name implements app.Module.
+// NewRegistryManager manages every runtime currently bound by provider ID.
+func NewRegistryManager(logger *slog.Logger, registry *Registry) *Manager {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if registry == nil {
+		registry = NewRegistry()
+	}
+	return &Manager{logger: logger, registry: registry, states: make(map[string]State)}
+}
+
 func (m *Manager) Name() string {
 	return "providers"
 }
 
-// Start resolves the initial provider state. A disabled provider only logs;
-// a failed connectivity check is recorded as unhealthy, never fatal.
+// Start probes each enabled runtime independently; provider failures do not fail startup.
 func (m *Manager) Start(ctx context.Context) error {
-	if !m.client.Enabled() {
-		m.setState(StateDisabled)
-		m.logger.Info("provider disabled; no credential configured", "provider", OpenCodeGoID)
-
-		return nil
+	for _, id := range m.registry.ProviderIDs() {
+		adapter, ok := m.registry.Resolve(id)
+		if !ok {
+			continue
+		}
+		if !adapter.Enabled() {
+			m.setState(id, StateDisabled)
+			m.logger.Info("provider disabled or missing credential", "provider", id)
+			continue
+		}
+		m.setState(id, StateUnknown)
+		if err := verifyRuntime(ctx, adapter); err != nil {
+			m.setState(id, StateUnhealthy)
+			m.logger.Warn("provider connectivity check failed", "provider", id, "error", err)
+			continue
+		}
+		m.setState(id, StateHealthy)
+		m.logger.Info("provider connectivity verified", "provider", id)
 	}
-
-	m.setState(StateUnknown)
-
-	if err := m.verify(ctx); err != nil {
-		m.setState(StateUnhealthy)
-		m.logger.Warn("provider connectivity check failed", "provider", OpenCodeGoID, "error", err)
-
-		return nil
-	}
-
-	m.setState(StateHealthy)
-	m.logger.Info("provider connectivity verified", "provider", OpenCodeGoID)
-
 	return nil
 }
 
-// Stop releases the upstream connection pool.
-func (m *Manager) Stop(_ context.Context) error {
-	m.client.CloseIdle()
-
+func (m *Manager) Stop(context.Context) error {
+	for _, id := range m.registry.ProviderIDs() {
+		adapter, ok := m.registry.Resolve(id)
+		if !ok {
+			continue
+		}
+		if closer, ok := adapter.(interface{ CloseIdle() }); ok {
+			closer.CloseIdle()
+		}
+	}
 	return nil
 }
 
-// Statuses snapshots the diagnostics state of every known provider.
 func (m *Manager) Statuses() []Status {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	enabled := m.client.Enabled()
-	state := m.state
-
-	// A runtime disable must be visible immediately, even though availability
-	// is only re-evaluated at startup.
-	if !enabled {
-		state = StateDisabled
+	ids := m.registry.ProviderIDs()
+	statuses := make([]Status, 0, len(ids))
+	for _, id := range ids {
+		adapter, ok := m.registry.Resolve(id)
+		if !ok {
+			continue
+		}
+		enabled := adapter.Enabled()
+		state := m.state(id)
+		if !enabled {
+			state = StateDisabled
+		}
+		statuses = append(statuses, Status{ID: id, Enabled: enabled, State: state})
 	}
-
-	return []Status{{
-		ID:      OpenCodeGoID,
-		Enabled: enabled,
-		State:   state,
-	}}
+	return statuses
 }
 
-func (m *Manager) setState(state State) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.state = state
-}
-
-func (m *Manager) verify(ctx context.Context) error {
-	response, err := m.client.ListModels(ctx)
+func verifyRuntime(ctx context.Context, adapter Adapter) error {
+	models, ok := adapter.(ModelListAdapter)
+	if !ok {
+		return fmt.Errorf("provider does not expose a model-list endpoint")
+	}
+	response, err := models.ListModels(ctx)
 	if err != nil {
 		return err
 	}
-
 	defer func() { _ = response.Body.Close() }()
-
 	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
 		return fmt.Errorf("connectivity check returned status %d", response.StatusCode)
 	}
-
 	return nil
+}
+
+func (m *Manager) setState(providerID string, state State) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.states[providerID] = state
+}
+
+func (m *Manager) state(providerID string) State {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if state, ok := m.states[providerID]; ok {
+		return state
+	}
+	return StateUnknown
 }

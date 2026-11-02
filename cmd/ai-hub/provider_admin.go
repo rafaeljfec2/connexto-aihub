@@ -22,25 +22,28 @@ type providerConfiguration struct {
 	module  *providers.ConfigModule
 }
 
-func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, client *providers.Client, logger *slog.Logger) (providerConfiguration, error) {
+func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry *providers.Registry, logger *slog.Logger) (providerConfiguration, error) {
 	cipher, err := providers.NewCredentialCipher(cfg.Credentials.Key)
 	if err != nil {
 		return providerConfiguration{}, fmt.Errorf("build provider credentials: %w", err)
 	}
 
-	registry := providers.NewRegistry()
-	registry.Bind(providers.OpenCodeGoID, client)
-
-	service := providers.NewService(pgstore.New(pool), cipher, registry, providers.ProbeEndpoint,
+	service := providers.NewServiceWithProbes(pgstore.New(pool), cipher, registry, map[string]providers.ProbeFunc{
+		providers.TypeOpenCodeGo: providers.ProbeEndpoint,
+		providers.TypeOpenRouter: providers.ProbeOpenRouterEndpoint,
+	},
 		cfg.Provider.AllowedEndpointHosts)
 
-	module := providers.NewConfigModule(service, providers.BootstrapInput{
-		ID:         providers.OpenCodeGoID,
-		Name:       "OpenCode Go",
-		Type:       providers.TypeOpenCodeGo,
-		Endpoint:   cfg.Provider.OpenCodeGo.BaseURL,
-		Credential: cfg.Provider.OpenCodeGo.APIKey,
-		Enabled:    true,
+	module := providers.NewConfigModuleSet(service, []providers.BootstrapInput{
+		{
+			ID: providers.OpenCodeGoID, Name: "OpenCode Go", Type: providers.TypeOpenCodeGo,
+			Endpoint: cfg.Provider.OpenCodeGo.BaseURL, Credential: cfg.Provider.OpenCodeGo.APIKey,
+			Enabled: true, WarnIgnoredEnvironment: true,
+		},
+		{
+			ID: providers.OpenRouterID, Name: "OpenRouter", Type: providers.TypeOpenRouter,
+			Endpoint: providers.OpenRouterEndpoint, Enabled: true,
+		},
 	}, logger)
 
 	return providerConfiguration{service: service, module: module}, nil

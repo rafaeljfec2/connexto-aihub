@@ -6,14 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 
 	"aihub/cmd/ai-hub/lifecycle"
-	"aihub/internal/access"
 	"aihub/internal/app"
 	"aihub/internal/catalog"
 	"aihub/internal/config"
@@ -75,8 +73,14 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("build provider: %w", err)
 	}
-
-	providerModule := providers.NewManager(logger, providerClient)
+	openRouterClient, err := providers.NewOpenRouterClient(providers.Settings{BaseURL: providers.OpenRouterEndpoint}, nil)
+	if err != nil {
+		return fmt.Errorf("build OpenRouter provider: %w", err)
+	}
+	providerRegistry := providers.NewRegistry()
+	providerRegistry.Bind(providers.OpenCodeGoID, providerClient)
+	providerRegistry.Bind(providers.OpenRouterID, openRouterClient)
+	providerModule := providers.NewRegistryManager(logger, providerRegistry)
 	recordsModule := records.New(records.Options{
 		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),
 		Logger:            logger,
@@ -86,13 +90,8 @@ func run() error {
 		SegmentBytes:      cfg.Records.SegmentBytes,
 		RetentionInterval: cfg.Records.RetentionInterval,
 	})
-	executionManager := execution.NewManager(logger, providers.OpenCodeGoID,
-		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
-			return providerClient.OpenTargetResponses(ctx, providers.ResponsesTarget{
-				ProviderID: target.ProviderID,
-				ModelID:    target.ModelID,
-			}, payload, contentType, sessionID)
-		}, gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
+	executionManager := execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
+		gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
 
 	var catalogStore catalog.SnapshotStore = catalog.NewStore(cfg.Catalog.DataDir, logger)
 
@@ -123,7 +122,7 @@ func run() error {
 		databaseModule = db.NewModule(pool, logger)
 		catalogStore = catalog.NewPostgresStore(pool, logger)
 
-		providerConfig, err := buildProviderConfiguration(cfg, pool, providerClient, logger)
+		providerConfig, err := buildProviderConfiguration(cfg, pool, providerRegistry, logger)
 		if err != nil {
 			return err
 		}
@@ -142,75 +141,17 @@ func run() error {
 
 	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
 		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
+		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
 	}, catalogStore, catalog.Options{
 		StaleAfter:  cfg.Catalog.StaleAfter,
 		SyncTimeout: cfg.Catalog.SyncTimeout,
 	})
 
-	policy, err := access.NewPolicy(access.PolicyConfig{
-		APIKey:               cfg.Gateway.APIKey,
-		AdminAPIKey:          cfg.Gateway.AdminAPIKey,
-		AllowedHosts:         cfg.Gateway.AllowedHosts,
-		AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
-		AllowedOrigins:       cfg.Gateway.AllowedOrigins,
-		MaxBodyBytes:         cfg.Gateway.MaxBodyBytes,
-	})
+	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
+		catalogModule, recordsModule, readiness, providerAdmin)
 	if err != nil {
-		return fmt.Errorf("build gateway access policy: %w", err)
+		return err
 	}
-
-	routes := []server.Route{
-		{
-			Method:    http.MethodPost,
-			Pattern:   "/v1/responses",
-			Handler:   gateway.NewResponsesHandlerWithManager(providerClient, executionManager, logger, gateway.StreamInactivityTimeout),
-			Admission: access.ResponsesAdmission(policy.MaxBodyBytes()),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/v1/models",
-			Handler: gateway.NewModelsHandler(providerClient, logger),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/diagnostics/providers",
-			Handler: gateway.NewProvidersHandler(providerModule.Statuses),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/v1/catalog/models",
-			Handler: gateway.NewCatalogModelsHandler(catalogModule),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/v1/catalog/models/{provider}/{model...}",
-			Handler: gateway.NewCatalogModelHandler(catalogModule),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/v1/catalog/providers",
-			Handler: gateway.NewCatalogProvidersHandler(catalogModule),
-		},
-		server.Route{
-			Method:    http.MethodPost,
-			Pattern:   "/v1/catalog/sync",
-			Handler:   gateway.NewCatalogSyncHandler(catalogModule),
-			Admission: access.CatalogSyncAdmission(policy.MaxBodyBytes()),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/v1/records/executions",
-			Handler: gateway.NewExecutionRecordsHandler(recordsModule),
-		},
-		server.Route{
-			Method:  http.MethodGet,
-			Pattern: "/v1/records/executions/{execution_id}",
-			Handler: gateway.NewExecutionRecordHandler(recordsModule),
-		},
-	}
-
-	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
-		append(routes, providerAdminRoutes(providerAdmin)...)...)
 
 	httpServer := server.New(cfg.Server, router, logger,
 		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),

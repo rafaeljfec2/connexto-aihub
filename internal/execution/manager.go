@@ -151,10 +151,10 @@ func (m *Manager) Drained() bool {
 }
 
 func (m *Manager) validate(command Command, sink Sink) error {
-	if m.providerID == "" || m.opener == nil || sink == nil {
+	if m.opener == nil || sink == nil {
 		return ErrInvalidCommand
 	}
-	if command.Target.ProviderID == "" || command.Target.ProviderID != m.providerID {
+	if command.Target.ProviderID == "" || (m.providerID != "" && command.Target.ProviderID != m.providerID) {
 		return ErrInvalidCommand
 	}
 	if command.Target.ModelID != "" && strings.TrimSpace(command.Target.ModelID) == "" {
