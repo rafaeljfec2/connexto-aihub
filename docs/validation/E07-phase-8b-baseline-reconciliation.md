@@ -2,6 +2,12 @@
 
 Status: **PREPARATION COMPLETE — E07 remains INCOMPLETE.**
 
+Scope note (2026-11-02): this is a historical baseline-reconciliation record.
+Its AC-14 assessments and scanner/credential decisions are preserved as
+evidence from that phase; the current E07 SPEC classifies AC-14 and FR-12 as
+`OUT OF SCOPE` for the AI Hub product. E07 remains incomplete because AC-5
+failed in the latest real E2E evidence.
+
 Assessment date: 2026-11-01.
 
 ## 1. Scope and Evidence

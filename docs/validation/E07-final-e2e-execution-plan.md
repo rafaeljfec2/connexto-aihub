@@ -1,6 +1,6 @@
 # E07 Final E2E Execution Plan
 
-Status: **CONSUMED — the single authorized pass ran on 2026-11-01; no additional pass is authorized.**
+Status: **E07 remains INCOMPLETE. The authorized pass recorded below remains unused; this scope amendment does not start, renew, or expand it.**
 
 Plan drafted: 2026-10-31. Conditional authorization recorded: 2026-11-01.
 
@@ -14,12 +14,14 @@ Codex CLI → AI Hub → OpenCode Go → Provider
 ```
 
 The original and supplemental passes are consumed. The project lead's
-2026-11-01 final acceptance prompt authorized exactly one additional pass under
-the limits in this plan, superseding the earlier statement that the plan did
-not authorize execution. That pass has now run once, as documented in the
-validation report. This plan records its constraints and does not authorize
-another run. If an unmet scenario fails, do not retry or rerun it; report the
-result and request a new decision before any later attempt.
+2026-11-01 final acceptance prompt authorized one additional pass, which ran
+once as documented in the validation report. A further pass was authorized
+on 2026-11-02 and remained unused at the latest recorded checkpoint. That
+authorization is not part of this documentation amendment and is neither
+renewed nor expanded here. No host external-symlink integrity condition is an
+E07 start gate because AC-14 is out of product scope. If a scenario fails
+after a pass starts, do not retry or rerun it; report the result and require a
+new decision before any later attempt.
 
 The pass is limited to loopback, synthetic prompts/markers, isolated Codex and
 Hub state, one selected model, and the existing E05/E06 behavior. Do not alter
@@ -30,18 +32,16 @@ behavior. Do not install tools or bypass Codex sandbox/approval controls.
 
 All conditions below must pass before the first provider-boundary request:
 
-1. The 2026-11-01 final acceptance prompt conditionally authorizes one pass
-   with the limits in §3; all operational preconditions below still must pass.
+1. The separately recorded 2026-11-02 authorization remains unused and is
+   subject to the limits in §3; this documentation amendment neither consumes
+   nor renews it. All operational preconditions below still must pass before
+   any separately authorized execution.
 2. The final helper change set is reviewed and contains a hard provider-call
    cap. A call above budget must be rejected before reaching OpenCode Go.
 3. The four E07 test source files exceeding 300 lines have been split within
    the authorized test-only scope; the change preserves behavior and passes
    the applicable tests and quality gates.
-4. The final E2E authorization explicitly retains the operator-approved
-   scanner exception. Do not install or run a scanner, and do not claim the
-   repository is secret-free. Record the exception and preserve it as an
-   unresolved AC-14 evidence limitation.
-5. Codex CLI, Go, Bubblewrap, and GNU `timeout` versions are recorded. Verify
+4. Codex CLI, Go, Bubblewrap, and GNU `timeout` versions are recorded. Verify
    sandbox startup with a harmless local command. Run the complete live test
    process inside private mount and PID namespaces. Bind the host root
    read-only, hide `/home` behind namespace tmpfs, and cover the account
@@ -51,7 +51,7 @@ All conditions below must pass before the first provider-boundary request:
    `CODEX_HOME` and dedicated XDG directories beneath that private runtime.
    Verify the effective mounts and paths before Codex starts, and prove a child
    process inherits the boundary.
-6. Load the existing credentials from the repository `.env` with the
+5. Load the existing credentials from the repository `.env` with the
    production dotenv parser inside the read-only repository mount. Verify
    presence only. The provider key remains in the Hub test process; the
    distinct gateway key is supplied to Codex through its configured `env_key`.
@@ -59,28 +59,24 @@ All conditions below must pass before the first provider-boundary request:
    the gateway key is present and provider/Hub-only keys are absent. Report
    booleans only. Do not rotate, regenerate, copy, print, or pass credential
    values in argv, TOML, logs, or new files.
-7. Do not probe model availability or run provider diagnostics outside the
+6. Do not probe model availability or run provider diagnostics outside the
    authorized pass. The first budgeted scenario request is the availability
    observation. If it fails, record that scenario result and continue only
    within the existing call/time limits; do not retry or issue a separate
    diagnostic request.
-8. Confirm loopback port 8080 is free and temporary storage is writable. Treat
+7. Confirm loopback port 8080 is free and temporary storage is writable. Treat
    the exact reviewed E07 worktree at pass start as the immutable repository
    baseline: capture its private metadata/content manifest before setup, keep
    the repository mount read-only for the full pass, and require no delta after
    cleanup. Production paths must still match the E06 baseline. Keep dedicated
    data/work directories outside the repository. Recheck port availability
    immediately before Hub startup.
-9. Capture private before-state fingerprints for the isolated Codex state, all
-   existing repository `.env` metadata, tracked/untracked repository content,
-   and Git state. A host-side wrapper may capture metadata-only before/after
-   observations of the real global Codex tree outside the E2E namespace; it
-   must not expose file names or inspect file contents. Keep manifests outside
-   the repository with owner-only access. Do not inspect or modify ignored
-   `.env` values.
-10. Preserve the no-support-claim wording. Do not start if isolation, the
-    recorded scanner exception, provider, sandbox, port, or integrity
-    preconditions fail.
+8. Capture private state only for the isolated E2E runtime and, as development
+   hygiene, the authorized repository/Git scope. Keep manifests outside the
+   repository with owner-only access. Do not inspect or modify ignored `.env`
+   values. Do not fingerprint the host-global Codex tree or filesystem.
+9. Preserve the no-support-claim wording. Do not start if process isolation,
+    credential handling, provider, sandbox, or port preconditions fail.
 
 ## 3. Run Budget and Stop Rules
 
@@ -125,10 +121,8 @@ finish only the in-flight bounded operation, then check private-state and
 repository integrity before any subsequent provider traffic. Stop immediately
 on credential leakage, isolation failure, a private-state or repository
 integrity change, sandbox/approval bypass requirement, unexpected call count,
-budget exhaustion, or Hub lifecycle failure. A host-global Codex delta outside
-the mount namespace is recorded as an external observation and is not charged
-to the isolated E2E process. A functional scenario failure does not permit
-retry.
+budget exhaustion, or Hub lifecycle failure. A functional scenario failure
+does not permit retry.
 Continue to independent scenarios only while safety, integrity, and remaining
 call/time budgets are intact; mark skipped scenarios
 `NOT RUN — environment/provider limitation`.
@@ -166,7 +160,7 @@ after a failure, watchdog expiry, or environmental interruption.
 
 | ID | Related ACs | Objective and procedure | Expected result | Evidence and approval condition |
 | --- | --- | --- | --- | --- |
-| E07-PRE-01 | AC-1, AC-2, AC-11, AC-12, AC-14 | Verify versions, sandbox, approved scanner exception, credential presence, reviewed worktree manifest, port, and isolated directories. Write private metadata-only manifests before invoking Codex. Assert the Hub test process contains its gateway and provider credentials; assert the exact Codex child environment contains the gateway credential and excludes provider and Hub-only credentials. | Every operational precondition passes; no provider scenario has started. | Presence booleans and category-only readiness record. Any operational failure stops the pass before provider traffic. The scanner exception remains an AC-14 limitation. |
+| E07-PRE-01 | AC-1, AC-2, AC-11, AC-12 | Verify versions, sandbox, credential presence, reviewed worktree scope, port, and isolated directories. Write private runtime/repository manifests before invoking Codex. Assert the Hub test process contains its gateway and provider credentials; assert the exact Codex child environment contains the gateway credential and excludes provider and Hub-only credentials. | Every operational precondition passes; no provider scenario has started. | Presence booleans and category-only readiness record. Any operational failure stops the pass before provider traffic. |
 | E07-GEN-02 | AC-1, AC-2, AC-3, AC-4 | Start AI Hub on loopback with a dedicated data directory and provider key. Before spawning Codex, verify the exact environment allowlist passed to its process; send one basic synthetic prompt. | Non-empty successful response; exactly one Codex Responses request reaches the Hub. | CLI exit/success booleans, credential-presence booleans, and aggregate route count only. |
 | E07-REPLAY-03 | AC-2, AC-5 | In one temporary Codex workspace, establish a synthetic marker in turn one and recall it in turn two. Inspect only the second provider request in memory; restore original request bytes before forwarding. | Two Hub requests; both turns succeed; marker recall passes; prior context is present; `previous_response_id` is absent. | Separate structural booleans and aggregate count. No prompt, response, request ID, or body is saved. |
 | E07-TOOL-04 | AC-2, AC-6 | Ask Codex to write and read a synthetic value in a dedicated temporary workspace outside the repository, with `workspace-write` and normal approvals. | Tool round trip succeeds without bypass. | Exit/result booleans and workspace cleanup result; no tool payload in report. |
@@ -175,8 +169,8 @@ after a failure, watchdog expiry, or environmental interruption.
 | E07-STREAM-07 | AC-8 | Send one authenticated real-provider streaming request and timestamp SSE arrivals at the Hub client. Observe Codex stdout progression separately from gateway timing. | Multiple SSE events arrive before completion; CLI rendering is directly measured or `NOT VERIFIED`. | Aggregate event count and bounded timings; no response content. |
 | E07-RECORDS-08 | AC-9 | Correlate all admitted scenario requests to E05 terminal observations in memory. Query E06 list and each expected ID independently. Verify provider, terminal outcome, request correlation, `model_id: null`, and `usage: null`. Exclude only the pre-E05 unauthenticated request by its captured request identity. | Every expected normal execution is queryable; each independent assertion passes. | Aggregate expected/matched/mismatch counts only; no generated IDs or record content. |
 | E07-RESTART-09 | AC-10 | Gracefully stop Hub, allow E05 cleanup and the E06 two-second writer drain, restart on the same dedicated data directory, then create fresh contexts and repeat independent list/by-ID queries. | Records accepted and written under normal operation remain queryable after restart. | Aggregate recovery counts and lifecycle result only. State best-effort and loss limits. |
-| E07-INT-CP | AC-1, AC-14 | After each Codex invocation and each provider-bearing scenario, and before any subsequent provider traffic, compare isolated Codex-state snapshots, repository/environment fingerprints, and Git scope to the private baseline. | Private state remains fully observable inside the boundary; repository and Git categories remain unchanged. If a difference appears, stop before the next provider call and mark that category failed. | Compare private metadata manifests in memory; report category outcomes only. |
-| E07-INTEGRITY-10 | AC-1, AC-11, AC-12, AC-14 | After cleanup, compare isolated Codex-state before/after snapshots, project `.env` metadata, full repository tree, tracked file content, and Git status/scope. A host-side wrapper may separately compare metadata-only snapshots of the real global Codex tree. Keep the operator-approved scanner exception explicit and make no secret-free claim. Delete manifests and temporary state. | E2E isolation passes when the real host tree is hidden read-only, all private paths are contained, and no unauthorized repository change occurs. Record an external host-tree delta separately; it does not establish that the unqualified AC-14 unchanged-tree clause passed. | Category outcomes only. Never report paths, contents, credential values, hashes, or identifiers. |
+| E07-INT-CP | AC-1 | After each Codex invocation and each provider-bearing scenario, and before any subsequent provider traffic, compare isolated Codex-state snapshots and confirm the exact child credential allowlist. | Private Codex state remains isolated and the provider credential is absent from every Codex child. | Report structural booleans and aggregate outcomes only. |
+| E07-REPO-HYGIENE-10 | Development hygiene; no AC | Compare the reviewed E07 repository/Git scope with its private pre-run baseline. Do not inspect ignored `.env` values, fingerprint the host-global Codex tree, or run a secret scanner as an E07 acceptance step. | Any out-of-scope repository change is investigated as a development-hygiene issue, not reported as a product acceptance result. | Keep repository/Git outcomes separate from product AC results. Never report secrets or private manifest contents. |
 
 ### Same-response upstream oracle
 
@@ -217,17 +211,15 @@ same-response route for the selected provider response.
 2. Reuse only the dedicated temporary data directory for the planned restart;
    after recovery queries, remove it and the temporary Codex home, tool
    workspace, gateway key state, and private manifest.
-3. Do not remove or restore any global Codex file. If any integrity category
-   fails, preserve the category failure, stop, and leave the source
-   `UNDETERMINED` unless private evidence establishes it.
-4. Compare `git status`, tracked/untracked content, ignored project `.env`
-   fingerprints, and production paths against the pre-run manifest. Confirm
+3. Do not inspect, remove, or restore any global Codex file. Host-global state
+   is outside E07 product acceptance and is not fingerprinted.
+4. As development hygiene, compare `git status`, authorized tracked/untracked
+   source scope, and production paths against the pre-run manifest. Confirm
    that only approved E07 files are present and that production source remains
-   identical to E06.
+   identical to E06. Do not inspect ignored `.env` values.
 5. Review the report and E07 diff for secret values, payloads, paths, hashes,
-   and IDs. Preserve the scanner exception and do not claim a secret-free
-   repository. Remove temporary evidence after its category result is
-   confirmed.
+   and IDs. Do not claim a secret-free repository without evidence. Remove
+   temporary evidence after its development-hygiene result is confirmed.
 
 ## 7. Final Local Verification and Reporting
 
@@ -256,8 +248,8 @@ this plan without separate authorization.
 
 The pass is **inconclusive** if it cannot reach a scenario because a required
 credential, provider/model, sandbox, port, or isolated directory is
-unavailable; if the call/time cap is reached; if the provider response is
-ambiguous; or if integrity comparison cannot be completed. Mark affected
+unavailable; if the call/time cap is reached; or if the provider response is
+ambiguous. Mark affected
 scenarios `NOT RUN — environment/provider limitation` or `NOT VERIFIED` as
 appropriate. Do not convert an environmental limitation into a pass.
 
@@ -267,16 +259,15 @@ do not repeat the pass. If any integrity or credential-isolation assertion
 fails, stop provider traffic immediately. Any later attempt requires a new
 human decision and a newly reviewed budget.
 
-### AC-14 literal scope
+### AC-14 scope disposition
 
-The approved SPEC's AC-14 explicitly requires before/after evidence that
-`~/.codex` is unchanged. The private mount proves that the E2E process cannot
-read or modify the host tree, so unrelated host activity is not an E2E
-isolation failure. That proof alone does not establish the literal, unqualified
-claim that the host tree remained unchanged. Preserve the isolation result and
-report AC-14 as not established if the host-side before/after metadata differs;
-do not silently change the acceptance criterion or attribute an external
-change to the E2E process.
+AC-14 is `OUT OF SCOPE` for the AI Hub product. The Hub centralizes provider
+access and does not execute Codex or administer its host environment. The
+global `~/.codex` tree, external symlink destinations, project `.env` files,
+host filesystem fingerprints, and repository secret scanning are not E07
+acceptance gates. Historical observations remain in the validation report and
+must not be rewritten as PASS. Repository/Git scope checks remain development
+hygiene; credential isolation and gateway security remain product validation.
 
 ## 9. Evidence Sources
 
@@ -286,10 +277,12 @@ change to the E2E process.
 - [E07 validation report](E07-codex-first-harness-integration.md)
 - [Final acceptance readiness](../discovery/E07-final-acceptance-readiness.md)
 
-## 10. Prepared Real E2E Pass — Authorization Pending
+## 10. Historical E2E Readiness Checkpoints — Preserved Record
 
-Status: **NOT READY FOR AUTHORIZATION.** The previous pass is consumed. This
-section prepares a possible new pass but does not authorize provider traffic.
+The sections below preserve the readiness record and plan that existed before
+the 2026-11-02 architectural scope disposition. They are historical evidence,
+not current acceptance criteria or operational gates. The recorded E2E
+outcomes remain unchanged.
 
 ### Reviewed working-tree baseline
 
@@ -427,10 +420,11 @@ Hub lifecycle failure. Do not retry a failed scenario or restart the pass.
 | AC-13 | `PASS` | Keep the README support claim absent. |
 | AC-14 | `FAIL — literal clause` | Compare the namespace account root and repository categories; the scanner exception still prevents proving the no-secret-added subcondition. |
 
-The proposed pass can provide new AC-5 evidence but cannot make AC-14 pass
-under the current scanner decision. E07 remains incomplete unless every
-required literal acceptance condition is established. A new human authorization
-is required before the single proposed provider pass.
+Historical readiness statement, recorded before the 2026-11-02 task
+authorization: the proposed pass could provide new AC-5 evidence but could not
+make AC-14 pass under the scanner decision. A new human authorization was
+required before that proposed provider pass. The current authorization and
+start gate are recorded in the addendum below.
 
 ### Reconciled preflight and AC-12 evidence — 2026-11-01
 
@@ -465,56 +459,72 @@ race tests, `go vet`, `staticcheck`, `golangci-lint`, build, formatting, and
 2 before repository discovery. All touched or added Go and shell files remain
 below the 300-line repository limit.
 
-### Literal AC-14 account and root reconciliation
+### Literal AC-14 host-root reconciliation
 
-The helper uses `user.Current().HomeDir`. The launcher supplies an
-`/etc/passwd` view inside Bubblewrap that maps the current UID/GID `1000:1000`
-to the synthetic name `e07-homologation` and home
-`/home/e07-homologation`; there is no host OS account by that name. Thus, inside
-the namespace, the helper measures
-`/home/e07-homologation/.codex` and the separately configured private
-`CODEX_HOME`. It does not measure the host user's real
-`/home/rafael/.codex`, which is hidden by the namespace `/home` tmpfs.
+A distinct host Linux account is not an AC-14 requirement. The current
+supervisor starts its 30-minute watchdog before setup, then runs the host
+integrity helper outside Bubblewrap both before and after the sandboxed child.
+The helper resolves the current UID's home from the host account database and
+fingerprints that account's actual `~/.codex` tree. It also discovers and
+fingerprints existing project `.env` files. File reads require `O_NOATIME`,
+`O_NOFOLLOW`, and stable before/open/after metadata checks. Access time is
+checked for stability during each helper read and included in before/after
+equality; any observed change fails the integrity comparison. The production
+dotenv parser may update access time while reading an environment file, which
+must remain a reported failure rather than be excluded from the comparison.
+Symlinks in the Codex tree are captured through `lstat` metadata without
+dereferencing them; referent contents outside that tree are not covered. The
+current host snapshot fails closed on any Codex-tree symlink until its target
+can be observed safely. Any project symlink prevents safe `.env` discovery
+and fails closed.
+Unsupported flags, unreadable entries, or concurrent changes result in
+`NOT VERIFIED`/failure.
+The before/after digests remain in process memory and the supervisor emits
+category outcomes only. The existing owner-only `.env` remains readable by the
+operator process without changing its mode, ACL, or contents.
 
-This distinction is material to AC-14. The mount tests establish that the E2E
-process cannot access the developer home through its namespace view. They do
-not establish that the literal host account root remained unchanged, and the
-same numeric UID does not constitute a distinct host execution identity. The
-historical writer of the previously observed global metadata changes remains
-`UNDETERMINED`; the ambient app-server processes were never proven responsible.
+The Bubblewrap mount checks remain complementary evidence: they establish
+that the E2E child cannot access the developer home through its namespace
+view. They do not replace the host-side comparison. The previously observed
+global metadata changes remain historical results with writer
+`UNDETERMINED`; ambient app-server processes were never proven responsible.
 
-AC-14 remains `FAIL — literal requirement not established`. The
-operator-approved scanner exception also leaves the no-secret-added clause
-unverified. Do not request authorization for the next real pass yet. The exact
-precondition is an approved execution identity with a distinct host UID and
-independent home, plus a read-only way for AI Hub to load the existing
-mode-`0600` `.env` without changing that file or exposing values. Provisioning
-that identity requires administrative privilege. The existing `.env` is
-mode-`0600` under the developer account, so a distinct UID cannot read it from
-the read-only repository bind. Do not change its mode or ACL. An approved
-privileged broker could open the existing file read-only and provide an
-inherited descriptor to the production dotenv parser before dropping the E07
-runner identity; no such broker is implemented. The account and access
-mechanism require explicit operator authorization and have not been attempted.
-Even after that isolation is resolved, the scanner exception must remain
-reported as an unverified literal AC-14 subcondition unless the operator
-changes that decision.
+The local helper tests and supervisor diff must be reviewed before another
+real pass. They do not establish a real before/after result. AC-14 remains
+`FAIL` until a real pass establishes this host-side comparison, the other
+literal integrity categories, and an approved secret scan with no findings.
+No separate account, permission change, privileged dotenv broker, or
+replacement of the namespace account view is required for the host-side
+comparison. The scanner condition remains a separate unresolved unit.
 
-Provisioning a real host account alone is insufficient. The supervisor must
-stop replacing `/etc/passwd` with the namespace-only entry and must make
-`user.Current().HomeDir` resolve to the approved account's actual independent
-home. It must then prove that the exact account `~/.codex` root monitored by
-the helper is the one named by the approved SPEC, while the developer home
-remains inaccessible. This supervisor adaptation has not been implemented or
-verified.
+### Original conditional scenario budget — superseded by 2026-11-02 authorization
 
-### Conditional scenario budget — not currently authorization-ready
+This section records the readiness condition before the 2026-11-02 user
+request. The current authorization and execution gate are recorded in the
+addendum below.
 
-After the real account root, read-only dotenv boundary, and supervisor identity
-mapping are proven, the operator may authorize one real E2E evidence pass
-under this plan. It is limited to the scenarios and allocation above, at most
-9 provider calls, 30 minutes total, 2 minutes per request, and zero retries.
-The pass can establish AC-5 through the AI Hub route and recheck previously
-passing scenarios. It cannot complete E07 or make AC-14 pass while the scanner
-subcondition remains unverified. The real pass has not been authorized or
-started, and the environment is not currently ready for that authorization.
+After the host-side snapshot helper passes its focused regression checks and
+review, and the scanner condition is resolved through its separate approval
+unit, the operator may authorize one real E2E evidence pass under this plan.
+No distinct host account, privileged dotenv broker, or alternate identity
+mapping is required. The pass is limited to the scenarios and allocation
+above: at most 9 provider calls, 30 minutes total, 2 minutes per request, and
+zero retries. It can establish AC-5 through the AI Hub route and recheck
+previously passing scenarios. It cannot complete E07 or make AC-14 pass while
+the scanner subcondition remains unverified. This correction does not start or
+authorize a new real pass.
+
+### 2026-11-02 authorization and integrity gate disposition
+
+The user-provided AC-14 resolution request authorizes one additional E2E pass
+under this plan's existing scenario and budget limits. The authorization is
+not consumed: no pass or preflight was started and no provider-boundary call
+was made. A local synthetic Docker experiment established a read-only
+`noatime` bind view inside a disposable Ubuntu 24.04 container. The equivalent
+Bubblewrap remount on the host failed with exit `32` and `permission denied`
+even as UID 0 inside the unprivileged user namespace. The supervisor now fails
+closed when a host Codex-tree snapshot encounters a symlink whose external
+target cannot be observed safely. Do not start the authorized E2E pass until
+the host-side target-integrity precondition can be established. The
+operator-approved scanner exception remains recorded and unresolved; no
+secret-free claim is made.

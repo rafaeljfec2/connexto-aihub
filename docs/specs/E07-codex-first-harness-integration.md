@@ -2,6 +2,16 @@
 
 Status: approved by the project lead on 2026-10-31.
 
+Scope disposition (2026-11-02): AC-14 and FR-12 are out of scope for the AI Hub
+product and are excluded from E07 acceptance. The AI Hub centralizes access to
+LLM providers; it does not execute agents or administer their local host
+environments. Its product boundary covers provider integrations, context-aware
+routing and model selection, cost/token policies, and centralized
+observability. This disposition does not waive provider-credential protection,
+gateway authentication, agent/provider credential isolation, request/response
+security, or consumption governance. Repository and Git integrity checks are
+development hygiene, not product behavior or an E07 acceptance criterion.
+
 Workflow stage: approved SPEC; Phases 0–3 completed. Design, test, implementation,
 validation, and independent review are authorized under the project SDD workflow.
 
@@ -281,19 +291,14 @@ The report must not contain request/response content, provider or gateway
 credentials, provider-session IDs, request IDs, execution IDs, or other
 generated identifiers. It may report aggregate counts and status codes.
 
-### FR-12 — Before/after environment integrity
+### FR-12 — OUT OF SCOPE: Host environment integrity
 
-The validation must capture a baseline before setup and compare it after
-cleanup. It must establish that the complete existing `~/.codex` tree and its
-configuration are unchanged; every existing project `.env` file is unchanged;
-tracked files unrelated to E07 are unchanged; no secret was added to the
-repository; and the final Git state contains only files authorized by the
-approved E07 scope. Comparisons must not expose credential values, file
-contents, paths, hashes, or generated identifiers in the environment-integrity
-portion of the report. Any temporary integrity manifest must be private,
-outside the repository, and deleted after comparison. The procedure must not
-overwrite global Codex configuration or modify an existing file to make
-validation possible.
+Auditing the global `~/.codex` tree, external symbolic-link destinations,
+project `.env` files, or the host filesystem is not an AI Hub product
+requirement. The AI Hub does not execute Codex or administer the environment in
+which Codex runs. No host-tree fingerprint, host `.env` fingerprint, or secret
+scanner result is an E07 acceptance condition. Repository and Git scope checks
+remain development hygiene and must not be presented as product functionality.
 
 ## 6. Non-functional requirements and invariants
 
@@ -322,7 +327,7 @@ validation possible.
    gateway environment variable's name and demonstrates exporting that
    variable before launching Codex. A presence-only check confirms the gateway
    key reaches the Codex process and the provider key does not; the provider
-   key reaches only the AI Hub process. The before/after checks in AC-14 pass.
+   key reaches only the AI Hub process.
 2. The setup identifies the exact tested Codex CLI release and model. Every
    Codex Responses request in the scenario run reaches the AI Hub endpoint;
    no direct Codex-to-provider route is used.
@@ -366,18 +371,20 @@ validation possible.
 13. The README support claim is added only after every required scenario is
     `PASS`; a Codex-hop progressive-rendering limitation may be `NOT VERIFIED`
     if gateway-hop streaming is `PASS` and that limitation is explicit.
-14. Before/after integrity evidence confirms that `~/.codex` and all existing
-    project `.env` files are unchanged, tracked files unrelated to E07 are
-    unchanged, no secret was added to the repository, and the final Git state
-    matches the approved E07 file scope. The environment-integrity evidence
-    reports only category outcomes, not paths, hashes, file contents,
-    credentials, or identifiers.
+## AC-14 — OUT OF SCOPE
+
+The former host-environment-integrity criterion is excluded from E07 product
+acceptance. It covered the global `~/.codex` tree, external symlink targets,
+project `.env` files, host filesystem fingerprints, and repository secret
+scanning. These are outside the AI Hub architectural boundary. This status is
+not a PASS and does not change the historical outcomes recorded in the E07
+validation report. Repository/Git scope checks remain development hygiene.
 
 ## 8. Requirement traceability
 
 | Requirement | Acceptance criteria | Evidence |
 | --- | --- | --- |
-| FR-01–FR-02: explicit support and isolated setup | AC-1–2, AC-13–14 | README walkthrough; inspect temporary Codex config for variable names only; verify process-environment presence without values; run before/after integrity comparison |
+| FR-01–FR-02: explicit support and isolated setup | AC-1–2, AC-13 | README walkthrough; inspect temporary Codex config for variable names only; verify process-environment presence without values |
 | FR-03: authentication and admission | AC-3 | Real authenticated Codex request plus an unauthenticated gateway probe returning 401 and an unchanged provider-boundary call count |
 | FR-04: basic generation | AC-4 | Real Codex output and matching Hub request status |
 | FR-05: multi-turn full replay | AC-5 | Two-turn Codex scenario plus ephemeral structural observation; no content retained in report |
@@ -387,8 +394,9 @@ validation possible.
 | FR-09: records | AC-9 | Authenticated E06 list/get queries correlated in-session to scenario requests, then identifiers redacted |
 | FR-10: shutdown and drain | AC-10 | Graceful stop, restart on same temporary data directory, authenticated record query |
 | FR-11: report and privacy | AC-11, AC-13 | Manual artifact review and secret/identifier redaction check |
-| FR-12: before/after environment integrity | AC-1, AC-12, AC-14 | Private before/after fingerprints for `~/.codex` and existing `.env` files; Git scope comparison and secret scan with report-only outcomes |
 | Existing runtime compatibility | AC-12 | Full Go quality gates and diff/scope review |
+| FR-12: host environment integrity | OUT OF SCOPE | No AI Hub product acceptance evidence; repository/Git integrity remains development hygiene |
+| Former AC-14: global Codex/host integrity and repository secret scan | OUT OF SCOPE | Architectural boundary disposition recorded above; historical E07 evidence remains unchanged |
 
 ## 9. Validation plan and TDD/no-test justification
 

@@ -2,6 +2,11 @@
 
 Status: **INCOMPLETE — final real-provider acceptance is not established.**
 
+Scope note (2026-11-02): this is a historical readiness snapshot. Its AC-14
+assessment is preserved as evidence from that date; the current E07 SPEC
+classifies AC-14 and FR-12 as `OUT OF SCOPE` for the AI Hub product. E07
+remains incomplete because AC-5 failed in the latest real E2E evidence.
+
 Assessment date: 2026-10-31.
 
 ## 1. Decision Summary

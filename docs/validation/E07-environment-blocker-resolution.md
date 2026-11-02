@@ -2,6 +2,12 @@
 
 Status: **BLOCKED — environment readiness is incomplete; one final E2E pass is conditionally authorized.**
 
+Scope note (2026-11-02): this report and its addenda preserve historical
+environment and AC-14 observations. The current E07 SPEC classifies AC-14 and
+FR-12 as `OUT OF SCOPE` for the AI Hub product; those observations are not
+current product acceptance gates. E07 remains incomplete because AC-5 failed
+in the latest real E2E evidence.
+
 Assessment date: 2026-11-01.
 
 ## 1. Scope and Evidence

@@ -2,6 +2,12 @@
 
 Status: investigation complete; remediation is proposed but not authorized.
 
+Scope note (2026-11-02): this document preserves the historical E07
+investigation. Its AC-14 findings remain observations from that scope and run;
+the current E07 SPEC classifies AC-14 and FR-12 as `OUT OF SCOPE` for the AI
+Hub product. E07 remains incomplete because AC-5 failed in the latest real
+E2E evidence. No historical result is changed by this note.
+
 Date: 2026-10-31.
 
 Baseline: E06 commit 0d33ca26c15acf54fac418cb33380b5871b4d899. The E07 files

@@ -3,6 +3,19 @@
 Status: accepted under the approved E07 SPEC (2026-10-31).
 Related: `docs/specs/E07-codex-first-harness-integration.md`.
 
+## Scope disposition (2026-11-02)
+
+AC-14 and FR-12 are out of scope for the AI Hub product because the Hub
+centralizes provider access but does not execute Codex or administer its host
+environment. Its product boundary covers provider integrations, context-aware
+routing and model selection, cost/token policies, and centralized
+observability. The E07 design therefore does not fingerprint the global
+`~/.codex` tree, external symlink destinations, project `.env` files, or the
+host filesystem, and does not require a repository secret scan. Repository and
+Git checks remain development hygiene. Gateway authentication, provider-secret
+protection, process-level credential isolation, request/response security, and
+consumption governance remain in scope.
+
 ## 1. Design boundary
 
 E07 uses the existing Codex Responses configuration path and existing AI Hub
@@ -72,13 +85,14 @@ workspace; it never selects a sandbox or approval bypass option.
 7. Query records for the in-memory correlated request IDs, verify schema-v1
    null semantics, stop the Hub gracefully, restart it on the same data
    directory, and query the retained records again.
-8. Compare before/after integrity fingerprints in memory, then remove all
-   temporary Codex state, data, workspace files, and instrumentation state.
+8. Remove all temporary Codex state, data, workspace files, and instrumentation
+   state. Confirm repository/Git scope as development hygiene; do not inspect
+   or fingerprint the host-global Codex tree or filesystem.
 
 The report contains only aggregate counts, status codes, scenario outcomes,
 versions, environment class, and limitations. It excludes prompt/response
-content, credentials, session IDs, request IDs, execution IDs, paths, and
-integrity hashes.
+content, credentials, session IDs, request IDs, execution IDs, and private
+manifest contents.
 
 ## 5. Delivery sequence
 
@@ -92,8 +106,9 @@ integrity hashes.
 4. Publish the scenario report. Add the README support claim only if every
    required scenario passes; otherwise report the limitation and leave the
    support claim absent.
-5. Run the full Go quality gates, formatting and diff checks, perform the
-   security scan, then complete the independent Phase 7 review.
+5. Run the applicable Go quality gates, formatting and diff checks, then
+   complete the independent Phase 7 review. No host-filesystem audit or
+   repository secret scan is an E07 product acceptance condition.
 
 No ADR is required because the integration adds no architectural decision or
 change to an existing contract.

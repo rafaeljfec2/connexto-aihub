@@ -51,6 +51,7 @@ elif [[ $# -eq 1 ]]; then
 fi
 
 repository_root="$(git rev-parse --show-toplevel)"
+script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 go_path="$(command -v go)"
 codex_path="$(command -v codex)"
 module_cache="$(go env GOMODCACHE)"
@@ -59,7 +60,7 @@ codex_bin_dir="$(dirname "$(readlink -f "$codex_path")")"
 numeric_uid="$(id -u)"
 numeric_gid="$(id -g)"
 
-for required in /usr/bin/bwrap /usr/bin/timeout /usr/bin/env /bin/sh; do
+for required in /usr/bin/bwrap /usr/bin/timeout /usr/bin/env /usr/bin/python3 /bin/sh; do
 	if [[ ! -x "$required" ]]; then
 		printf 'E07 supervisor prerequisite missing: %s\n' "${required##*/}" >&2
 		exit 1
@@ -75,6 +76,16 @@ if [[ ! -r "$repository_root/.env" || ! -d "$module_cache" || ! -d "$codex_bin_d
 	[[ -d "$codex_bin_dir" ]] && codex_binary_available=true
 	printf 'E07 supervisor preflight failed: env=%s module_cache=%s codex_binary=%s\n' \
 		"$env_file_readable" "$module_cache_available" "$codex_binary_available" >&2
+	exit 1
+fi
+
+if ! host_snapshot_before="$(/usr/bin/python3 "$script_directory/e07_host_integrity.py" snapshot "$repository_root")"; then
+	printf 'E07 host integrity baseline codex=NOT_VERIFIED env=NOT_VERIFIED\n' >&2
+	exit 1
+fi
+read -r host_codex_before host_env_before <<<"$host_snapshot_before"
+if [[ ! "$host_codex_before" =~ ^[0-9a-f]{64}$ || ! "$host_env_before" =~ ^[0-9a-f]{64}$ ]]; then
+	printf 'E07 host integrity baseline codex=NOT_VERIFIED env=NOT_VERIFIED\n' >&2
 	exit 1
 fi
 
@@ -135,7 +146,8 @@ inner_env=(
 	AIHUB_E07_PRIVATE_ROOT="$private_root"
 )
 
-/usr/bin/bwrap "${bwrap_args[@]}" 3< <(
+run_status=0
+if /usr/bin/bwrap "${bwrap_args[@]}" 3< <(
 	printf 'e07-homologation:x:%s:%s:E07 Homologation:/home/e07-homologation:/bin/sh\n' \
 		"$numeric_uid" "$numeric_gid"
 ) /usr/bin/env -i "${inner_env[@]}" /bin/sh -ceu '
@@ -166,4 +178,30 @@ print(\"E07 repository dotenv mount: read-only\")"
 
 	exec /usr/bin/env AIHUB_E07_LIVE=1 "$private_root/bin/ai-hub-e07.test" \
 		-test.run="^TestE07LiveCodexOpenCodeGo$" -test.count=1 -test.v -test.timeout=29m
-' e07-inner "$mode"
+' e07-inner "$mode"; then
+	run_status=0
+else
+	run_status=$?
+fi
+
+if host_snapshot_after="$(/usr/bin/python3 "$script_directory/e07_host_integrity.py" snapshot "$repository_root")"; then
+	read -r host_codex_after host_env_after <<<"$host_snapshot_after"
+	if [[ "$host_codex_after" =~ ^[0-9a-f]{64}$ && "$host_env_after" =~ ^[0-9a-f]{64}$ ]]; then
+		codex_integrity=FAIL
+		environment_integrity=FAIL
+		[[ "$host_codex_before" == "$host_codex_after" ]] && codex_integrity=PASS
+		[[ "$host_env_before" == "$host_env_after" ]] && environment_integrity=PASS
+		printf 'E07 host_integrity codex_tree=%s project_env_files=%s\n' "$codex_integrity" "$environment_integrity"
+		if [[ "$codex_integrity" != "PASS" || "$environment_integrity" != "PASS" ]]; then
+			run_status=1
+		fi
+	else
+		printf 'E07 host_integrity codex_tree=NOT_VERIFIED project_env_files=NOT_VERIFIED\n' >&2
+		run_status=1
+	fi
+else
+	printf 'E07 host_integrity codex_tree=NOT_VERIFIED project_env_files=NOT_VERIFIED\n' >&2
+	run_status=1
+fi
+
+exit "$run_status"

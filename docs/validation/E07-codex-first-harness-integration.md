@@ -1,6 +1,6 @@
 # E07 Codex First Harness Validation Report
 
-Status: **INCOMPLETE — Codex CLI support is not established.**
+Status: **INCOMPLETE — AC-14 is OUT OF SCOPE; AC-5 remains failed by the latest real E2E evidence, so Codex CLI support is not established.**
 
 Report date: 2026-10-31.
 
@@ -1590,50 +1590,293 @@ local gate set also passed: `go test ./... -count=1 -race`, `go vet ./...`,
 `staticcheck ./...`, `golangci-lint run ./...`, `go build ./...`,
 `gofmt -l cmd internal`, and `git diff --check`. No live-test flag was set.
 
-#### AC-14 literal disposition
+#### AC-14 literal disposition — corrected host-side evidence path
 
-The current Bubblewrap view does not provide a dedicated host OS account. The
-host has no `e07-homologation` account; the launcher supplies a namespace-only
-passwd entry mapping the current `1000:1000` UID/GID to that name. Within that
-namespace, `e07AccountHomeDirectory()` resolves
-`/home/e07-homologation`, so the helper observes
-`/home/e07-homologation/.codex` plus the configured private `CODEX_HOME`. The
-developer's real `/home/rafael/.codex` is hidden by the `/home` tmpfs and is
-not compared by the in-namespace helper.
+Historical real runs observed a global Codex-tree metadata change; the writer
+remains `UNDETERMINED`. The Bubblewrap mount checks establish that the child
+cannot access the developer home through its namespace view, but those checks
+are not a host-tree before/after comparison.
 
-This proves that the E2E process cannot traverse the developer home through
-its mount view and that its repository mount is read-only. It does not prove
-that the literal host `~/.codex` tree stayed unchanged during a future run,
-nor does it establish a distinct host execution identity. At the time of this
-preparation, the visible process listing contained no Codex process; this
-snapshot cannot identify the source of either historical Codex-tree delta.
-The cause remains `UNDETERMINED`; no process was signalled or modified.
+The earlier conclusion that AC-14 requires a distinct host Linux account and a
+privileged dotenv descriptor broker was incorrect and is withdrawn. The
+supervisor runs the integrity helper outside Bubblewrap, under the current
+host account, before and after the sandboxed child. Its 30-minute watchdog
+covers baseline capture, the child run, and after-state comparison. The helper
+resolves the host home from the current UID and fingerprints the actual
+`~/.codex` tree plus existing project `.env` contents and metadata. It uses
+read-only `O_NOATIME` access and compares digests in memory. Access time is
+checked for stability during helper reads but excluded from cross-run equality
+because the production dotenv parser may read the same file during the run.
+Codex-tree symlinks are captured through `lstat` metadata without dereferencing
+them; referent contents outside that tree are not covered. Any project
+symlink prevents safe `.env` discovery and fails closed. The supervisor emits
+category outcomes only. The existing `.env` mode and contents are not changed;
+a separate host account is not needed for this observation.
 
-AC-14 remains `FAIL — literal requirement not established`. The existing
-operator-approved scanner exception leaves the required no-secret-added
-subcondition unverified, and the private namespace baseline is not a substitute
-for a before/after observation of the exact host account root. No secret-free
-claim is made. A dedicated host identity and an approved read-only way for its
-AI Hub process to load the existing mode-`0600` `.env` are required before the
-environment can be called fully isolated and proven. No system account,
-permission, package, `.env`, or shell-profile change was made. The current
-`.env` is owner-only, so a distinct UID cannot read it through the repository
-bind. Changing its mode or ACL is outside the approved boundary; a privileged
-read-only descriptor handoff to the production dotenv parser is one possible
-mechanism, but it has not been designed or implemented.
+This is local implementation and fixture-test evidence only. No new real
+provider pass or host before/after result is recorded here, and this correction
+does not replace historical results. AC-14 remains `FAIL` until a real pass
+establishes the host-tree and `.env` comparisons, repository/Git integrity, and
+the required secret-scan condition. The scanner remains a separate unresolved
+unit. No secret-free claim is made.
 
-Creating a distinct host account alone would not correct the root mismatch:
-the current supervisor still supplies a namespace-only `/etc/passwd` entry
-and hides the account home behind a synthetic `/home` tmpfs. Before another
-real pass can be authorized, the supervisor must preserve the approved
-execution identity so `user.Current().HomeDir` resolves to that account's
-actual independent home, then prove that the helper monitors the SPEC's exact
-`~/.codex` root. Even after this is fixed, a new E2E could establish AC-5 and
-recheck other runtime scenarios, but cannot complete E07 or pass AC-14 while
-the scanner subcondition remains unverified.
+E07 remains `INCOMPLETE`. Any future real pass must retain the authorized
+limits of at most 9 provider calls, 30 minutes total, 2 minutes per request,
+and zero retries. A distinct host account, permission change, or privileged
+dotenv broker is not a precondition for the host-side comparison.
 
-E07 remains `INCOMPLETE`. The next real E2E is not yet ready for authorization:
-the namespace preflight and local regression are green, but the literal AC-14
-root and identity requirements remain unresolved. The next real pass, if later
-authorized after that boundary is proven, remains limited to 9 provider calls,
-30 minutes total, 2 minutes per request, and zero retries.
+### Separate host-integrity preflight result
+
+This entry records a separate supervised preflight observation and does not
+replace or merge with earlier execution results. The raw process output and an
+execution timestamp were not retained with this correction; the outcome below
+is transcribed from the carried-forward execution record. No preflight or E2E
+was rerun for this report update.
+
+| Claim | Classification | Observation |
+| --- | --- | --- |
+| Codex host-tree integrity | `FACT` | `codex_tree=FAIL` |
+| Project environment-file integrity | `FACT` | `project_env_files=PASS` |
+| Supervisor exit status | `FACT` | `1` |
+| Cause of the Codex-tree change | `UNKNOWN` | The available execution record does not establish a cause. |
+| Responsible process | `UNKNOWN` | The available execution record does not identify a writer. |
+| Integrity of external symbolic-link destinations | `NOT VERIFIED` | The helper records symbolic-link entries without fingerprinting referents outside the tree. |
+| AC-14 disposition for E07 | `FACT` | `NOT PASS`; this observation does not establish all literal AC-14 conditions. |
+
+No Codex process or other writer is attributed to the observed result. The
+execution record does not establish whether the Codex-tree failure was caused
+by a content, metadata, or traversal difference; that diagnosis remains
+`UNKNOWN`. The external symbolic-link destination condition remains
+`NOT VERIFIED` and is outside this correction's scope.
+
+### AC-14 external symbolic-link destination coverage attempt
+
+This is a separate local investigation record. It does not replace previous
+preflight or E2E results. No host preflight, E2E, provider request, or scanner
+was run for this entry.
+
+| Claim | Classification | Observation |
+| --- | --- | --- |
+| External destination content coverage by the current tree fingerprint | `FACT` | A temporary fixture changed an external target's same-size content while leaving its symlink unchanged; the current `.codex` tree fingerprint remained equal. `rtk proxy python3 -m unittest scripts.test_e07_host_integrity.HostIntegrityTests.test_tree_fingerprint_detects_symlink_destination_change -v` exited `1`, confirming this coverage gap. |
+| Initial symlink fixture | `FACT` | An initial fixture replaced the symlink itself and passed; it was discarded because the changed symlink inode did not prove detection of an unchanged link's referent. It is not counted as coverage. |
+| Temporary external-target test prototype | `FACT` | `rtk proxy python3 -m unittest scripts.test_e07_host_external_links -v` exited `1`: 11 tests ran, 8 passed, 1 failed, and 2 errored. The prototype was removed and these results are not counted as passing regression coverage. |
+| Symlink `atime` after `readlink` | `FACT` | A synthetic filesystem check returned `symlink_atime_preserved=False` (command exit `0`). |
+| Symlink `atime` after opening through the link with `O_NOATIME` | `FACT` | A synthetic filesystem check returned `followed_symlink_atime_preserved=False` (command exit `0`). |
+| Symlink `atime` after adding an inotify watch through the link path | `FACT` | A synthetic filesystem check returned `inotify_symlink_atime_preserved=False` (command exit `0`). |
+| First consolidated host-integrity regression run | `FACT` | The command `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity scripts.test_e07_host_integrity_mutations -v` exited `1` because the directory-replacement assertion failed while the accepted Correction 1 entry revalidation was temporarily absent. |
+| Existing host-integrity regression suite | `FACT` | `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity scripts.test_e07_host_integrity_mutations -v` exited `0`; all 16 tests passed after restoring the accepted directory-entry revalidation. |
+| External destination integrity during a real E2E | `NOT TESTED` | This execution did not observe the host across an E2E run. |
+| AC-14 disposition for this execution | `NOT VERIFIED` | External referent coverage is not implemented, and the atime-preserving observation requirement remains unresolved. |
+
+The failed focused fixture used only temporary synthetic files and emitted no
+environment content in this report. Experimental source and test changes
+from this investigation were removed; the accepted host-tree directory-entry
+revalidation from Correction 1 remains in place. No claim is made that the
+tested atime methods cover every possible kernel mechanism. AC-14 remains
+unresolved and E07 remains `INCOMPLETE`.
+
+### AC-14 symlink `atime` experiment — descriptor-based `readlinkat`
+
+This is a separate synthetic experiment; it did not inspect the host Codex tree
+or any environment file. The fixture captured `lstat` metadata before and
+after opening the symlink with `O_PATH | O_NOFOLLOW | O_NOATIME` and calling
+`readlinkat` with an empty path. Output contained booleans only.
+
+| Claim | Classification | Observation |
+| --- | --- | --- |
+| `readlinkat` through the symlink descriptor | `FACT` | The call succeeded on both available fixture mounts. |
+| `relatime` mount, atime update eligible | `FACT` | Symlink atime changed; all other compared metadata remained equal. |
+| `relatime` mount, atime update suppressed | `FACT` | Symlink atime and all other compared metadata remained equal. |
+| `noatime` mount, both timestamp conditions | `FACT` | Symlink atime and all other compared metadata remained equal. |
+| Host `~/.codex` mount policy | `FACT` | `relatime`; this was read from mount options only. |
+| `openat2` following a synthetic symlink with `O_NOATIME` | `FACT` | Open succeeded, other symlink metadata remained equal, but symlink atime changed. |
+| AC-14 external-target verification | `NOT VERIFIED` | The host symlink source is on a `relatime` mount, and the tested descriptor-based resolution changes atime in an eligible condition. No external-target implementation or host integrity run was made. |
+
+Commands exited `0`. The reproductions used only temporary synthetic links and
+targets, made no mount or system configuration changes, and printed no target
+text, content, metadata values, paths, or hashes. The smallest remaining
+requirement decision is whether an atime-neutral read view of the host mount
+may be used for symlink resolution; no such view was created in this execution.
+AC-14 remains unproven and E07 remains `INCOMPLETE`.
+
+### AC-14 private `noatime` view feasibility attempt
+
+This separate fixture-only attempt evaluated the accepted correction's
+prerequisite. It did not inspect the host Codex tree, environment files, or
+credentials and did not run a preflight, E2E, provider request, or scanner.
+
+| Claim | Classification | Observation |
+| --- | --- | --- |
+| Standalone mount namespace availability | `FACT` | `unshare --mount true` exited `1`. |
+| Bubblewrap private bind/remount fixture | `FACT` | A synthetic bind mount followed by `remount,bind,ro,noatime` exited `1`. |
+| Cause of the private-view setup failure | `UNKNOWN` | The fixture command did not retain diagnostic output sufficient to attribute the failure to Bubblewrap setup or the mount operation. |
+| `readlinkat` inside the proposed private view | `NOT TESTED` | The view was not established. |
+| Persistent implementation change | `FACT` | None. No experimental source or test file was retained. |
+| AC-14 disposition | `NOT VERIFIED` | External target coverage remains absent; the atime-preserving view was not available through these attempts. E07 remains `INCOMPLETE`. |
+
+The attempted commands changed no system mount configuration. The host
+`~/.codex` mount remains reported as `relatime`; no host file metadata was
+read or changed by this feasibility attempt.
+
+### AC-14 private noatime view and fail-closed gate — 2026-11-02
+
+This entry records a new local investigation after the user authorized one
+additional E2E pass under the existing budget. It does not replace historical
+results. No host Codex tree, project environment file, or credential was read
+for the experiments below. No E2E, preflight, provider request, or scanner was
+started.
+
+| Claim | Classification | Observation |
+| --- | --- | --- |
+| Disposable Ubuntu 24.04 filesystem laboratory | `FACT` | A temporary container used synthetic files only, received `CAP_SYS_ADMIN`, mounted no sensitive host directory, and was removed with `--rm`. |
+| Mount namespace and `ro,noatime` bind view in the laboratory | `FACT` | `unshare --mount true` and bind/remount with `ro,noatime` exited `0`; mount options reported read-only and noatime. |
+| Write protection in the laboratory | `FACT` | Creating a file through the read-only view failed with `EROFS`. |
+| `readlinkat` and metadata in the laboratory `noatime` view | `FACT` | `O_PATH | O_NOFOLLOW | O_NOATIME` plus empty-path `readlinkat` succeeded; symlink atime and the compared other metadata were unchanged. |
+| Referent read in the laboratory `noatime` view | `FACT` | Opening with `O_NOATIME` and reading the synthetic target preserved its atime and compared metadata. |
+| Laboratory `relatime` condition using the same `O_NOATIME` descriptor | `FACT` | The mount reported `relatime`; the eligible fixture did not show an atime change, and the suppressed fixture preserved atime. This differs from the earlier host-filesystem fixture, which did show a symlink atime update. The container result does not establish safety on the host filesystem. |
+| Bubblewrap remount as the current namespace user | `FACT` | After correcting an initial diagnostic redirection that prevented the mount command from running, remount exited `1` with `mount: only root can use "--options" option`. |
+| Bubblewrap remount as UID 0 in its unprivileged user namespace | `FACT` | Remount exited `32` with `mount: <synthetic mount point>: permission denied`. The diagnostic did not identify a more specific kernel policy. |
+| Host external-symlink target coverage | `NOT VERIFIED` | Bubblewrap could not establish the required private noatime view. The Docker result used synthetic container files and is not evidence about host referents. |
+| Fail-closed supervisor behavior | `FACT` | The host snapshot now requests symlink-target coverage and refuses a tree containing a symlink until an observer can verify its target. The generic synthetic tree fingerprint remains available to its existing tests. |
+| New E2E authorization and consumption | `FACT` | One additional pass was authorized; `0/1` passes started and `0/9` provider calls were consumed because the host integrity precondition could not be established. |
+| AC-14 and E07 | `NOT VERIFIED` | AC-14 remains unproven and E07 remains `INCOMPLETE`. The separate operator-approved scanner exception also remains unresolved; no secret-free claim is made. |
+
+The fail-closed behavior was added test-first. The new regression test first
+failed because the prior host snapshot accepted an unobserved symlink target,
+then passed after the correction. The existing sixteen host-integrity tests
+also passed after the correction.
+
+| Check | Result |
+| --- | --- |
+| `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity_mutations.HostIntegrityMutationTests.test_host_snapshot_fails_closed_when_codex_tree_has_symbolic_links -v` — before correction | `FAIL`, exit `1`, as expected for RED. |
+| Same focused test — after correction | `PASS`, exit `0`. |
+| `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity scripts.test_e07_host_integrity_mutations -v` | `PASS`, exit `0`, 17 tests. |
+| `rtk git diff --check` | `PASS`, exit `0`. |
+
+The host snapshot cannot currently fingerprint external referents without a
+private noatime view. It now fails closed rather than treating link metadata as
+complete evidence. Consequently, the live supervisor will stop during its
+host baseline before any Codex scenario or provider traffic. The Docker
+laboratory established that the mount operation works with `CAP_SYS_ADMIN`
+inside the disposable container; it did not authorize mounting host personal
+directories there and did not provide the host supervisor with that
+capability. The provider budget remains unused. Gitleaks remains `NOT RUN`
+under the recorded scanner exception.
+
+### Cross-snapshot access-time coverage correction — 2026-11-02
+
+The independent review found that the earlier integrity signature excluded
+`st_atime_ns`. Although the helper's own reads were tested not to update access
+time, a change between before and after snapshots could therefore be missed.
+The signature now includes access time. The earlier plan text that excluded it
+from cross-run equality is superseded; any observed access-time change now
+fails the integrity comparison.
+
+| Check | Result |
+| --- | --- |
+| `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity.HostIntegrityTests.test_integrity_signature_includes_access_time -v` — before correction | `FAIL`, exit `1`, as expected for RED. |
+| Same focused test — after correction | `PASS`, exit `0`. |
+| `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity scripts.test_e07_host_integrity_mutations -v` | `PASS`, exit `0`, 17 tests. |
+| `rtk git diff --check` | `PASS`, exit `0`. |
+
+This correction does not establish host external-symlink referent coverage or
+change the E2E gate. The host snapshot still fails closed before any provider
+traffic, and AC-14 remains `NOT VERIFIED`.
+
+### Missing-root fingerprint correction — 2026-11-02
+
+The independent review also found that the missing-root branch referenced the
+digest accumulator before initialization. A regression test first reproduced
+the resulting `UnboundLocalError`; initializing the accumulator before root
+inspection restored the intended stable digest for an absent tree.
+
+| Check | Result |
+| --- | --- |
+| `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity.HostIntegrityTests.test_tree_fingerprint_is_stable_when_root_is_missing -v` — before correction | `ERROR`, exit `1`, with `UnboundLocalError` as expected for RED. |
+| Same focused test — after correction | `PASS`, exit `0`. |
+| `rtk proxy env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts.test_e07_host_integrity scripts.test_e07_host_integrity_mutations -v` | `PASS`, exit `0`, 18 tests. |
+| `rtk git diff --check` | `PASS`, exit `0`. |
+
+The new pass remains authorized but not started. External symlink referent
+coverage is still unavailable in the host mount namespace, so no provider
+calls were made and AC-14 remains `NOT VERIFIED`.
+
+### Independent review — 2026-11-02
+
+The independent review returned `APPROVED_WITH_NOTES` with no remaining code
+or evidence-recording findings. It confirmed that the host snapshot fails
+closed on unobserved symlink referents, access time is included in snapshot
+equality, the missing-root fingerprint is stable, the 18 synthetic tests pass,
+and the current authorization is explicit in the user-provided task. The
+review did not execute E2E, preflight, provider calls, or Gitleaks and did not
+read `.env` or credentials. AC-14 remains `NOT VERIFIED` for the host mount
+capability and scanner limitations already recorded above.
+
+## Architectural scope disposition and current E07 status (2026-11-02)
+
+This dated addendum supersedes earlier statements that AC-14 is a pending E07
+acceptance gate. It does not alter or erase any historical run result. The AI
+Hub centralizes provider access; it does not execute agents or administer
+their local host environments. Its product boundary covers provider
+integrations, context-aware routing and model selection, cost/token policies,
+and centralized observability. AC-14 and FR-12 are therefore `OUT OF SCOPE`
+for AI Hub product acceptance. This is a scope classification, not a PASS.
+Historical reports that recorded a changed Codex tree, incomplete host
+integrity evidence, or an unrun secret scan remain valid observations for
+those executions and are preserved as written.
+
+The product security obligations remain in scope: provider credential
+protection, gateway authentication, isolation of provider credentials from
+agent processes, request/response security, and consumption governance.
+Repository integrity and Git-scope checks remain development hygiene and are
+not product features or AC-14 evidence.
+
+### Current acceptance matrix
+
+The matrix below uses the latest recorded real E2E run (2026-11-01), the
+subsequent local AC-12/helper verification records, and the scope decision in
+this addendum. Historical status tables above remain unchanged and apply to
+their named checkpoints.
+
+| AC | Current disposition | Evidence and limitation |
+| --- | --- | --- |
+| AC-1 | `PASS` | The documented isolated setup and exact Codex child-environment checks showed the gateway credential present and provider/Hub-only credentials absent. AC-14 is no longer a dependency. |
+| AC-2 | `PASS` | Latest real E2E routed tested Codex Responses traffic through AI Hub. |
+| AC-3 | `PASS` | Latest real E2E authenticated routing and `401` rejection passed with zero provider-call delta for the rejected request. |
+| AC-4 | `PASS` | Basic real-provider generation succeeded. |
+| AC-5 | `FAIL` | The second Codex invocation did not reach AI Hub ingress; replay context and marker recall were not established. The later synthetic endpoint regression only proves the local launcher correction. |
+| AC-6 | `PASS` | Real sandboxed tool round trip passed with normal approvals. |
+| AC-7 | `PASS` | Same-response upstream error fidelity passed. |
+| AC-8 | `PASS` | Gateway streaming passed. Codex stdout progressive rendering remains `NOT VERIFIED`, which AC-8 permits when stated separately. |
+| AC-9 | `PASS` | Live execution records passed correlation, listing, schema/outcome, and by-ID checks. |
+| AC-10 | `PASS` | Live records remained queryable after orderly restart. |
+| AC-11 | `PASS` | The E2E record contains scenario outcomes and limits without credentials, payloads, or generated identifiers. |
+| AC-12 | `PASS` | The recorded local quality gates passed; the later host-integrity helper's 18 focused tests also passed. No production source changed. |
+| AC-13 | `PASS` | The README retains experimental wording and makes no Codex support claim. |
+| AC-14 | `OUT OF SCOPE` | Excluded from AI Hub product acceptance by the architectural decision above; no historical failure is reclassified as PASS. |
+
+E07 remains **INCOMPLETE** because AC-5 is `FAIL`. AC-14's removal does not
+approve E07 or establish Codex support. The separately recorded additional E2E
+authorization remains unused; this documentation change neither consumes nor
+renews it. Documentary verification for this update: `rtk git diff --check`
+passed with exit code `0`. No provider call, E2E, preflight, or secret scan was
+performed for this scope decision.
+
+The only currently pending E07 acceptance criterion is AC-5. All other
+in-scope criteria are `PASS` in the current matrix above.
+
+### Preserved history and current references
+
+The SPEC, design, current E2E plan, and this report now carry the normative
+`OUT OF SCOPE` disposition. These E07 snapshots retain their dated AC-14
+assessments as historical evidence and are not current acceptance definitions:
+
+- `docs/discovery/E07-failure-analysis.md`
+- `docs/discovery/E07-final-acceptance-readiness.md`
+- `docs/validation/E07-environment-blocker-resolution.md`
+- `docs/validation/E07-phase-8b-baseline-reconciliation.md`
+
+AC-14 in `docs/specs/E04-gateway-hardening-access-control.md` and
+`docs/design/E04-gateway-hardening-access-control-design.md`, and FR-12 in
+`docs/specs/E06-execution-records.md`, belong to those epics and are unrelated
+to this E07 disposition.
