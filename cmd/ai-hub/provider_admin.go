@@ -31,7 +31,8 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, client *p
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, client)
 
-	service := providers.NewService(pgstore.New(pool), cipher, registry, providers.ProbeEndpoint)
+	service := providers.NewService(pgstore.New(pool), cipher, registry, providers.ProbeEndpoint,
+		cfg.Provider.AllowedEndpointHosts)
 
 	module := providers.NewConfigModule(service, providers.BootstrapInput{
 		ID:         providers.OpenCodeGoID,

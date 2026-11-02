@@ -80,3 +80,40 @@ func setTestCredentialKey(t *testing.T) {
 
 	t.Setenv(config.EnvCredentialKey, base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x42}, config.CredentialKeyBytes)))
 }
+
+const (
+	gatewayConfigKey = "gatewayKeyFixture0123456789abcdefGH"
+	adminConfigKey   = "adminKeyFixture0123456789abcdefGHIJ"
+)
+
+func TestLoadRequiresDistinctAdminKeyWhenPostgresPersistenceIsUsed(t *testing.T) {
+	unsetAIHUBEnv(t)
+	t.Setenv(config.EnvDatabaseURL, "postgres://localhost:5432/ai_hub")
+	setTestCredentialKey(t)
+	t.Setenv(config.EnvGatewayAPIKey, gatewayConfigKey)
+
+	if _, err := config.Load(); err == nil || !strings.Contains(err.Error(), config.EnvAdminAPIKey) {
+		t.Fatalf("Load() without admin key error = %v, want %s requirement", err, config.EnvAdminAPIKey)
+	}
+
+	t.Setenv(config.EnvAdminAPIKey, gatewayConfigKey)
+
+	if _, err := config.Load(); err == nil || !strings.Contains(err.Error(), "must differ") {
+		t.Fatalf("Load() with admin key equal to gateway key error = %v", err)
+	}
+
+	t.Setenv(config.EnvAdminAPIKey, adminConfigKey)
+
+	if _, err := config.Load(); err != nil {
+		t.Fatalf("Load() with distinct admin key: %v", err)
+	}
+}
+
+func TestLoadAllowsFileModeWithoutAdminKey(t *testing.T) {
+	unsetAIHUBEnv(t)
+	t.Setenv(config.EnvGatewayAPIKey, gatewayConfigKey)
+
+	if _, err := config.Load(); err != nil {
+		t.Fatalf("file mode Load() without admin key: %v", err)
+	}
+}

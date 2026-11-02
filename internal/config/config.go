@@ -45,6 +45,7 @@ func Default() Config {
 			OpenCodeGo: ProviderOpenCodeGo{
 				BaseURL: "https://opencode.ai/inference/go",
 			},
+			AllowedEndpointHosts: append([]string(nil), defaultProviderAllowedHosts...),
 		},
 		Catalog: Catalog{
 			StaleAfter:  24 * time.Hour,
@@ -72,6 +73,10 @@ func Load() (Config, error) {
 	}
 
 	if err := applyCredentialEnvironment(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	if err := applyProviderHostsEnvironment(&cfg); err != nil {
 		return Config{}, err
 	}
 

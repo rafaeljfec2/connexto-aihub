@@ -24,6 +24,7 @@ const (
 	EnvCatalogStaleAfter         = "AIHUB_CATALOG_STALE_AFTER"
 	EnvCatalogSyncTimeout        = "AIHUB_CATALOG_SYNC_TIMEOUT"
 	EnvGatewayAPIKey             = "AIHUB_GATEWAY_API_KEY"
+	EnvAdminAPIKey               = "AIHUB_ADMIN_API_KEY"
 	EnvGatewayAllowedHosts       = "AIHUB_GATEWAY_ALLOWED_HOSTS"
 	EnvGatewayAllowedOrigins     = "AIHUB_GATEWAY_ALLOWED_ORIGINS"
 	EnvGatewayMaxBodyBytes       = "AIHUB_GATEWAY_MAX_BODY_BYTES"
@@ -51,6 +52,8 @@ var knownEnvKeys = map[string]struct{}{
 	EnvCatalogStaleAfter:         {},
 	EnvCatalogSyncTimeout:        {},
 	EnvGatewayAPIKey:             {},
+	EnvAdminAPIKey:               {},
+	EnvProviderAllowedHosts:      {},
 	EnvGatewayAllowedHosts:       {},
 	EnvGatewayAllowedOrigins:     {},
 	EnvGatewayMaxBodyBytes:       {},
@@ -107,14 +110,15 @@ type LogFormat string
 
 // Supported log formats.
 const (
-	LogFormatJSON LogFormat = "json"
-	LogFormatText LogFormat = "text"
+	LogFormatJSON   LogFormat = "json"
+	LogFormatText   LogFormat = "text"
+	LogFormatPretty LogFormat = "pretty"
 )
 
 // Valid reports whether the format is supported.
 func (f LogFormat) Valid() bool {
 	switch f {
-	case LogFormatJSON, LogFormatText:
+	case LogFormatJSON, LogFormatText, LogFormatPretty:
 		return true
 	default:
 		return false
@@ -159,6 +163,9 @@ func (p ProviderOpenCodeGo) Enabled() bool {
 // Provider groups every configured integration.
 type Provider struct {
 	OpenCodeGo ProviderOpenCodeGo
+	// AllowedEndpointHosts are the only hosts the provider credential may be
+	// sent to when an endpoint is configured through the administrative API.
+	AllowedEndpointHosts []string
 }
 
 // Catalog groups the model catalog settings. An empty DataDir means "resolve

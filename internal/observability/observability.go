@@ -47,15 +47,19 @@ func CorrelationIDFrom(ctx context.Context) string {
 	return id
 }
 
-// NewLogger builds a slog logger that writes structured records to w.
+// NewLogger builds a slog logger that writes records to w. Formats are json
+// (default), text (slog key=value) and pretty (console, for local development).
 // The format argument is expected to be validated by the config package.
 func NewLogger(w io.Writer, level slog.Level, format string) *slog.Logger {
 	options := &slog.HandlerOptions{Level: level}
 
 	var handler slog.Handler
-	if format == "text" {
+	switch format {
+	case "text":
 		handler = slog.NewTextHandler(w, options)
-	} else {
+	case "pretty":
+		handler = newPrettyHandler(w, level)
+	default:
 		handler = slog.NewJSONHandler(w, options)
 	}
 

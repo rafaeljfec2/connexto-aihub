@@ -48,7 +48,7 @@ func newService(t *testing.T, pool *pgxpool.Pool, adapter providers.Adapter) *pr
 	}
 
 	return providers.NewService(pgstore.New(pool), cipher, registry,
-		func(context.Context, string, string) error { return nil })
+		func(context.Context, string, string) error { return nil }, []string{"provider.example.test", "other.example.test", "admin.example.test", "127.0.0.1", "localhost"})
 }
 
 type captureAdapter struct {

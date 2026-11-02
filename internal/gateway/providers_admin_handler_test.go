@@ -127,7 +127,8 @@ func adminServer(t *testing.T) *httptest.Server {
 	}
 
 	repo := &inMemoryProviders{records: map[string]providers.Record{}, sealed: map[string][]byte{}}
-	service := providers.NewService(repo, cipher, providers.NewRegistry(), providers.ProbeEndpoint)
+	service := providers.NewService(repo, cipher, providers.NewRegistry(), providers.ProbeEndpoint,
+		[]string{"provider.example.test", "127.0.0.1"})
 	admin := gateway.NewProviderAdmin(service, newAdminLogger())
 
 	mux := http.NewServeMux()

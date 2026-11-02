@@ -39,6 +39,7 @@ func TestLoadDerivesPostgresPersistenceFromDatabaseURL(t *testing.T) {
 
 	t.Setenv(config.EnvDatabaseURL, "postgres://localhost:5432/ai_hub")
 	setTestCredentialKey(t)
+	t.Setenv(config.EnvAdminAPIKey, adminConfigKey)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -56,6 +57,7 @@ func TestLoadAppliesDatabaseEnvironmentOverrides(t *testing.T) {
 
 	t.Setenv(config.EnvDatabaseURL, "postgresql://localhost:5432/ai_hub")
 	setTestCredentialKey(t)
+	t.Setenv(config.EnvAdminAPIKey, adminConfigKey)
 	t.Setenv(config.EnvDatabaseMaxConns, "8")
 	t.Setenv(config.EnvDatabaseMinConns, "2")
 	t.Setenv(config.EnvDatabaseConnectTimeout, "2s")

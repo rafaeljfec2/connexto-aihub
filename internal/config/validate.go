@@ -48,7 +48,7 @@ func (c Config) Validate() error {
 	}
 
 	if !c.Log.Format.Valid() {
-		errs = append(errs, fmt.Errorf("log.format must be one of json, text; got %q", c.Log.Format))
+		errs = append(errs, fmt.Errorf("log.format must be one of json, text, pretty; got %q", c.Log.Format))
 	}
 
 	if err := ValidateBaseURL(c.Provider.OpenCodeGo.BaseURL); err != nil {
@@ -71,6 +71,8 @@ func (c Config) Validate() error {
 	errs = append(errs, c.Records.validate()...)
 	errs = append(errs, validateDatabase(c)...)
 	errs = append(errs, validateCredentials(c)...)
+	errs = append(errs, validateAdminAPIKey(c)...)
+	errs = append(errs, validateProviderHosts(c)...)
 
 	return errors.Join(errs...)
 }

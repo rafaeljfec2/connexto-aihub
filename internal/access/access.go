@@ -2,13 +2,17 @@ package access
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"strings"
 )
 
 // Gateway identity and admission defaults.
 const (
 	PrincipalID               = "gateway-client"
+	AdminPrincipalID          = "admin-client"
+	adminPathPrefix           = "/api/"
 	DefaultMaxBodyBytes int64 = 32 << 20
 	MinBodyBytes        int64 = 1 << 10
 	MaxBodyBytesCeiling int64 = 128 << 20
@@ -20,6 +24,7 @@ var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 // policy.
 type PolicyConfig struct {
 	APIKey               string
+	AdminAPIKey          string
 	AllowedHosts         []string
 	AllowedHostsExplicit bool
 	AllowedOrigins       []string
@@ -29,6 +34,8 @@ type PolicyConfig struct {
 // Policy is an immutable, concurrency-safe access-control policy.
 type Policy struct {
 	keyDigest      [32]byte
+	adminDigest    [32]byte
+	adminEnabled   bool
 	allowedHosts   map[string]struct{}
 	allowedOrigins map[string]struct{}
 	maxBodyBytes   int64
@@ -38,6 +45,20 @@ type Policy struct {
 func NewPolicy(cfg PolicyConfig) (Policy, error) {
 	if err := ValidateAPIKey(cfg.APIKey); err != nil {
 		return Policy{}, err
+	}
+
+	var adminDigest [sha256.Size]byte
+	adminEnabled := cfg.AdminAPIKey != ""
+	if adminEnabled {
+		if err := ValidateAPIKey(cfg.AdminAPIKey); err != nil {
+			return Policy{}, fmt.Errorf("admin api key: %w", err)
+		}
+
+		if cfg.AdminAPIKey == cfg.APIKey {
+			return Policy{}, errors.New("admin api key must differ from the gateway api key")
+		}
+
+		adminDigest = digestKey(cfg.AdminAPIKey)
 	}
 
 	limit := cfg.MaxBodyBytes
@@ -70,6 +91,8 @@ func NewPolicy(cfg PolicyConfig) (Policy, error) {
 
 	policy := Policy{
 		keyDigest:      digestKey(cfg.APIKey),
+		adminDigest:    adminDigest,
+		adminEnabled:   adminEnabled,
 		allowedHosts:   make(map[string]struct{}, len(normalizedHosts)),
 		allowedOrigins: make(map[string]struct{}, len(origins)),
 		maxBodyBytes:   limit,

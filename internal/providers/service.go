@@ -63,21 +63,33 @@ type BootstrapInput struct {
 // Service owns provider administration: validation, credential protection,
 // persistence and propagation of the configuration to the bound runtime.
 type Service struct {
-	repo     Repository
-	cipher   *CredentialCipher
-	registry *Registry
-	probe    ProbeFunc
+	repo         Repository
+	cipher       *CredentialCipher
+	registry     *Registry
+	probe        ProbeFunc
+	allowedHosts map[string]struct{}
 }
 
-// NewService builds the administrative service.
-func NewService(repo Repository, cipher *CredentialCipher, registry *Registry, probe ProbeFunc) *Service {
-	return &Service{repo: repo, cipher: cipher, registry: registry, probe: probe}
+// NewService builds the administrative service. allowedHosts is the exact
+// host allowlist for provider endpoints (AIHUB_PROVIDER_ALLOWED_HOSTS): the
+// credential is only ever sent to these hosts.
+func NewService(repo Repository, cipher *CredentialCipher, registry *Registry, probe ProbeFunc, allowedHosts []string) *Service {
+	hosts := make(map[string]struct{}, len(allowedHosts))
+	for _, host := range allowedHosts {
+		hosts[strings.ToLower(host)] = struct{}{}
+	}
+
+	return &Service{repo: repo, cipher: cipher, registry: registry, probe: probe, allowedHosts: hosts}
 }
 
 // Create stores a new configuration. It does not bind a runtime: only the
 // startup bootstrap and the update paths reconfigure an adapter.
 func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error) {
-	if err := validateIdentity(input.ID, input.Name, input.Type, input.Endpoint); err != nil {
+	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
+		return Record{}, err
+	}
+
+	if err := s.validateEndpoint(strings.TrimSpace(input.Endpoint)); err != nil {
 		return Record{}, err
 	}
 
@@ -157,7 +169,18 @@ func (s *Service) Validate(ctx context.Context, id string) error {
 // has none yet. Once persisted, the stored values are authoritative. The
 // resulting configuration is applied to the bound runtime.
 func (s *Service) Bootstrap(ctx context.Context, input BootstrapInput) (Record, error) {
-	if err := validateIdentity(input.ID, input.Name, input.Type, input.Endpoint); err != nil {
+	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
+		return Record{}, err
+	}
+
+	// Environment settings only matter when they seed a new configuration. A
+	// persisted configuration is authoritative, so an unused environment value
+	// must not block startup; the persisted endpoint is always re-checked.
+	if _, err := s.repo.Get(ctx, input.ID); errors.Is(err, ErrNotFound) {
+		if err := s.validateEndpoint(strings.TrimSpace(input.Endpoint)); err != nil {
+			return Record{}, err
+		}
+	} else if err != nil {
 		return Record{}, err
 	}
 
@@ -176,6 +199,10 @@ func (s *Service) Bootstrap(ctx context.Context, input BootstrapInput) (Record, 
 	})
 	if err != nil {
 		return Record{}, err
+	}
+
+	if err := s.validateEndpoint(record.Endpoint); err != nil {
+		return Record{}, fmt.Errorf("persisted provider %s: %w", record.ID, err)
 	}
 
 	return record, s.apply(ctx, record)
@@ -215,7 +242,7 @@ func (s *Service) buildChanges(id string, input UpdateInput) (Changes, error) {
 
 	if input.Endpoint != nil {
 		endpoint := strings.TrimSpace(*input.Endpoint)
-		if err := validateEndpoint(endpoint); err != nil {
+		if err := s.validateEndpoint(endpoint); err != nil {
 			return Changes{}, err
 		}
 
@@ -287,7 +314,7 @@ func (s *Service) seal(id, credential string) ([]byte, error) {
 	return s.cipher.Seal(id, strings.TrimSpace(credential))
 }
 
-func validateIdentity(id, name, providerType, endpoint string) error {
+func (s *Service) validateIdentity(id, name, providerType string) error {
 	if !idPattern.MatchString(id) {
 		return fmt.Errorf("%w: id must be lowercase letters, digits and hyphens", ErrInvalid)
 	}
@@ -300,7 +327,7 @@ func validateIdentity(id, name, providerType, endpoint string) error {
 		return fmt.Errorf("%w: unsupported provider type", ErrInvalid)
 	}
 
-	return validateEndpoint(strings.TrimSpace(endpoint))
+	return nil
 }
 
 func validateName(name string) error {
@@ -315,7 +342,7 @@ func validateName(name string) error {
 // requires HTTPS for administrative configurations: the bearer credential
 // must not travel in cleartext to a remote host. Plain HTTP remains allowed
 // for loopback targets (local development and tests).
-func validateEndpoint(endpoint string) error {
+func (s *Service) validateEndpoint(endpoint string) error {
 	if err := config.ValidateBaseURL(endpoint); err != nil {
 		return fmt.Errorf("%w: endpoint is not a valid base URL", ErrInvalid)
 	}
@@ -327,6 +354,10 @@ func validateEndpoint(endpoint string) error {
 
 	if strings.EqualFold(parsed.Scheme, "http") && !isLoopbackHost(parsed.Hostname()) {
 		return fmt.Errorf("%w: endpoint must use https unless it targets a loopback host", ErrInvalid)
+	}
+
+	if _, allowed := s.allowedHosts[strings.ToLower(parsed.Hostname())]; !allowed {
+		return fmt.Errorf("%w: endpoint host is not in AIHUB_PROVIDER_ALLOWED_HOSTS", ErrInvalid)
 	}
 
 	return nil

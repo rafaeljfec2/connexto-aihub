@@ -33,7 +33,7 @@ func newServiceFixture(t *testing.T) *serviceFixture {
 			fixture.probed = append(fixture.probed, endpoint+"|"+credential)
 
 			return fixture.probeErr
-		})
+		}, []string{"provider.example.test", "other.example.test", "admin.example.test", "127.0.0.1", "localhost"})
 
 	return fixture
 }
@@ -230,7 +230,7 @@ func newServiceFixtureWithRepo(t *testing.T, repo *memoryRepository) *serviceFix
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, fixture.adapter)
 	fixture.service = providers.NewService(repo, testCipher(t), registry,
-		func(context.Context, string, string) error { return nil })
+		func(context.Context, string, string) error { return nil }, []string{"provider.example.test", "other.example.test", "admin.example.test", "127.0.0.1", "localhost"})
 
 	return fixture
 }
@@ -260,5 +260,69 @@ func TestAdministrativeEndpointRequiresHTTPSExceptForLoopback(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("endpoint %q rejected: %v", endpoint, err)
 		}
+	}
+}
+
+func TestEndpointHostMustBeInAllowlist(t *testing.T) {
+	fixture := newServiceFixture(t)
+	ctx := context.Background()
+
+	if _, err := fixture.service.Create(ctx, providers.CreateInput{
+		ID: "outsider", Name: "Outsider", Type: providers.TypeOpenCodeGo,
+		Endpoint: "https://attacker.example.test/inference/go",
+	}); !errors.Is(err, providers.ErrInvalid) {
+		t.Fatalf("Create with host outside the allowlist: error = %v, want ErrInvalid", err)
+	}
+
+	fixture.bootstrap(t, testSecret, true)
+
+	redirected := "https://attacker.example.test/inference/go"
+	if _, err := fixture.service.Update(ctx, providers.OpenCodeGoID, providers.UpdateInput{Endpoint: &redirected}); !errors.Is(err, providers.ErrInvalid) {
+		t.Fatalf("Update redirecting the credential: error = %v, want ErrInvalid", err)
+	}
+
+	if fixture.adapter.last().BaseURL != testEndpoint {
+		t.Fatal("rejected redirect still reached the runtime")
+	}
+
+	upper := "https://PROVIDER.example.test/inference/go"
+	if _, err := fixture.service.Update(ctx, providers.OpenCodeGoID, providers.UpdateInput{Endpoint: &upper}); err != nil {
+		t.Fatalf("allowlisted host in another letter case rejected: %v", err)
+	}
+}
+
+func TestBootstrapIgnoresUnusedEnvironmentEndpointButRechecksPersistedOne(t *testing.T) {
+	repo := newMemoryRepository()
+	cipher := testCipher(t)
+	ctx := context.Background()
+
+	first := providers.NewService(repo, cipher, providers.NewRegistry(),
+		func(context.Context, string, string) error { return nil }, []string{"provider.example.test"})
+	if _, err := first.Bootstrap(ctx, providers.BootstrapInput{
+		ID: providers.OpenCodeGoID, Name: "OpenCode Go", Type: providers.TypeOpenCodeGo,
+		Endpoint: testEndpoint, Credential: testSecret, Enabled: true,
+	}); err != nil {
+		t.Fatalf("first Bootstrap: %v", err)
+	}
+
+	// A later start with an unlisted environment endpoint: the value is unused,
+	// so startup must succeed.
+	later := providers.NewService(repo, cipher, providers.NewRegistry(),
+		func(context.Context, string, string) error { return nil }, []string{"provider.example.test"})
+	if _, err := later.Bootstrap(ctx, providers.BootstrapInput{
+		ID: providers.OpenCodeGoID, Name: "OpenCode Go", Type: providers.TypeOpenCodeGo,
+		Endpoint: "https://attacker.example.test", Enabled: true,
+	}); err != nil {
+		t.Fatalf("unused environment endpoint blocked startup: %v", err)
+	}
+
+	// The persisted endpoint is no longer allowed: startup must fail closed.
+	narrowed := providers.NewService(repo, cipher, providers.NewRegistry(),
+		func(context.Context, string, string) error { return nil }, []string{"other.example.test"})
+	if _, err := narrowed.Bootstrap(ctx, providers.BootstrapInput{
+		ID: providers.OpenCodeGoID, Name: "OpenCode Go", Type: providers.TypeOpenCodeGo,
+		Endpoint: testEndpoint, Enabled: true,
+	}); !errors.Is(err, providers.ErrInvalid) {
+		t.Fatalf("persisted endpoint outside the allowlist: error = %v, want ErrInvalid", err)
 	}
 }

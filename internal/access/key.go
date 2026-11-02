@@ -66,6 +66,17 @@ func digestKey(key string) [sha256.Size]byte {
 	return sha256.Sum256([]byte(key))
 }
 
+// adminKeyMatches reports whether token is the administrative key. It is
+// false when no administrative key is configured.
+func (p Policy) adminKeyMatches(token string) bool {
+	if !p.adminEnabled || ValidateAPIKey(token) != nil {
+		return false
+	}
+
+	digest := digestKey(token)
+	return subtle.ConstantTimeCompare(p.adminDigest[:], digest[:]) == 1
+}
+
 func (p Policy) keyMatches(token string) bool {
 	if ValidateAPIKey(token) != nil {
 		return false

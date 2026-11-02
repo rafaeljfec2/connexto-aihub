@@ -16,3 +16,6 @@ ALTER TABLE providers
     DROP COLUMN IF EXISTS endpoint,
     DROP COLUMN IF EXISTS type,
     DROP COLUMN IF EXISTS name;
+
+-- Forget the version so the runner applies 0002 again on the next start.
+DELETE FROM schema_migrations WHERE version = 2;

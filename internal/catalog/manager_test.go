@@ -286,8 +286,11 @@ func TestManagerTimeoutIsClassified(t *testing.T) {
 		return nil, ctx.Err()
 	}
 
+	// The sync deadline also bounds the snapshot save. A budget far above a
+	// local save keeps the test about classification, not disk latency under
+	// -race and parallel package load.
 	options := managerOptions(now)
-	options.SyncTimeout = 10 * time.Millisecond
+	options.SyncTimeout = 250 * time.Millisecond
 
 	manager := newTestManager(t, source, providers.StateHealthy, options)
 

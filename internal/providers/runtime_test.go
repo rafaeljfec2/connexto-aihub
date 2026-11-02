@@ -1,6 +1,7 @@
 package providers_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -130,5 +131,42 @@ func TestManagerReportsRuntimeDisableImmediately(t *testing.T) {
 	statuses := manager.Statuses()
 	if len(statuses) != 1 || statuses[0].Enabled || statuses[0].State != providers.StateDisabled {
 		t.Fatalf("statuses after runtime disable = %+v", statuses)
+	}
+}
+
+func TestConfigModuleWarnsWhenEnvironmentIsOverriddenWithoutLoggingSecrets(t *testing.T) {
+	repo := newMemoryRepository()
+	cipher := testCipher(t)
+
+	seed := func(endpoint, credential string) (*bytes.Buffer, error) {
+		buffer := &bytes.Buffer{}
+		logger := slog.New(slog.NewTextHandler(buffer, nil))
+		service := providers.NewService(repo, cipher, providers.NewRegistry(),
+			func(context.Context, string, string) error { return nil }, []string{"provider.example.test", "other.example.test", "admin.example.test", "127.0.0.1", "localhost"})
+		module := providers.NewConfigModule(service, providers.BootstrapInput{
+			ID: providers.OpenCodeGoID, Name: "OpenCode Go", Type: providers.TypeOpenCodeGo,
+			Endpoint: endpoint, Credential: credential, Enabled: true,
+		}, logger)
+
+		return buffer, module.Start(context.Background())
+	}
+
+	if _, err := seed(testEndpoint, testSecret); err != nil {
+		t.Fatalf("first start: %v", err)
+	}
+
+	quiet, err := seed(testEndpoint, "")
+	if err != nil || strings.Contains(quiet.String(), "ignored") {
+		t.Fatalf("matching environment warned: %v %q", err, quiet.String())
+	}
+
+	overridden, err := seed("https://other.example.test", "sk-env-override-0009")
+	if err != nil {
+		t.Fatalf("second start: %v", err)
+	}
+
+	if !strings.Contains(overridden.String(), "environment provider settings ignored") ||
+		strings.Contains(overridden.String(), "sk-env-override-0009") {
+		t.Fatalf("log = %q; want a warning without the credential", overridden.String())
 	}
 }

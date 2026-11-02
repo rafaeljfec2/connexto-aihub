@@ -149,6 +149,7 @@ func run() error {
 
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey:               cfg.Gateway.APIKey,
+		AdminAPIKey:          cfg.Gateway.AdminAPIKey,
 		AllowedHosts:         cfg.Gateway.AllowedHosts,
 		AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
 		AllowedOrigins:       cfg.Gateway.AllowedOrigins,

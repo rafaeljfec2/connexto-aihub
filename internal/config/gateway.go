@@ -14,6 +14,7 @@ import (
 // Gateway groups the access-control settings enforced by internal/access.
 type Gateway struct {
 	APIKey          string
+	AdminAPIKey     string
 	AllowedHosts    []string
 	AllowedHostsSet bool
 	AllowedOrigins  []string
@@ -27,6 +28,10 @@ func defaultGateway() Gateway {
 func applyGatewayEnvironment(gateway *Gateway) error {
 	if value, ok := os.LookupEnv(EnvGatewayAPIKey); ok {
 		gateway.APIKey = value
+	}
+
+	if value, ok := os.LookupEnv(EnvAdminAPIKey); ok {
+		gateway.AdminAPIKey = value
 	}
 
 	if value, ok := os.LookupEnv(EnvGatewayAllowedHosts); ok {

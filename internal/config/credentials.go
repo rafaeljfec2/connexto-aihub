@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"aihub/internal/access"
 )
 
 // EnvCredentialKey names the base64-encoded AES-256 key that encrypts provider
@@ -40,6 +42,35 @@ func applyCredentialEnvironment(cfg *Config) error {
 	cfg.Credentials.Key = key
 
 	return nil
+}
+
+// validateAdminAPIKey requires the administrative key in PostgreSQL mode, where
+// the administrative API under /api/ exists. It must be a valid API key
+// distinct from the gateway and provider keys.
+func validateAdminAPIKey(c Config) []error {
+	if c.Catalog.Persistence != EnvCatalogPersistencePostgres {
+		return nil
+	}
+
+	if c.Gateway.AdminAPIKey == "" {
+		return []error{errors.New(EnvAdminAPIKey + " is required when catalog persistence is postgres")}
+	}
+
+	var errs []error
+
+	if err := access.ValidateAPIKey(c.Gateway.AdminAPIKey); err != nil {
+		errs = append(errs, fmt.Errorf("%s is invalid: %w", EnvAdminAPIKey, err))
+	}
+
+	if c.Gateway.AdminAPIKey == c.Gateway.APIKey {
+		errs = append(errs, errors.New(EnvAdminAPIKey+" must differ from "+EnvGatewayAPIKey))
+	}
+
+	if providerKey := c.Provider.OpenCodeGo.APIKey; providerKey != "" && c.Gateway.AdminAPIKey == providerKey {
+		errs = append(errs, errors.New(EnvAdminAPIKey+" must differ from the provider API key"))
+	}
+
+	return errs
 }
 
 // validateCredentials requires the credential key whenever provider state is
