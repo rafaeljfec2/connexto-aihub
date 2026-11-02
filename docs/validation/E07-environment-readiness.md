@@ -97,9 +97,9 @@ check, and the dirty working tree prevents a clean baseline claim.
 
 The shared provider-call budget is implemented in the current test harness:
 
-- `cmd/ai-hub/e07_provider_budget_support_test.go` sets the maximum to nine;
+- `cmd/ai-hub/e07/support/e07_provider_support.go` sets the maximum to nine;
   reservation is mutex-protected and rejects excess calls before forwarding.
-- `cmd/ai-hub/e07_provider_budget_test.go` covers rejection before the
+- `cmd/ai-hub/e07/provider/e07_provider_budget_test.go` covers rejection before the
   underlying transport, a 50-call concurrent attempt, redirect accounting,
   readiness/startup accounting, shared accounting across observers/restart,
   and no budget consumption for an unauthenticated request.

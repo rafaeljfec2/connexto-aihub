@@ -157,13 +157,13 @@ else:
  os.close(fd)
  raise SystemExit(\"repository dotenv mount accepted a writable open\")
 print(\"E07 repository dotenv mount: read-only\")"
-	go test -c -o "$private_root/bin/ai-hub-e07.test" ./cmd/ai-hub
+	go test -c -o "$private_root/bin/ai-hub-e07.test" ./cmd/ai-hub/e07/live
 
 	if [ "$mode" = "--preflight" ]; then
 		exec /usr/bin/env AIHUB_E07_CANARY=1 AIHUB_E07_CREDENTIAL_PREFLIGHT=1 \
 			AIHUB_E07_MOUNT_BOUNDARY_MODE=parent \
-			"$private_root/bin/ai-hub-e07.test" \
-			-test.run="^TestE07" -test.count=1 -test.v -test.timeout=29m
+			go test ./cmd/ai-hub/e07/... \
+			-run="^TestE07" -count=1 -v -timeout=29m
 	fi
 
 	exec /usr/bin/env AIHUB_E07_LIVE=1 "$private_root/bin/ai-hub-e07.test" \

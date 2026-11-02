@@ -70,7 +70,7 @@ ADR-017, and ADR-018.
 Shutdown closes execution admission, drains or cancels registered E05 work,
 then stops E06 records before guarded provider release. The E06 record writer
 has a fixed two-second drain window after E05 confirms execution cleanup.
-Sources: `cmd/ai-hub/lifecycle.go` (`Stop`, line 32),
+Sources: `cmd/ai-hub/lifecycle/lifecycle.go` (`Stop`, line 32),
 `cmd/ai-hub/main.go` (module order, line 164), ADR-015, and
 `docs/design/E06-execution-records-design.md` §3.2.
 

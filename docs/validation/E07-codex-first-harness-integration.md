@@ -77,7 +77,7 @@ Local verification for this remediation:
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub/ -count=1 -run TestE07` | PASS |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | PASS |
 | `go test ./... -count=1 -race` | PASS |
 | `go vet ./...` | PASS |
 | `staticcheck ./...` | PASS |
@@ -120,12 +120,12 @@ All modified and new Go files remain at or below 300 lines.
 
 | Area | Resulting files and line counts |
 | --- | --- |
-| Repository snapshot and manifest | `e07_integrity_remediation_test.go` (239), `e07_integrity_manifest_test.go` (189), `e07_integrity_test.go` (209), `e07_integrity_manifest_support_test.go` (82), `e07_integrity_tree_test.go` (249) |
-| E06 HTTP record lookup and assertions | `e07_live_http_test.go` (153), `e07_live_record_assertions_test.go` (198) |
-| E05/E06 record behavior and contexts | `e07_records_test.go` (153), `e07_record_outcomes_test.go` (83), `e07_record_assertions_test.go` (182), `e07_record_context_test.go` (74) |
-| Provider-call budget and transport | `e07_provider_budget_support_test.go` (66), `e07_provider_observer_test.go` (138), `e07_provider_budget_test.go` (216) |
-| Upstream response and same-response fidelity | `e07_response_fidelity_test.go` (154), `e07_upstream_response_test.go` (85) |
-| Observer and scenario orchestration | `e07_observer_support_test.go` (83), `e07_live_hub_test.go` (188), `e07_live_scenario_support_test.go` (214), `e07_live_scenarios_test.go` (204), `e07_live_auth_support_test.go` (43), `e07_live_auth_test.go` (29), `e07_provider_timeout_test.go` (38) |
+| Repository snapshot and manifest | `cmd/ai-hub/e07/integrity/e07_integrity_remediation_test.go` (239), `cmd/ai-hub/e07/integrity/e07_integrity_manifest_test.go` (189), `cmd/ai-hub/e07/support/e07_integrity.go` (209), `cmd/ai-hub/e07/support/e07_integrity_manifest_support.go` (82), `cmd/ai-hub/e07/support/e07_integrity_tree.go` (249) |
+| E06 HTTP record lookup and assertions | `cmd/ai-hub/e07/support/e07_live_http.go` (153), `cmd/ai-hub/e07/support/e07_live_record_assertions.go` (198) |
+| E05/E06 record behavior and contexts | `cmd/ai-hub/e07/records/e07_records_test.go` (153), `cmd/ai-hub/e07/records/e07_records_test.go` (83), `cmd/ai-hub/e07/records/e07_record_assertions_test.go` (182), `cmd/ai-hub/e07/support/e07_live_record_assertions.go` (74) |
+| Provider-call budget and transport | `cmd/ai-hub/e07/support/e07_provider_support.go` (66), `cmd/ai-hub/e07/support/e07_provider_support.go` (138), `cmd/ai-hub/e07/provider/e07_provider_budget_test.go` (216) |
+| Upstream response and same-response fidelity | `cmd/ai-hub/e07/responses/e07_response_test.go` (154), `cmd/ai-hub/e07/responses/e07_response_test.go` (85) |
+| Observer and scenario orchestration | `cmd/ai-hub/e07/support/e07_observer_support.go` (83), `cmd/ai-hub/e07/support/e07_live_hub.go` (188), `cmd/ai-hub/e07/support/e07_live_scenario_support.go` (214), `cmd/ai-hub/e07/live/e07_live_scenarios_test.go` (204), `cmd/ai-hub/e07/support/e07_live_auth_support.go` (43), `cmd/ai-hub/e07/live/e07_live_auth_test.go` (29), `cmd/ai-hub/e07/support/e07_provider_support.go` (38) |
 
 Of the 32 existing E07 test functions, 31 remain unchanged by name through the
 splits. The former cross-call error-probe test was replaced by a stricter
@@ -175,8 +175,8 @@ OpenCode Go request was used.
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub -count=1 -run TestE07` | PASS |
-| `go test ./cmd/ai-hub -run '^TestE07ProviderHTTPClientCancelsRequestAtTimeout$' -count=1` | PASS — fake transport observed cancellation; one attempt was forwarded |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | PASS |
+| `go test ./cmd/ai-hub/e07/provider -run '^TestE07ProviderHTTPClientCancelsRequestAtTimeout$' -count=1` | PASS — fake transport observed cancellation; one attempt was forwarded |
 | `go test ./... -count=1 -race` | PASS |
 | `go vet ./...` | PASS |
 | `staticcheck ./...` | PASS |
@@ -382,17 +382,17 @@ report added `docs/validation/E07-final-e2e-execution-plan.md`, for 15 in
 total:
 
 - `README.md`
-- `cmd/ai-hub/e07_live_codex_test.go`
-- `cmd/ai-hub/e07_live_scenarios_test.go`
-- `cmd/ai-hub/e07_live_setup_test.go`
-- `cmd/ai-hub/e07_observer_support_test.go`
-- `cmd/ai-hub/e07_codex_env_policy_support_test.go`
-- `cmd/ai-hub/e07_codex_env_policy_test.go`
-- `cmd/ai-hub/e07_codex_environment_support_test.go`
-- `cmd/ai-hub/e07_codex_policy_provider_test.go`
-- `cmd/ai-hub/e07_codex_process_linux_test.go`
-- `cmd/ai-hub/e07_codex_process_other_test.go`
-- `cmd/ai-hub/e07_codex_tree_manifest_test.go`
+- `cmd/ai-hub/e07/support/e07_live_codex.go`
+- `cmd/ai-hub/e07/live/e07_live_scenarios_test.go`
+- `cmd/ai-hub/e07/support/e07_live_setup.go`
+- `cmd/ai-hub/e07/support/e07_observer_support.go`
+- `cmd/ai-hub/e07/support/e07_codex_env_policy_support.go`
+- `cmd/ai-hub/e07/codex/e07_codex_env_policy_test.go`
+- `cmd/ai-hub/e07/support/e07_codex_environment_support.go`
+- `cmd/ai-hub/e07/support/e07_codex_policy_provider.go`
+- `cmd/ai-hub/e07/codex/e07_codex_process_linux_test.go`
+- `cmd/ai-hub/e07/codex/e07_codex_process_other_test.go`
+- `cmd/ai-hub/e07/codex/e07_codex_tree_manifest_test.go`
 - `docs/validation/E07-codex-first-harness-integration.md`
 - `docs/validation/E07-environment-blocker-resolution.md`
 
@@ -473,7 +473,7 @@ gates are not `PASS`. Other final gate results are:
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub -count=1 -run TestE07` | `BLOCKED` — no passing completion; the focused run stopped at the fail-closed preflight, and the suite was not rerun because it includes the Codex CLI canary after a global-tree change was observed |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | `BLOCKED` — no passing completion; the focused run stopped at the fail-closed preflight, and the suite was not rerun because it includes the Codex CLI canary after a global-tree change was observed |
 | `go test ./... -count=1 -race` | `FAIL` — local synthetic canary detected a global-tree delta during cleanup; other packages passed |
 | `go vet ./...` | `PASS` |
 | `staticcheck ./...` | `PASS` |
@@ -609,7 +609,7 @@ enabled.
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub -count=1 -run TestE07` | `FAIL` — `TestE07CodexShellEnvironmentPolicyIsEffective` failed closed because an active Codex process prevented global-tree validation; the isolated Codex was not started. |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | `FAIL` — `TestE07CodexShellEnvironmentPolicyIsEffective` failed closed because an active Codex process prevented global-tree validation; the isolated Codex was not started. |
 | `go test ./... -count=1 -race` | `FAIL` — the same environment guard failed in `cmd/ai-hub`; all other listed Go packages passed. |
 | `go vet ./...` | `PASS` |
 | `staticcheck ./...` | `PASS` |
@@ -712,7 +712,7 @@ bwrap --unshare-pid --unshare-ipc --unshare-uts --ro-bind / / \
   --setenv HOME /run/e07/home --setenv TMPDIR /run/e07/tmp \
   --setenv GOTOOLCHAIN local --setenv AIHUB_E07_CANARY 1 \
   --setenv PATH "<go and codex bin dirs>" \
-  --chdir <repo> go test ./cmd/ai-hub -run TestE07 -count=1
+  --chdir <repo> go test ./cmd/ai-hub/e07/... -run TestE07 -count=1
 ```
 
 `/tmp` must be a fresh writable tmpfs; otherwise the nested Codex sandbox fails
@@ -762,9 +762,9 @@ Gates were executed inside the same isolation, with the recorded Codex CLI on
 
 | Check | Result |
 | --- | --- |
-| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub -run TestE07 -count=1 -v` | `PASS` — 57 passed, 0 failed, 1 skipped |
+| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub/e07/... -run TestE07 -count=1 -v` | `PASS` — 57 passed, 0 failed, 1 skipped |
 | `go test ./... -count=1 -race` (no canary flag, Codex CLI on `PATH`) | `PASS` — every Go package `ok`; the canary and the live test skip by design |
-| `go test ./cmd/ai-hub -run CodexShellEnvironmentPolicy -count=1 -v` (no canary flag) | `SKIP` with an explicit reason — the default suite is host-independent |
+| `go test ./cmd/ai-hub/e07/codex -run CodexShellEnvironmentPolicy -count=1 -v` (no canary flag) | `SKIP` with an explicit reason — the default suite is host-independent |
 | `AIHUB_E07_CANARY=1` with the CLI absent from `PATH` | `FAIL` as required — the opt-in canary refuses to run instead of silently skipping |
 | `go vet ./...` | `PASS` |
 | `staticcheck ./...` | `PASS` |
@@ -880,8 +880,8 @@ supersession explicitly.
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub -count=1 -run TestE07` | `PASS` — 56 passed, 0 failed, 2 skipped (opt-in canary and the `AIHUB_E07_LIVE` scenario) |
-| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub -run TestE07 -count=1 -v` inside the private namespace | `PASS` — 57 passed, 0 failed, 1 skipped |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | `PASS` — 56 passed, 0 failed, 2 skipped (opt-in canary and the `AIHUB_E07_LIVE` scenario) |
+| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub/e07/... -run TestE07 -count=1 -v` inside the private namespace | `PASS` — 57 passed, 0 failed, 1 skipped |
 | `go test ./... -count=1 -race` | `PASS` — every Go package `ok` in the recorded runs; one earlier execution failed on a pre-existing E01–E06 test described below |
 | `go vet ./...` | `PASS` |
 | `staticcheck ./...` | `PASS` |
@@ -1041,7 +1041,7 @@ logged, measured, or hashed during this preflight.
 | Git baseline | `PASS` | Branch `main`, HEAD `6771918954f02c53e517b94ffc152630223daf2d`; only this validation report was modified at preflight start. `.env` is ignored by Git. |
 | Scanner | `NOT RUN — operator-approved exception` | No scanner was installed or run. No secret-free repository claim is made. |
 | Provider and gateway credentials | `OPERATOR-CONFIRMED PRESENT` | The corrected production dotenv result was supplied by the operator. This attempt did not inspect or emit either value. |
-| Integrity preflight | `BLOCKED` | `e07PrepareLiveSetup` snapshots the repository before calling `config.LoadDotEnv` (`cmd/ai-hub/e07_live_setup_test.go`). The snapshot includes a complete tree digest and `.env` fingerprint (`cmd/ai-hub/e07_integrity_test.go`); `e07FingerprintTree` and `e07FingerprintEnvFiles` feed regular-file bytes to SHA-256 (`cmd/ai-hub/e07_integrity_tree_test.go`). |
+| Integrity preflight | `BLOCKED` | `e07PrepareLiveSetup` snapshots the repository before calling `config.LoadDotEnv` (`cmd/ai-hub/e07/support/e07_live_setup.go`). The snapshot includes a complete tree digest and `.env` fingerprint (`cmd/ai-hub/e07/support/e07_integrity.go`); `e07FingerprintTree` and `e07FingerprintEnvFiles` feed regular-file bytes to SHA-256 (`cmd/ai-hub/e07/support/e07_integrity_tree.go`). |
 | Provider-call budget | `NOT INITIALIZED` | The harness defines a nine-call cap, but execution stopped before creating its observer. No request was attempted or rejected. |
 | Execution timer | `NOT STARTED` | The 30-minute window begins immediately before the live execution sequence, which was not entered. |
 
@@ -1101,7 +1101,7 @@ evidence; the reviewer did not rerun these commands.
 
 | Evidence | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub -count=1` | `PASS` |
+| `go test ./cmd/ai-hub/... -count=1` | `PASS` |
 | E07 protected dotenv and read-only mount tests with `-v` | `PASS`, both tests executed without skips |
 | Fingerprint, dotenv non-read, symlink, and source-change tests inside an outer read-only bubblewrap mount with private scratch | `PASS`, six selected tests |
 | `go test ./... -count=1 -race` | `PASS` on a sequential rerun. An initial parallel gate run had a timing failure in `internal/catalog/TestManagerTimeoutIsClassified`; the test passed in isolation and the sequential full rerun passed. |
@@ -1273,7 +1273,7 @@ made outside this pass.
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub -count=1 -run '^(TestE07CodexMountBoundaryHidesGlobalState|TestE07ReadOnlyMountLoadsDotEnvAndRejectsWrites)$' -v` | `PASS` — both tests ran without skips |
+| `go test ./cmd/ai-hub/... -count=1 -run '^(TestE07CodexMountBoundaryHidesGlobalState|TestE07ReadOnlyMountLoadsDotEnvAndRejectsWrites)$' -v` | `PASS` — both tests ran without skips |
 | `git diff --check` | `PASS` |
 | E07 Go file limit | `PASS` — all changed/new Go files are below 250 lines |
 | Targeted independent review | Final re-review found no open findings. Initial review findings on empty/read-only mount proof, scenario continuation, and child environment allowlisting were corrected. The reviewer did not run tests or E2E. |
@@ -1343,8 +1343,8 @@ environment flags were unset for the package and repository suites.
 
 | Check | Result |
 | --- | --- |
-| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub -count=1 -run '^TestE07CodexResumeContinuesFromTemporaryWorkspace$' -v` | `PASS` — actual Codex CLI, temporary state, loopback synthetic endpoint; no provider call |
-| `go test ./cmd/ai-hub/ -count=1 -run TestE07` | `PASS` |
+| `AIHUB_E07_CANARY=1 go test ./cmd/ai-hub/e07/codex -count=1 -run '^TestE07CodexResumeContinuesFromTemporaryWorkspace$' -v` | `PASS` — actual Codex CLI, temporary state, loopback synthetic endpoint; no provider call |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | `PASS` |
 | `go test ./... -count=1 -race` | `PASS` — all Go packages |
 | `go vet ./...` | `PASS` |
 | `staticcheck ./...` | `PASS` |
@@ -1388,7 +1388,7 @@ integrity correction:
 
 | Check | Result |
 | --- | --- |
-| `go test ./cmd/ai-hub/ -count=1 -run TestE07` | `PASS` |
+| `go test ./cmd/ai-hub/e07/... -count=1 -run TestE07` | `PASS` |
 | `go test ./... -count=1 -race` | `PASS` — all Go packages |
 | `go vet ./...` | `PASS` |
 | `staticcheck ./...` | `PASS` |
@@ -1922,7 +1922,7 @@ exceeded; no request was rejected, and no retry or extra probe occurred.
 
 1. The first real Codex invocation exited successfully; its JSON `thread.started` event yielded a non-empty thread ID in memory.
 2. The first-turn request reached Hub ingress and was forwarded to the provider. Process start alone was not used as request evidence.
-3. The second invocation used `exec resume` with the captured thread ID and `--skip-git-repo-check`; the exact argument vector is in `cmd/ai-hub/e07_live_scenarios_test.go`.
+3. The second invocation used `exec resume` with the captured thread ID and `--skip-git-repo-check`; the exact argument vector is in `cmd/ai-hub/e07/live/e07_live_scenarios_test.go`.
 4. The replay window observed exactly two Hub requests and two provider forwards. The structural observer, enabled during resume, saw prior context and no `previous_response_id`.
 5. The second Codex result recalled the synthetic marker from turn one. Only structural booleans and aggregate counts were emitted; no thread ID, prompt, response, or request body was retained.
 

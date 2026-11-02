@@ -664,7 +664,7 @@ mapping behavior.
 ### 11.2 Shutdown order
 
 The integration must preserve the sequence established by ADR-015 and the
-current `cmd/ai-hub/lifecycle.go` composition:
+current `cmd/ai-hub/lifecycle/lifecycle.go` composition:
 
 1. The HTTP/execution lifecycle closes the manager's admission gate before
    calling `http.Server.Shutdown` with the configured graceful-drain context.

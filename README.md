@@ -576,7 +576,7 @@ env -i PATH="$PATH" HOME="$AIHUB_E07_TEST_DIR/home" \
   GOPATH="$AIHUB_E07_TEST_DIR/go" \
   GOMODCACHE="$AIHUB_E07_TEST_DIR/go/pkg/mod" \
   GOCACHE="$AIHUB_E07_TEST_DIR/cache" \
-  go test -c -o "$AIHUB_E07_TEST_DIR/ai-hub-e07.test" ./cmd/ai-hub
+  go test -c -o "$AIHUB_E07_TEST_DIR/ai-hub-e07.test" ./cmd/ai-hub/e07/live
 ```
 
 In Terminal C, enter new, distinct gateway and provider credentials using
@@ -647,7 +647,7 @@ validated CLI release and a global Codex tree that no ambient Codex process is
 modifying. It is skipped by the default suite and fails closed when enabled:
 
 ```bash
-AIHUB_E07_CANARY=1 go test ./cmd/ai-hub \
+AIHUB_E07_CANARY=1 go test ./cmd/ai-hub/e07/codex \
   -run '^TestE07CodexShellEnvironmentPolicyIsEffective$' -count=1 -v
 ```
 

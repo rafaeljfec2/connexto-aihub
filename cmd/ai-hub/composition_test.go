@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"aihub/cmd/ai-hub/lifecycle"
 	"aihub/internal/app"
 	"aihub/internal/config"
 	"aihub/internal/execution"
@@ -61,6 +62,20 @@ type delayedEOFBody struct {
 	once        sync.Once
 }
 
+type compositionShutdownSink struct {
+	writer http.ResponseWriter
+}
+
+func (sink compositionShutdownSink) Commit(status int, contentType string) {
+	sink.writer.Header().Set("Content-Type", contentType)
+	sink.writer.WriteHeader(status)
+}
+
+func (sink compositionShutdownSink) WriteChunk(chunk []byte) error {
+	_, err := sink.writer.Write(chunk)
+	return err
+}
+
 func (b *delayedEOFBody) Read([]byte) (int, error) {
 	b.once.Do(func() { close(b.readStarted) })
 	time.Sleep(b.delay)
@@ -95,17 +110,17 @@ func TestApplicationShutdownFlushesRecordsBeforeProviderRelease(t *testing.T) {
 			ProviderSessionID: "session-composition-test",
 			Payload:           []byte("{}"),
 			ContentType:       "application/json",
-		}, shutdownSink{writer: w})
+		}, compositionShutdownSink{writer: w})
 	})
 
 	cfg := config.Default().Server
 	cfg.Port = 0
 	cfg.ShutdownTimeout = time.Second
 	httpServer := server.New(cfg, handler, logger)
-	lifecycle := newExecutionLifecycle(httpServer, manager, cfg.ShutdownTimeout)
+	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, manager, cfg.ShutdownTimeout)
 	provider := &recordsProviderProbe{records: recordsModule.Service, recordsModule: recordsModule}
 
-	application, err := app.New(logger, newGuardedProviderModule(provider, manager), recordsModule, lifecycle)
+	application, err := app.New(logger, lifecycle.NewGuardedProviderModule(provider, manager), recordsModule, serviceLifecycle)
 	if err != nil {
 		t.Fatalf("app.New() returned error: %v", err)
 	}

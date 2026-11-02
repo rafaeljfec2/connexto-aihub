@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"aihub/cmd/ai-hub/lifecycle"
 	"aihub/internal/access"
 	"aihub/internal/app"
 	"aihub/internal/catalog"
@@ -35,7 +36,7 @@ func main() {
 }
 
 func run() error {
-	envPath := flag.String("env-file", ".env", "path to a dotenv file with environment overrides")
+	envPath := flag.String("env-file", defaultEnvFilePath(), "path to a dotenv file with environment overrides")
 	flag.Parse()
 
 	envPathExplicit := false
@@ -45,8 +46,13 @@ func run() error {
 		}
 	})
 
-	if err := config.LoadDotEnv(*envPath); err != nil && (envPathExplicit || !errors.Is(err, os.ErrNotExist)) {
-		return err
+	envFileLoaded := false
+	if err := config.LoadDotEnv(*envPath); err != nil {
+		if envPathExplicit || !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	} else {
+		envFileLoaded = true
 	}
 
 	cfg, err := config.Load()
@@ -56,6 +62,9 @@ func run() error {
 
 	logger := observability.NewLogger(os.Stdout, cfg.Log.Level.SlogLevel(), string(cfg.Log.Format))
 	logger.Info("starting ai hub", "version", version)
+	if envFileLoaded {
+		logger.Info("loaded environment file", "path", *envPath)
+	}
 
 	for _, name := range config.UnknownEnvVariables() {
 		logger.Warn("unknown AIHUB_ environment variable ignored", "variable", name)
@@ -158,10 +167,10 @@ func run() error {
 	httpServer := server.New(cfg.Server, router, logger,
 		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),
 	)
-	lifecycle := newExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
-	guardedProvider := newGuardedProviderModule(providerModule, executionManager)
+	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
+	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, executionManager)
 
-	application, err := app.New(logger, guardedProvider, catalogModule, recordsModule, lifecycle)
+	application, err := app.New(logger, guardedProvider, catalogModule, recordsModule, serviceLifecycle)
 	if err != nil {
 		return err
 	}

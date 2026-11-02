@@ -444,7 +444,7 @@ post-approval implementation evidence is:
   `golangci-lint run ./...`, `go build ./...`, `gofmt -d`, and `git diff --check`
   passed. Coverage was 87.7% for `internal/execution`, 92.3% for
   `internal/gateway`, 92.5% for `internal/providers`, and 85.7–100% across the
-  functions in the new `cmd/ai-hub/lifecycle.go` file. The broader
+  functions in the new `cmd/ai-hub/lifecycle/lifecycle.go` file. The broader
   `cmd/ai-hub` package reports 28.4% because its existing bootstrap path is not
   exercised by these focused lifecycle tests.
 - **Real E2E:** isolated Codex CLI 0.164.0-alpha.11.1 completed a request through

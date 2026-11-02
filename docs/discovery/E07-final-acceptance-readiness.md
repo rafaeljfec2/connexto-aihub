@@ -103,10 +103,10 @@ failure analysis:
 
 | Area | Repository evidence | What it establishes | What it does not establish |
 | --- | --- | --- | --- |
-| Repository root and snapshot | `cmd/ai-hub/e07_integrity_test.go`; `e07_integrity_remediation_test.go` | Git-root/module fallback, nested/root `.env` discovery, dirty and untracked content coverage, ignored production-file detection, symlink cycle protection, and private manifest checks have deterministic tests. | A real before/after run with an approved secret scan; the historical source of global Codex changes. |
-| Record expectations and API checks | `cmd/ai-hub/e07_live_http_test.go`; `e07_records_test.go` | Outcomes derive from E05 terminal observations; list, schema, correlation, by-ID, and restart checks are independent and bounded. | Completeness/correlation of real provider executions or recovery after a new real restart. |
-| Upstream response | `cmd/ai-hub/e07_passthrough_test.go`; `e07_live_scenario_support_test.go`; `e07_records_test.go` | Fixed upstream status, content type, exact bytes, and request forwarding are proven deterministically; independent provider responses are not byte-compared. | Same-response real-provider body fidelity. |
-| Multi-turn replay | `cmd/ai-hub/e07_live_scenario_support_test.go`; `e07_replay_test.go`; `e07_observer_test.go` | Synthetic parser/observer conditions are reported separately, payload bytes are restored, and summaries remain structural. | Whether the real Codex/provider replay now passes. |
+| Repository root and snapshot | `cmd/ai-hub/e07/support/e07_integrity.go`; `cmd/ai-hub/e07/integrity/e07_integrity_remediation_test.go` | Git-root/module fallback, nested/root `.env` discovery, dirty and untracked content coverage, ignored production-file detection, symlink cycle protection, and private manifest checks have deterministic tests. | A real before/after run with an approved secret scan; the historical source of global Codex changes. |
+| Record expectations and API checks | `cmd/ai-hub/e07/support/e07_live_http.go`; `cmd/ai-hub/e07/records/e07_records_test.go` | Outcomes derive from E05 terminal observations; list, schema, correlation, by-ID, and restart checks are independent and bounded. | Completeness/correlation of real provider executions or recovery after a new real restart. |
+| Upstream response | `cmd/ai-hub/e07/responses/e07_passthrough_test.go`; `cmd/ai-hub/e07/support/e07_live_scenario_support.go`; `cmd/ai-hub/e07/records/e07_records_test.go` | Fixed upstream status, content type, exact bytes, and request forwarding are proven deterministically; independent provider responses are not byte-compared. | Same-response real-provider body fidelity. |
+| Multi-turn replay | `cmd/ai-hub/e07/support/e07_live_scenario_support.go`; `cmd/ai-hub/e07/support/e07_codex_env_policy.go`; `cmd/ai-hub/e07/provider/e07_observer_test.go` | Synthetic parser/observer conditions are reported separately, payload bytes are restored, and summaries remain structural. | Whether the real Codex/provider replay now passes. |
 | Scope and history | `git show 40196001536b6d07084b8bbd671d646bdd674d32`; `git diff 0d33ca2..HEAD` | The remediation is committed, test/documentation-only, and current production source is unchanged from E06. | Any unmet real-provider AC. |
 
 The validation report records local passes for focused E07 tests, full Go race
@@ -158,8 +158,8 @@ unresolved. These gaps do not authorize a probe or another E2E pass.
    is available. Do not claim AC-14 until a scanner runs over tracked and
    untracked files and its redacted result is recorded.
 6. **Project source-length rule is not met by four committed E07 test files:**
-   `e07_integrity_remediation_test.go` (420 lines), `e07_integrity_test.go`
-   (515), `e07_live_http_test.go` (345), and `e07_records_test.go` (516). They
+   `cmd/ai-hub/e07/integrity/e07_integrity_remediation_test.go` (420 lines), `cmd/ai-hub/e07/support/e07_integrity.go`
+   (515), `cmd/ai-hub/e07/support/e07_live_http.go` (345), and `cmd/ai-hub/e07/records/e07_records_test.go` (516). They
    exceed the supplied 300-line hard limit. This Discovery does not refactor
    them; the authorized test-helper implementation phase must split them before
    E07 closure and rerun the applicable local gates.

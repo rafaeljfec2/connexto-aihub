@@ -40,30 +40,30 @@ The following 27 files were present before this report was created. Classificati
 
 | File | Initial state | Classification | Purpose and likely origin |
 | --- | --- | --- | --- |
-| `cmd/ai-hub/e07_integrity_remediation_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | Repository-root and integrity test helpers; E07 validation remediation. |
-| `cmd/ai-hub/e07_integrity_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 repository/environment integrity assertions. |
-| `cmd/ai-hub/e07_live_auth_support_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 live gateway-auth fixture. |
-| `cmd/ai-hub/e07_live_auth_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 unauthenticated gateway probe. |
-| `cmd/ai-hub/e07_live_http_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 records HTTP test helpers. |
-| `cmd/ai-hub/e07_live_hub_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 validation Hub composition. |
-| `cmd/ai-hub/e07_live_scenario_support_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 replay, auth, and upstream-probe helpers. |
-| `cmd/ai-hub/e07_live_scenarios_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 live scenario orchestration. |
-| `cmd/ai-hub/e07_observer_support_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 observer and process-environment helpers. |
-| `cmd/ai-hub/e07_records_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 deterministic record behavior tests. |
+| `cmd/ai-hub/e07/integrity/e07_integrity_remediation_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | Repository-root and integrity test helpers; E07 validation remediation. |
+| `cmd/ai-hub/e07/support/e07_integrity.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 repository/environment integrity assertions. |
+| `cmd/ai-hub/e07/support/e07_live_auth_support.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 live gateway-auth fixture. |
+| `cmd/ai-hub/e07/live/e07_live_auth_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 unauthenticated gateway probe. |
+| `cmd/ai-hub/e07/support/e07_live_http.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 records HTTP test helpers. |
+| `cmd/ai-hub/e07/support/e07_live_hub.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 validation Hub composition. |
+| `cmd/ai-hub/e07/support/e07_live_scenario_support.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 replay, auth, and upstream-probe helpers. |
+| `cmd/ai-hub/e07/live/e07_live_scenarios_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 live scenario orchestration. |
+| `cmd/ai-hub/e07/support/e07_observer_support.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 observer and process-environment helpers. |
+| `cmd/ai-hub/e07/records/e07_records_test.go` | Modified | `EXPECTED_E07_ARTIFACT` | E07 deterministic record behavior tests. |
 | `docs/validation/E07-codex-first-harness-integration.md` | Modified | `EXPECTED_E07_ARTIFACT` | E07 remediation and consumed-pass evidence. |
-| `cmd/ai-hub/e07_integrity_manifest_support_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 private integrity-manifest helpers. |
-| `cmd/ai-hub/e07_integrity_manifest_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 manifest privacy and baseline tests. |
-| `cmd/ai-hub/e07_integrity_tree_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 tree, Git-state, and production-baseline helpers. |
-| `cmd/ai-hub/e07_live_record_assertions_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 list, by-ID, and restart record assertions. |
-| `cmd/ai-hub/e07_provider_budget_support_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider-call budget and transport helpers. |
-| `cmd/ai-hub/e07_provider_budget_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider-call cap tests. |
-| `cmd/ai-hub/e07_provider_observer_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider-boundary observer. |
-| `cmd/ai-hub/e07_provider_timeout_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider HTTP timeout test. |
-| `cmd/ai-hub/e07_record_assertions_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 independent record assertion tests. |
-| `cmd/ai-hub/e07_record_context_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 query deadline and restart-context tests. |
-| `cmd/ai-hub/e07_record_outcomes_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 E05/E06 terminal-outcome tests. |
-| `cmd/ai-hub/e07_response_fidelity_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 same-response fidelity helpers and tests. |
-| `cmd/ai-hub/e07_upstream_response_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 upstream error-envelope tests. |
+| `cmd/ai-hub/e07/support/e07_integrity_manifest_support.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 private integrity-manifest helpers. |
+| `cmd/ai-hub/e07/integrity/e07_integrity_manifest_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 manifest privacy and baseline tests. |
+| `cmd/ai-hub/e07/support/e07_integrity_tree.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 tree, Git-state, and production-baseline helpers. |
+| `cmd/ai-hub/e07/support/e07_live_record_assertions.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 list, by-ID, and restart record assertions. |
+| `cmd/ai-hub/e07/support/e07_provider_support.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider-call budget and transport helpers. |
+| `cmd/ai-hub/e07/provider/e07_provider_budget_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider-call cap tests. |
+| `cmd/ai-hub/e07/support/e07_provider_support.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider-boundary observer. |
+| `cmd/ai-hub/e07/support/e07_provider_support.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 provider HTTP timeout test. |
+| `cmd/ai-hub/e07/records/e07_record_assertions_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 independent record assertion tests. |
+| `cmd/ai-hub/e07/support/e07_live_record_assertions.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 query deadline and restart-context tests. |
+| `cmd/ai-hub/e07/records/e07_records_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 E05/E06 terminal-outcome tests. |
+| `cmd/ai-hub/e07/responses/e07_response_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 same-response fidelity helpers and tests. |
+| `cmd/ai-hub/e07/responses/e07_response_test.go` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 upstream error-envelope tests. |
 | `docs/discovery/E07-final-acceptance-readiness.md` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 acceptance evidence matrix and gaps. |
 | `docs/validation/E07-environment-readiness.md` | Untracked | `EXPECTED_E07_ARTIFACT` | E07 environment gate result. |
 | `docs/validation/E07-final-e2e-execution-plan.md` | Untracked at initial inventory; now tracked and modified | `EXPECTED_E07_ARTIFACT` | Initially proposed future-pass plan; conditionally authorized by the later 2026-11-01 prompt, subject to every precondition. |
@@ -168,17 +168,17 @@ tracked pending file; the current scope has eight tracked modifications and
 seven untracked test files. The exact current pending paths are:
 
 - `README.md`
-- `cmd/ai-hub/e07_live_codex_test.go`
-- `cmd/ai-hub/e07_live_scenarios_test.go`
-- `cmd/ai-hub/e07_live_setup_test.go`
-- `cmd/ai-hub/e07_observer_support_test.go`
-- `cmd/ai-hub/e07_codex_env_policy_support_test.go`
-- `cmd/ai-hub/e07_codex_env_policy_test.go`
-- `cmd/ai-hub/e07_codex_environment_support_test.go`
-- `cmd/ai-hub/e07_codex_policy_provider_test.go`
-- `cmd/ai-hub/e07_codex_process_linux_test.go`
-- `cmd/ai-hub/e07_codex_process_other_test.go`
-- `cmd/ai-hub/e07_codex_tree_manifest_test.go`
+- `cmd/ai-hub/e07/support/e07_live_codex.go`
+- `cmd/ai-hub/e07/live/e07_live_scenarios_test.go`
+- `cmd/ai-hub/e07/support/e07_live_setup.go`
+- `cmd/ai-hub/e07/support/e07_observer_support.go`
+- `cmd/ai-hub/e07/support/e07_codex_env_policy_support.go`
+- `cmd/ai-hub/e07/codex/e07_codex_env_policy_test.go`
+- `cmd/ai-hub/e07/support/e07_codex_environment_support.go`
+- `cmd/ai-hub/e07/support/e07_codex_policy_provider.go`
+- `cmd/ai-hub/e07/codex/e07_codex_process_linux_test.go`
+- `cmd/ai-hub/e07/codex/e07_codex_process_other_test.go`
+- `cmd/ai-hub/e07/codex/e07_codex_tree_manifest_test.go`
 - `docs/validation/E07-codex-first-harness-integration.md`
 - `docs/validation/E07-environment-blocker-resolution.md`
 - `docs/validation/E07-final-e2e-execution-plan.md`

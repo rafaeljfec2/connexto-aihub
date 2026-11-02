@@ -65,7 +65,7 @@ human approval because it touches the E05 no-buffering boundary.
   database, queue, cache, or external service (`docs/architecture.md`, `go.mod`).
 - Modules are constructed in `cmd/ai-hub/main.go`: provider client, execution
   manager, catalog store + manager, access policy, router, HTTP server. Lifecycle
-  composition lives in `cmd/ai-hub/lifecycle.go`.
+  composition lives in `cmd/ai-hub/lifecycle/lifecycle.go`.
 - Data directory: `AIHUB_DATA_DIR` (default
   `${XDG_DATA_HOME:-~/.local/share}/ai-hub`). Currently contains only
   `catalog.json` (+ quarantine files). One process owns the directory (ADR-010).
@@ -198,7 +198,7 @@ define E06's constraints.
 
 ### 2.6 Lifecycle and shutdown interplay (E05)
 
-`cmd/ai-hub/lifecycle.go` composes: drain gate → server stop → `manager.Wait`
+`cmd/ai-hub/lifecycle/lifecycle.go` composes: drain gate → server stop → `manager.Wait`
 (graceful) → forced cancel at deadline → force-close → cleanup-window wait →
 guarded provider release (`Drained()` must be true). Any E06 flush point must
 slot into this sequence such that losing the storage does not change execution

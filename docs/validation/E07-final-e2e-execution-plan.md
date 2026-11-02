@@ -223,7 +223,7 @@ test environment. Then, after any authorized test-helper changes, run the
 AC-12 gates:
 
 ```text
-go test ./cmd/ai-hub/ -count=1 -run TestE07
+go test ./cmd/ai-hub/e07/... -count=1 -run TestE07
 go test ./... -count=1 -race
 go vet ./...
 staticcheck ./...
@@ -293,29 +293,29 @@ outcomes remain unchanged.
 
 Tracked modifications:
 
-- `cmd/ai-hub/e07_codex_env_policy_support_test.go`
-- `cmd/ai-hub/e07_integrity_test.go`
-- `cmd/ai-hub/e07_integrity_tree_test.go`
-- `cmd/ai-hub/e07_live_hub_test.go`
-- `cmd/ai-hub/e07_live_scenarios_test.go`
-- `cmd/ai-hub/e07_live_setup_test.go`
-- `cmd/ai-hub/e07_provider_observer_test.go`
-- `cmd/ai-hub/e07_validation_helpers_test.go`
+- `cmd/ai-hub/e07/support/e07_codex_env_policy_support.go`
+- `cmd/ai-hub/e07/support/e07_integrity.go`
+- `cmd/ai-hub/e07/support/e07_integrity_tree.go`
+- `cmd/ai-hub/e07/support/e07_live_hub.go`
+- `cmd/ai-hub/e07/live/e07_live_scenarios_test.go`
+- `cmd/ai-hub/e07/support/e07_live_setup.go`
+- `cmd/ai-hub/e07/support/e07_provider_support.go`
+- `cmd/ai-hub/e07/support/e07_validation_helpers.go`
 - `docs/validation/E07-codex-first-harness-integration.md`
 - `docs/validation/E07-final-e2e-execution-plan.md`
 
 Untracked E07 tests:
 
-- `cmd/ai-hub/e07_codex_mount_boundary_test.go`
-- `cmd/ai-hub/e07_codex_mount_support_test.go`
-- `cmd/ai-hub/e07_codex_resume_test.go`
-- `cmd/ai-hub/e07_integrity_git_test.go`
-- `cmd/ai-hub/e07_integrity_hash_test.go`
-- `cmd/ai-hub/e07_integrity_mount_test.go`
-- `cmd/ai-hub/e07_integrity_secret_test.go`
-- `cmd/ai-hub/e07_live_credentials_test.go`
-- `cmd/ai-hub/e07_live_evidence_test.go`
-- `cmd/ai-hub/e07_live_integrity_support_test.go`
+- `cmd/ai-hub/e07/codex/e07_codex_mount_boundary_test.go`
+- `cmd/ai-hub/e07/support/e07_codex_mount_support.go`
+- `cmd/ai-hub/e07/codex/e07_codex_resume_test.go`
+- `cmd/ai-hub/e07/support/e07_integrity_git_support.go`
+- `cmd/ai-hub/e07/support/e07_integrity_tree.go`
+- `cmd/ai-hub/e07/integrity/e07_integrity_mount_test.go`
+- `cmd/ai-hub/e07/integrity/e07_integrity_secret_test.go`
+- `cmd/ai-hub/e07/live/e07_live_credentials_test.go`
+- `cmd/ai-hub/e07/support/e07_live_evidence_support.go`
+- `cmd/ai-hub/e07/support/e07_live_evidence_support.go`
 
 The supervisor is part of the authorized validation scope and remains
 untracked until the user authorizes a commit. Include it in any working-tree
