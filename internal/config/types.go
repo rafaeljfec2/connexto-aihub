@@ -58,6 +58,7 @@ var knownEnvKeys = map[string]struct{}{
 	EnvRecordsMaxCount:           {},
 	EnvRecordsMaxStorageBytes:    {},
 	EnvRecordsSegmentBytes:       {},
+	EnvCredentialKey:             {},
 	EnvRecordsRetentionInterval:  {},
 	EnvDatabaseURL:               {},
 	EnvDatabaseMaxConns:          {},

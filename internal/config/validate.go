@@ -70,6 +70,7 @@ func (c Config) Validate() error {
 	errs = append(errs, c.Gateway.validate(c.Server.Host, c.Provider.OpenCodeGo.APIKey)...)
 	errs = append(errs, c.Records.validate()...)
 	errs = append(errs, validateDatabase(c)...)
+	errs = append(errs, validateCredentials(c)...)
 
 	return errors.Join(errs...)
 }

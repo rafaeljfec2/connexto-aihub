@@ -85,10 +85,19 @@ func (m *Manager) Statuses() []Status {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	enabled := m.client.Enabled()
+	state := m.state
+
+	// A runtime disable must be visible immediately, even though availability
+	// is only re-evaluated at startup.
+	if !enabled {
+		state = StateDisabled
+	}
+
 	return []Status{{
 		ID:      OpenCodeGoID,
-		Enabled: m.client.Enabled(),
-		State:   m.state,
+		Enabled: enabled,
+		State:   state,
 	}}
 }
 

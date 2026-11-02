@@ -33,10 +33,15 @@ func NewPostgresStore(pool *pgxpool.Pool, logger *slog.Logger) *PostgresStore {
 }
 
 const (
+	// Administrative-only providers (a management name with no sync attempt)
+	// are configuration, not catalog state: they stay out of the snapshot until
+	// the catalog synchronizes them.
 	postgresSelectProviders = `
 SELECT id, last_attempt_at, last_success_at, outcome, error_class, upstream_status,
        discovered_count, added_count, updated_count, unchanged_count, missing_count
-FROM providers ORDER BY id`
+FROM providers
+WHERE name IS NULL OR last_attempt_at IS NOT NULL
+ORDER BY id`
 
 	postgresSelectModels = `
 SELECT provider_id, model_id, canonical_id, name, type, family, modalities,
@@ -115,8 +120,9 @@ func (s *PostgresStore) readSnapshot(ctx context.Context, tx pgx.Tx) (Snapshot, 
 	return snapshot, LoadResult{}, nil
 }
 
-// Save replaces the entire persisted snapshot atomically. FK cascade from
-// providers to models keeps the two DELETE/INSERT phases consistent. The
+// Save replaces the persisted catalog snapshot atomically. Models are fully
+// replaced; providers are upserted on their sync-state columns only, so the
+// provider management configuration is never deleted by a catalog save. The
 // caller context decides the deadline (the manager passes sync_timeout).
 func (s *PostgresStore) Save(ctx context.Context, snapshot Snapshot) (SaveResult, error) {
 	if err := ctx.Err(); err != nil {
@@ -132,8 +138,12 @@ func (s *PostgresStore) Save(ctx context.Context, snapshot Snapshot) (SaveResult
 
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if _, err := tx.Exec(ctx, "DELETE FROM providers"); err != nil {
-		return SaveResult{}, errf("clear providers: %w", err)
+	if _, err := tx.Exec(ctx, "DELETE FROM models"); err != nil {
+		return SaveResult{}, errf("clear models: %w", err)
+	}
+
+	if err := s.releaseAbsentProviders(ctx, tx, snapshot.Providers); err != nil {
+		return SaveResult{}, err
 	}
 
 	if err := s.writeProviders(ctx, tx, snapshot.Providers); err != nil {

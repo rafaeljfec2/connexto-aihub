@@ -104,6 +104,11 @@ func run() error {
 	// closes the pool only after the catalog and records stop.
 	var databaseModule app.Module
 
+	var (
+		configModule  app.Module
+		providerAdmin *gateway.ProviderAdmin
+	)
+
 	if cfg.Catalog.Persistence == config.EnvCatalogPersistencePostgres {
 		pool, err := db.Open(db.Settings{
 			URL:            cfg.Database.URL,
@@ -117,6 +122,14 @@ func run() error {
 
 		databaseModule = db.NewModule(pool, logger)
 		catalogStore = catalog.NewPostgresStore(pool, logger)
+
+		providerConfig, err := buildProviderConfiguration(cfg, pool, providerClient, logger)
+		if err != nil {
+			return err
+		}
+
+		configModule = providerConfig.module
+		providerAdmin = gateway.NewProviderAdmin(providerConfig.service, logger)
 
 		if err := readiness.Register("database", db.PingCheck(pool, cfg.Database.ConnectTimeout)); err != nil {
 			return fmt.Errorf("register database readiness check: %w", err)
@@ -145,8 +158,8 @@ func run() error {
 		return fmt.Errorf("build gateway access policy: %w", err)
 	}
 
-	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
-		server.Route{
+	routes := []server.Route{
+		{
 			Method:    http.MethodPost,
 			Pattern:   "/v1/responses",
 			Handler:   gateway.NewResponsesHandlerWithManager(providerClient, executionManager, logger, gateway.StreamInactivityTimeout),
@@ -193,7 +206,10 @@ func run() error {
 			Pattern: "/v1/records/executions/{execution_id}",
 			Handler: gateway.NewExecutionRecordHandler(recordsModule),
 		},
-	)
+	}
+
+	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
+		append(routes, providerAdminRoutes(providerAdmin)...)...)
 
 	httpServer := server.New(cfg.Server, router, logger,
 		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),
@@ -201,11 +217,14 @@ func run() error {
 	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
 	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, executionManager)
 
-	modules := []app.Module{guardedProvider}
+	modules := make([]app.Module, 0, 6)
 	if databaseModule != nil {
 		modules = append(modules, databaseModule)
 	}
-	modules = append(modules, catalogModule, recordsModule, serviceLifecycle)
+	if configModule != nil {
+		modules = append(modules, configModule)
+	}
+	modules = append(modules, guardedProvider, catalogModule, recordsModule, serviceLifecycle)
 
 	application, err := app.New(logger, modules...)
 	if err != nil {

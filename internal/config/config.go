@@ -14,13 +14,14 @@ import (
 
 // Config is the root configuration.
 type Config struct {
-	Server   Server
-	Log      Log
-	Provider Provider
-	Catalog  Catalog
-	Gateway  Gateway
-	Records  Records
-	Database Database
+	Server      Server
+	Log         Log
+	Provider    Provider
+	Catalog     Catalog
+	Gateway     Gateway
+	Records     Records
+	Database    Database
+	Credentials Credentials
 }
 
 // Default returns the baseline configuration used as the starting point for
@@ -67,6 +68,10 @@ func Load() (Config, error) {
 	}
 
 	if err := applyDatabaseEnvironment(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	if err := applyCredentialEnvironment(&cfg); err != nil {
 		return Config{}, err
 	}
 

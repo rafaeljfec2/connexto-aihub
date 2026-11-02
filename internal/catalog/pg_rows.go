@@ -16,11 +16,34 @@ func errf(format string, args ...any) error {
 }
 
 const (
+	postgresDeleteAbsentCatalogProviders = `
+DELETE FROM providers WHERE name IS NULL AND NOT (id = ANY($1::text[]))`
+
+	postgresResetAbsentManagedProviders = `
+UPDATE providers SET last_attempt_at = NULL, last_success_at = NULL, outcome = 'never',
+       error_class = 'none', upstream_status = 0, discovered_count = 0, added_count = 0,
+       updated_count = 0, unchanged_count = 0, missing_count = 0
+WHERE name IS NOT NULL AND NOT (id = ANY($1::text[]))`
+
+	// The upsert touches only sync-state columns: provider management
+	// columns (name, type, endpoint, credentials) belong to the provider
+	// module and must survive every catalog snapshot save.
 	postgresInsertProvider = `
 INSERT INTO providers (id, last_attempt_at, last_success_at, outcome, error_class,
                        upstream_status, discovered_count, added_count, updated_count,
                        unchanged_count, missing_count)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+ON CONFLICT (id) DO UPDATE SET
+    last_attempt_at  = EXCLUDED.last_attempt_at,
+    last_success_at  = EXCLUDED.last_success_at,
+    outcome          = EXCLUDED.outcome,
+    error_class      = EXCLUDED.error_class,
+    upstream_status  = EXCLUDED.upstream_status,
+    discovered_count = EXCLUDED.discovered_count,
+    added_count      = EXCLUDED.added_count,
+    updated_count    = EXCLUDED.updated_count,
+    unchanged_count  = EXCLUDED.unchanged_count,
+    missing_count    = EXCLUDED.missing_count`
 
 	postgresInsertModel = `
 INSERT INTO models (provider_id, model_id, canonical_id, name, type, family, modalities,
@@ -155,6 +178,24 @@ func scanModelRow(rows pgx.Rows) (ModelEntry, string, error) {
 	}
 
 	return entry, providerID, nil
+}
+
+// releaseAbsentProviders applies the full-replace semantics to providers that
+// the snapshot no longer contains. Catalog-only rows (no management name) are
+// deleted. Configured providers keep their management columns and only have
+// their sync state reset to the never-synced state.
+func (s *PostgresStore) releaseAbsentProviders(ctx context.Context, tx pgx.Tx, providers map[string]ProviderSnapshot) error {
+	ids := sortedStringKeys(providers)
+
+	if _, err := tx.Exec(ctx, postgresDeleteAbsentCatalogProviders, ids); err != nil {
+		return errf("remove absent providers: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, postgresResetAbsentManagedProviders, ids); err != nil {
+		return errf("reset absent managed providers: %w", err)
+	}
+
+	return nil
 }
 
 func (s *PostgresStore) writeProviders(ctx context.Context, tx pgx.Tx, providers map[string]ProviderSnapshot) error {
