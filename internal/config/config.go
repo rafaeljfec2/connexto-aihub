@@ -20,6 +20,7 @@ type Config struct {
 	Catalog  Catalog
 	Gateway  Gateway
 	Records  Records
+	Database Database
 }
 
 // Default returns the baseline configuration used as the starting point for
@@ -47,9 +48,11 @@ func Default() Config {
 		Catalog: Catalog{
 			StaleAfter:  24 * time.Hour,
 			SyncTimeout: 10 * time.Second,
+			Persistence: EnvCatalogPersistenceFile,
 		},
-		Gateway: defaultGateway(),
-		Records: defaultRecords(),
+		Gateway:  defaultGateway(),
+		Records:  defaultRecords(),
+		Database: defaultDatabase(),
 	}
 }
 
@@ -62,6 +65,12 @@ func Load() (Config, error) {
 	if err := applyEnvironment(&cfg); err != nil {
 		return Config{}, err
 	}
+
+	if err := applyDatabaseEnvironment(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	resolvePersistenceDefaults(&cfg)
 
 	if cfg.Catalog.DataDir == "" {
 		dir, err := defaultDataDir()

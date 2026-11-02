@@ -59,6 +59,11 @@ var knownEnvKeys = map[string]struct{}{
 	EnvRecordsMaxStorageBytes:    {},
 	EnvRecordsSegmentBytes:       {},
 	EnvRecordsRetentionInterval:  {},
+	EnvDatabaseURL:               {},
+	EnvDatabaseMaxConns:          {},
+	EnvDatabaseMinConns:          {},
+	EnvDatabaseConnectTimeout:    {},
+	EnvCatalogPersistence:        {},
 }
 
 // LogLevel is a validated log level accepted by the application.
@@ -156,9 +161,13 @@ type Provider struct {
 }
 
 // Catalog groups the model catalog settings. An empty DataDir means "resolve
-// the XDG default during Load".
+// the XDG default during Load". Persistence is resolved in Load (ADR-020):
+// file, or postgres when a database URL is configured.
 type Catalog struct {
 	DataDir     string
 	StaleAfter  time.Duration
 	SyncTimeout time.Duration
+	Persistence string
+
+	persistenceSet bool // true when AIHUB_CATALOG_PERSISTENCE was explicit
 }

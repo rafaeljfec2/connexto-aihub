@@ -4,6 +4,10 @@
 *.test
 coverage.out
 
+# Node workspace artifacts (pnpm + Turborepo)
+node_modules/
+.turbo/
+
 # Local configuration and secrets
 .env
 .env.*

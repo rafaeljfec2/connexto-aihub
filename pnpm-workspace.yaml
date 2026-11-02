@@ -1,0 +1,5 @@
+packages:
+  # Future React + Vite dashboard lives here (app #1 is created in a later phase).
+  - "apps/*"
+  # Future shared JavaScript/TypeScript packages (for example a UI kit).
+  - "packages/*"

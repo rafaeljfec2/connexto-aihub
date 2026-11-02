@@ -17,6 +17,7 @@ import (
 	"aihub/internal/app"
 	"aihub/internal/catalog"
 	"aihub/internal/config"
+	"aihub/internal/db"
 	"aihub/internal/execution"
 	"aihub/internal/gateway"
 	"aihub/internal/health"
@@ -93,15 +94,45 @@ func run() error {
 			}, payload, contentType, sessionID)
 		}, gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
 
-	catalogStore := catalog.NewStore(cfg.Catalog.DataDir, logger)
+	var catalogStore catalog.SnapshotStore = catalog.NewStore(cfg.Catalog.DataDir, logger)
+
+	readiness := health.NewRegistry()
+
+	// Database module (ADR-020): present only in postgres persistence mode.
+	// It is declared between the providers and the catalog so startup
+	// migrates and pings before the catalog loads its snapshot, and shutdown
+	// closes the pool only after the catalog and records stop.
+	var databaseModule app.Module
+
+	if cfg.Catalog.Persistence == config.EnvCatalogPersistencePostgres {
+		pool, err := db.Open(db.Settings{
+			URL:            cfg.Database.URL,
+			MaxConns:       cfg.Database.MaxConns,
+			MinConns:       cfg.Database.MinConns,
+			ConnectTimeout: cfg.Database.ConnectTimeout,
+		})
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+
+		databaseModule = db.NewModule(pool, logger)
+		catalogStore = catalog.NewPostgresStore(pool, logger)
+
+		if err := readiness.Register("database", db.PingCheck(pool, cfg.Database.ConnectTimeout)); err != nil {
+			return fmt.Errorf("register database readiness check: %w", err)
+		}
+
+		logger.Info("catalog persistence configured", "mode", config.EnvCatalogPersistencePostgres)
+	} else {
+		logger.Info("catalog persistence configured", "mode", config.EnvCatalogPersistenceFile)
+	}
+
 	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
 		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
 	}, catalogStore, catalog.Options{
 		StaleAfter:  cfg.Catalog.StaleAfter,
 		SyncTimeout: cfg.Catalog.SyncTimeout,
 	})
-
-	readiness := health.NewRegistry()
 
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey:               cfg.Gateway.APIKey,
@@ -170,7 +201,13 @@ func run() error {
 	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
 	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, executionManager)
 
-	application, err := app.New(logger, guardedProvider, catalogModule, recordsModule, serviceLifecycle)
+	modules := []app.Module{guardedProvider}
+	if databaseModule != nil {
+		modules = append(modules, databaseModule)
+	}
+	modules = append(modules, catalogModule, recordsModule, serviceLifecycle)
+
+	application, err := app.New(logger, modules...)
 	if err != nil {
 		return err
 	}

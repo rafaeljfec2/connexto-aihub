@@ -32,11 +32,34 @@ Routing, learning, quotas and multi-provider orchestration are not implemented.
 - E06 execution records: non-blocking observation of finished executions,
   append-only JSONL storage under `AIHUB_DATA_DIR`, bounded retention and
   cursor-based query endpoints.
+- Management Foundation Phase A (workspace foundation): pnpm 12 + Turborepo 2
+  workspace for the future dashboard, with the Go backend unchanged at the
+  root and validated through native Go commands.
 
 ## Requirements
 
 - Go 1.23 or newer.
 - No external Go dependencies.
+- Node.js 22+ with pnpm 12 is required only for the workspace tooling
+  (Turborepo and future frontend); it is not needed to build or test the
+  backend.
+
+## Workspace (pnpm + Turborepo)
+
+The repository is a hybrid monorepo since the Management Foundation Phase A
+(see [ADR-019](docs/adr/ADR-019-hybrid-monorepo-workspace-tooling.md) and the
+[workspace guide](docs/development-workspace.md)). The Go backend stays at the
+root and keeps native Go commands; pnpm/Turborepo cover `apps/*` and
+`packages/*` for the future React + Vite dashboard.
+
+```bash
+pnpm install   # JS/TS tooling (turbo); no effect on Go builds
+pnpm build     # go build ./...
+pnpm dev       # go run ./cmd/ai-hub
+pnpm lint      # go vet ./...
+pnpm test      # go test ./... -count=1 -race
+pnpm check     # go vet ./... && go test ./... -count=1 -race
+```
 
 ## Run locally
 
@@ -115,12 +138,33 @@ variables are ignored with a startup warning; invalid values abort startup.
 | `AIHUB_RECORDS_MAX_STORAGE_BYTES`      | `134217728` (128 MiB)                |
 | `AIHUB_RECORDS_SEGMENT_BYTES`          | `8388608` (8 MiB)                    |
 | `AIHUB_RECORDS_RETENTION_INTERVAL`     | `1h`                                 |
+| `AIHUB_DATABASE_URL`                   | *(empty — no database)*              |
+| `AIHUB_DATABASE_MAX_CONNS`             | `4`                                  |
+| `AIHUB_DATABASE_MIN_CONNS`             | `0`                                  |
+| `AIHUB_DATABASE_CONNECT_TIMEOUT`       | `5s`                                 |
+| `AIHUB_CATALOG_PERSISTENCE`            | `postgres` when a database URL is set, `file` otherwise |
 | `AIHUB_GATEWAY_API_KEY`                | *(required, no default)*             |
 | `AIHUB_GATEWAY_ALLOWED_HOSTS`          | loopback hosts when unset            |
 | `AIHUB_GATEWAY_ALLOWED_ORIGINS`        | *(empty — no browser Origin allowed)*|
 | `AIHUB_GATEWAY_MAX_BODY_BYTES`         | `33554432` (32 MiB)                  |
 
 Durations use Go syntax (`250ms`, `15s`, `1m30s`). See [.env.example](.env.example).
+
+Database and catalog persistence (Phase B, ADR-020):
+
+- `AIHUB_DATABASE_URL` accepts URL-form PostgreSQL DSNs only
+  (`postgres://` or `postgresql://` with a non-empty host) and is redacted in
+  logs and errors. When it is empty the server runs local-first with the JSON
+  snapshot file of ADR-010 and PostgreSQL is never touched.
+- When a database URL is configured, startup connects, migrates the embedded
+  schema and pings; any failure aborts the process. The catalog snapshot is
+  then persisted in PostgreSQL (full-replace per sync) instead of
+  `catalog.json`, and `/readyz` gains a `database` check.
+- `AIHUB_CATALOG_PERSISTENCE` selects the mode explicitly (`file` or
+  `postgres`); `postgres` requires a database URL.
+- `AIHUB_DATABASE_MAX_CONNS` is 1–64, `AIHUB_DATABASE_MIN_CONNS` is 0–32 and
+  must stay below `MAX_CONNS`, and `AIHUB_DATABASE_CONNECT_TIMEOUT` ranges
+  from 100 ms to 60 s.
 
 Gateway settings (E04):
 
@@ -655,6 +699,8 @@ The real-provider validator remains separately gated by `AIHUB_E07_LIVE=1`.
 
 ## Documentation
 
+- [`docs/development-workspace.md`](docs/development-workspace.md) — workspace
+  guide (pnpm + Turborepo, how the future frontend joins the pipeline).
 - [`docs/architecture.md`](docs/architecture.md) — implemented architecture and flow.
 - [`docs/specs/E02-provider-management.md`](docs/specs/E02-provider-management.md) — E02 spec and decisions.
 - [`docs/specs/E03-model-catalog.md`](docs/specs/E03-model-catalog.md) — E03 spec and decisions.
@@ -670,7 +716,8 @@ The real-provider validator remains separately gated by `AIHUB_E07_LIVE=1`.
 - [`docs/validation/E01-E07-execution-history.md`](docs/validation/E01-E07-execution-history.md) — cross-epic delivery history, validation status, recorded corrections and lessons.
 - [`docs/discovery/E06-discovery.md`](docs/discovery/E06-discovery.md) — E06 discovery evidence.
 - [`docs/research/opencode-go-protocol-spike.md`](docs/research/opencode-go-protocol-spike.md) — validated integration evidence.
-- [`docs/adr/`](docs/adr/) — architecture decision records (including ADR-009 through ADR-013).
+- ADRs are indexed at [`docs/adr/README.md`](docs/adr/README.md) (including
+  ADR-019 — hybrid monorepo workspace tooling).
 
 ## Known limitations
 

@@ -1,0 +1,18 @@
+{
+  "name": "ai-hub",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "go build ./...",
+    "dev": "go run ./cmd/ai-hub",
+    "lint": "go vet ./...",
+    "test": "go test ./... -count=1 -race",
+    "check": "go vet ./... && go test ./... -count=1 -race"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.10"
+  }
+}

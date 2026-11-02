@@ -24,6 +24,8 @@ runtime architecture decision or ADR.
 | ADR-016 | Execution timeout and HTTP error mapping                        |
 | ADR-017 | Execution records storage: append-only JSONL segments            |
 | ADR-018 | E05 terminal observation and records delivery                    |
+| ADR-019 | Hybrid monorepo: independent Go Modules and pnpm ecosystems with Turborepo orchestration |
+| ADR-020 | PostgreSQL persistence foundation: pgx, embedded migrations and catalog persistence modes |
 
 New decisions get the next number. Superseded records stay in place and are
 marked as such.

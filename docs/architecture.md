@@ -49,7 +49,8 @@ depend on the standard library only.
 | `internal/health`        | Readiness registry and liveness/readiness handlers.                                                       |
 | `internal/observability` | `slog` construction and correlation ID context propagation.                                               |
 | `internal/providers`     | OpenCode Go adapter: credential handling, catalog descriptors, Responses execution, provider state (E02). |
-| `internal/catalog`       | Model catalog domain, JSON snapshot, synchronization and queries (E03).                                   |
+| `internal/catalog`       | Model catalog domain, file/PostgreSQL snapshots, synchronization and queries (E03/Phase B).                |
+| `internal/db`            | PostgreSQL pool, embedded migrations, DSN redaction and database lifecycle (Phase B).                    |
 | `internal/gateway`       | Provider passthrough (E02), catalog (E03) and records query handlers (E06).                              |
 | `internal/execution`     | Per-request execution lifecycle, cancellation, terminal arbitration and drain coordination (E05).         |
 | `internal/records`       | Content-free execution records, bounded writer, JSONL persistence, retention and query index (E06).       |
@@ -64,9 +65,11 @@ abstraction will be introduced only when a second provider exists.
    key and access policy. Invalid input aborts before any listener is created.
 2. The logger is built from the validated log settings.
 3. Modules are constructed explicitly and injected into `app.New`.
-4. `App.Start` starts modules in order (`guarded providers` → `catalog` →
-   `records` → `http/execution lifecycle`), stopping already started modules in
-   reverse order if one fails.
+4. `App.Start` starts modules in order (`guarded providers` → optional
+    `database` → `catalog` → `records` → `http/execution lifecycle`), stopping
+    already started modules in reverse order if one fails. In PostgreSQL mode,
+    the database module applies migrations and pings before the catalog loads;
+    its pool closes last.
 5. The process waits for `SIGINT`/`SIGTERM` or a fatal serving error.
 6. `App.Stop` runs with a context limited by `server.shutdown_timeout`. The
    HTTP/execution lifecycle closes execution admission and drains or cancels
@@ -242,12 +245,25 @@ Synchronization:
 - Missing models are retained with `missing_since`; `missing` counts only the
   present→absent transition of the accepted sync.
 
-Persistence is a versioned JSON snapshot at `{AIHUB_DATA_DIR}/catalog.json`
-(`0600`, directory `0700`). Writes use a temp file, file `fsync`, `rename` and a
-best-effort directory `fsync`; the previous snapshot is never truncated. A
-corrupt or unsupported snapshot is quarantined under a unique name before the
-catalog starts empty; if quarantine fails, writes are disabled for the session
-so recoverable data is never overwritten. One process owns the data directory.
+Persistence defaults to the versioned JSON snapshot at
+`{AIHUB_DATA_DIR}/catalog.json` (`0600`, directory `0700`). In this mode,
+writes use a temp file, file `fsync`, `rename` and a best-effort directory
+`fsync`; the previous snapshot is never truncated. A corrupt or unsupported
+snapshot is quarantined under a unique name before the catalog starts empty; if
+quarantine fails, writes are disabled for the session so recoverable data is
+never overwritten. One process owns the data directory.
+
+When `AIHUB_DATABASE_URL` is configured, `AIHUB_CATALOG_PERSISTENCE` defaults
+to `postgres` and the catalog uses PostgreSQL instead. Migration `0001_init`
+creates `schema_migrations`, `providers`, `models` and `catalog_metadata`;
+migration execution is serialized by a PostgreSQL advisory lock and startup
+fails closed on connection, migration or ping errors. A PostgreSQL save
+replaces the complete snapshot in one transaction, preserving the file-store
+model identity and validation rules. PostgreSQL load degrades to an empty
+snapshot on storage/validation failure but does not disable future writes.
+`/readyz` exposes a `database` check in this mode. Set
+`AIHUB_CATALOG_PERSISTENCE=file` to retain the file store explicitly;
+`postgres` requires a database URL.
 
 ## Execution lifecycle and records (E05/E06)
 

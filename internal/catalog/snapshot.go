@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -14,6 +15,17 @@ type Snapshot struct {
 	Version   int                         `json:"version"`
 	SavedAt   time.Time                   `json:"saved_at"`
 	Providers map[string]ProviderSnapshot `json:"providers"`
+}
+
+// SnapshotStore persists a complete catalog Snapshot. It mirrors the file
+// snapshot contract: Load never returns an error, degrading to an empty
+// snapshot with a diagnostic, so startup cannot fail because of persisted
+// catalog state; Save may fail and the manager records the persistence
+// failure without committing accepted state. Implementations: the versioned
+// JSON snapshot file store (ADR-010) and the PostgreSQL store (ADR-020).
+type SnapshotStore interface {
+	Load(ctx context.Context) (Snapshot, LoadResult)
+	Save(ctx context.Context, snapshot Snapshot) (SaveResult, error)
 }
 
 // ProviderSnapshot groups one provider's accepted models and sync state.

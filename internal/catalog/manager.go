@@ -38,7 +38,7 @@ type Manager struct {
 	logger      *slog.Logger
 	statuses    func() []providers.Status
 	sources     map[string]SourceFunc
-	store       *Store
+	store       SnapshotStore
 	staleAfter  time.Duration
 	syncTimeout time.Duration
 	now         func() time.Time
@@ -56,7 +56,7 @@ type Manager struct {
 }
 
 // NewManager builds the catalog module.
-func NewManager(logger *slog.Logger, statuses func() []providers.Status, sources map[string]SourceFunc, store *Store, opts Options) *Manager {
+func NewManager(logger *slog.Logger, statuses func() []providers.Status, sources map[string]SourceFunc, store SnapshotStore, opts Options) *Manager {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
