@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"aihub/internal/access"
@@ -23,6 +25,8 @@ const StreamInactivityTimeout = 2 * time.Minute
 const (
 	sessionHeader = "X-Opencode-Session"
 	SessionPrefix = "aihub-ses-"
+	// Keep captured identifiers within the execution-record model_id bound.
+	maxObservedModelIDBytes = 4096
 )
 
 // NewResponsesHandler creates a standalone execution manager for this handler.
@@ -69,8 +73,11 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.manager.Execute(r.Context(), execution.Command{
-		RequestID:         observability.CorrelationIDFrom(r.Context()),
-		Target:            execution.Target{ProviderID: providers.OpenCodeGoID},
+		RequestID: observability.CorrelationIDFrom(r.Context()),
+		Target: execution.Target{
+			ProviderID: providers.OpenCodeGoID,
+			ModelID:    requestedModelID(payload),
+		},
 		ProviderSessionID: sessionID,
 		Payload:           payload,
 		ContentType:       contentType,
@@ -95,6 +102,22 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if result.Outcome == execution.OutcomeFailed && result.Phase == execution.PhaseOpening {
 		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
 	}
+}
+
+func requestedModelID(payload []byte) string {
+	var request struct {
+		Model *string `json:"model"`
+	}
+	if err := json.Unmarshal(payload, &request); err != nil || request.Model == nil {
+		return ""
+	}
+
+	modelID := *request.Model
+	if strings.TrimSpace(modelID) == "" || len(modelID) > maxObservedModelIDBytes {
+		return ""
+	}
+
+	return modelID
 }
 
 type responseSink struct {

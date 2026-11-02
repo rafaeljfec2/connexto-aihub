@@ -21,9 +21,11 @@ without adding routing policy or a speculative provider framework.
 2. Define `Target{ProviderID, ModelID}` and
    `Command{RequestID, Target, ProviderSessionID, Payload, ContentType}`.
    `ModelID` may be absent only on the E02 passthrough path; if supplied it must
-   be non-empty. The legacy gateway sets `ProviderID` to `opencode-go`, leaves
-   `ModelID` absent, and does not parse the payload to discover or validate a
-   model.
+   be non-empty. The legacy gateway sets `ProviderID` to `opencode-go` and may
+   extract a string `model` value into `ModelID` for observability. This
+   read-only extraction does not validate the request, select a destination, or
+   alter the payload; absent, empty, incompatible, unparseable, or over-limit
+   values leave `ModelID` absent.
 3. `Manager.Execute(ctx, command, sink)` returns a terminal `Result` for an
    admitted execution. It returns a typed admission error without creating an
    execution when the command is invalid or the drain gate is closed. The

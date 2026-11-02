@@ -144,11 +144,12 @@ are excluded.
 
 For the current route, composition supplies `provider_id = opencode-go`, the
 only configured adapter. The current requested model remains part of the
-provider-ready payload. If the Gateway extracts a model identifier for target
-metadata, extraction must be read-only and must not reject or alter a payload
-that E02 previously forwarded to the provider. The model identifier may
-therefore be absent from target metadata on this legacy passthrough path; the
-provider remains authoritative for payload validation.
+provider-ready payload. The Gateway may read the JSON `model` string into target
+metadata for observability. Extraction must be read-only and must not reject or
+alter a payload that E02 previously forwarded to the provider. Missing,
+empty, whitespace-only, incompatible, unparseable, or over-limit model values
+leave target metadata absent; the provider remains authoritative for request
+validation.
 
 The Execution Manager validates command structure: `provider_id` must be
 non-empty and resolve to a configured adapter; a supplied `model_id` must be
