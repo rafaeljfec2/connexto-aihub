@@ -1,22 +1,25 @@
-# ADR-001 — Standard library HTTP server
+# ADR-001 — Fiber HTTP server with net/http-compatible handlers
 
-- **Status:** accepted
+- **Status:** superseded by the Fiber v2 transport migration
 - **Date:** 2026-10-30
 - **Context:** E01 needs routing, middleware, timeouts and graceful shutdown.
 
 ## Decision
 
-Use `net/http` with `http.ServeMux` and Go 1.22+ method patterns. No HTTP
-framework is introduced.
+Use Fiber v2 as the only network HTTP server. Existing application handlers and
+middleware continue to use the `net/http` contracts behind an explicit adapter
+so the migration does not rewrite gateway or domain behavior.
 
 ## Rationale
 
-- Zero dependencies, matching the project rule to minimise them.
-- Timeouts, header limits, shutdown and middleware are native.
-- The routing surface in E01 is two endpoints; a framework would add no value.
+- Fiber provides the required network server and graceful shutdown primitives.
+- The adapter preserves the established handler, authentication and error
+  contracts while allowing the transport to migrate incrementally.
+- Streaming uses Fiber/fasthttp's body stream writer rather than the generic
+  net/http adapter, which would buffer response bodies.
 
 ## Consequences
 
-- More explicit middleware wiring than framework-provided helpers.
-- The router can be replaced without touching domain code if E04 requires
-  framework-grade routing.
+- The adapter must never retain a `fiber.Ctx` after a request returns.
+- Streaming and cancellation require real-listener tests; unit tests alone are
+  insufficient evidence.

@@ -6,7 +6,7 @@ runtime architecture decision or ADR.
 
 | ADR     | Decision                                                        |
 | ------- | --------------------------------------------------------------- |
-| ADR-001 | Standard library HTTP server                                    |
+| ADR-001 | Fiber HTTP server with net/http-compatible handlers             |
 | ADR-002 | JSON configuration with environment overrides                   |
 | ADR-003 | Structured logging with slog and correlation IDs                |
 | ADR-004 | Explicit module lifecycle                                       |

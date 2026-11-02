@@ -44,7 +44,7 @@ depend on the standard library only.
 | `cmd/ai-hub`             | Process entrypoint, flags, signal handling, shutdown budget.                                              |
 | `internal/app`           | `Module` contract, ordered start, reverse-order stop, rollback.                                           |
 | `internal/config`        | Typed configuration, env defaults overrides, validation, provider settings.                               |
-| `internal/server`        | Listener, exposure policy, `http.Server`, routing tree and HTTP middleware.                               |
+| `internal/server`        | Fiber v2 listener, exposure policy, net/http-compatible routing tree and HTTP middleware.                 |
 | `internal/access`        | Static bearer authentication, Host/Origin policy, request admission and request identity (E04).           |
 | `internal/health`        | Readiness registry and liveness/readiness handlers.                                                       |
 | `internal/observability` | `slog` construction and correlation ID context propagation.                                               |
@@ -82,6 +82,15 @@ instead of surfacing asynchronously. The bound address is checked after
 accepted only after explicit allowed-host configuration; otherwise the listener
 is closed and startup fails.
 
+Fiber is the only network HTTP server. The existing `net/http` handler tree is
+adapted at the transport boundary so gateway, access and health contracts remain
+unchanged. The adapter uses fasthttp's body stream writer for progressive SSE;
+the generic Fiber net/http adaptor is intentionally not used because it buffers
+response bodies. It does not retain a `fiber.Ctx` after request handling. Fiber's
+request context is detached from its server-shutdown signal so E05 remains the
+sole owner of shutdown cancellation; failed stream writes still cancel active
+execution through the existing sink.
+
 ## Request pipeline
 
 ```text
@@ -100,7 +109,7 @@ Access policy: Host/Origin -> bearer authentication
 route admission: body bound, media/encoding and provider session
         |
         v
-http.ServeMux ->  GET /healthz | GET /readyz
+net/http-compatible route tree ->  GET /healthz | GET /readyz
    |              | GET /v1/models        | GET /diagnostics/providers
    |              | POST /v1/responses    (streaming, byte-for-byte pass-through)
    |              | GET /v1/catalog/models | GET /v1/catalog/models/{provider}/{model...}

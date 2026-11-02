@@ -3,27 +3,31 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
+	"sync/atomic"
 
 	"aihub/internal/config"
+	"github.com/gofiber/fiber/v2"
 )
 
 // maxHeaderBytes limits request headers accepted by the server.
 const maxHeaderBytes = 64 << 10
 
-// Server is the HTTP transport module. It owns the listener and the http.Server
-// instance, while the routing tree is injected by the caller.
+// Server is the HTTP transport module. Fiber owns the network server and the
+// routing tree remains injected as a net/http handler to preserve application
+// and middleware contracts during the migration.
 type Server struct {
 	cfg              config.Server
 	logger           *slog.Logger
-	httpServer       *http.Server
-	listener         net.Listener
+	app              *fiber.App
+	listener         *trackedListener
 	errCh            chan error
 	allowNonLoopback bool
+	shuttingDown     atomic.Bool
 }
 
 type options struct {
@@ -55,16 +59,17 @@ func New(cfg config.Server, handler http.Handler, logger *slog.Logger, opts ...O
 		allowNonLoopback: settings.allowNonLoopback,
 	}
 
-	server.httpServer = &http.Server{
-		Addr:              cfg.Address(),
-		Handler:           handler,
-		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
-		ReadTimeout:       cfg.ReadTimeout,
-		WriteTimeout:      cfg.WriteTimeout,
-		IdleTimeout:       cfg.IdleTimeout,
-		MaxHeaderBytes:    maxHeaderBytes,
-		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
-	}
+	server.app = fiber.New(fiber.Config{
+		ReadTimeout:           cfg.ReadTimeout,
+		WriteTimeout:          cfg.WriteTimeout,
+		IdleTimeout:           cfg.IdleTimeout,
+		ReadBufferSize:        maxHeaderBytes,
+		DisableStartupMessage: true,
+		ErrorHandler: func(_ *fiber.Ctx, err error) error {
+			return err
+		},
+	})
+	server.app.All("/*", fiberHTTPHandler(handler))
 
 	return server
 }
@@ -91,11 +96,11 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("listen on %s: non-loopback exposure requires an explicit allowed-host policy", s.cfg.Address())
 	}
 
-	s.listener = listener
+	s.listener = newTrackedListener(listener)
 	s.logger.Info("http server listening", "address", listener.Addr().String())
 
 	go func() {
-		if err := s.httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.app.Listener(s.listener); err != nil && !s.shuttingDown.Load() {
 			s.errCh <- fmt.Errorf("serve http: %w", err)
 		}
 	}()
@@ -149,7 +154,8 @@ func (s *Server) Addr() string {
 // Stop gracefully shuts the server down, waiting for in-flight requests until
 // the context deadline.
 func (s *Server) Stop(ctx context.Context) error {
-	if err := s.httpServer.Shutdown(ctx); err != nil {
+	s.shuttingDown.Store(true)
+	if err := s.app.ShutdownWithContext(ctx); err != nil {
 		return fmt.Errorf("shutdown http server: %w", err)
 	}
 
@@ -159,8 +165,72 @@ func (s *Server) Stop(ctx context.Context) error {
 
 // ForceClose closes active connections after the graceful shutdown period ends.
 func (s *Server) ForceClose() error {
-	if err := s.httpServer.Close(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("force close http server: %w", err)
+	if s.listener != nil {
+		if err := s.listener.forceClose(); err != nil {
+			return fmt.Errorf("force close http server: %w", err)
+		}
 	}
 	return nil
+}
+
+// trackedListener gives the lifecycle module a force-close operation because
+// fasthttp exposes graceful shutdown but no public active-connection close API.
+type trackedListener struct {
+	net.Listener
+	mu    sync.Mutex
+	conns map[net.Conn]struct{}
+}
+
+func newTrackedListener(listener net.Listener) *trackedListener {
+	return &trackedListener{Listener: listener, conns: make(map[net.Conn]struct{})}
+}
+
+func (l *trackedListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+
+	tracked := &trackedConn{Conn: conn, listener: l}
+	l.mu.Lock()
+	l.conns[tracked] = struct{}{}
+	l.mu.Unlock()
+	return tracked, nil
+}
+
+func (l *trackedListener) Close() error {
+	return l.Listener.Close()
+}
+
+func (l *trackedListener) forceClose() error {
+	err := l.Listener.Close()
+	l.mu.Lock()
+	conns := make([]net.Conn, 0, len(l.conns))
+	for conn := range l.conns {
+		conns = append(conns, conn)
+	}
+	l.mu.Unlock()
+
+	for _, conn := range conns {
+		_ = conn.Close()
+	}
+	return err
+}
+
+func (l *trackedListener) remove(conn net.Conn) {
+	l.mu.Lock()
+	delete(l.conns, conn)
+	l.mu.Unlock()
+}
+
+type trackedConn struct {
+	net.Conn
+	listener *trackedListener
+	once     sync.Once
+}
+
+func (c *trackedConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(func() { c.listener.remove(c) })
+	return err
 }

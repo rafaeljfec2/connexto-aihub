@@ -7,7 +7,7 @@
 ## Context
 
 `App.Stop` stops modules sequentially in reverse declaration order and continues
-after a module error. `http.Server.Shutdown` can use the full shared deadline
+after a module error. Fiber graceful shutdown can use the full shared deadline
 while waiting for active handlers. E05 must close execution admission before
 that wait, cancel remaining work at the grace deadline, join execution-owned
 readers, and keep provider resources open if cleanup cannot be confirmed.
@@ -16,9 +16,9 @@ readers, and keep provider resources open if cleanup cannot be confirmed.
 
 1. Compose the HTTP server and execution manager in one application lifecycle
    module in `cmd/ai-hub`. Start delegates to the server. Stop closes the
-   manager's registration gate before calling `http.Server.Shutdown` with the
+    manager's registration gate before calling Fiber shutdown with the
    configured shutdown context.
-2. Let registered HTTP executions finish while the server performs graceful
+2. Let registered HTTP executions finish while Fiber performs graceful
    shutdown. If graceful shutdown returns an error or reaches its deadline, ask
    the manager to reserve `canceled(shutdown)`, cancel each upstream context,
    and close each owned response body before force-closing active HTTP
