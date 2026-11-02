@@ -165,7 +165,7 @@ func (a *ProviderAdmin) Update() http.Handler {
 	})
 }
 
-// Validate handles POST /api/providers/{id}/validate. It changes no state.
+// Validate handles POST /api/providers/{id}/validate. It updates runtime health only.
 func (a *ProviderAdmin) Validate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := a.service.Validate(r.Context(), r.PathValue("id"))
@@ -181,7 +181,7 @@ func (a *ProviderAdmin) Validate() http.Handler {
 		case errors.Is(err, providers.ErrNotFound), errors.Is(err, providers.ErrCredentialUnreadable):
 			a.writeError(w, err)
 		default:
-			a.logger.Warn("provider validation failed", "provider", r.PathValue("id"), "error", err.Error())
+			a.logger.Warn("provider validation failed", "provider", r.PathValue("id"))
 			writeJSONError(w, http.StatusBadGateway, providerUnreachableType, providerUnreachableMsg)
 		}
 	})

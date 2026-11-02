@@ -88,7 +88,7 @@ func TestE07ProviderBudgetCountsRedirectRetryAgainstSameBudget(t *testing.T) {
 	e07support.AssertE07BudgetSnapshot(t, observer.BudgetSnapshot(), 10, 9, 1, 9)
 }
 
-func TestE07ProviderBudgetIncludesHubReadinessAndExcludesUnauthenticatedRequest(t *testing.T) {
+func TestE07ProviderBudgetExcludesStartupAndUnauthenticatedRequests(t *testing.T) {
 	hub, observer, cfg, err := e07support.E07StartAuthProbeHub(t)
 	if err != nil {
 		t.Fatal("local validation Hub could not start")
@@ -103,8 +103,8 @@ func TestE07ProviderBudgetIncludesHubReadinessAndExcludesUnauthenticatedRequest(
 	})
 
 	startup := observer.BudgetSnapshot()
-	if startup.Forwarded != 1 || startup.Attempted != 1 {
-		t.Fatalf("provider readiness did not consume the shared budget: %+v", startup)
+	if startup.Forwarded != 0 || startup.Attempted != 0 {
+		t.Fatalf("provider startup made requests before an explicit health check: %+v", startup)
 	}
 	status, unchanged, _ := e07support.E07UnauthenticatedProbe(hub, observer)
 	if status != http.StatusUnauthorized || !unchanged {
@@ -123,8 +123,8 @@ func TestE07ProviderBudgetIncludesHubReadinessAndExcludesUnauthenticatedRequest(
 	}
 	hub = restarted
 	hubStopped = false
-	if got := observer.BudgetSnapshot(); got.Forwarded != 2 || got.Attempted != 2 {
-		t.Fatalf("provider readiness budget was reset across restart: %+v", got)
+	if got := observer.BudgetSnapshot(); got.Forwarded != 0 || got.Attempted != 0 {
+		t.Fatalf("provider restart made requests before an explicit health check: %+v", got)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 
 // providerConfiguration groups the PostgreSQL-backed provider administration
 // wiring: the service used by the admin API and the startup module that loads
-// or seeds the configuration before the provider verifies connectivity.
+// or seeds configuration before the provider Manager initializes runtime state.
 type providerConfiguration struct {
 	service *providers.Service
 	module  *providers.ConfigModule

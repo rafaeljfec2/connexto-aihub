@@ -90,11 +90,11 @@ func StartE07Hub(cfg config.Config, observer *E07ProviderObserver, logger *slog.
 	if err := application.Start(context.Background()); err != nil {
 		return nil, errors.New("application startup failed")
 	}
-	if statuses := providerModule.Statuses(); len(statuses) != 1 || !statuses[0].Enabled || statuses[0].State != providers.StateHealthy {
+	if statuses := providerModule.Statuses(); len(statuses) != 1 || !statuses[0].Enabled || statuses[0].State != providers.StateUnknown {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		_ = application.Stop(ctx)
-		return nil, errors.New("OpenCode Go provider is unavailable")
+		return nil, errors.New("OpenCode Go provider did not start in the unknown health state")
 	}
 	return &E07Hub{
 		Application: application,

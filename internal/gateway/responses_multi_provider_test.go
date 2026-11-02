@@ -87,17 +87,28 @@ func TestResponsesRejectsUnknownDisabledAndDuplicateProviderSelectors(t *testing
 	}
 }
 
-func TestResponsesSanitizesOpenRouterHTTPErrorBody(t *testing.T) {
+func TestResponsesSanitizesOpenRouterHTTPErrorBodyWithoutFallback(t *testing.T) {
+	var openCodeHits int
+	openCode := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		openCodeHits++
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(writer, `{"id":"fallback-response"}`)
+	}))
+	defer openCode.Close()
+
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusUnauthorized)
 		_, _ = io.WriteString(writer, `{"error":{"message":"invalid credential `+openRouterTestKey+`"}}`)
 	}))
 	defer upstream.Close()
 
-	handler, _, _ := newRoutedResponsesHandler(t, "https://unused.example.test", upstream.URL)
+	handler, _, _ := newRoutedResponsesHandler(t, openCode.URL, upstream.URL)
 	response := serveResponses(handler, providers.OpenRouterID, `{}`)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+	if openCodeHits != 0 {
+		t.Fatalf("OpenCode Go received %d requests after OpenRouter failed; want no fallback", openCodeHits)
 	}
 	if strings.Contains(response.Body.String(), openRouterTestKey) {
 		t.Fatal("Responses error body exposed the OpenRouter credential")
