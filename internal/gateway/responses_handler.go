@@ -133,6 +133,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	notifyIntegrationRoutingSelected(providerID, modelID)
 	if !h.admitResources(w, r, providerID, modelID) {
 		if pendingRoutingLog {
 			h.logRoutingAfterResourceReject(r, true, routingDecision, explicitProvider)
