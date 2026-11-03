@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -66,6 +67,58 @@ func (s *Service) GetPolicy(ctx context.Context, id int64) (ResourcePolicy, erro
 // ListPolicies returns every policy ordered by scope key.
 func (s *Service) ListPolicies(ctx context.Context) ([]ResourcePolicy, error) {
 	return s.repo.ListPolicies(ctx)
+}
+
+// UpsertPolicy creates or updates the policy for one scope key.
+func (s *Service) UpsertPolicy(ctx context.Context, input UpsertPolicyInput) (ResourcePolicy, error) {
+	if err := validateScope(input.Scope); err != nil {
+		return ResourcePolicy{}, err
+	}
+	if input.DailyLimit <= 0 {
+		return ResourcePolicy{}, fmt.Errorf("%w: daily_limit must be positive", ErrInvalidInput)
+	}
+
+	existing, err := s.repo.GetPolicyByScope(ctx, input.Scope)
+	if errors.Is(err, ErrNotFound) {
+		return s.repo.CreatePolicy(ctx, NewPolicyInput{
+			Scope: input.Scope, DailyLimit: input.DailyLimit, Enabled: input.Enabled,
+		})
+	}
+	if err != nil {
+		return ResourcePolicy{}, err
+	}
+
+	limit := input.DailyLimit
+	policy, err := s.repo.UpdatePolicy(ctx, existing.ID, UpdatePolicyInput{DailyLimit: &limit})
+	if err != nil {
+		return ResourcePolicy{}, err
+	}
+	if policy.Enabled == input.Enabled {
+		return policy, nil
+	}
+	return s.repo.SetPolicyEnabled(ctx, existing.ID, input.Enabled)
+}
+
+// ListUsage returns persisted counters for the requested UTC period.
+func (s *Service) ListUsage(ctx context.Context, query UsageQuery) ([]UsageSnapshot, error) {
+	if query.PeriodStart.IsZero() {
+		start, _ := UsagePeriodBounds(s.now().UTC())
+		query.PeriodStart = start
+	} else {
+		start, _ := UsagePeriodBounds(query.PeriodStart)
+		query.PeriodStart = start
+	}
+	query.ProviderID = strings.TrimSpace(query.ProviderID)
+	query.ModelID = strings.TrimSpace(query.ModelID)
+	return s.repo.ListUsage(ctx, query)
+}
+
+// GetPolicyByScope returns the policy for one scope key.
+func (s *Service) GetPolicyByScope(ctx context.Context, scope ResourceScope) (ResourcePolicy, error) {
+	if err := validateScope(scope); err != nil {
+		return ResourcePolicy{}, err
+	}
+	return s.repo.GetPolicyByScope(ctx, scope)
 }
 
 // Admit reserves one admission unit for the routed target. It assigns a stable

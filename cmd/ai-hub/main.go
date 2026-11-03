@@ -108,6 +108,7 @@ func run() error {
 	var (
 		configModule       app.Module
 		providerAdmin      *gateway.ProviderAdmin
+		resourceAdmin      *gateway.ResourceAdmin
 		resourceAdmission  gateway.ResourceAdmitter
 	)
 
@@ -132,7 +133,9 @@ func run() error {
 
 		configModule = providerConfig.module
 		providerAdmin = gateway.NewProviderAdmin(providerConfig.service, logger)
-		resourceAdmission = resources.NewService(resourcespg.New(pool))
+		resourceService := resources.NewService(resourcespg.New(pool))
+		resourceAdmission = resourceService
+		resourceAdmin = gateway.NewResourceAdmin(resourceService, logger)
 
 		if err := readiness.Register("database", db.PingCheck(pool, cfg.Database.ConnectTimeout)); err != nil {
 			return fmt.Errorf("register database readiness check: %w", err)
@@ -152,7 +155,7 @@ func run() error {
 	})
 
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmission)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, resourceAdmission)
 	if err != nil {
 		return err
 	}

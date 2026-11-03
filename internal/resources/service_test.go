@@ -56,6 +56,34 @@ func (f *fakeRepo) ListPolicies(_ context.Context) ([]resources.ResourcePolicy, 
 	return out, nil
 }
 
+func (f *fakeRepo) GetPolicyByScope(_ context.Context, scope resources.ResourceScope) (resources.ResourcePolicy, error) {
+	for _, policy := range f.policies {
+		if policy.Scope.Kind == scope.Kind &&
+			policy.Scope.ProviderID == scope.ProviderID &&
+			policy.Scope.ModelID == scope.ModelID {
+			return policy, nil
+		}
+	}
+	return resources.ResourcePolicy{}, resources.ErrNotFound
+}
+
+func (f *fakeRepo) ListUsage(_ context.Context, query resources.UsageQuery) ([]resources.UsageSnapshot, error) {
+	start, reset := resources.UsagePeriodBounds(query.PeriodStart)
+	out := make([]resources.UsageSnapshot, 0, len(f.policies))
+	for _, policy := range f.policies {
+		if query.ProviderID != "" && policy.Scope.ProviderID != "" && policy.Scope.ProviderID != query.ProviderID {
+			continue
+		}
+		if query.ModelID != "" && policy.Scope.ModelID != "" && policy.Scope.ModelID != query.ModelID {
+			continue
+		}
+		out = append(out, resources.UsageSnapshot{
+			Policy: policy, PeriodStart: start, ResetAt: reset, AdmittedCount: 0,
+		})
+	}
+	return out, nil
+}
+
 func (f *fakeRepo) Admit(ctx context.Context, request resources.AdmissionRequest, now time.Time) (resources.AdmissionDecision, error) {
 	if f.admitFn != nil {
 		return f.admitFn(ctx, request, now)
@@ -112,5 +140,35 @@ func TestCreatePolicyValidatesScope(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected invalid scope")
+	}
+}
+
+func TestUpsertPolicyCreatesAndUpdates(t *testing.T) {
+	repo := &fakeRepo{policies: map[int64]resources.ResourcePolicy{}}
+	service := resources.NewService(repo)
+	ctx := context.Background()
+
+	created, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 10, Enabled: true,
+	})
+	if err != nil || created.DailyLimit != 10 || !created.Enabled {
+		t.Fatalf("create = %+v err %v", created, err)
+	}
+
+	updated, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 20, Enabled: false,
+	})
+	if err != nil || updated.ID != created.ID || updated.DailyLimit != 20 || updated.Enabled {
+		t.Fatalf("update = %+v err %v", updated, err)
+	}
+}
+
+func TestUpsertPolicyRejectsInvalidLimit(t *testing.T) {
+	service := resources.NewService(&fakeRepo{policies: map[int64]resources.ResourcePolicy{}})
+	_, err := service.UpsertPolicy(context.Background(), resources.UpsertPolicyInput{
+		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 0, Enabled: true,
+	})
+	if err == nil {
+		t.Fatal("expected invalid limit")
 	}
 }

@@ -42,6 +42,28 @@ type UpdatePolicyInput struct {
 	DailyLimit *int
 }
 
+// UpsertPolicyInput creates or replaces configuration for one scope key.
+type UpsertPolicyInput struct {
+	Scope      ResourceScope
+	DailyLimit int
+	Enabled    bool
+}
+
+// UsageQuery selects usage rows for one UTC period.
+type UsageQuery struct {
+	PeriodStart time.Time
+	ProviderID  string
+	ModelID     string
+}
+
+// UsageSnapshot is admitted volume for one policy period.
+type UsageSnapshot struct {
+	Policy        ResourcePolicy
+	PeriodStart   time.Time
+	ResetAt       time.Time
+	AdmittedCount int
+}
+
 // AdmissionRequest reserves one Hub admission unit for a routed target.
 type AdmissionRequest struct {
 	// ID is the stable internal admission identifier (ADR-023). When empty,

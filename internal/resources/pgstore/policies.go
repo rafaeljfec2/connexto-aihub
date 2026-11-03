@@ -83,6 +83,27 @@ SELECT `+policyColumns+`
 	return policies, rows.Err()
 }
 
+func (s *Store) GetPolicyByScope(ctx context.Context, scope resources.ResourceScope) (resources.ResourcePolicy, error) {
+	where, args := scopeLookupWhere(scope)
+	row := s.pool.QueryRow(ctx, `SELECT `+policyColumns+` FROM resource_policies WHERE `+where, args...)
+	policy, err := scanPolicy(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return resources.ResourcePolicy{}, resources.ErrNotFound
+	}
+	return policy, err
+}
+
+func scopeLookupWhere(scope resources.ResourceScope) (string, []any) {
+	switch scope.Kind {
+	case resources.ScopeGlobal:
+		return `scope = 'global'`, nil
+	case resources.ScopeProvider:
+		return `scope = 'provider' AND provider_id = $1 AND model_id IS NULL`, []any{scope.ProviderID}
+	default:
+		return `scope = 'model' AND provider_id = $1 AND model_id = $2`, []any{scope.ProviderID, scope.ModelID}
+	}
+}
+
 func nullableScopeIDs(scope resources.ResourceScope) (providerID, modelID any) {
 	if scope.ProviderID != "" {
 		providerID = scope.ProviderID
