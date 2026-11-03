@@ -16,5 +16,7 @@ func analyticsAdminRoutes(admin *gateway.AnalyticsAdmin) []server.Route {
 		{Method: http.MethodGet, Pattern: "/api/resource-analytics/admissions/distribution", Handler: admin.Distribution()},
 		{Method: http.MethodGet, Pattern: "/api/resource-analytics/quota-utilization", Handler: admin.QuotaUtilization()},
 		{Method: http.MethodGet, Pattern: "/api/resource-analytics/concurrency", Handler: admin.Concurrency()},
+		{Method: http.MethodGet, Pattern: "/api/resource-analytics/provider-usage", Handler: admin.ProviderUsage()},
+		{Method: http.MethodGet, Pattern: "/api/resource-analytics/provider-usage/distribution", Handler: admin.ProviderUsageDistribution()},
 	}
 }

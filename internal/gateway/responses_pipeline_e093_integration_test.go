@@ -81,7 +81,7 @@ func e2eRoutedHandlerWithConcurrency(
 		Catalog:    catalogManager,
 		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
 		StaleAfter: 24 * time.Hour,
-	}, resourceService, concurrencyService)
+	}, resourceService, concurrencyService, nil)
 }
 
 func TestE093PipelineConcurrencyBeforeDailyQuotaIntegration(t *testing.T) {

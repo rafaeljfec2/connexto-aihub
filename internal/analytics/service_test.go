@@ -28,6 +28,18 @@ func (s *stubRepo) ListProviderDaily(context.Context, analytics.RangeQuery) ([]a
 func (s *stubRepo) ListModelDaily(context.Context, analytics.RangeQuery) ([]analytics.ModelDailyCount, error) {
 	return s.model, nil
 }
+func (s *stubRepo) ProviderUsageSummary(context.Context, analytics.RangeQuery) (analytics.ProviderUsageSummary, error) {
+	return analytics.ProviderUsageSummary{}, nil
+}
+func (s *stubRepo) ProviderUsageDaily(context.Context, analytics.RangeQuery) ([]analytics.ProviderUsageDailyTokens, error) {
+	return nil, nil
+}
+func (s *stubRepo) ProviderUsageByProvider(context.Context, analytics.RangeQuery) ([]analytics.ProviderUsageProviderDaily, error) {
+	return nil, nil
+}
+func (s *stubRepo) ProviderUsageByModel(context.Context, analytics.RangeQuery) ([]analytics.ProviderUsageModelDaily, error) {
+	return nil, nil
+}
 
 func TestFillDailySeriesInsertsZeroDays(t *testing.T) {
 	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)

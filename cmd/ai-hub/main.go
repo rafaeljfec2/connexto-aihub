@@ -23,6 +23,8 @@ import (
 	"aihub/internal/execution"
 	"aihub/internal/gateway"
 	"aihub/internal/health"
+	"aihub/internal/metering"
+	meteringpg "aihub/internal/metering/pgstore"
 	"aihub/internal/observability"
 	"aihub/internal/providers"
 	"aihub/internal/records"
@@ -116,6 +118,7 @@ func run() error {
 		analyticsAdmin     *gateway.AnalyticsAdmin
 		resourceAdmission  gateway.ResourceAdmitter
 		concurrencyGate    gateway.ConcurrencyGate
+		usageMetering      *metering.Service
 	)
 
 	if cfg.Catalog.Persistence == config.EnvCatalogPersistencePostgres {
@@ -147,6 +150,7 @@ func run() error {
 		concurrencyAdmin = gateway.NewConcurrencyAdmin(concurrencyService, logger)
 		analyticsService := analytics.NewService(analyticspg.New(pool))
 		analyticsAdmin = gateway.NewAnalyticsAdmin(analyticsService, resourceService, concurrencyService, logger)
+		usageMetering = metering.NewService(meteringpg.New(pool), metering.WithLogger(logger))
 		executionManager = execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
 			gateway.StreamInactivityTimeout, execution.WithObserver(concurrency.NewReleaseObserver(concurrencyService, recordsModule)))
 
@@ -170,7 +174,7 @@ func run() error {
 	})
 
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate, usageMetering)
 	if err != nil {
 		return err
 	}

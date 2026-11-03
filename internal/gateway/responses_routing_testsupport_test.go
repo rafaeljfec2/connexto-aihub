@@ -131,7 +131,7 @@ func newOpenCodeRoutingHandlerWithResources(
 		Catalog:    catalogManager,
 		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
 		StaleAfter: 24 * time.Hour,
-	}, resourceAdmission, nil)
+	}, resourceAdmission, nil, nil)
 }
 
 func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoint string) (http.Handler, *providers.Client, *providers.OpenRouterClient) {
@@ -174,7 +174,7 @@ func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoin
 			}
 		},
 		StaleAfter: 24 * time.Hour,
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	return handler, openCode, openRouter
 }

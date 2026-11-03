@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Service computes analytics reports.
@@ -69,4 +70,75 @@ func (s *Service) Distribution(ctx context.Context, query RangeQuery) (Distribut
 	return DistributionReport{
 		From: start, To: end, ByProvider: byProvider, ByModel: byModel,
 	}, nil
+}
+
+// ProviderUsage returns token aggregates and status counts for persisted provider usage.
+func (s *Service) ProviderUsage(ctx context.Context, query RangeQuery) (ProviderUsageSummary, error) {
+	start, end, err := NormalizeRangeBounds(query.From, query.To)
+	if err != nil {
+		return ProviderUsageSummary{}, err
+	}
+	query.From = start
+	query.To = end
+	query.ProviderID = strings.TrimSpace(query.ProviderID)
+	query.ModelID = strings.TrimSpace(query.ModelID)
+	if query.ModelID != "" && query.ProviderID == "" {
+		return ProviderUsageSummary{}, fmt.Errorf("%w: model_id requires provider_id", ErrInvalidInput)
+	}
+	summary, err := s.repo.ProviderUsageSummary(ctx, query)
+	if err != nil {
+		return ProviderUsageSummary{}, err
+	}
+	sparse, err := s.repo.ProviderUsageDaily(ctx, query)
+	if err != nil {
+		return ProviderUsageSummary{}, err
+	}
+	summary.From = start
+	summary.To = end
+	summary.Daily = fillProviderUsageDailySeries(start, end, sparse)
+	return summary, nil
+}
+
+// ProviderUsageDistribution returns provider/model token breakdowns.
+func (s *Service) ProviderUsageDistribution(ctx context.Context, query RangeQuery) (ProviderUsageDistributionReport, error) {
+	start, end, err := NormalizeRangeBounds(query.From, query.To)
+	if err != nil {
+		return ProviderUsageDistributionReport{}, err
+	}
+	query.From = start
+	query.To = end
+	query.ProviderID = strings.TrimSpace(query.ProviderID)
+	query.ModelID = strings.TrimSpace(query.ModelID)
+	if query.ModelID != "" && query.ProviderID == "" {
+		return ProviderUsageDistributionReport{}, fmt.Errorf("%w: model_id requires provider_id", ErrInvalidInput)
+	}
+	byProvider, err := s.repo.ProviderUsageByProvider(ctx, query)
+	if err != nil {
+		return ProviderUsageDistributionReport{}, err
+	}
+	byModel, err := s.repo.ProviderUsageByModel(ctx, query)
+	if err != nil {
+		return ProviderUsageDistributionReport{}, err
+	}
+	return ProviderUsageDistributionReport{
+		From: start, To: end, ByProvider: byProvider, ByModel: byModel,
+	}, nil
+}
+
+func fillProviderUsageDailySeries(start, end time.Time, sparse []ProviderUsageDailyTokens) []ProviderUsageDailyTokens {
+	index := make(map[string]ProviderUsageDailyTokens, len(sparse))
+	for _, row := range sparse {
+		key := row.PeriodStart.UTC().Format(time.DateOnly)
+		index[key] = row
+	}
+	out := make([]ProviderUsageDailyTokens, 0)
+	for day := start; !day.After(end); day = day.Add(24 * time.Hour) {
+		key := day.UTC().Format(time.DateOnly)
+		if row, ok := index[key]; ok {
+			out = append(out, row)
+			continue
+		}
+		out = append(out, ProviderUsageDailyTokens{PeriodStart: day.UTC()})
+	}
+	return out
 }

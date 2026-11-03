@@ -60,7 +60,7 @@ func TestResponsesResourceAdmissionAllowsExecutionIntegration(t *testing.T) {
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, newEnabledClient(t, upstream.URL))
 	admitter := &stubResourceAdmitter{allow: true}
-	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil)
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader([]byte(`{"model":"m1","input":"hi"}`)))
 	rec := httptest.NewRecorder()
@@ -87,7 +87,7 @@ func TestResponsesResourceAdmissionRejectsBeforeExecutionIntegration(t *testing.
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, newEnabledClient(t, "http://127.0.0.1:1"))
 	admitter := &stubResourceAdmitter{allow: false}
-	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil)
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader([]byte(`{"model":"m1","input":"hi"}`)))
 	rec := httptest.NewRecorder()
@@ -120,7 +120,7 @@ func TestResponsesResourceAdmissionUnavailableBeforeExecutionIntegration(t *test
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, newEnabledClient(t, "http://127.0.0.1:1"))
 	admitter := &stubResourceAdmitter{fail: resources.ErrUnavailable}
-	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil)
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader([]byte(`{"model":"m1","input":"hi"}`)))
 	rec := httptest.NewRecorder()
@@ -142,7 +142,7 @@ func TestResponsesResourceAdmissionInvalidInputReturnsBadRequest(t *testing.T) {
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, newEnabledClient(t, "http://127.0.0.1:1"))
 	admitter := &stubResourceAdmitter{fail: resources.ErrInvalidInput}
-	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil)
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, admitter, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader([]byte(`{"model":"m1","input":"hi"}`)))
 	rec := httptest.NewRecorder()

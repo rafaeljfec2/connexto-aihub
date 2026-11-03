@@ -113,7 +113,7 @@ func TestE0931ScenarioE03OpeningTimeoutReleasesLeaseIntegration(t *testing.T) {
 			return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}}
 		},
 		StaleAfter: 24 * time.Hour,
-	}, resourceService, concurrencyService)
+	}, resourceService, concurrencyService, nil)
 
 	rec := postRoutedResponses(t, handler)
 	if rec.Code != http.StatusGatewayTimeout {
@@ -230,7 +230,7 @@ func TestE0931ScenarioE07ShutdownReleasesLeaseIntegration(t *testing.T) {
 			return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}}
 		},
 		StaleAfter: 24 * time.Hour,
-	}, resourceService, concurrencyService)
+	}, resourceService, concurrencyService, nil)
 
 	done := make(chan struct{})
 	go func() {

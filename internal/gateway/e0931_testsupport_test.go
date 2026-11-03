@@ -77,7 +77,7 @@ func newE0931PipelineHandler(
 		Catalog:    catalogManager,
 		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
 		StaleAfter: 24 * time.Hour,
-	}, resourceService, concurrencyService)
+	}, resourceService, concurrencyService, nil)
 }
 
 func countActiveConcurrencyLeases(t *testing.T, pool *pgxpool.Pool, now time.Time) int {

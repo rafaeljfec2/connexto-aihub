@@ -15,6 +15,8 @@ import (
 
 	"aihub/internal/access"
 	"aihub/internal/execution"
+	"aihub/internal/metering"
+	"aihub/internal/metering/capture"
 	"aihub/internal/observability"
 	"aihub/internal/providers"
 	"aihub/internal/routing"
@@ -33,23 +35,23 @@ const (
 // NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
 	manager := newExecutionManager(client, logger, inactivity)
-	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps, nil, nil)
+	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps, nil, nil, nil)
 }
 
 // NewResponsesHandlerWithManager binds the HTTP boundary to the shared manager.
-func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate) http.Handler {
+func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate, usage *metering.Service) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate}
+	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate, usage: usage}
 }
 
 // NewResponsesHandlerWithRegistry resolves each admitted request by provider ID.
-func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate) http.Handler {
+func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate, usage *metering.Service) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate}
+	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate, usage: usage}
 }
 
 type responsesHandler struct {
@@ -61,6 +63,7 @@ type responsesHandler struct {
 	routing     *ResponsesRouting
 	resources   ResourceAdmitter
 	concurrency ConcurrencyGate
+	usage       *metering.Service
 }
 
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +165,8 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stopRenew := h.startConcurrencyRenewal(execCtx, executionID, cancelExec)
 	defer stopRenew()
 
+	streamTap := capture.NewStreamTap()
+	responseWriter := &responseSink{writer: w, inactivity: h.inactivity, tap: streamTap}
 	result, err := h.manager.Execute(execCtx, execution.Command{
 		RequestID:   requestID,
 		ExecutionID: executionID,
@@ -172,7 +177,15 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ProviderSessionID: sessionID,
 		Payload:           executionPayload,
 		ContentType:       contentType,
-	}, &responseSink{writer: w, inactivity: h.inactivity})
+	}, responseWriter)
+	if h.usage != nil && err == nil {
+		h.usage.RecordFromCaptureBestEffort(r.Context(), metering.RecordInput{
+			ExecutionID: result.ExecutionID,
+			ProviderID:  providerID,
+			ModelID:     modelID,
+			Capture:     streamTap.Finalize(responseWriter.contentType),
+		})
+	}
 	stopRenew()
 	if pendingRoutingLog {
 		routing.LogDecision(r.Context(), h.logger, routing.DecisionLogInput{
@@ -239,11 +252,14 @@ func requestedModelID(payload []byte) string {
 }
 
 type responseSink struct {
-	writer     http.ResponseWriter
-	inactivity time.Duration
+	writer      http.ResponseWriter
+	inactivity  time.Duration
+	tap         *capture.StreamTap
+	contentType string
 }
 
 func (s *responseSink) Commit(status int, contentType string) {
+	s.contentType = contentType
 	if contentType != "" {
 		s.writer.Header().Set("Content-Type", contentType)
 	}
@@ -253,6 +269,9 @@ func (s *responseSink) Commit(status int, contentType string) {
 }
 
 func (s *responseSink) WriteChunk(chunk []byte) error {
+	if s.tap != nil {
+		s.tap.Observe(chunk)
+	}
 	if _, err := s.writer.Write(chunk); err != nil {
 		return err
 	}

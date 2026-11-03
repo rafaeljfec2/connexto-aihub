@@ -47,3 +47,55 @@ type DistributionReport struct {
 	ByProvider []ProviderDailyCount
 	ByModel    []ModelDailyCount
 }
+
+// ProviderUsageDailyTokens aggregates token sums for one UTC day.
+type ProviderUsageDailyTokens struct {
+	PeriodStart    time.Time
+	InputTokens    int64
+	OutputTokens   int64
+	TotalTokens    int64
+	ExecutionCount int
+}
+
+// ProviderUsageSummary aggregates persisted provider usage for a UTC range.
+type ProviderUsageSummary struct {
+	From                  time.Time
+	To                    time.Time
+	InputTokens           int64
+	OutputTokens          int64
+	TotalTokens           int64
+	ReportedExecutions    int
+	UnavailableExecutions int
+	PartialExecutions     int
+	InvalidExecutions     int
+	Daily                 []ProviderUsageDailyTokens
+}
+
+// ProviderUsageProviderDaily attributes token sums to one provider per UTC day.
+type ProviderUsageProviderDaily struct {
+	PeriodStart  time.Time
+	ProviderID   string
+	InputTokens  int64
+	OutputTokens int64
+	TotalTokens  int64
+	Executions   int
+}
+
+// ProviderUsageModelDaily attributes token sums to one provider/model per UTC day.
+type ProviderUsageModelDaily struct {
+	PeriodStart  time.Time
+	ProviderID   string
+	ModelID      string
+	InputTokens  int64
+	OutputTokens int64
+	TotalTokens  int64
+	Executions   int
+}
+
+// ProviderUsageDistributionReport breaks down provider usage by provider and model.
+type ProviderUsageDistributionReport struct {
+	From       time.Time
+	To         time.Time
+	ByProvider []ProviderUsageProviderDaily
+	ByModel    []ProviderUsageModelDaily
+}

@@ -31,6 +31,18 @@ func (r *analyticsMemoryRepo) ListProviderDaily(context.Context, analytics.Range
 func (r *analyticsMemoryRepo) ListModelDaily(context.Context, analytics.RangeQuery) ([]analytics.ModelDailyCount, error) {
 	return nil, nil
 }
+func (r *analyticsMemoryRepo) ProviderUsageSummary(context.Context, analytics.RangeQuery) (analytics.ProviderUsageSummary, error) {
+	return analytics.ProviderUsageSummary{}, nil
+}
+func (r *analyticsMemoryRepo) ProviderUsageDaily(context.Context, analytics.RangeQuery) ([]analytics.ProviderUsageDailyTokens, error) {
+	return nil, nil
+}
+func (r *analyticsMemoryRepo) ProviderUsageByProvider(context.Context, analytics.RangeQuery) ([]analytics.ProviderUsageProviderDaily, error) {
+	return nil, nil
+}
+func (r *analyticsMemoryRepo) ProviderUsageByModel(context.Context, analytics.RangeQuery) ([]analytics.ProviderUsageModelDaily, error) {
+	return nil, nil
+}
 
 func analyticsAdminServer(t *testing.T, total int) *httptest.Server {
 	t.Helper()

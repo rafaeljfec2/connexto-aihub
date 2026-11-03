@@ -11,6 +11,7 @@ import (
 	"aihub/internal/execution"
 	"aihub/internal/gateway"
 	"aihub/internal/health"
+	"aihub/internal/metering"
 	"aihub/internal/providers"
 	"aihub/internal/records"
 	"aihub/internal/server"
@@ -20,7 +21,7 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
 	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
-	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate) (http.Handler, error) {
+	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
@@ -36,7 +37,7 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 					Catalog:    catalogModule,
 					Statuses:   providerManager.Statuses,
 					StaleAfter: cfg.Catalog.StaleAfter,
-				}, resourceAdmission, concurrencyGate),
+				}, resourceAdmission, concurrencyGate, usageMetering),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},
 		{Method: http.MethodGet, Pattern: "/diagnostics/providers", Handler: gateway.NewProvidersHandler(providerManager.Statuses)},

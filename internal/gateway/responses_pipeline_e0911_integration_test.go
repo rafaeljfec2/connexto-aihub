@@ -156,7 +156,7 @@ func e2eRoutedHandler(
 		Catalog:    catalogManager,
 		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
 		StaleAfter: 24 * time.Hour,
-	}, admitter, nil)
+	}, admitter, nil, nil)
 }
 
 func postRoutedResponses(t *testing.T, handler http.Handler) *httptest.ResponseRecorder {
@@ -436,7 +436,7 @@ func TestE0911ScenarioGFileModeWithoutResourceAdmissionIntegration(t *testing.T)
 		}
 		return resp, err
 	}, time.Minute)
-	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, nil, nil)
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, nil, nil, nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"m1","input":"hi"}`))
