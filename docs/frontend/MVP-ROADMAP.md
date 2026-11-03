@@ -10,8 +10,9 @@
 - Product context: [`AI-HUB-ROADMAP.md`](../roadmap/AI-HUB-ROADMAP.md)
 - Workspace recipe: [`development-workspace.md`](../development-workspace.md)
 - ADRs: ADR-011, ADR-019, ADR-020, ADR-021, ADR-022
+- **Frontend organization:** Feature-First architecture (Lead approved 2026-11-03) — **§4 of this document**
 
-Each future increment must produce its own approved SPEC (via `/sdd-workflow`) before autonomous implementation begins.
+Each future increment must produce its own approved SPEC (via `/sdd-workflow`) before autonomous implementation begins. Frontend SPECs **must** align with **§4**.
 
 ---
 
@@ -84,7 +85,116 @@ This roadmap decomposes the Frontend MVP into **independent, dependency-ordered 
 
 ---
 
-## 4. Recommended Sector Map
+## 4. Feature-First Architecture (Lead-Approved)
+
+**Status:** Accepted by project lead (2026-11-03). Mandatory for all Frontend MVP sectors from Setor 1 onward and for every `/sdd-workflow` increment that touches `apps/frontend`.
+
+**Relationship to prior decisions:** Preserves discovery and roadmap decisions **D1** (single operator), **D2** (embedded BFF / same-origin), **D3** (React 19 + Vite + TypeScript stack), and **D7** (zero-polling operational SSE). This section adds **organizational** architecture only; it does not replace ADRs or duplicate a standalone architecture document.
+
+### 4.1 Decision
+
+Adopt **Feature-First Architecture**: organize frontend code by **product domain and operator-facing capability**, not by technical layer at the repository root. Each vertical slice (overview, providers, catalog, playground, executions, resources) owns its queries, hooks, UI, and types; cross-cutting infrastructure lives in `shared/`; application bootstrap and composition live in `app/`.
+
+Early Setor 1 scaffolding may exist under layer-by-type folders (`src/api`, `src/hooks`, `src/pages`). **Migrate toward the reference layout as each sector lands**, without creating empty placeholder directories.
+
+### 4.2 Reference directory layout
+
+```text
+apps/frontend/src/
+├── app/
+│   ├── router/
+│   ├── providers/
+│   ├── layouts/
+│   └── App.tsx
+│
+├── features/
+│   ├── overview/
+│   ├── providers/
+│   ├── catalog/
+│   ├── playground/
+│   ├── executions/
+│   └── resources/
+│
+├── shared/
+│   ├── api/
+│   ├── realtime/
+│   ├── ui/
+│   ├── hooks/
+│   ├── lib/
+│   └── types/
+│
+└── main.tsx
+```
+
+Create directories **when a sector needs them**, not preemptively.
+
+**Per-feature internal reference** (adapt per feature; omit unused folders):
+
+```text
+features/providers/
+├── api/
+├── components/
+├── hooks/
+├── pages/
+├── types/
+└── index.ts
+```
+
+### 4.3 Layer responsibilities
+
+| Layer | Responsibility |
+| --- | --- |
+| **`app/`** | Application bootstrap, global route configuration, React providers (Query, Router, UI context), layouts, and top-level composition wiring features together. |
+| **`features/<name>/`** | Domain-specific API calls, TanStack Query keys and hooks, pages and components, domain types, and feature-local tests. Export a **public surface** via `index.ts` when other areas must integrate. |
+| **`shared/`** | Reusable infrastructure: generic HTTP client and error mapping, **operational SSE client** (`shared/realtime`), generic UI primitives, truly shared hooks/utilities, and cross-cutting types. **No feature-specific business rules.** |
+
+### 4.4 Dependency rules (mandatory)
+
+1. `app` may import from `features` (public exports) and `shared`.
+2. `features/*` may import from `shared`.
+3. A feature **must not** import another feature’s internal files (paths under `features/other/...` except via that feature’s public `index.ts` or equivalent barrel).
+4. Cross-feature integration uses **public feature APIs** or **composition in `app/`** (routes, layout slots), not deep coupling.
+5. `shared` **must not** depend on `features`.
+6. Avoid circular dependencies between modules.
+7. Avoid generic abstractions until a **second concrete consumer** exists (no internal plugin framework or dynamic module system).
+
+### 4.5 State, data fetching, and realtime (unchanged product decisions)
+
+| Concern | Rule |
+| --- | --- |
+| Remote server state | TanStack Query v5; **`refetchInterval: false`** for operational data. |
+| Query organization | Keys and fetchers live **inside the owning feature** (`features/<name>/api`, `hooks`). |
+| Global UI state | React Context (e.g. sidebar / preferences in FE-07). |
+| Local UI state | Component state; Playground may use **`useReducer`** where discovery specifies. |
+| Request cancellation | **`AbortController` held in `useRef`** for long-lived streaming requests (Playground). |
+| Operational SSE | **Single implementation** in `shared/realtime`; features subscribe through hooks that map events to **their own** query keys (`setQueryData` / targeted `invalidateQueries`). |
+| Playground streaming | **`fetch` + `ReadableStream`** on `POST /v1/responses` — **separate** from operational SSE; implemented in `features/playground`, not via `EventSource`. |
+
+### 4.6 Sector mapping (where code should live)
+
+| Sector | Primary `features/` target | `shared/` notes |
+| --- | --- | --- |
+| 1 — Foundation + dev BFF | Bootstrap `app/`; seed `shared/api`; optional thin `features/overview` for first page | Generic API client, error envelope |
+| 3 — Operational SSE client | Event→cache mappers may live per feature; connection lifecycle in **`shared/realtime`** | `useOperationalEvents` (or equivalent) |
+| 4 — Overview | **`features/overview`** | Reuse shared realtime + API |
+| 5 — Providers + catalog | **`features/providers`**, **`features/catalog`** | Shared UI table/form primitives only |
+| 6 — Playground | **`features/playground`** | No operational SSE reuse for tokens |
+| 7 — Executions + resources | **`features/executions`**, **`features/resources`** | Shared charts/table primitives if reused |
+| 8 — Release | **`app/`** embed routing; no new feature folders unless release scope requires |
+
+### 4.7 SDD workflow integration
+
+Phase 0 discovery (`docs/`, this roadmap, discovery baseline) already feeds `/sdd-workflow`. For **every Frontend MVP SPEC**:
+
+- **PLANEJAR (Phase 2 SPEC):** List new/changed paths under `app/`, `features/<name>/`, or `shared/`; cite this §4 for layout and dependency rules; map acceptance criteria to feature boundaries.
+- **IMPLEMENTAR:** Do not add business logic under `shared/`; do not import across feature internals; colocate tests with the feature under test when practical.
+- **AVALIAR:** Evidence includes grep or lint checks that operational polling is absent **and** that no `features/*` → `features/*` internal imports violate §4.4 (public barrels or `app/` composition only).
+
+No parallel workflow, template pack, or duplicate ADR is required—the authoritative contract is **this roadmap section** plus the approved SPEC.
+
+---
+
+## 5. Recommended Sector Map
 
 Discovery FE increments map to sectors as follows:
 
@@ -102,9 +212,9 @@ Discovery FE increments map to sectors as follows:
 
 ---
 
-## 5. Execution Order, Dependencies, and Critical Path
+## 6. Execution Order, Dependencies, and Critical Path
 
-### 5.1 Recommended order
+### 6.1 Recommended order
 
 ```text
 Setor 0 → Setor 1 → Setor 2 → Setor 3 → Setor 4
@@ -114,7 +224,7 @@ Setor 7 (after 4 + 5)
 Setor 8 (after 4–7 as needed for release scope)
 ```
 
-### 5.2 Dependency graph (high level)
+### 6.2 Dependency graph (high level)
 
 ```mermaid
 flowchart TD
@@ -142,13 +252,13 @@ flowchart TD
   S7 --> S8
 ```
 
-### 5.3 Critical path
+### 6.3 Critical path
 
 **Setor 0 → 1 → 2 → 3 → 4** delivers the first shippable operator experience (FE-01). Without **Setor 2 (backend Event Hub)**, the zero-polling mandate cannot be satisfied for operational screens.
 
 **Setor 6 (Playground)** depends on dev BFF (Setor 1) and catalog/provider selection UX (Setor 5) but **does not** depend on operational SSE (Setor 3).
 
-### 5.4 MVP completion milestones
+### 6.4 MVP completion milestones
 
 | Milestone | Sectors complete | Operator-visible outcome |
 | --- | --- | --- |
@@ -161,22 +271,22 @@ flowchart TD
 
 ---
 
-## 6. Sector Execution Methodology
+## 7. Sector Execution Methodology
 
 Every sector implementation cycle **must** follow:
 
 | Phase | Activities |
 | --- | --- |
-| **PLANEJAR** | Author or extend SPEC; freeze acceptance criteria; list files, contracts, dependencies; confirm security boundaries. |
-| **IMPLEMENTAR** | Smallest vertical slice; reuse backend contracts unchanged; no scope creep into unauthorized epics. |
-| **AVALIAR** | Unit/integration tests; `pnpm` typecheck/lint/test for frontend; `go test ./...` for backend changes; manual operator verification; confirm zero key leakage and zero polling timers. |
+| **PLANEJAR** | Author or extend SPEC; freeze acceptance criteria; list files under `app/`, `features/`, or `shared/` per §4; confirm security boundaries and Feature-First dependency rules. |
+| **IMPLEMENTAR** | Smallest vertical slice; reuse backend contracts unchanged; no scope creep into unauthorized epics; no cross-feature internal imports. |
+| **AVALIAR** | Unit/integration tests; `pnpm` typecheck/lint/test for frontend; `go test ./...` for backend changes; manual operator verification; confirm zero key leakage, zero polling timers, and §4.4 compliance. |
 | **ENTREGAR** | Evidence summary; update AI Memory; open questions; pointer to next sector SPEC. |
 
 This roadmap defines **what** each cycle should contain, not the implementation itself.
 
 ---
 
-## 7. Sector Definitions
+## 8. Sector Definitions
 
 Legend for deliverable classes:
 
@@ -258,8 +368,10 @@ Create `apps/frontend`, wire Turborepo tasks, and establish the **development-on
 #### Deliverables
 
 - `@connexto/frontend` package scripts: `dev`, `build`, `typecheck`, `lint`, `test`, `check`.
-- `AppShell` layout: sidebar nav placeholders, header slots for health/SSE badge (wired in Setor 3).
-- API modules: `health`, `readiness`, `providerDiagnostics` (initial **bootstrap fetch on mount** allowed; not polling).
+- **`app/`** shell: router stub, TanStack Query + layout providers, `App.tsx` entry composition (§4).
+- **`shared/api`**: typed HTTP client + error envelope mapping (`{type, message}`).
+- **`app/layouts`**: `AppShell` — sidebar nav placeholders, header slots for health/SSE badge (wired in Setor 3).
+- Bootstrap queries for health/readiness/diagnostics (initial **mount fetch** only; may live in `features/overview` or `shared/api` until Setor 4 split is complete).
 - Vitest + Testing Library + MSW scaffolding.
 
 #### Dependencies
@@ -281,6 +393,7 @@ Setor 0.
 - [ ] **AC-S1-3:** Source maps / bundle scan finds no gateway or admin key literals.
 - [ ] **AC-S1-4:** `pnpm --filter @connexto/frontend typecheck` and `test` pass.
 - [ ] **AC-S1-5:** Bootstrap load renders backend-down state when Go process stopped.
+- [ ] **AC-S1-6:** New code follows §4 Feature-First layout (`app/`, `shared/`; no business logic dumped into `shared/`).
 
 #### Tests
 
@@ -369,10 +482,10 @@ Subscribe to the operational Event Hub and drive TanStack Query cache updates wi
 
 | Class | Work |
 | --- | --- |
-| **New** | `useOperationalEvents` (discovery name: `useRealtimeEvents`) using `EventSource` |
-| **New** | Event → query key router (`setQueryData` / targeted `invalidateQueries`) |
+| **New** | Operational SSE client in **`shared/realtime`** (discovery name: `useOperationalEvents` / `useRealtimeEvents`) using `EventSource` |
+| **New** | Per-feature event→query-key handlers (e.g. overview/providers) that update TanStack Query cache without periodic refetch |
 | **New** | Connection badge (“Live SSE”), exponential backoff reconnect, manual reconnect control |
-| **Existing** | Query hooks from Setor 1 |
+| **Existing** | Query hooks from Setor 1 / owning features |
 
 #### Deliverables
 
@@ -393,6 +506,7 @@ Operational SSE endpoint from Setor 2; event names aligned with backend catalog.
 - [ ] **AC-S3-2:** DevTools Performance/Memory shows no periodic GET loop for diagnostics.
 - [ ] **AC-S3-3:** Stream drop shows degraded banner; reconnect restores live badge.
 - [ ] **AC-S3-4:** Maps to discovery **AC-FE01-7**.
+- [ ] **AC-S3-5:** Operational SSE connection code lives in **`shared/realtime`**; features only map events to their query keys (§4.5).
 
 #### Tests
 
@@ -421,9 +535,10 @@ Deliver the Overview dashboard: system liveness, PostgreSQL readiness, provider 
 
 | Class | Work |
 | --- | --- |
+| **New** | **`features/overview`**: pages, components, hooks, and types for the operator dashboard |
 | **New** | `OverviewPage`, status cards, provider grid, empty/degraded/error states |
 | **New** | Manual “Reconnect SSE” / “Refresh snapshot” actions (explicit user intent only) |
-| **Existing** | Data from `/healthz`, `/readyz`, `/diagnostics/providers` + SSE updates |
+| **Existing** | Data from `/healthz`, `/readyz`, `/diagnostics/providers` + SSE updates via `shared/realtime` |
 
 #### Deliverables
 
@@ -443,6 +558,7 @@ Same as Setor 1 plus operational SSE events for provider/readiness changes.
 - [ ] **AC-S4-1:** Matches discovery **AC-FE01-3..6** (healthy DB, real provider cards, backend stopped UX).
 - [ ] **AC-S4-2:** Unhealthy provider shows error cause from diagnostics payload.
 - [ ] **AC-S4-3:** File-mode / admin-unavailable surfaces informative empty state, not uncaught exceptions.
+- [ ] **AC-S4-4:** Overview UI and queries are colocated under **`features/overview`** (public exports consumed by `app/` routes).
 
 #### Tests
 
@@ -471,8 +587,8 @@ Enable operator control of providers and exploration/sync of normalized catalog.
 
 | Class | Work |
 | --- | --- |
-| **New** | Providers list/detail pages, enable/disable, validate probe, credential PATCH forms (write-only) |
-| **New** | Catalog table with filters (`provider`, `capability`, `presence`, `listing_state`), detail drawer, sync action |
+| **New** | **`features/providers`**: list/detail, enable/disable, validate probe, credential PATCH forms (write-only) |
+| **New** | **`features/catalog`**: table with filters (`provider`, `capability`, `presence`, `listing_state`), detail drawer, sync action |
 | **New** | Optimistic UI + SSE reconciliation for provider toggles |
 | **Existing** | Admin API routes (`/api/providers/*`), catalog routes (`/v1/catalog/*`) |
 
@@ -498,6 +614,7 @@ Setor 4 (shell + SSE); Setor 1 BFF admin proxy.
 - [ ] **AC-S5-2:** Validate triggers probe spinner and SSE-updated status card.
 - [ ] **AC-S5-3:** Catalog sync shows in-progress/disabled/conflict states (409) per contract.
 - [ ] **AC-S5-4:** Capability provenance and `execution_verification` visible where catalog returns them.
+- [ ] **AC-S5-5:** Providers and catalog code live under **`features/providers`** and **`features/catalog`** without cross-feature internal imports (§4.4).
 
 #### Tests
 
@@ -526,9 +643,9 @@ Interactive prompt testing with **inference SSE** via `fetch` streaming, indepen
 
 | Class | Work |
 | --- | --- |
-| **New** | `usePlayground` reducer (discovery §4.3.2), provider/model pickers, streaming markdown/text view |
+| **New** | **`features/playground`**: `usePlayground` reducer (discovery §4.3.2), provider/model pickers, streaming markdown/text view |
 | **New** | SSE parser for OpenAI Responses events on response body (incremental chunks, terminal events) |
-| **New** | `AbortController` stop button; structured error banners (429, 502, 503, routing errors) |
+| **New** | `AbortController` in `useRef`; stop button; structured error banners (429, 502, 503, routing errors) |
 | **Existing** | `POST /v1/responses`, optional `X-AIHub-Provider`, E08 routing behavior |
 
 #### Deliverables
@@ -552,6 +669,7 @@ Setor 1 (gateway proxy); Setor 5 (model/provider selection UX strongly recommend
 - [ ] **AC-S6-2:** Page refresh clears conversation (ephemeral contract).
 - [ ] **AC-S6-3:** Quota/concurrency rejection surfaces normalized error category.
 - [ ] **AC-S6-4:** No operational polling introduced for playground state.
+- [ ] **AC-S6-5:** Playground streaming stays in **`features/playground`**; does not reuse `shared/realtime` operational SSE (§9.1).
 
 #### Tests
 
@@ -581,10 +699,9 @@ Expose content-free execution audit trail and E09 governance/analytics surfaces.
 
 | Class | Work |
 | --- | --- |
-| **New** | Executions table + detail drawer (`GET /v1/records/executions*`) |
-| **New** | Resource/concurrency policy editors and usage KPIs |
-| **New** | Analytics charts for admissions, quota utilization, provider usage series |
-| **New (optional FE-07)** | `UiContext` preferences (sidebar, theme) in client state only |
+| **New** | **`features/executions`**: table + detail drawer (`GET /v1/records/executions*`) |
+| **New** | **`features/resources`**: policy editors, usage KPIs, analytics charts (admissions, quota utilization, provider usage series) |
+| **New (optional FE-07)** | UI preferences via `UiContext` in `app/providers` or dedicated feature — client state only |
 | **Existing** | E06 records API; E09 admin + analytics routes |
 
 #### Deliverables
@@ -609,6 +726,7 @@ Analytics: `/api/resource-analytics/*` (see `FRONTEND-MVP.md`).
 - [ ] **AC-S7-2:** Analytics null token metrics render as “unknown”, explicit zero as zero.
 - [ ] **AC-S7-3:** Policy edits reflect in usage views after SSE or explicit snapshot refresh.
 - [ ] **AC-S7-4:** `Cache-Control: no-store` respected (no stale admin caching assumptions).
+- [ ] **AC-S7-5:** Executions and resources/analytics surfaces live under **`features/executions`** and **`features/resources`** respectively.
 
 #### Tests
 
@@ -678,29 +796,29 @@ Go embed handler tests; E2E smoke; manual security review of cookie/session flag
 
 ---
 
-## 8. Cross-Cutting Concerns
+## 9. Cross-Cutting Concerns
 
-### 8.1 Two SSE channels (mandatory separation)
+### 9.1 Two SSE channels (mandatory separation)
 
 | Channel | Purpose | Client API | Endpoint |
 | --- | --- | --- | --- |
 | **Operational** | Health, providers, quotas, admin notifications | `EventSource` (+ BFF auth) | New Event Hub (Setor 2) |
 | **Inference** | Playground token streaming | `fetch` + stream reader | `POST /v1/responses` (existing) |
 
-### 8.2 Security checklist (all sectors)
+### 9.2 Security checklist (all sectors)
 
 - Gateway and admin keys only in Go process or Vite **server** config.
 - Provider credentials write-only via PATCH; never render API-returned secrets.
 - No CORS shortcuts.
 - Host/Origin policy preserved (ADR-011).
 
-### 8.3 Persistence mode awareness
+### 9.3 Persistence mode awareness
 
 When PostgreSQL checks fail or admin routes unavailable, UI shows degraded mode — not silent failure.
 
 ---
 
-## 9. Open Decisions and Gaps (Require SPEC or Lead Input)
+## 10. Open Decisions and Gaps (Require SPEC or Lead Input)
 
 | ID | Topic | Status | Recommended owner sector |
 | --- | --- | --- | --- |
@@ -711,10 +829,11 @@ When PostgreSQL checks fail or admin routes unavailable, UI shows degraded mode 
 | G5 | Which E09 signals emit SSE in MVP (`quota_alert` minimum set) | Partially described | Setor 2 SPEC |
 | G6 | FE-07 UI preferences in MVP vs post-MVP | Complementary | Setor 7 scope negotiation |
 | G7 | E2E tool choice (Playwright vs script) | Open | Setor 8 |
+| G8 | Frontend source topology (layer-by-type vs feature modules) | **Resolved — Feature-First (Lead approved 2026-11-03); see §4** | All frontend sectors |
 
 ---
 
-## 10. Traceability Matrix (Discovery AC → Sectors)
+## 11. Traceability Matrix (Discovery AC → Sectors)
 
 | Discovery AC | Sector |
 | --- | --- |
@@ -728,9 +847,10 @@ When PostgreSQL checks fail or admin routes unavailable, UI shows degraded mode 
 
 ---
 
-## 11. References
+## 12. References
 
-- [`FRONTEND-DISCOVERY.md`](FRONTEND-DISCOVERY.md) — product, UX, FE-01 proposal, decision matrix
+- [`FRONTEND-DISCOVERY.md`](FRONTEND-DISCOVERY.md) — product, UX, FE-01 proposal, decision matrix (D1–D3, D7 unchanged)
+- [`MVP-ROADMAP.md`](MVP-ROADMAP.md) — §4 Feature-First architecture (Lead approved 2026-11-03)
 - [`FRONTEND-MVP.md`](FRONTEND-MVP.md) — route inventory and security notes
 - [`../roadmap/AI-HUB-ROADMAP.md`](../roadmap/AI-HUB-ROADMAP.md) — backend delivery status
 - [`../development-workspace.md`](../development-workspace.md) — scaffold commands and turbo integration
@@ -739,11 +859,12 @@ When PostgreSQL checks fail or admin routes unavailable, UI shows degraded mode 
 
 ---
 
-## 12. Document Control
+## 13. Document Control
 
 | Field | Value |
 | --- | --- |
 | Created | 2026-11-03 |
+| Updated | 2026-11-03 (§4 Feature-First architecture — Lead approved) |
 | Implements code | No |
 | Modifies existing files | No (this file only) |
-| Next action | Setor 0 lead confirmations → SPEC FE-01 → Setor 1 implementation |
+| Next action | Continue sector SPECs per §4 layout; Setor 0 lead confirmations → SPEC FE-01 → Setor 1 implementation |
