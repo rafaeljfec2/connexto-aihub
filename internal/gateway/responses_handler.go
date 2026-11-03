@@ -17,6 +17,7 @@ import (
 	"aihub/internal/execution"
 	"aihub/internal/observability"
 	"aihub/internal/providers"
+	"aihub/internal/routing"
 )
 
 // StreamInactivityTimeout bounds silence between streamed chunks.
@@ -88,9 +89,23 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	modelID := requestedModelID(payload)
 	executionPayload := payload
 
+	var routingDecision routing.RoutingDecision
+	pendingRoutingLog := false
 	if h.routing != nil {
-		target, prepared, routeErr := routeResponses(h.routing, h.registry, requestID, explicitProvider, payload)
+		var target routing.Target
+		var prepared []byte
+		var routeErr error
+		target, prepared, routingDecision, routeErr = routeResponses(h.routing, h.registry, requestID, explicitProvider, payload)
+		logRoutingDecision := func(reachedExecution bool) {
+			routing.LogDecision(r.Context(), h.logger, routing.DecisionLogInput{
+				Decision:            routingDecision,
+				ExplicitProvider:    explicitProvider,
+				StructuralRejection: structuralRejectionFromRouteError(routeErr),
+				ReachedExecution:    reachedExecution,
+			})
+		}
 		if routeErr != nil {
+			logRoutingDecision(false)
 			if writeRoutingFailure(w, routeErr) {
 				return
 			}
@@ -101,16 +116,20 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		providerID = target.ProviderID
 		modelID = target.ModelID
 		executionPayload = prepared
+		if !h.requireProvider(providerID, w) {
+			logRoutingDecision(false)
+			return
+		}
+		pendingRoutingLog = true
 	} else {
 		providerID, err = requestedProviderID(r)
 		if err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid_request", "the provider selector is invalid")
 			return
 		}
-	}
-
-	if !h.requireProvider(providerID, w) {
-		return
+		if !h.requireProvider(providerID, w) {
+			return
+		}
 	}
 
 	result, err := h.manager.Execute(r.Context(), execution.Command{
@@ -123,6 +142,13 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Payload:           executionPayload,
 		ContentType:       contentType,
 	}, &responseSink{writer: w, inactivity: h.inactivity})
+	if pendingRoutingLog {
+		routing.LogDecision(r.Context(), h.logger, routing.DecisionLogInput{
+			Decision:         routingDecision,
+			ExplicitProvider: explicitProvider,
+			ReachedExecution: err == nil,
+		})
+	}
 	if errors.Is(err, execution.ErrUnavailable) {
 		writeJSONError(w, http.StatusServiceUnavailable, executionUnavailableType, executionUnavailableMsg)
 		return
@@ -143,6 +169,23 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if result.Outcome == execution.OutcomeFailed && result.Phase == execution.PhaseOpening {
 		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
 	}
+}
+
+func structuralRejectionFromRouteError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	var failure routingHTTPError
+	if !errors.As(err, &failure) {
+		return ""
+	}
+
+	if failure.typ != string(routing.StructuralInvalidRequest) && failure.typ != invalidRequestType {
+		return ""
+	}
+
+	return failure.typ
 }
 
 func requestedModelID(payload []byte) string {

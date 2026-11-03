@@ -62,6 +62,29 @@ func TestSelectDeterministicExplicitProviderMultipleModelsAmbiguous(t *testing.T
 	}
 }
 
+func TestSelectDeterministicExplicitProviderStaleCatalogUnavailable(t *testing.T) {
+	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	staleSuccess := now.Add(-48 * time.Hour)
+	snapshot := twoProviderSnapshot(now, staleSuccess)
+	snapshot.Models = append(snapshot.Models, modelView("openrouter", "model-y", now, staleSuccess, providers.StateHealthy))
+
+	ctx := routing.RoutingContext{
+		RequestID:        "req",
+		ExplicitProvider: "openrouter",
+	}
+
+	eligibility := routing.EvaluateEligibility(ctx, snapshot, routing.RequirementStatus{RequiredCapabilities: []string{"text_generation"}})
+	if len(eligibility.Eligible) != 0 {
+		t.Fatalf("precondition: stale catalog should yield zero eligible, got %d", len(eligibility.Eligible))
+	}
+
+	decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
+
+	if decision.Rejection != routing.RejectRoutingUnavailable {
+		t.Fatalf("rejection = %q, want routing_unavailable", decision.Rejection)
+	}
+}
+
 func TestSelectDeterministicExplicitModelNotFoundWithCompleteCoverage(t *testing.T) {
 	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
 	success := now.Add(-time.Hour)

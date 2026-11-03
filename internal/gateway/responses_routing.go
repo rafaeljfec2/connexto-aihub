@@ -35,14 +35,16 @@ func routeResponses(
 	requestID string,
 	explicitProvider string,
 	payload []byte,
-) (routing.Target, []byte, error) {
+) (routing.Target, []byte, routing.RoutingDecision, error) {
+	decision := routing.RoutingDecision{RequestID: requestID}
+
 	if deps == nil || deps.Catalog == nil {
-		return routing.Target{}, nil, fmt.Errorf("responses routing is not configured")
+		return routing.Target{}, nil, decision, fmt.Errorf("responses routing is not configured")
 	}
 
 	structural, structuralErr := routing.ValidateStructure(payload)
 	if structuralErr != nil {
-		return routing.Target{}, nil, routingHTTPError{
+		return routing.Target{}, nil, decision, routingHTTPError{
 			status:  http.StatusBadRequest,
 			typ:     string(routing.StructuralInvalidRequest),
 			message: structuralErr.Error(),
@@ -51,7 +53,7 @@ func routeResponses(
 
 	requirements, err := routing.ProjectRequirements(payload, structural)
 	if err != nil {
-		return routing.Target{}, nil, routingHTTPError{
+		return routing.Target{}, nil, decision, routingHTTPError{
 			status:  http.StatusBadRequest,
 			typ:     invalidRequestType,
 			message: "the request body is invalid",
@@ -84,25 +86,25 @@ func routeResponses(
 	}
 
 	eligibility := routing.EvaluateEligibility(ctx, snapshot, requirements)
-	decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
+	decision = routing.SelectDeterministic(ctx, snapshot, eligibility)
 	if decision.Rejection != "" {
-		return routing.Target{}, nil, mapRoutingRejection(decision.Rejection, explicitProvider, eligibility)
+		return routing.Target{}, nil, decision, mapRoutingRejection(decision.Rejection, explicitProvider, eligibility)
 	}
 
 	if decision.Selected == nil {
-		return routing.Target{}, nil, mapRoutingRejection(routing.RejectRoutingUnavailable, explicitProvider, eligibility)
+		return routing.Target{}, nil, decision, mapRoutingRejection(routing.RejectRoutingUnavailable, explicitProvider, eligibility)
 	}
 
 	prepared, err := prepareResponsesPayload(payload, structural, decision.Selected.ModelID)
 	if err != nil {
-		return routing.Target{}, nil, routingHTTPError{
+		return routing.Target{}, nil, decision, routingHTTPError{
 			status:  http.StatusBadRequest,
 			typ:     invalidRequestType,
 			message: "the request body is invalid",
 		}
 	}
 
-	return *decision.Selected, prepared, nil
+	return *decision.Selected, prepared, decision, nil
 }
 
 func prepareResponsesPayload(original []byte, structural routing.StructuralRequest, selectedModelID string) ([]byte, error) {

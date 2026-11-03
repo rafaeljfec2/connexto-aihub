@@ -190,6 +190,9 @@ func selectCompatibilityDefault(decision RoutingDecision, snapshot Snapshot, eli
 
 func reject(decision RoutingDecision, code RejectionCode, criteria []string) RoutingDecision {
 	decision.Rejection = code
+	if len(criteria) == 0 {
+		criteria = []string{"rejection:" + string(code)}
+	}
 	decision.Criteria = criteria
 	return decision
 }
