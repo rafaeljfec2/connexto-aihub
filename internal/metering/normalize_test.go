@@ -17,6 +17,12 @@ func TestNormalizeOpenCodeUsageReported(t *testing.T) {
 	if record.InputTokens == nil || *record.InputTokens != 36 {
 		t.Fatalf("input = %v", record.InputTokens)
 	}
+	if record.CachedInputTokens == nil || *record.CachedInputTokens != 0 {
+		t.Fatalf("cached input = %v, want explicit zero", record.CachedInputTokens)
+	}
+	if !record.ProviderReportedCost.Valid || record.Currency != "USD" {
+		t.Fatalf("reported cost = %+v currency = %q, want zero USD", record.ProviderReportedCost, record.Currency)
+	}
 }
 
 func TestNormalizeOpenCodeUsageUnavailable(t *testing.T) {
@@ -61,5 +67,36 @@ func TestNormalizeExplicitZeroTokensAreReported(t *testing.T) {
 	}
 	if record.InputTokens == nil || *record.InputTokens != 0 {
 		t.Fatalf("input = %v", record.InputTokens)
+	}
+}
+
+func TestNormalizeOpenCodeNullAndAbsentTokensRemainUnknown(t *testing.T) {
+	event := []byte(`{"usage":{"input_tokens":null,"output_tokens":0,"total_tokens":null}}`)
+	record := metering.NormalizeExecutionUsage(providers.OpenCodeGoID, capture.Result{FinalEventData: event})
+	if record.Status != metering.StatusPartial {
+		t.Fatalf("status = %s, want partial", record.Status)
+	}
+	if record.InputTokens != nil || record.TotalTokens != nil {
+		t.Fatalf("unknown tokens = input %v, total %v", record.InputTokens, record.TotalTokens)
+	}
+	if record.CachedInputTokens != nil {
+		t.Fatalf("absent cached input = %v, want unknown", record.CachedInputTokens)
+	}
+	if record.OutputTokens == nil || *record.OutputTokens != 0 {
+		t.Fatalf("output = %v, want explicit zero", record.OutputTokens)
+	}
+}
+
+func TestNormalizeOpenRouterCachedTokensAndMissingCurrency(t *testing.T) {
+	event := []byte(`{"type":"response.done","response":{"usage":{"input_tokens":12,"output_tokens":45,"total_tokens":57,"cached_input_tokens":3,"cost":0}}}`)
+	record := metering.NormalizeExecutionUsage(providers.OpenRouterID, capture.Result{FinalEventData: event})
+	if record.Status != metering.StatusReported {
+		t.Fatalf("status = %s", record.Status)
+	}
+	if record.CachedInputTokens == nil || *record.CachedInputTokens != 3 {
+		t.Fatalf("cached input = %v, want 3", record.CachedInputTokens)
+	}
+	if !record.ProviderReportedCost.Valid || record.Currency != "USD" {
+		t.Fatalf("reported cost = %+v currency = %q, want zero USD", record.ProviderReportedCost, record.Currency)
 	}
 }

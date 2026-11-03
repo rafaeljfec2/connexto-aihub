@@ -10,8 +10,12 @@ import (
 )
 
 type releaseAttemptsRepo struct {
-	attempts int
-	failures int
+	attempts       int
+	failures       int
+	blockRelease   bool
+	blockRenew     bool
+	releaseStarted chan struct{}
+	renewStarted   chan struct{}
 }
 
 func (r *releaseAttemptsRepo) CreatePolicy(context.Context, concurrency.NewPolicyInput) (concurrency.Policy, error) {
@@ -41,14 +45,28 @@ func (r *releaseAttemptsRepo) ListUsage(context.Context, concurrency.UsageQuery)
 func (r *releaseAttemptsRepo) Acquire(context.Context, concurrency.AcquireRequest, time.Time, time.Duration) (concurrency.AcquireDecision, error) {
 	return concurrency.AcquireDecision{}, nil
 }
-func (r *releaseAttemptsRepo) Release(context.Context, string) error {
+func (r *releaseAttemptsRepo) Release(ctx context.Context, _ string) error {
 	r.attempts++
+	if r.blockRelease {
+		if r.releaseStarted != nil {
+			close(r.releaseStarted)
+		}
+		<-ctx.Done()
+		return ctx.Err()
+	}
 	if r.attempts <= r.failures {
 		return concurrency.ErrUnavailable
 	}
 	return nil
 }
-func (r *releaseAttemptsRepo) RenewLease(context.Context, string, time.Time, time.Duration) error {
+func (r *releaseAttemptsRepo) RenewLease(ctx context.Context, _ string, _ time.Time, _ time.Duration) error {
+	if r.blockRenew {
+		if r.renewStarted != nil {
+			close(r.renewStarted)
+		}
+		<-ctx.Done()
+		return ctx.Err()
+	}
 	return nil
 }
 
@@ -71,5 +89,50 @@ func TestReleaseReturnsLastErrorAfterRetries(t *testing.T) {
 	}
 	if repo.attempts != 5 {
 		t.Fatalf("attempts = %d, want 5", repo.attempts)
+	}
+}
+
+func TestReleaseStopsAtOperationTimeout(t *testing.T) {
+	repo := &releaseAttemptsRepo{blockRelease: true, releaseStarted: make(chan struct{})}
+	service := concurrency.NewService(repo, concurrency.WithOperationTimeout(20*time.Millisecond))
+	started := time.Now()
+	err := service.Release(context.Background(), "exec-timeout")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Release = %v, want deadline exceeded", err)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("Release took %v, want bounded completion", elapsed)
+	}
+	select {
+	case <-repo.releaseStarted:
+	default:
+		t.Fatal("repository release was not called")
+	}
+}
+
+func TestReleasePropagatesCallerCancellation(t *testing.T) {
+	repo := &releaseAttemptsRepo{blockRelease: true, releaseStarted: make(chan struct{})}
+	service := concurrency.NewService(repo)
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() { result <- service.Release(ctx, "exec-canceled") }()
+	<-repo.releaseStarted
+	cancel()
+	if err := <-result; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Release = %v, want canceled", err)
+	}
+}
+
+func TestRenewLeaseStopsAtOperationTimeout(t *testing.T) {
+	repo := &releaseAttemptsRepo{blockRenew: true, renewStarted: make(chan struct{})}
+	service := concurrency.NewService(repo, concurrency.WithOperationTimeout(20*time.Millisecond))
+	err := service.RenewLease(context.Background(), "exec-renew-timeout")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("RenewLease = %v, want deadline exceeded", err)
+	}
+	select {
+	case <-repo.renewStarted:
+	default:
+		t.Fatal("repository renewal was not called")
 	}
 }

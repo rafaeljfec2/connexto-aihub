@@ -51,9 +51,9 @@ type DistributionReport struct {
 // ProviderUsageDailyTokens aggregates token sums for one UTC day.
 type ProviderUsageDailyTokens struct {
 	PeriodStart    time.Time
-	InputTokens    int64
-	OutputTokens   int64
-	TotalTokens    int64
+	InputTokens    *int64
+	OutputTokens   *int64
+	TotalTokens    *int64
 	ExecutionCount int
 }
 
@@ -61,9 +61,9 @@ type ProviderUsageDailyTokens struct {
 type ProviderUsageSummary struct {
 	From                  time.Time
 	To                    time.Time
-	InputTokens           int64
-	OutputTokens          int64
-	TotalTokens           int64
+	InputTokens           *int64
+	OutputTokens          *int64
+	TotalTokens           *int64
 	ReportedExecutions    int
 	UnavailableExecutions int
 	PartialExecutions     int
@@ -75,9 +75,9 @@ type ProviderUsageSummary struct {
 type ProviderUsageProviderDaily struct {
 	PeriodStart  time.Time
 	ProviderID   string
-	InputTokens  int64
-	OutputTokens int64
-	TotalTokens  int64
+	InputTokens  *int64
+	OutputTokens *int64
+	TotalTokens  *int64
 	Executions   int
 }
 
@@ -86,9 +86,9 @@ type ProviderUsageModelDaily struct {
 	PeriodStart  time.Time
 	ProviderID   string
 	ModelID      string
-	InputTokens  int64
-	OutputTokens int64
-	TotalTokens  int64
+	InputTokens  *int64
+	OutputTokens *int64
+	TotalTokens  *int64
 	Executions   int
 }
 

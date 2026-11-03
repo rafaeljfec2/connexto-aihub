@@ -20,7 +20,8 @@ func NewReleaseObserver(service *Service, next execution.ResultObserver) executi
 }
 
 func (o *releaseObserver) OnExecutionFinished(finished execution.FinishedExecution) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
+	defer cancel()
 	_ = o.service.Release(ctx, finished.Result.ExecutionID)
 	if o.next != nil {
 		o.next.OnExecutionFinished(finished)

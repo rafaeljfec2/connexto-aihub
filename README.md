@@ -8,7 +8,9 @@ integration, Responses pass-through), E03 (Model Catalog), E04 (Gateway
 hardening and access control), E05 (execution lifecycle), E06 (execution
 records), and E07 (Codex CLI harness) are implemented. E07 is validated for
 Codex CLI `0.164.0-alpha.11.1` on Linux `amd64`; AC-14 is `OUT OF SCOPE`.
-Routing, learning, quotas and multi-provider orchestration are not implemented.
+E08 intelligent routing and E09 resource management, concurrency limits, and
+provider-usage analytics are implemented in PostgreSQL mode. Learning is not
+implemented.
 
 ## Scope implemented
 

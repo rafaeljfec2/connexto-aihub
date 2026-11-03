@@ -43,6 +43,8 @@ func analyticsPGServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 	mux.Handle("GET /api/resource-analytics/admissions/distribution", admin.Distribution())
 	mux.Handle("GET /api/resource-analytics/quota-utilization", admin.QuotaUtilization())
 	mux.Handle("GET /api/resource-analytics/concurrency", admin.Concurrency())
+	mux.Handle("GET /api/resource-analytics/provider-usage", admin.ProviderUsage())
+	mux.Handle("GET /api/resource-analytics/provider-usage/distribution", admin.ProviderUsageDistribution())
 	server := httptest.NewServer(policy.Authorize(mux))
 	t.Cleanup(server.Close)
 	return server
@@ -63,12 +65,17 @@ func TestAnalyticsAdminPGIntegration(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
+	if _, err := resourceService.Admit(ctx, resources.AdmissionRequest{
+		ID: "adm-analytics-2", ProviderID: providers.OpenRouterID, ModelID: "m2",
+	}); err != nil {
+		t.Fatalf("Admit second provider: %v", err)
+	}
 
 	server := analyticsPGServer(t, pool)
 	from := day.Format(time.DateOnly)
 	status, payload := resourceAdminCall(t, http.MethodGet,
 		server.URL+"/api/resource-analytics/admissions?from="+from+"&to="+from, "", resourceAdminToken)
-	if status != http.StatusOK || !strings.Contains(payload, `"total_admitted":1`) {
+	if status != http.StatusOK || !strings.Contains(payload, `"total_admitted":2`) {
 		t.Fatalf("admissions status=%d payload=%s", status, payload)
 	}
 
@@ -76,6 +83,26 @@ func TestAnalyticsAdminPGIntegration(t *testing.T) {
 		server.URL+"/api/resource-analytics/admissions/distribution?from="+from+"&to="+from, "", resourceAdminToken)
 	if status != http.StatusOK || !strings.Contains(payload, `"by_provider"`) || !strings.Contains(payload, providers.OpenCodeGoID) {
 		t.Fatalf("distribution status=%d payload=%s", status, payload)
+	}
+	status, payload = resourceAdminCall(t, http.MethodGet,
+		server.URL+"/api/resource-analytics/admissions/distribution?from="+from+"&to="+from+"&provider_id="+providers.OpenCodeGoID, "", resourceAdminToken)
+	if status != http.StatusOK || !strings.Contains(payload, `"admitted_count":1`) || strings.Contains(payload, providers.OpenRouterID) {
+		t.Fatalf("provider-filtered distribution status=%d payload=%s", status, payload)
+	}
+	status, payload = resourceAdminCall(t, http.MethodGet,
+		server.URL+"/api/resource-analytics/admissions/distribution?from="+from+"&to="+from+"&provider_id="+providers.OpenRouterID+"&model_id=m2", "", resourceAdminToken)
+	if status != http.StatusOK || !strings.Contains(payload, `"model_id":"m2"`) || strings.Contains(payload, providers.OpenCodeGoID) {
+		t.Fatalf("combined-filter distribution status=%d payload=%s", status, payload)
+	}
+	status, _ = resourceAdminCall(t, http.MethodGet,
+		server.URL+"/api/resource-analytics/admissions/distribution?from="+from+"&to="+from+"&model_id=m1", "", resourceAdminToken)
+	if status != http.StatusBadRequest {
+		t.Fatalf("model-only distribution status=%d, want 400", status)
+	}
+	status, payload = resourceAdminCall(t, http.MethodGet,
+		server.URL+"/api/resource-analytics/admissions/distribution?from="+from+"&to="+from+"&provider_id=missing", "", resourceAdminToken)
+	if status != http.StatusOK || !strings.Contains(payload, `"by_provider":[]`) || !strings.Contains(payload, `"by_model":[]`) {
+		t.Fatalf("empty filtered distribution status=%d payload=%s", status, payload)
 	}
 
 	status, payload = resourceAdminCall(t, http.MethodGet, server.URL+"/api/resource-analytics/concurrency", "", resourceAdminToken)

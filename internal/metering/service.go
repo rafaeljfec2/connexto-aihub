@@ -11,6 +11,8 @@ import (
 // ErrInvalidInput marks malformed persistence input.
 var ErrInvalidInput = errors.New("metering: invalid input")
 
+const DefaultPersistenceTimeout = 2 * time.Second
+
 // Repository persists normalized usage rows.
 type Repository interface {
 	Insert(ctx context.Context, record Record) (inserted bool, err error)
@@ -18,9 +20,10 @@ type Repository interface {
 
 // Service normalizes and persists provider usage without affecting execution outcomes.
 type Service struct {
-	repo   Repository
-	logger *slog.Logger
-	clock  func() time.Time
+	repo    Repository
+	logger  *slog.Logger
+	clock   func() time.Time
+	timeout time.Duration
 }
 
 // Option configures the metering service.
@@ -40,9 +43,18 @@ func WithClock(clock func() time.Time) Option {
 	}
 }
 
+// WithPersistenceTimeout bounds best-effort usage persistence.
+func WithPersistenceTimeout(timeout time.Duration) Option {
+	return func(service *Service) {
+		if timeout > 0 {
+			service.timeout = timeout
+		}
+	}
+}
+
 // NewService builds a metering service. A nil repository disables persistence.
 func NewService(repo Repository, options ...Option) *Service {
-	service := &Service{repo: repo, clock: time.Now}
+	service := &Service{repo: repo, clock: time.Now, timeout: DefaultPersistenceTimeout}
 	for _, option := range options {
 		if option != nil {
 			option(service)
@@ -60,7 +72,9 @@ func (s *Service) RecordFromCapture(ctx context.Context, input RecordInput) erro
 	if err != nil {
 		return err
 	}
-	inserted, err := s.repo.Insert(ctx, record)
+	persistenceContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.timeout)
+	defer cancel()
+	inserted, err := s.repo.Insert(persistenceContext, record)
 	if err != nil {
 		s.logFailure(record.ExecutionID, record.ProviderID, err)
 		return err

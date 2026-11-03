@@ -22,6 +22,17 @@ func TestMigration0002RollbackAndReapplyIntegration(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
+	down5, err := os.ReadFile("migrations/0005_provider_execution_usage.down.sql")
+	if err != nil {
+		t.Fatalf("read down migration 0005: %v", err)
+	}
+	if _, err := pool.Exec(ctx, string(down5)); err != nil {
+		t.Fatalf("apply down migration 0005: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM schema_migrations WHERE version = 5`); err != nil {
+		t.Fatalf("forget migration 0005: %v", err)
+	}
+
 	down4, err := os.ReadFile("migrations/0004_concurrency.down.sql")
 	if err != nil {
 		t.Fatalf("read down migration 0004: %v", err)
@@ -70,7 +81,7 @@ func TestMigration0002RollbackAndReapplyIntegration(t *testing.T) {
 		t.Fatalf("re-apply Migrate: %v", err)
 	}
 
-	if len(applied) != 3 || applied[0] != 2 || applied[1] != 3 || applied[2] != 4 || version != 4 {
-		t.Fatalf("re-apply = %v version %d, want [2 3 4] version 4", applied, version)
+	if len(applied) != 4 || applied[0] != 2 || applied[1] != 3 || applied[2] != 4 || applied[3] != 5 || version != 5 {
+		t.Fatalf("re-apply = %v version %d, want [2 3 4 5] version 5", applied, version)
 	}
 }

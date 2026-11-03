@@ -2,18 +2,14 @@ package gateway
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"aihub/internal/access"
 	"aihub/internal/execution"
 	"aihub/internal/metering"
 	"aihub/internal/metering/capture"
@@ -26,8 +22,6 @@ import (
 const StreamInactivityTimeout = 2 * time.Minute
 
 const (
-	sessionHeader = "X-Opencode-Session"
-	SessionPrefix = "aihub-ses-"
 	// Keep captured identifiers within the execution-record model_id bound.
 	maxObservedModelIDBytes = 4096
 )
@@ -249,72 +243,4 @@ func requestedModelID(payload []byte) string {
 	}
 
 	return modelID
-}
-
-type responseSink struct {
-	writer      http.ResponseWriter
-	inactivity  time.Duration
-	tap         *capture.StreamTap
-	contentType string
-}
-
-func (s *responseSink) Commit(status int, contentType string) {
-	s.contentType = contentType
-	if contentType != "" {
-		s.writer.Header().Set("Content-Type", contentType)
-	}
-	controller := http.NewResponseController(s.writer)
-	_ = controller.SetWriteDeadline(time.Now().Add(s.inactivity))
-	s.writer.WriteHeader(status)
-}
-
-func (s *responseSink) WriteChunk(chunk []byte) error {
-	if s.tap != nil {
-		s.tap.Observe(chunk)
-	}
-	if _, err := s.writer.Write(chunk); err != nil {
-		return err
-	}
-	controller := http.NewResponseController(s.writer)
-	if err := controller.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
-		return err
-	}
-	_ = controller.SetWriteDeadline(time.Now().Add(s.inactivity))
-	return nil
-}
-
-func newExecutionManager(client *providers.Client, logger *slog.Logger, inactivity time.Duration) *execution.Manager {
-	return execution.NewManager(logger, providers.OpenCodeGoID,
-		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
-			return client.OpenTargetResponses(ctx, providers.ResponsesTarget{
-				ProviderID: target.ProviderID,
-				ModelID:    target.ModelID,
-			}, payload, contentType, sessionID)
-		}, inactivity)
-}
-
-func providerSessionID(r *http.Request) (string, error) {
-	if metadata, ok := access.MetadataFrom(r.Context()); ok && metadata.ProviderSessionID != "" {
-		return metadata.ProviderSessionID, nil
-	}
-	return resolveSessionID(r)
-}
-
-func resolveSessionID(r *http.Request) (string, error) {
-	if supplied := r.Header.Get(sessionHeader); supplied != "" {
-		return supplied, nil
-	}
-	return newSessionID()
-}
-
-func newSessionID() (string, error) {
-	return newPrefixedID(SessionPrefix)
-}
-
-func newPrefixedID(prefix string) (string, error) {
-	var random [16]byte
-	if _, err := rand.Read(random[:]); err != nil {
-		return "", fmt.Errorf("generate provider session id: %w", err)
-	}
-	return prefix + hex.EncodeToString(random[:]), nil
 }

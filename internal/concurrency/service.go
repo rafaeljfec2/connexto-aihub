@@ -10,16 +10,18 @@ import (
 )
 
 const DefaultLeaseTTL = 5 * time.Minute
+const DefaultOperationTimeout = 2 * time.Second
 
 const releaseMaxAttempts = 5
 const releaseInitialBackoff = 50 * time.Millisecond
 
 // Service owns concurrency policy administration and slot lifecycle.
 type Service struct {
-	repo      Repository
-	logger    *slog.Logger
-	now       func() time.Time
-	leaseTTL  time.Duration
+	repo             Repository
+	logger           *slog.Logger
+	now              func() time.Time
+	leaseTTL         time.Duration
+	operationTimeout time.Duration
 }
 
 // Option configures the service.
@@ -39,6 +41,15 @@ func WithLeaseTTL(ttl time.Duration) Option {
 	}
 }
 
+// WithOperationTimeout bounds lease persistence operations and release retries.
+func WithOperationTimeout(timeout time.Duration) Option {
+	return func(s *Service) {
+		if timeout > 0 {
+			s.operationTimeout = timeout
+		}
+	}
+}
+
 // WithLogger attaches structured logging for concurrency events.
 func WithLogger(logger *slog.Logger) Option {
 	return func(s *Service) { s.logger = logger }
@@ -46,7 +57,10 @@ func WithLogger(logger *slog.Logger) Option {
 
 // NewService builds the concurrency service.
 func NewService(repo Repository, opts ...Option) *Service {
-	s := &Service{repo: repo, now: time.Now, leaseTTL: DefaultLeaseTTL}
+	s := &Service{
+		repo: repo, now: time.Now, leaseTTL: DefaultLeaseTTL,
+		operationTimeout: DefaultOperationTimeout,
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -146,10 +160,12 @@ func (s *Service) Release(ctx context.Context, executionID string) error {
 	if executionID == "" {
 		return fmt.Errorf("%w: execution_id is required", ErrInvalidInput)
 	}
+	operationContext, cancel := context.WithTimeout(ctx, s.operationTimeout)
+	defer cancel()
 	delay := releaseInitialBackoff
 	var lastErr error
 	for attempt := 1; attempt <= releaseMaxAttempts; attempt++ {
-		lastErr = s.repo.Release(ctx, executionID)
+		lastErr = s.repo.Release(operationContext, executionID)
 		if lastErr == nil {
 			s.logSimple("concurrency_released", "execution_id", executionID)
 			return nil
@@ -158,8 +174,8 @@ func (s *Service) Release(ctx context.Context, executionID string) error {
 			break
 		}
 		select {
-		case <-ctx.Done():
-			lastErr = ctx.Err()
+		case <-operationContext.Done():
+			lastErr = operationContext.Err()
 			attempt = releaseMaxAttempts
 		case <-time.After(delay):
 			delay *= 2
@@ -175,8 +191,10 @@ func (s *Service) RenewLease(ctx context.Context, executionID string) error {
 	if executionID == "" {
 		return fmt.Errorf("%w: execution_id is required", ErrInvalidInput)
 	}
+	operationContext, cancel := context.WithTimeout(ctx, s.operationTimeout)
+	defer cancel()
 	now := s.now().UTC()
-	if err := s.repo.RenewLease(ctx, executionID, now, s.leaseTTL); err != nil {
+	if err := s.repo.RenewLease(operationContext, executionID, now, s.leaseTTL); err != nil {
 		return err
 	}
 	s.logSimple("concurrency_lease_renewed", "execution_id", executionID)

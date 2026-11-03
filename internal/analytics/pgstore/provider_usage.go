@@ -11,9 +11,9 @@ import (
 func (s *Store) ProviderUsageSummary(ctx context.Context, query analytics.RangeQuery) (analytics.ProviderUsageSummary, error) {
 	sql, args := providerUsageFilter(`
 SELECT
-       COALESCE(SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
+       SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
        count(*) FILTER (WHERE usage_status = 'reported')::int,
        count(*) FILTER (WHERE usage_status = 'unavailable')::int,
        count(*) FILTER (WHERE usage_status = 'partial')::int,
@@ -39,9 +39,9 @@ SELECT
 func (s *Store) ProviderUsageDaily(ctx context.Context, query analytics.RangeQuery) ([]analytics.ProviderUsageDailyTokens, error) {
 	sql, args := providerUsageFilter(`
 SELECT date_trunc('day', recorded_at AT TIME ZONE 'UTC')::date,
-       COALESCE(SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
+       SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
        count(*)::int
   FROM provider_execution_usage
  WHERE recorded_at >= $1
@@ -73,9 +73,9 @@ func (s *Store) ProviderUsageByProvider(ctx context.Context, query analytics.Ran
 	sql, args := providerUsageFilter(`
 SELECT date_trunc('day', recorded_at AT TIME ZONE 'UTC')::date,
        provider_id,
-       COALESCE(SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
+       SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
        count(*)::int
   FROM provider_execution_usage
  WHERE recorded_at >= $1
@@ -108,9 +108,9 @@ func (s *Store) ProviderUsageByModel(ctx context.Context, query analytics.RangeQ
 SELECT date_trunc('day', recorded_at AT TIME ZONE 'UTC')::date,
        provider_id,
        model_id,
-       COALESCE(SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
-       COALESCE(SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial')), 0)::bigint,
+       SUM(input_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(output_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
+       SUM(total_tokens) FILTER (WHERE usage_status IN ('reported', 'partial'))::bigint,
        count(*)::int
   FROM provider_execution_usage
  WHERE recorded_at >= $1

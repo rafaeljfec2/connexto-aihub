@@ -23,7 +23,7 @@ func (h *responsesHandler) startConcurrencyRenewal(parent context.Context, execu
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := h.concurrency.RenewLease(context.Background(), executionID); err != nil {
+				if err := h.concurrency.RenewLease(ctx, executionID); err != nil {
 					if errors.Is(err, concurrency.ErrNotFound) {
 						h.logger.WarnContext(ctx, "concurrency lease expired during execution",
 							"execution_id", executionID)

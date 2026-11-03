@@ -96,7 +96,7 @@ SELECT execution_id FROM provider_execution_usage ORDER BY recorded_at DESC LIMI
 	if err != nil {
 		t.Fatalf("ProviderUsage: %v", err)
 	}
-	if report.InputTokens != 4 || report.ReportedExecutions != 1 {
+	if report.InputTokens == nil || *report.InputTokens != 4 || report.ReportedExecutions != 1 {
 		t.Fatalf("analytics = %+v", report)
 	}
 }
@@ -122,7 +122,11 @@ func TestE095ResponseWithoutUsageStillSucceeds(t *testing.T) {
 	}, time.Minute)
 	usageService := metering.NewService(meteringpg.New(pool), metering.WithLogger(logger))
 	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, nil, nil, nil, usageService)
-	rec := postRoutedResponses(t, handler)
+	body := `{"model":"usage-model","input":[{"type":"input_text","text":"hello"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}
@@ -178,6 +182,47 @@ func TestE095AnalyticsEndpointReturnsProviderUsage(t *testing.T) {
 	}
 	if payload["input_tokens"].(float64) != 7 {
 		t.Fatalf("payload = %#v", payload)
+	}
+}
+
+func TestE095ProviderUsageDistributionEndpointFiltersPartialRows(t *testing.T) {
+	pool := dbtest.Pool(t)
+	if _, _, err := db.Migrate(context.Background(), pool); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	day := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+	store := meteringpg.New(pool)
+	zero := int64(0)
+	for _, record := range []metering.Record{
+		{
+			ExecutionID: "exec-dist-partial", ProviderID: providers.OpenCodeGoID, ModelID: "m1",
+			OutputTokens: &zero, Status: metering.StatusPartial, Source: metering.SourceOpenCodeGo, RecordedAt: day.Add(time.Hour),
+		},
+		{
+			ExecutionID: "exec-dist-reported", ProviderID: providers.OpenCodeGoID, ModelID: "m2",
+			InputTokens: int64Ref(2), OutputTokens: int64Ref(1), TotalTokens: int64Ref(3),
+			Status: metering.StatusReported, Source: metering.SourceOpenCodeGo, RecordedAt: day.Add(2 * time.Hour),
+		},
+	} {
+		if _, err := store.Insert(context.Background(), record); err != nil {
+			t.Fatalf("Insert %q: %v", record.ExecutionID, err)
+		}
+	}
+	server := analyticsPGServer(t, pool)
+	baseURL := server.URL + "/api/resource-analytics/provider-usage/distribution?from=2026-11-03&to=2026-11-03"
+	status, payload := resourceAdminCall(t, http.MethodGet,
+		baseURL+"&provider_id="+providers.OpenCodeGoID+"&model_id=m1", "", resourceAdminToken)
+	if status != http.StatusOK || !strings.Contains(payload, `"model_id":"m1"`) || !strings.Contains(payload, `"input_tokens":null`) || !strings.Contains(payload, `"output_tokens":0`) || strings.Contains(payload, `"model_id":"m2"`) {
+		t.Fatalf("filtered distribution status=%d payload=%s", status, payload)
+	}
+	status, payload = resourceAdminCall(t, http.MethodGet,
+		baseURL+"&provider_id="+providers.OpenCodeGoID+"&model_id=missing", "", resourceAdminToken)
+	if status != http.StatusOK || !strings.Contains(payload, `"by_provider":[]`) || !strings.Contains(payload, `"by_model":[]`) {
+		t.Fatalf("empty distribution status=%d payload=%s", status, payload)
+	}
+	status, _ = resourceAdminCall(t, http.MethodGet, baseURL+"&model_id=m1", "", resourceAdminToken)
+	if status != http.StatusBadRequest {
+		t.Fatalf("model-only distribution status=%d, want 400", status)
 	}
 }
 
