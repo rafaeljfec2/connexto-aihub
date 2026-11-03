@@ -1,8 +1,8 @@
 # Architecture Decision Records
 
-Decisions taken across E01–E06 and Phase C2. Each record states context,
-decision, rationale and consequences. E07 was a validation-only harness
-integration and added no runtime architecture decision or ADR.
+Decisions taken across E01–E06, Phase C2, and proposed E08.1. Each record states
+context, decision, rationale and consequences. E07 was a validation-only
+harness integration and added no runtime architecture decision or ADR.
 
 | ADR     | Decision                                                        |
 | ------- | --------------------------------------------------------------- |
@@ -27,6 +27,7 @@ integration and added no runtime architecture decision or ADR.
 | ADR-019 | Hybrid monorepo: independent Go Modules and pnpm ecosystems with Turborepo orchestration |
 | ADR-020 | PostgreSQL persistence foundation: pgx, embedded migrations and catalog persistence modes |
 | ADR-021 | Provider selection and OpenRouter runtime                        |
+| ADR-022 | Deterministic intelligent routing (accepted E08.1 / E08.1.1, 2026-11-03)   |
 
 New decisions get the next number. Superseded records stay in place and are
 marked as such.
