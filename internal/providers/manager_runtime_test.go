@@ -71,6 +71,17 @@ func TestManagerInvalidatesDisabledStateAfterCredentialUpdate(t *testing.T) {
 		t.Fatalf("status after name update = %+v, want enabled/healthy", got)
 	}
 
+	newEndpoint := server.URL + "/api/v2"
+	if _, err := service.Update(ctx, providers.OpenRouterID, providers.UpdateInput{Endpoint: &newEndpoint}); err != nil {
+		t.Fatalf("Update endpoint: %v", err)
+	}
+	if got := manager.Statuses()[0]; !got.Enabled || got.State != providers.StateUnknown {
+		t.Fatalf("status after endpoint update = %+v, want enabled/unknown", got)
+	}
+	if err := service.Validate(ctx, providers.OpenRouterID); err != nil {
+		t.Fatalf("Validate after endpoint update: %v", err)
+	}
+
 	rotatedCredential := "sk-or-test-rotated-credential"
 	if _, err := service.Update(ctx, providers.OpenRouterID, providers.UpdateInput{Credential: &rotatedCredential}); err != nil {
 		t.Fatalf("Update rotated credential: %v", err)

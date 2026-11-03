@@ -233,19 +233,29 @@ providers begin in `unknown`, while disabled or credentialless providers begin
 in `disabled`. The catalog sees `unknown` and records a skipped startup sync,
 so startup does not request model lists from providers.
 
-`POST /api/providers/{id}/validate` is the explicit connectivity check. It uses
-the persisted endpoint and credential, invokes only the probe registered for
-that provider type, and applies a ten-second deadline that also respects request
-cancellation. The probes call the provider's model-list endpoint and do not
-submit Responses or generate content. Success updates runtime health to
-`healthy`; a failed or timed-out check updates it to `unhealthy`; a canceled
-request leaves it `unknown`. The HTTP response and logs do not expose upstream
-error bodies, credentials or sensitive headers.
+`POST /api/providers/{id}/validate` runs an explicit provider health check. It
+uses the persisted endpoint and credential, invokes only the probe registered
+for that provider type, and applies a ten-second deadline that also respects
+request cancellation. The probes call the provider's model-list endpoint and do
+not submit Responses or generate content. For OpenRouter, a successful
+authenticated `GET /models` response with HTTP 200 is the adapter's functional
+health signal; it does not guarantee that a particular model can generate a
+response.
+
+The validation response value `reachable` reports that the probe succeeded. The
+provider diagnostic `state` is a separate health result: `healthy` after a
+successful current probe, `unhealthy` after a failed or timed-out probe, and
+`unknown` before a probe, after invalidation, or when the request is canceled.
+The diagnostic `enabled` field represents runtime availability: the bound
+adapter is enabled and has its required credential. Availability gates new
+execution requests independently from health; neither `reachable` nor
+`healthy` guarantees that a selected model or feature is supported. The HTTP
+response and logs do not expose upstream error bodies, credentials or sensitive
+headers.
 
 Endpoint or credential changes invalidate the prior health result. A result
 from a check that started before a reconfiguration is discarded. A name-only
-change preserves the health result. Enabled state remains independent from
-health and continues to gate execution; provider selection and the absence of
+change preserves the health result. Provider selection and the absence of
 automatic fallback are unchanged.
 
 ## Model catalog (E03)

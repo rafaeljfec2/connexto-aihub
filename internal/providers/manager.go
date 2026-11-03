@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-// State is the availability state of a configured provider.
+// State describes runtime health; StateDisabled denotes an unavailable runtime.
 type State string
 
 const (
@@ -17,7 +17,7 @@ const (
 	StateUnhealthy State = "unhealthy"
 )
 
-// Status is the diagnostics view of one provider; it never carries secrets.
+// Status reports execution availability and health for one provider without carrying secrets.
 type Status struct {
 	ID      string `json:"id"`
 	Enabled bool   `json:"enabled"`

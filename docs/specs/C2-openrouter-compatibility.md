@@ -179,3 +179,38 @@ for command results, operational checks, independent review and remaining C2
 limitations. C2 remains incomplete until a successful OpenRouter Responses
 execution and other outstanding live acceptance evidence are obtained under
 their respective authorization constraints.
+
+## C2.6 health-state semantics (2026-11-03)
+
+The provider diagnostic exposes independent health and availability fields:
+
+| Field or value | Meaning |
+| --- | --- |
+| Validation response `reachable` | The configured authenticated model-list probe succeeded. This is the validation route's response label, not the diagnostic health state. |
+| Diagnostic `state=healthy` | The latest current provider probe succeeded. For OpenRouter, the defined functional check is an authenticated model-list request that returns HTTP 200. This does not establish inference, model, or feature availability. |
+| Diagnostic `state=unhealthy` | The latest current provider probe failed or timed out. |
+| Diagnostic `state=unknown` | No current probe result exists, the result was invalidated by endpoint or credential reconfiguration, or the caller canceled the probe. |
+| Diagnostic `state=disabled` | The bound runtime is not enabled or lacks its required credential. |
+| Diagnostic `enabled=true` | The bound runtime is enabled and configured to receive execution requests. Health remains independent; execution does not gain an automatic fallback. |
+
+The C2.5 operational report recorded an OpenRouter validation response of
+`reachable` while the later diagnostic still showed `unknown`. C2.6 reproduced
+that result in the then-running Hub process. After restarting only the Hub, one
+explicit validation returned `reachable`, and the authenticated diagnostics
+route reported `enabled=true`, `state=healthy`. A local service/admin regression
+test now exercises the actual OpenRouter probe against a controlled HTTP server
+and verifies the same state transition. The stuck state was cleared by the Hub
+restart, but its exact in-process cause was not isolated; no runtime code change
+is claimed. No inference was performed.
+
+The C2.6 regression coverage verifies that diagnostics begin at `unknown`, a
+successful explicit validation returns `reachable` and updates the same
+provider to `healthy`, a failed validation updates only its target provider,
+and credential or endpoint changes invalidate prior health while a name change
+preserves it. Existing tests continue to cover cancellation, startup without
+probes, disabled execution, and sanitized failures.
+
+C2 remains incomplete until the PostgreSQL integration suite passes against an
+explicitly approved isolated test instance. The integration helper creates and
+drops throwaway databases from `AIHUB_TEST_DATABASE_URL`; an unverified or
+shared application database must not be used.

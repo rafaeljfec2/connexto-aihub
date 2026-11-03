@@ -165,7 +165,7 @@ func (a *ProviderAdmin) Update() http.Handler {
 	})
 }
 
-// Validate handles POST /api/providers/{id}/validate. It updates runtime health only.
+// Validate handles POST /api/providers/{id}/validate. It reports probe reachability and updates runtime health.
 func (a *ProviderAdmin) Validate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := a.service.Validate(r.Context(), r.PathValue("id"))

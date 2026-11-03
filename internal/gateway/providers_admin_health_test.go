@@ -3,6 +3,7 @@ package gateway_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -17,8 +18,18 @@ import (
 
 func TestProviderValidationUpdatesOnlyTargetStateAndSanitizesErrors(t *testing.T) {
 	upstreamHits := 0
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamHits++
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/models" {
+			t.Errorf("probe request = %s %s, want GET /api/v1/models", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer "+adminSecret {
+			t.Error("OpenRouter probe authorization header mismatch")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer upstream.Close()
@@ -43,9 +54,9 @@ func TestProviderValidationUpdatesOnlyTargetStateAndSanitizesErrors(t *testing.T
 			probeCalls[providers.TypeOpenCodeGo]++
 			return errors.New(adminSecret)
 		},
-		providers.TypeOpenRouter: func(context.Context, string, string) error {
+		providers.TypeOpenRouter: func(ctx context.Context, endpoint, credential string) error {
 			probeCalls[providers.TypeOpenRouter]++
-			return nil
+			return providers.ProbeOpenRouterEndpoint(ctx, endpoint, credential)
 		},
 	}, []string{"127.0.0.1"})
 	for _, input := range []providers.BootstrapInput{
@@ -70,18 +81,24 @@ func TestProviderValidationUpdatesOnlyTargetStateAndSanitizesErrors(t *testing.T
 	admin := gateway.NewProviderAdmin(service, logger)
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/providers/{id}/validate", admin.Validate())
+	mux.Handle("GET /diagnostics/providers", gateway.NewProvidersHandler(manager.Statuses))
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
+	assertProviderDiagnosticsState(t, server.URL, providers.OpenRouterID, true, providers.StateUnknown)
 	status, body := adminCall(t, http.MethodPost, server.URL+"/api/providers/openrouter/validate", "")
 	if status != http.StatusOK || !strings.Contains(body, "reachable") {
-		t.Fatalf("OpenRouter validation = %d %s, want sanitized success", status, body)
+		t.Fatalf("OpenRouter validation = %d %s, want a reachable result", status, body)
 	}
 	if probeCalls[providers.TypeOpenCodeGo] != 0 || probeCalls[providers.TypeOpenRouter] != 1 {
 		t.Fatalf("validation probes = OpenCode %d, OpenRouter %d", probeCalls[providers.TypeOpenCodeGo], probeCalls[providers.TypeOpenRouter])
 	}
+	if upstreamHits != 1 {
+		t.Fatalf("OpenRouter validation made %d upstream requests, want 1", upstreamHits)
+	}
 	assertGatewayProviderState(t, manager, providers.OpenCodeGoID, providers.StateUnknown)
 	assertGatewayProviderState(t, manager, providers.OpenRouterID, providers.StateHealthy)
+	assertProviderDiagnosticsState(t, server.URL, providers.OpenRouterID, true, providers.StateHealthy)
 
 	status, body = adminCall(t, http.MethodPost, server.URL+"/api/providers/opencode-go/validate", "")
 	if status != http.StatusBadGateway || strings.Contains(body, adminSecret) || strings.Contains(logBuffer.String(), adminSecret) {
@@ -89,6 +106,34 @@ func TestProviderValidationUpdatesOnlyTargetStateAndSanitizesErrors(t *testing.T
 	}
 	assertGatewayProviderState(t, manager, providers.OpenCodeGoID, providers.StateUnhealthy)
 	assertGatewayProviderState(t, manager, providers.OpenRouterID, providers.StateHealthy)
+	if upstreamHits != 1 {
+		t.Fatalf("OpenCode Go validation made an unexpected upstream request; total hits = %d", upstreamHits)
+	}
+}
+
+func assertProviderDiagnosticsState(t *testing.T, serverURL, providerID string, wantEnabled bool, wantState providers.State) {
+	t.Helper()
+
+	status, body := adminCall(t, http.MethodGet, serverURL+"/diagnostics/providers", "")
+	if status != http.StatusOK {
+		t.Fatalf("provider diagnostics status = %d, want %d: %s", status, http.StatusOK, body)
+	}
+	var response struct {
+		Providers []providers.Status `json:"providers"`
+	}
+	if err := json.Unmarshal([]byte(body), &response); err != nil {
+		t.Fatalf("decode provider diagnostics: %v", err)
+	}
+	for _, provider := range response.Providers {
+		if provider.ID != providerID {
+			continue
+		}
+		if provider.Enabled != wantEnabled || provider.State != wantState {
+			t.Fatalf("provider diagnostics = %+v, want enabled=%t state=%q", provider, wantEnabled, wantState)
+		}
+		return
+	}
+	t.Fatalf("provider %q missing from diagnostics: %+v", providerID, response.Providers)
 }
 
 func adminCipher(t *testing.T) *providers.CredentialCipher {
