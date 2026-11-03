@@ -154,7 +154,7 @@ func TestResponsesHandlerRejectsProviderWithoutCredential(t *testing.T) {
 		t.Fatalf("NewClient() returned error: %v", err)
 	}
 
-	handler := gateway.NewResponsesHandler(disabled, logger, time.Minute)
+	handler := gateway.NewResponsesHandler(disabled, logger, time.Minute, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
@@ -186,7 +186,7 @@ func TestResponsesHandlerPassesRequestAndStreamVerbatim(t *testing.T) {
 	}
 
 	upstream := sseUpstream(t, &capture, events, 20*time.Millisecond, nil)
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, 2*time.Second)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, 2*time.Second, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
@@ -239,7 +239,7 @@ func TestResponsesHandlerPreservesSuppliedSession(t *testing.T) {
 		"event: response.completed\ndata: {}\n\n",
 	}, 0, nil)
 	logger, _ := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute, nil)
 
 	_, _ = postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
@@ -256,7 +256,7 @@ func TestResponsesHandlerSessionIsIndependentFromCorrelationID(t *testing.T) {
 	upstream := sseUpstream(t, &capture, []string{"event: response.completed\ndata: {}\n\n"}, 0, nil)
 
 	logger, _ := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute, nil)
 	target := servedThroughRouter(t, handler, time.Hour) + "/v1/responses"
 
 	request, err := http.NewRequest(http.MethodPost, target, strings.NewReader(codexStylePayload))
@@ -290,7 +290,7 @@ func TestResponsesHandlerPreservesUpstreamErrorEnvelope(t *testing.T) {
 	defer upstream.Close()
 
 	logger, logBuffer := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
@@ -321,7 +321,7 @@ func TestResponsesHandlerAnswersSafe502WhenUpstreamUnreachable(t *testing.T) {
 	}
 
 	logger, _ := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, "http://"+dead), logger, time.Minute)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, "http://"+dead), logger, time.Minute, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
@@ -349,7 +349,7 @@ func TestStreamSurvivesBeyondOrdinaryWriteTimeout(t *testing.T) {
 
 	upstream := sseUpstream(t, &capture, events, gap, nil)
 	logger, logBuffer := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Second)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Second, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, 80*time.Millisecond)+"/v1/responses",
@@ -375,7 +375,7 @@ func TestStreamAbortsAfterInactivityWithoutChunks(t *testing.T) {
 	events := []string{"event: response.created\ndata: {}\n\n"}
 	upstream := sseUpstream(t, &capture, events, time.Second, nil) // long silence after first event
 	logger, logBuffer := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, 100*time.Millisecond)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, 100*time.Millisecond, nil)
 	target := servedThroughRouter(t, handler, time.Hour) + "/v1/responses"
 
 	done := make(chan struct{})
@@ -412,7 +412,7 @@ func TestClientDisconnectAbortsUpstreamStream(t *testing.T) {
 
 	upstream := sseUpstream(t, &capture, events, 25*time.Millisecond, nil)
 	logger, _ := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute, nil)
 	target := servedThroughRouter(t, handler, time.Hour) + "/v1/responses"
 
 	request, err := http.NewRequest(http.MethodPost, target, strings.NewReader(codexStylePayload))

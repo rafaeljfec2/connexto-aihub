@@ -18,9 +18,20 @@ const (
 var errInvalidProviderSelector = errors.New("invalid provider selector")
 
 func requestedProviderID(request *http.Request) (string, error) {
+	explicit, err := explicitProviderFromRequest(request)
+	if err != nil {
+		return "", err
+	}
+	if explicit == "" {
+		return providers.OpenCodeGoID, nil
+	}
+	return explicit, nil
+}
+
+func explicitProviderFromRequest(request *http.Request) (string, error) {
 	values := request.Header.Values(ProviderHeader)
 	if len(values) == 0 || len(values) == 1 && strings.TrimSpace(values[0]) == "" {
-		return providers.OpenCodeGoID, nil
+		return "", nil
 	}
 	if len(values) != 1 || len(values[0]) > 128 {
 		return "", errInvalidProviderSelector

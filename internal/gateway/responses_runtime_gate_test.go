@@ -25,7 +25,7 @@ func TestResponsesHandlerRefusesNewExecutionsAfterRuntimeDisable(t *testing.T) {
 		t.Fatalf("Reconfigure() returned error: %v", err)
 	}
 
-	handler := gateway.NewResponsesHandler(client, logger, time.Minute)
+	handler := gateway.NewResponsesHandler(client, logger, time.Minute, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",

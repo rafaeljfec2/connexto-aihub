@@ -30,25 +30,25 @@ const (
 )
 
 // NewResponsesHandler creates a standalone execution manager for this handler.
-func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration) http.Handler {
+func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
 	manager := newExecutionManager(client, logger, inactivity)
-	return NewResponsesHandlerWithManager(client, manager, logger, inactivity)
+	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps)
 }
 
 // NewResponsesHandlerWithManager binds the HTTP boundary to the shared manager.
-func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration) http.Handler {
+func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity}
+	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps}
 }
 
 // NewResponsesHandlerWithRegistry resolves each admitted request by provider ID.
-func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration) http.Handler {
+func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity}
+	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps}
 }
 
 type responsesHandler struct {
@@ -57,15 +57,13 @@ type responsesHandler struct {
 	manager    *execution.Manager
 	logger     *slog.Logger
 	inactivity time.Duration
+	routing    *ResponsesRouting
 }
 
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	providerID, err := requestedProviderID(r)
+	explicitProvider, err := explicitProviderFromRequest(r)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid_request", "the provider selector is invalid")
-		return
-	}
-	if !h.requireProvider(providerID, w) {
 		return
 	}
 
@@ -85,14 +83,44 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/json"
 	}
 
+	requestID := observability.CorrelationIDFrom(r.Context())
+	providerID := providers.OpenCodeGoID
+	modelID := requestedModelID(payload)
+	executionPayload := payload
+
+	if h.routing != nil {
+		target, prepared, routeErr := routeResponses(h.routing, h.registry, requestID, explicitProvider, payload)
+		if routeErr != nil {
+			if writeRoutingFailure(w, routeErr) {
+				return
+			}
+			h.logger.ErrorContext(r.Context(), "responses routing failed", "error", routeErr)
+			writeJSONError(w, http.StatusInternalServerError, executionFailedType, executionFailedMsg)
+			return
+		}
+		providerID = target.ProviderID
+		modelID = target.ModelID
+		executionPayload = prepared
+	} else {
+		providerID, err = requestedProviderID(r)
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "invalid_request", "the provider selector is invalid")
+			return
+		}
+	}
+
+	if !h.requireProvider(providerID, w) {
+		return
+	}
+
 	result, err := h.manager.Execute(r.Context(), execution.Command{
-		RequestID: observability.CorrelationIDFrom(r.Context()),
+		RequestID: requestID,
 		Target: execution.Target{
 			ProviderID: providerID,
-			ModelID:    requestedModelID(payload),
+			ModelID:    modelID,
 		},
 		ProviderSessionID: sessionID,
-		Payload:           payload,
+		Payload:           executionPayload,
 		ContentType:       contentType,
 	}, &responseSink{writer: w, inactivity: h.inactivity})
 	if errors.Is(err, execution.ErrUnavailable) {

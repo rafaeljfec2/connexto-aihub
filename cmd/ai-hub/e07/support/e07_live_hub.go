@@ -71,7 +71,7 @@ func StartE07Hub(cfg config.Config, observer *E07ProviderObserver, logger *slog.
 		server.Route{
 			Method:    http.MethodPost,
 			Pattern:   "/v1/responses",
-			Handler:   gateway.NewResponsesHandlerWithManager(providerClient, executionManager, logger, gateway.StreamInactivityTimeout),
+			Handler:   gateway.NewResponsesHandlerWithManager(providerClient, executionManager, logger, gateway.StreamInactivityTimeout, nil),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes()),
 		},
 		server.Route{Method: http.MethodGet, Pattern: "/v1/records/executions", Handler: gateway.NewExecutionRecordsHandler(recordsModule)},

@@ -1,18 +1,12 @@
 package gateway_test
 
 import (
-	"context"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"aihub/internal/config"
-	"aihub/internal/execution"
-	"aihub/internal/gateway"
 	"aihub/internal/providers"
 )
 
@@ -47,7 +41,7 @@ func TestResponsesSelectsProviderByIDAndDefaultsToOpenCode(t *testing.T) {
 	handler, _, openRouter := newRoutedResponsesHandler(t, openCodeServer.URL, openRouterServer.URL)
 	payload := `{"model":"anthropic/claude-sonnet-4.5","input":"hello"}`
 
-	defaultResponse := serveResponses(handler, "", payload)
+	defaultResponse := serveResponses(handler, "", `{"input":[{"type":"input_text","text":"hello"}]}`)
 	if defaultResponse.Code != http.StatusOK || !strings.Contains(defaultResponse.Body.String(), "opencode-response") {
 		t.Fatalf("default response = %d %s", defaultResponse.Code, defaultResponse.Body.String())
 	}
@@ -116,27 +110,6 @@ func TestResponsesSanitizesOpenRouterHTTPErrorBodyWithoutFallback(t *testing.T) 
 	if !strings.Contains(response.Body.String(), "upstream_error") {
 		t.Fatal("Responses error body omitted the sanitized upstream error type")
 	}
-}
-
-func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoint string) (http.Handler, *providers.Client, *providers.OpenRouterClient) {
-	t.Helper()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	openCode, err := providers.NewClient(config.ProviderOpenCodeGo{BaseURL: openCodeEndpoint, APIKey: openCodeTestKey}, nil)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
-	openRouter, err := providers.NewOpenRouterClient(providers.Settings{BaseURL: openRouterEndpoint + "/api/v1", APIKey: openRouterTestKey, Enabled: true}, nil)
-	if err != nil {
-		t.Fatalf("NewOpenRouterClient() error = %v", err)
-	}
-	registry := providers.NewRegistry()
-	registry.Bind(providers.OpenCodeGoID, openCode)
-	registry.Bind(providers.OpenRouterID, openRouter)
-	manager := execution.NewMultiProviderManager(logger,
-		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
-			return registry.OpenTargetResponses(ctx, providers.ResponsesTarget{ProviderID: target.ProviderID, ModelID: target.ModelID}, payload, contentType, sessionID)
-		}, time.Minute)
-	return gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute), openCode, openRouter
 }
 
 func serveResponses(handler http.Handler, providerID, body string) *httptest.ResponseRecorder {

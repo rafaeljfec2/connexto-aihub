@@ -29,7 +29,12 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	}
 	routes := []server.Route{
 		{Method: http.MethodPost, Pattern: "/v1/responses",
-			Handler:   gateway.NewResponsesHandlerWithRegistry(registry, executionManager, logger, gateway.StreamInactivityTimeout),
+			Handler: gateway.NewResponsesHandlerWithRegistry(registry, executionManager, logger, gateway.StreamInactivityTimeout,
+				&gateway.ResponsesRouting{
+					Catalog:    catalogModule,
+					Statuses:   providerManager.Statuses,
+					StaleAfter: cfg.Catalog.StaleAfter,
+				}),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},
 		{Method: http.MethodGet, Pattern: "/diagnostics/providers", Handler: gateway.NewProvidersHandler(providerManager.Statuses)},

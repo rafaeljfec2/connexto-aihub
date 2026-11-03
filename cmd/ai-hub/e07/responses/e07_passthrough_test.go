@@ -48,7 +48,7 @@ func TestE07GatewayPreservesFixedUpstreamResponseDeterministically(t *testing.T)
 			if err != nil {
 				t.Fatal("deterministic provider client could not be created")
 			}
-			handler := gateway.NewResponsesHandler(client, e07support.E07DiscardLogger(), time.Minute)
+			handler := gateway.NewResponsesHandler(client, e07support.E07DiscardLogger(), time.Minute, nil)
 
 			request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/v1/responses", bytes.NewReader(payload))
 			request.Header.Set("Content-Type", "application/json")

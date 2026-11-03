@@ -33,7 +33,7 @@ func TestResponsesHandlerMapsHeaderTimeoutTo504(t *testing.T) {
 	t.Cleanup(transport.CloseIdleConnections)
 
 	logger, _ := newTestLogger()
-	handler := gateway.NewResponsesHandler(client, logger, time.Second)
+	handler := gateway.NewResponsesHandler(client, logger, time.Second, nil)
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
 		codexStylePayload, nil)

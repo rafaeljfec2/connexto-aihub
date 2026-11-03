@@ -153,8 +153,8 @@ The gateway remains responsible for HTTP errors and writing the response. execut
 | E08.1 | Routing Contract, E08 SPEC, ADR-022 (including E08.1.1 refinements) | Documentation; project-lead approval pending |
 | E08.2 | Eligibility Engine evaluating provider/model facts, capability projection, and reason codes | **In progress** — implementation authorized 2026-11-03 |
 | E08.3 | Deterministic Selector: precedence, compatibility rule, unique-candidate selection, ambiguity | **Accepted** 2026-11-03 — see `docs/decisions/e08.3-formal-acceptance-2026-11-03.md` |
-| E08.4 | Responses Gateway integration, typed error mapping, structural validation, request preparation | Authorized next increment; not in progress until explicitly started |
-| E08.5 | Content-free routing decision events and end-to-end tests | Implementation after E08.4 |
+| E08.4 | Responses Gateway integration, typed error mapping, structural validation, request preparation | **Implemented** (local) — see `docs/decisions/e08.4-gateway-routing-integration.md` |
+| E08.5 | Content-free routing decision events and end-to-end tests | Not started |
 | E08.6 | Task classification from bounded structural metadata (no LLM classifier in initial E08.6 contract without separate approval) | **Future vision — not authorized by this SPEC** |
 | E08.7 | Optimization Profiles (Efficiency, Balance, Intelligence) as explicit preference inputs | **Future vision — not authorized** |
 | E08.8 | Runtime-aware intelligent routing using verifiable signals and profiles atop eligibility | **Future vision — not authorized** |

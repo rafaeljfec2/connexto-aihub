@@ -71,7 +71,7 @@ func TestResponsesAdmissionPreservesE02Contract(t *testing.T) {
 	events := []string{"event: response.completed\ndata: {}\n\n"}
 	upstream := sseUpstream(t, &capture, events, 0, nil)
 	logger, logBuffer := newTestLogger()
-	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute)
+	handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute, nil)
 
 	policy := admissionGatewayPolicy(t)
 	target := responsesThroughGatewayRouter(t, handler, policy) + "/v1/responses"
@@ -122,7 +122,7 @@ func TestResponsesAdmissionPassesUpstreamErrorsThrough(t *testing.T) {
 			defer upstream.Close()
 
 			logger, _ := newTestLogger()
-			handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute)
+			handler := gateway.NewResponsesHandler(newEnabledClient(t, upstream.URL), logger, time.Minute, nil)
 
 			policy := admissionGatewayPolicy(t)
 			target := responsesThroughGatewayRouter(t, handler, policy) + "/v1/responses"

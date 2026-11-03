@@ -1,0 +1,231 @@
+package gateway
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
+	"aihub/internal/catalog"
+	"aihub/internal/providers"
+	"aihub/internal/routing"
+)
+
+// ResponsesRouting wires the E08 pipeline into Responses admission.
+type ResponsesRouting struct {
+	Catalog    *catalog.Manager
+	Statuses   func() []providers.Status
+	StaleAfter time.Duration
+}
+
+type routingHTTPError struct {
+	status  int
+	typ     string
+	message string
+}
+
+func (e routingHTTPError) Error() string {
+	return fmt.Sprintf("%s: %s", e.typ, e.message)
+}
+
+func routeResponses(
+	deps *ResponsesRouting,
+	registry *providers.Registry,
+	requestID string,
+	explicitProvider string,
+	payload []byte,
+) (routing.Target, []byte, error) {
+	if deps == nil || deps.Catalog == nil {
+		return routing.Target{}, nil, fmt.Errorf("responses routing is not configured")
+	}
+
+	structural, structuralErr := routing.ValidateStructure(payload)
+	if structuralErr != nil {
+		return routing.Target{}, nil, routingHTTPError{
+			status:  http.StatusBadRequest,
+			typ:     string(routing.StructuralInvalidRequest),
+			message: structuralErr.Error(),
+		}
+	}
+
+	requirements, err := routing.ProjectRequirements(payload, structural)
+	if err != nil {
+		return routing.Target{}, nil, routingHTTPError{
+			status:  http.StatusBadRequest,
+			typ:     invalidRequestType,
+			message: "the request body is invalid",
+		}
+	}
+
+	staleAfter := deps.StaleAfter
+	if staleAfter <= 0 {
+		staleAfter = 24 * time.Hour
+	}
+
+	statuses := deps.Statuses
+	if statuses == nil {
+		statuses = func() []providers.Status { return nil }
+	}
+
+	snapshot := routing.CaptureSnapshot(routing.SnapshotInput{
+		Now:        time.Now().UTC(),
+		StaleAfter: staleAfter,
+		Admin:      adminFactsFromRegistry(registry),
+		Status:     statuses(),
+		Registry:   registry,
+		Catalog:    deps.Catalog,
+	})
+
+	ctx := routing.RoutingContext{
+		RequestID:        requestID,
+		ExplicitProvider: explicitProvider,
+		Structural:       structural,
+	}
+
+	eligibility := routing.EvaluateEligibility(ctx, snapshot, requirements)
+	decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
+	if decision.Rejection != "" {
+		return routing.Target{}, nil, mapRoutingRejection(decision.Rejection, explicitProvider, eligibility)
+	}
+
+	if decision.Selected == nil {
+		return routing.Target{}, nil, mapRoutingRejection(routing.RejectRoutingUnavailable, explicitProvider, eligibility)
+	}
+
+	prepared, err := prepareResponsesPayload(payload, structural, decision.Selected.ModelID)
+	if err != nil {
+		return routing.Target{}, nil, routingHTTPError{
+			status:  http.StatusBadRequest,
+			typ:     invalidRequestType,
+			message: "the request body is invalid",
+		}
+	}
+
+	return *decision.Selected, prepared, nil
+}
+
+func prepareResponsesPayload(original []byte, structural routing.StructuralRequest, selectedModelID string) ([]byte, error) {
+	if structural.ModelPresent || selectedModelID == "" {
+		return original, nil
+	}
+
+	topLevel := map[string]json.RawMessage{}
+	if err := json.Unmarshal(original, &topLevel); err != nil {
+		return nil, err
+	}
+
+	modelRaw, err := json.Marshal(selectedModelID)
+	if err != nil {
+		return nil, err
+	}
+
+	topLevel["model"] = modelRaw
+	return json.Marshal(topLevel)
+}
+
+func adminFactsFromRegistry(registry *providers.Registry) []routing.AdminProviderFacts {
+	if registry == nil {
+		return nil
+	}
+
+	ids := registry.ProviderIDs()
+	facts := make([]routing.AdminProviderFacts, 0, len(ids))
+	for _, id := range ids {
+		adapter, bound := registry.Resolve(id)
+		fact := routing.AdminProviderFacts{ID: id, Known: bound}
+		if !bound {
+			facts = append(facts, fact)
+			continue
+		}
+
+		fact.Known = true
+		fact.Enabled = true
+		fact.HasCredential = adapter.Enabled()
+		facts = append(facts, fact)
+	}
+
+	return facts
+}
+
+func mapRoutingRejection(code routing.RejectionCode, explicitProvider string, eligibility routing.EligibilityResult) routingHTTPError {
+	if explicitProvider != "" && code == routing.RejectNoEligibleModel && explicitProviderOperationalUnavailable(explicitProvider, eligibility) {
+		return routingHTTPError{
+			status:  http.StatusServiceUnavailable,
+			typ:     providerUnavailableType,
+			message: responseProviderUnavailable,
+		}
+	}
+
+	switch code {
+	case routing.RejectRequirementUnmapped:
+		return routingHTTPError{status: http.StatusBadRequest, typ: string(code), message: "the request requires capabilities that are not mapped for routing"}
+	case routing.RejectProviderNotFound:
+		return routingHTTPError{status: http.StatusNotFound, typ: responseProviderNotFoundType, message: responseProviderNotFoundMsg}
+	case routing.RejectModelNotFound:
+		return routingHTTPError{status: http.StatusNotFound, typ: string(code), message: "the requested model is not available"}
+	case routing.RejectProviderModelConflict:
+		return routingHTTPError{status: http.StatusConflict, typ: string(code), message: "the requested provider and model conflict"}
+	case routing.RejectRoutingAmbiguous:
+		return routingHTTPError{status: http.StatusConflict, typ: string(code), message: "routing could not select a unique model"}
+	case routing.RejectRoutingUnavailable:
+		return routingHTTPError{status: http.StatusServiceUnavailable, typ: string(code), message: "routing evidence is insufficient to select a model"}
+	case routing.RejectNoEligibleModel:
+		return routingHTTPError{status: http.StatusNotFound, typ: string(code), message: "no eligible model satisfies the request"}
+	default:
+		return routingHTTPError{status: http.StatusServiceUnavailable, typ: string(code), message: "routing could not select a model"}
+	}
+}
+
+func explicitProviderOperationalUnavailable(providerID string, eligibility routing.EligibilityResult) bool {
+	found := false
+
+	for _, candidate := range eligibility.Evaluated {
+		if candidate.Target.ProviderID != providerID {
+			continue
+		}
+
+		found = true
+		if candidate.Eligible {
+			return false
+		}
+
+		if !providerOperationalReasonsOnly(candidate.Reasons) {
+			return false
+		}
+	}
+
+	return found
+}
+
+func providerOperationalReasonsOnly(reasons []routing.ReasonCode) bool {
+	if len(reasons) == 0 {
+		return false
+	}
+
+	for _, reason := range reasons {
+		switch reason {
+		case routing.ReasonProviderUnknown,
+			routing.ReasonProviderDisabled,
+			routing.ReasonCredentialMissing,
+			routing.ReasonProviderUnbound,
+			routing.ReasonResponsesUnsupported,
+			routing.ReasonProviderUnavailable:
+			continue
+		default:
+			return false
+		}
+	}
+
+	return true
+}
+
+func writeRoutingFailure(w http.ResponseWriter, err error) bool {
+	var failure routingHTTPError
+	if !errors.As(err, &failure) {
+		return false
+	}
+
+	writeJSONError(w, failure.status, failure.typ, failure.message)
+	return true
+}
