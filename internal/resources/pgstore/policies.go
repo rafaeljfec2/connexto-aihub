@@ -53,6 +53,18 @@ RETURNING `+policyColumns, id, enabled)
 	return mapPolicyWriteError(scanPolicy(row))
 }
 
+func (s *Store) ConfigurePolicy(ctx context.Context, id int64, dailyLimit int, enabled bool) (resources.ResourcePolicy, error) {
+	row := s.pool.QueryRow(ctx, `
+UPDATE resource_policies
+   SET daily_limit = $2,
+       enabled = $3,
+       updated_at = now()
+ WHERE id = $1
+RETURNING `+policyColumns, id, dailyLimit, enabled)
+
+	return mapPolicyWriteError(scanPolicy(row))
+}
+
 func (s *Store) GetPolicy(ctx context.Context, id int64) (resources.ResourcePolicy, error) {
 	row := s.pool.QueryRow(ctx, `SELECT `+policyColumns+` FROM resource_policies WHERE id = $1`, id)
 	policy, err := scanPolicy(row)

@@ -56,6 +56,18 @@ func (r *inMemoryResources) SetPolicyEnabled(_ context.Context, id int64, enable
 	return policy, nil
 }
 
+func (r *inMemoryResources) ConfigurePolicy(_ context.Context, id int64, dailyLimit int, enabled bool) (resources.ResourcePolicy, error) {
+	policy, ok := r.policies[id]
+	if !ok {
+		return resources.ResourcePolicy{}, resources.ErrNotFound
+	}
+	policy.DailyLimit = dailyLimit
+	policy.Enabled = enabled
+	policy.UpdatedAt = time.Now().UTC()
+	r.policies[id] = policy
+	return policy, nil
+}
+
 func (r *inMemoryResources) GetPolicy(_ context.Context, id int64) (resources.ResourcePolicy, error) {
 	policy, ok := r.policies[id]
 	if !ok {

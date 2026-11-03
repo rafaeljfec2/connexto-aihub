@@ -19,7 +19,8 @@ import (
 func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
-	resourceAdmission gateway.ResourceAdmitter) (http.Handler, error) {
+	concurrencyAdmin *gateway.ConcurrencyAdmin,
+	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
@@ -35,7 +36,7 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 					Catalog:    catalogModule,
 					Statuses:   providerManager.Statuses,
 					StaleAfter: cfg.Catalog.StaleAfter,
-				}, resourceAdmission),
+				}, resourceAdmission, concurrencyGate),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},
 		{Method: http.MethodGet, Pattern: "/diagnostics/providers", Handler: gateway.NewProvidersHandler(providerManager.Statuses)},
@@ -48,6 +49,7 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 		{Method: http.MethodGet, Pattern: "/v1/records/executions/{execution_id}", Handler: gateway.NewExecutionRecordHandler(recordsModule)},
 	}
 	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
-		append(routes, append(providerAdminRoutes(providerAdmin), resourceAdminRoutes(resourceAdmin)...)...)...)
+		append(routes, append(providerAdminRoutes(providerAdmin),
+			append(resourceAdminRoutes(resourceAdmin), concurrencyAdminRoutes(concurrencyAdmin)...)...)...)...)
 	return router, nil
 }

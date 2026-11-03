@@ -9,6 +9,10 @@ var IntegrationTestHooks struct {
 	OnResourceAdmissionAccepted func(providerID, modelID string)
 	OnResourceAdmissionRejected func(providerID, modelID string)
 	OnResourceAdmissionFailed func(providerID, modelID string)
+	OnConcurrencyAcquireStarted func(executionID, providerID, modelID string)
+	OnConcurrencyAcquireAccepted func(executionID, providerID, modelID string)
+	OnConcurrencyAcquireRejected func(executionID, providerID, modelID string)
+	OnConcurrencyAcquireFailed func(executionID, providerID, modelID string)
 	OnExecutionStarted func(providerID, modelID string)
 	OnProviderCalled func(providerID, modelID string)
 }

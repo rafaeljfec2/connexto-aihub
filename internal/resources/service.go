@@ -70,33 +70,27 @@ func (s *Service) ListPolicies(ctx context.Context) ([]ResourcePolicy, error) {
 }
 
 // UpsertPolicy creates or updates the policy for one scope key.
-func (s *Service) UpsertPolicy(ctx context.Context, input UpsertPolicyInput) (ResourcePolicy, error) {
+func (s *Service) UpsertPolicy(ctx context.Context, input UpsertPolicyInput) (ResourcePolicy, bool, error) {
 	if err := validateScope(input.Scope); err != nil {
-		return ResourcePolicy{}, err
+		return ResourcePolicy{}, false, err
 	}
 	if input.DailyLimit <= 0 {
-		return ResourcePolicy{}, fmt.Errorf("%w: daily_limit must be positive", ErrInvalidInput)
+		return ResourcePolicy{}, false, fmt.Errorf("%w: daily_limit must be positive", ErrInvalidInput)
 	}
 
 	existing, err := s.repo.GetPolicyByScope(ctx, input.Scope)
 	if errors.Is(err, ErrNotFound) {
-		return s.repo.CreatePolicy(ctx, NewPolicyInput{
+		policy, createErr := s.repo.CreatePolicy(ctx, NewPolicyInput{
 			Scope: input.Scope, DailyLimit: input.DailyLimit, Enabled: input.Enabled,
 		})
+		return policy, true, createErr
 	}
 	if err != nil {
-		return ResourcePolicy{}, err
+		return ResourcePolicy{}, false, err
 	}
 
-	limit := input.DailyLimit
-	policy, err := s.repo.UpdatePolicy(ctx, existing.ID, UpdatePolicyInput{DailyLimit: &limit})
-	if err != nil {
-		return ResourcePolicy{}, err
-	}
-	if policy.Enabled == input.Enabled {
-		return policy, nil
-	}
-	return s.repo.SetPolicyEnabled(ctx, existing.ID, input.Enabled)
+	policy, err := s.repo.ConfigurePolicy(ctx, existing.ID, input.DailyLimit, input.Enabled)
+	return policy, false, err
 }
 
 // ListUsage returns persisted counters for the requested UTC period.

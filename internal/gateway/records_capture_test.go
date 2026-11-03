@@ -49,7 +49,7 @@ func TestResponsesStreamStaysVerbatimWithRecordsObserver(t *testing.T) {
 				ModelID:    target.ModelID,
 			}, payload, contentType, sessionID)
 		}, time.Second, execution.WithObserver(service))
-	handler := gateway.NewResponsesHandlerWithManager(client, manager, logger, time.Second, nil, nil)
+	handler := gateway.NewResponsesHandlerWithManager(client, manager, logger, time.Second, nil, nil, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",
@@ -135,7 +135,7 @@ func TestResponsesHandlerContinuesWhenModelMetadataCannotBeExtracted(t *testing.
 						ModelID:    target.ModelID,
 					}, payload, contentType, sessionID)
 				}, time.Second, execution.WithObserver(observer))
-			handler := gateway.NewResponsesHandlerWithManager(client, manager, logger, time.Second, nil, nil)
+			handler := gateway.NewResponsesHandlerWithManager(client, manager, logger, time.Second, nil, nil, nil)
 
 			response, _ := postResponses(t,
 				servedThroughRouter(t, handler, time.Hour)+"/v1/responses",

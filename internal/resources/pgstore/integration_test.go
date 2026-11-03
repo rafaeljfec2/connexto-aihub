@@ -316,7 +316,7 @@ func TestUpsertPolicyByScopeAndUsageIntegration(t *testing.T) {
 	now := time.Date(2026, 11, 3, 15, 0, 0, 0, time.UTC)
 	service := resources.NewService(store, resources.WithClock(func() time.Time { return now }))
 
-	policy, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+	policy, _, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
 		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 3, Enabled: true,
 	})
 	if err != nil {
@@ -345,7 +345,7 @@ func TestUpsertPolicyUpdatePreservesCountersIntegration(t *testing.T) {
 	now := time.Date(2026, 11, 3, 16, 0, 0, 0, time.UTC)
 	service := resources.NewService(store, resources.WithClock(func() time.Time { return now }))
 
-	if _, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+	if _, _, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
 		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 5, Enabled: true,
 	}); err != nil {
 		t.Fatalf("UpsertPolicy: %v", err)
@@ -354,7 +354,7 @@ func TestUpsertPolicyUpdatePreservesCountersIntegration(t *testing.T) {
 	if _, err := service.Admit(ctx, resources.AdmissionRequest{ID: id, ProviderID: providers.OpenCodeGoID, ModelID: "m1"}); err != nil {
 		t.Fatalf("Admit: %v", err)
 	}
-	if _, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+	if _, _, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
 		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 10, Enabled: true,
 	}); err != nil {
 		t.Fatalf("UpsertPolicy update: %v", err)

@@ -15,6 +15,7 @@ type Target struct {
 // Command contains the accepted provider-ready request and its execution context.
 type Command struct {
 	RequestID         string
+	ExecutionID       string
 	Target            Target
 	ProviderSessionID string
 	Payload           []byte

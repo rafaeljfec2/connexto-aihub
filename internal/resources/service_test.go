@@ -40,6 +40,17 @@ func (f *fakeRepo) SetPolicyEnabled(_ context.Context, id int64, enabled bool) (
 	return policy, nil
 }
 
+func (f *fakeRepo) ConfigurePolicy(_ context.Context, id int64, dailyLimit int, enabled bool) (resources.ResourcePolicy, error) {
+	policy, ok := f.policies[id]
+	if !ok {
+		return resources.ResourcePolicy{}, resources.ErrNotFound
+	}
+	policy.DailyLimit = dailyLimit
+	policy.Enabled = enabled
+	f.policies[id] = policy
+	return policy, nil
+}
+
 func (f *fakeRepo) GetPolicy(_ context.Context, id int64) (resources.ResourcePolicy, error) {
 	policy, ok := f.policies[id]
 	if !ok {
@@ -148,24 +159,24 @@ func TestUpsertPolicyCreatesAndUpdates(t *testing.T) {
 	service := resources.NewService(repo)
 	ctx := context.Background()
 
-	created, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+	created, wasCreated, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
 		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 10, Enabled: true,
 	})
-	if err != nil || created.DailyLimit != 10 || !created.Enabled {
-		t.Fatalf("create = %+v err %v", created, err)
+	if err != nil || !wasCreated || created.DailyLimit != 10 || !created.Enabled {
+		t.Fatalf("create = %+v created=%v err %v", created, wasCreated, err)
 	}
 
-	updated, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
+	updated, wasCreated, err := service.UpsertPolicy(ctx, resources.UpsertPolicyInput{
 		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 20, Enabled: false,
 	})
-	if err != nil || updated.ID != created.ID || updated.DailyLimit != 20 || updated.Enabled {
-		t.Fatalf("update = %+v err %v", updated, err)
+	if err != nil || wasCreated || updated.ID != created.ID || updated.DailyLimit != 20 || updated.Enabled {
+		t.Fatalf("update = %+v created=%v err %v", updated, wasCreated, err)
 	}
 }
 
 func TestUpsertPolicyRejectsInvalidLimit(t *testing.T) {
 	service := resources.NewService(&fakeRepo{policies: map[int64]resources.ResourcePolicy{}})
-	_, err := service.UpsertPolicy(context.Background(), resources.UpsertPolicyInput{
+	_, _, err := service.UpsertPolicy(context.Background(), resources.UpsertPolicyInput{
 		Scope: resources.ResourceScope{Kind: resources.ScopeGlobal}, DailyLimit: 0, Enabled: true,
 	})
 	if err == nil {

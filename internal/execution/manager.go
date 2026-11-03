@@ -82,10 +82,14 @@ func (m *Manager) Execute(ctx context.Context, command Command, sink Sink) (Resu
 		m.mu.Unlock()
 		return Result{}, ErrUnavailable
 	}
-	executionID, err := newExecutionID()
-	if err != nil {
-		m.mu.Unlock()
-		return Result{}, fmt.Errorf("create execution id: %w", err)
+	executionID := strings.TrimSpace(command.ExecutionID)
+	if executionID == "" {
+		var err error
+		executionID, err = newExecutionID()
+		if err != nil {
+			m.mu.Unlock()
+			return Result{}, fmt.Errorf("create execution id: %w", err)
+		}
 	}
 	work := newExecution(m, executionID, command, ctx)
 	m.active[executionID] = work
@@ -240,6 +244,11 @@ func newExecutionID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(random[:]), nil
+}
+
+// NewExecutionID returns a unique execution identifier for pre-admission reservation.
+func NewExecutionID() (string, error) {
+	return newExecutionID()
 }
 
 func isHeaderTimeout(err error) bool {

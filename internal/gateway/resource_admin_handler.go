@@ -13,10 +13,12 @@ import (
 )
 
 const (
-	resourcePolicyNotFoundType = "resource_policy_not_found"
-	resourcePolicyNotFoundMsg  = "resource policy not found"
-	resourceAdminInternalMsg   = "the resource administration request failed"
-	resourceRequestMaxBytes    = 4 << 10
+	resourcePolicyNotFoundType  = "resource_policy_not_found"
+	resourcePolicyNotFoundMsg   = "resource policy not found"
+	resourcePolicyConflictType  = "resource_policy_conflict"
+	resourcePolicyConflictMsg   = "resource policy already exists for scope"
+	resourceAdminInternalMsg    = "the resource administration request failed"
+	resourceRequestMaxBytes     = 4 << 10
 )
 
 // ResourceAdmin serves E09 policy and usage administration (PostgreSQL mode only).
@@ -127,8 +129,7 @@ func (a *ResourceAdmin) Upsert() http.Handler {
 			enabled = *request.Enabled
 		}
 
-		_, lookupErr := a.service.GetPolicyByScope(r.Context(), scope)
-		policy, err := a.service.UpsertPolicy(r.Context(), resources.UpsertPolicyInput{
+		policy, created, err := a.service.UpsertPolicy(r.Context(), resources.UpsertPolicyInput{
 			Scope: scope, DailyLimit: request.DailyLimit, Enabled: enabled,
 		})
 		if err != nil {
@@ -137,7 +138,7 @@ func (a *ResourceAdmin) Upsert() http.Handler {
 		}
 
 		status := http.StatusOK
-		if errors.Is(lookupErr, resources.ErrNotFound) {
+		if created {
 			status = http.StatusCreated
 		}
 		writeAdminJSON(w, status, toResourcePolicyResponse(policy))
@@ -229,14 +230,10 @@ func scopeFromRequest(scope, providerID, modelID string) (resources.ResourceScop
 }
 
 func usageQueryFromRequest(r *http.Request) (resources.UsageQuery, error) {
-	query := resources.UsageQuery{}
-	for name := range r.URL.Query() {
-		switch name {
-		case "provider_id", "model_id", "period_start":
-		default:
-			return resources.UsageQuery{}, errors.New("unknown query parameter")
-		}
+	if err := rejectUnknownQueryParams(r, "provider_id", "model_id", "period_start"); err != nil {
+		return resources.UsageQuery{}, err
 	}
+	query := resources.UsageQuery{}
 	query.ProviderID = strings.TrimSpace(r.URL.Query().Get("provider_id"))
 	query.ModelID = strings.TrimSpace(r.URL.Query().Get("model_id"))
 	if raw := strings.TrimSpace(r.URL.Query().Get("period_start")); raw != "" {
@@ -273,7 +270,7 @@ func (a *ResourceAdmin) writeError(w http.ResponseWriter, err error) {
 	case errors.Is(err, resources.ErrNotFound):
 		writeAdminError(w, http.StatusNotFound, resourcePolicyNotFoundType, resourcePolicyNotFoundMsg)
 	case errors.Is(err, resources.ErrConflict):
-		writeAdminError(w, http.StatusConflict, providerConflictType, providerConflictMsg)
+		writeAdminError(w, http.StatusConflict, resourcePolicyConflictType, resourcePolicyConflictMsg)
 	case errors.Is(err, resources.ErrInvalidInput):
 		writeAdminError(w, http.StatusBadRequest, invalidRequestType, err.Error())
 	default:

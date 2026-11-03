@@ -33,33 +33,34 @@ const (
 // NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
 	manager := newExecutionManager(client, logger, inactivity)
-	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps, nil)
+	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps, nil, nil)
 }
 
 // NewResponsesHandlerWithManager binds the HTTP boundary to the shared manager.
-func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter) http.Handler {
+func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission}
+	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate}
 }
 
 // NewResponsesHandlerWithRegistry resolves each admitted request by provider ID.
-func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter) http.Handler {
+func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission}
+	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate}
 }
 
 type responsesHandler struct {
-	client     *providers.Client
-	registry   *providers.Registry
-	manager    *execution.Manager
-	logger     *slog.Logger
-	inactivity time.Duration
-	routing    *ResponsesRouting
-	resources  ResourceAdmitter
+	client      *providers.Client
+	registry    *providers.Registry
+	manager     *execution.Manager
+	logger      *slog.Logger
+	inactivity  time.Duration
+	routing     *ResponsesRouting
+	resources   ResourceAdmitter
+	concurrency ConcurrencyGate
 }
 
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -134,15 +135,36 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	notifyIntegrationRoutingSelected(providerID, modelID)
+
+	executionID, err := execution.NewExecutionID()
+	if err != nil {
+		h.logger.ErrorContext(r.Context(), "execution id generation failed", "error", err)
+		writeJSONError(w, http.StatusServiceUnavailable, executionFailedType, executionFailedMsg)
+		return
+	}
+	if !h.acquireConcurrency(w, r, executionID, providerID, modelID) {
+		if pendingRoutingLog {
+			h.logRoutingAfterResourceReject(r, true, routingDecision, explicitProvider)
+		}
+		return
+	}
 	if !h.admitResources(w, r, providerID, modelID) {
+		h.releaseConcurrency(r.Context(), executionID)
 		if pendingRoutingLog {
 			h.logRoutingAfterResourceReject(r, true, routingDecision, explicitProvider)
 		}
 		return
 	}
 
-	result, err := h.manager.Execute(r.Context(), execution.Command{
-		RequestID: requestID,
+	execCtx, cancelExec := context.WithCancel(r.Context())
+	defer cancelExec()
+
+	stopRenew := h.startConcurrencyRenewal(execCtx, executionID, cancelExec)
+	defer stopRenew()
+
+	result, err := h.manager.Execute(execCtx, execution.Command{
+		RequestID:   requestID,
+		ExecutionID: executionID,
 		Target: execution.Target{
 			ProviderID: providerID,
 			ModelID:    modelID,
@@ -151,6 +173,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Payload:           executionPayload,
 		ContentType:       contentType,
 	}, &responseSink{writer: w, inactivity: h.inactivity})
+	stopRenew()
 	if pendingRoutingLog {
 		routing.LogDecision(r.Context(), h.logger, routing.DecisionLogInput{
 			Decision:         routingDecision,
@@ -159,10 +182,12 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if errors.Is(err, execution.ErrUnavailable) {
+		h.releaseConcurrency(r.Context(), executionID)
 		writeJSONError(w, http.StatusServiceUnavailable, executionUnavailableType, executionUnavailableMsg)
 		return
 	}
 	if err != nil {
+		h.releaseConcurrency(r.Context(), executionID)
 		h.logger.ErrorContext(r.Context(), "execution command rejected", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, executionFailedType, executionFailedMsg)
 		return

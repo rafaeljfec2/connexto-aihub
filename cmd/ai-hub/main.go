@@ -14,6 +14,8 @@ import (
 	"aihub/cmd/ai-hub/lifecycle"
 	"aihub/internal/app"
 	"aihub/internal/catalog"
+	"aihub/internal/concurrency"
+	concurrencypg "aihub/internal/concurrency/pgstore"
 	"aihub/internal/config"
 	"aihub/internal/db"
 	"aihub/internal/execution"
@@ -92,8 +94,7 @@ func run() error {
 		SegmentBytes:      cfg.Records.SegmentBytes,
 		RetentionInterval: cfg.Records.RetentionInterval,
 	})
-	executionManager := execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
-		gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
+	var executionManager *execution.Manager
 
 	var catalogStore catalog.SnapshotStore = catalog.NewStore(cfg.Catalog.DataDir, logger)
 
@@ -109,7 +110,9 @@ func run() error {
 		configModule       app.Module
 		providerAdmin      *gateway.ProviderAdmin
 		resourceAdmin      *gateway.ResourceAdmin
+		concurrencyAdmin   *gateway.ConcurrencyAdmin
 		resourceAdmission  gateway.ResourceAdmitter
+		concurrencyGate    gateway.ConcurrencyGate
 	)
 
 	if cfg.Catalog.Persistence == config.EnvCatalogPersistencePostgres {
@@ -136,6 +139,11 @@ func run() error {
 		resourceService := resources.NewService(resourcespg.New(pool))
 		resourceAdmission = resourceService
 		resourceAdmin = gateway.NewResourceAdmin(resourceService, logger)
+		concurrencyService := concurrency.NewService(concurrencypg.New(pool), concurrency.WithLogger(logger))
+		concurrencyGate = concurrencyService
+		concurrencyAdmin = gateway.NewConcurrencyAdmin(concurrencyService, logger)
+		executionManager = execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
+			gateway.StreamInactivityTimeout, execution.WithObserver(concurrency.NewReleaseObserver(concurrencyService, recordsModule)))
 
 		if err := readiness.Register("database", db.PingCheck(pool, cfg.Database.ConnectTimeout)); err != nil {
 			return fmt.Errorf("register database readiness check: %w", err)
@@ -144,6 +152,8 @@ func run() error {
 		logger.Info("catalog persistence configured", "mode", config.EnvCatalogPersistencePostgres)
 	} else {
 		logger.Info("catalog persistence configured", "mode", config.EnvCatalogPersistenceFile)
+		executionManager = execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
+			gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
 	}
 
 	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
@@ -155,7 +165,7 @@ func run() error {
 	})
 
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, resourceAdmission)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, resourceAdmission, concurrencyGate)
 	if err != nil {
 		return err
 	}
