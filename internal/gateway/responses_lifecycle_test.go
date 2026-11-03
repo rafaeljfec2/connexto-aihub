@@ -31,7 +31,7 @@ func TestResponsesHandlerRejectsExecutionAfterDrainGateCloses(t *testing.T) {
 			}, payload, contentType, sessionID)
 		}, time.Second)
 	manager.BeginDrain()
-	handler := gateway.NewResponsesHandlerWithManager(client, manager, logger, time.Second, nil)
+	handler := gateway.NewResponsesHandlerWithManager(client, manager, logger, time.Second, nil, nil)
 
 	response, body := postResponses(t,
 		servedThroughRouter(t, handler, time.Hour)+"/v1/responses",

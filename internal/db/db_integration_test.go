@@ -27,12 +27,12 @@ func TestMigrationsApplyOnceAndAreIdempotentIntegration(t *testing.T) {
 		t.Fatalf("first Migrate: %v", err)
 	}
 
-	if firstVersion != 2 {
-		t.Fatalf("schema_version after first run = %d, want 2", firstVersion)
+	if firstVersion != 3 {
+		t.Fatalf("schema_version after first run = %d, want 3", firstVersion)
 	}
 
-	if len(firstApplied) != 2 || firstApplied[0] != 1 || firstApplied[1] != 2 {
-		t.Fatalf("applied versions = %v, want exactly [1 2]", firstApplied)
+	if len(firstApplied) != 3 || firstApplied[0] != 1 || firstApplied[1] != 2 || firstApplied[2] != 3 {
+		t.Fatalf("applied versions = %v, want exactly [1 2 3]", firstApplied)
 	}
 
 	secondApplied, secondVersion, err := db.Migrate(ctx, pool)
@@ -40,8 +40,8 @@ func TestMigrationsApplyOnceAndAreIdempotentIntegration(t *testing.T) {
 		t.Fatalf("second Migrate: %v", err)
 	}
 
-	if secondVersion != 2 {
-		t.Fatalf("schema_version after second run = %d, want 2", secondVersion)
+	if secondVersion != 3 {
+		t.Fatalf("schema_version after second run = %d, want 3", secondVersion)
 	}
 
 	if len(secondApplied) != 0 {

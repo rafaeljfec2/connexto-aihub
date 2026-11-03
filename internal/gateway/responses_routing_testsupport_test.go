@@ -2,9 +2,11 @@ package gateway_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,7 +63,19 @@ func gatewayTestCatalog(t *testing.T, now time.Time, sources map[string]catalog.
 	}
 
 	for providerID := range sources {
-		if _, err := manager.Sync(ctx, providerID); err != nil {
+		var err error
+		for attempt := 0; attempt < 100; attempt++ {
+			_, err = manager.Sync(ctx, providerID)
+			if err == nil {
+				break
+			}
+			if errors.Is(err, catalog.ErrSyncInProgress) {
+				time.Sleep(5 * time.Millisecond)
+				continue
+			}
+			break
+		}
+		if err != nil {
 			t.Fatalf("catalog Sync(%q) error = %v", providerID, err)
 		}
 	}
@@ -71,6 +85,19 @@ func gatewayTestCatalog(t *testing.T, now time.Time, sources map[string]catalog.
 }
 
 func newOpenCodeRoutingHandler(t *testing.T, baseURL string, logger *slog.Logger, inactivity time.Duration, modelIDs ...string) http.Handler {
+	t.Helper()
+	return newOpenCodeRoutingHandlerWithResources(t, baseURL, logger, inactivity, nil, nil, modelIDs...)
+}
+
+func newOpenCodeRoutingHandlerWithResources(
+	t *testing.T,
+	baseURL string,
+	logger *slog.Logger,
+	inactivity time.Duration,
+	resourceAdmission gateway.ResourceAdmitter,
+	openerCalls *atomic.Int32,
+	modelIDs ...string,
+) http.Handler {
 	t.Helper()
 
 	client := newEnabledClient(t, baseURL)
@@ -91,6 +118,9 @@ func newOpenCodeRoutingHandler(t *testing.T, baseURL string, logger *slog.Logger
 
 	manager := execution.NewMultiProviderManager(logger,
 		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			if openerCalls != nil {
+				openerCalls.Add(1)
+			}
 			return registry.OpenTargetResponses(ctx, providers.ResponsesTarget{
 				ProviderID: target.ProviderID,
 				ModelID:    target.ModelID,
@@ -101,7 +131,7 @@ func newOpenCodeRoutingHandler(t *testing.T, baseURL string, logger *slog.Logger
 		Catalog:    catalogManager,
 		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
 		StaleAfter: 24 * time.Hour,
-	})
+	}, resourceAdmission)
 }
 
 func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoint string) (http.Handler, *providers.Client, *providers.OpenRouterClient) {
@@ -144,7 +174,7 @@ func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoin
 			}
 		},
 		StaleAfter: 24 * time.Hour,
-	})
+	}, nil)
 
 	return handler, openCode, openRouter
 }

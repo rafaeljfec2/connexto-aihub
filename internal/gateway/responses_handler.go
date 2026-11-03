@@ -33,23 +33,23 @@ const (
 // NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
 	manager := newExecutionManager(client, logger, inactivity)
-	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps)
+	return NewResponsesHandlerWithManager(client, manager, logger, inactivity, routingDeps, nil)
 }
 
 // NewResponsesHandlerWithManager binds the HTTP boundary to the shared manager.
-func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
+func NewResponsesHandlerWithManager(client *providers.Client, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps}
+	return &responsesHandler{client: client, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission}
 }
 
 // NewResponsesHandlerWithRegistry resolves each admitted request by provider ID.
-func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
+func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter) http.Handler {
 	if inactivity <= 0 {
 		inactivity = StreamInactivityTimeout
 	}
-	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps}
+	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission}
 }
 
 type responsesHandler struct {
@@ -59,6 +59,7 @@ type responsesHandler struct {
 	logger     *slog.Logger
 	inactivity time.Duration
 	routing    *ResponsesRouting
+	resources  ResourceAdmitter
 }
 
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +131,13 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !h.requireProvider(providerID, w) {
 			return
 		}
+	}
+
+	if !h.admitResources(w, r, providerID, modelID) {
+		if pendingRoutingLog {
+			h.logRoutingAfterResourceReject(r, true, routingDecision, explicitProvider)
+		}
+		return
 	}
 
 	result, err := h.manager.Execute(r.Context(), execution.Command{

@@ -22,6 +22,8 @@ import (
 	"aihub/internal/observability"
 	"aihub/internal/providers"
 	"aihub/internal/records"
+	"aihub/internal/resources"
+	resourcespg "aihub/internal/resources/pgstore"
 	"aihub/internal/server"
 )
 
@@ -104,8 +106,9 @@ func run() error {
 	var databaseModule app.Module
 
 	var (
-		configModule  app.Module
-		providerAdmin *gateway.ProviderAdmin
+		configModule       app.Module
+		providerAdmin      *gateway.ProviderAdmin
+		resourceAdmission  gateway.ResourceAdmitter
 	)
 
 	if cfg.Catalog.Persistence == config.EnvCatalogPersistencePostgres {
@@ -129,6 +132,7 @@ func run() error {
 
 		configModule = providerConfig.module
 		providerAdmin = gateway.NewProviderAdmin(providerConfig.service, logger)
+		resourceAdmission = resources.NewService(resourcespg.New(pool))
 
 		if err := readiness.Register("database", db.PingCheck(pool, cfg.Database.ConnectTimeout)); err != nil {
 			return fmt.Errorf("register database readiness check: %w", err)
@@ -148,7 +152,7 @@ func run() error {
 	})
 
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmission)
 	if err != nil {
 		return err
 	}

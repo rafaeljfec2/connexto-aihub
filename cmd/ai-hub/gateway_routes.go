@@ -18,7 +18,7 @@ import (
 
 func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
-	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin) (http.Handler, error) {
+	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmission gateway.ResourceAdmitter) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
@@ -34,7 +34,7 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 					Catalog:    catalogModule,
 					Statuses:   providerManager.Statuses,
 					StaleAfter: cfg.Catalog.StaleAfter,
-				}),
+				}, resourceAdmission),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},
 		{Method: http.MethodGet, Pattern: "/diagnostics/providers", Handler: gateway.NewProvidersHandler(providerManager.Statuses)},
