@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif;
+  background: #09090b;
+  color: #fafafa;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #27272a;
+  background: #18181b;
+}
+
+.brand {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.app-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  flex: 1;
+}
+
+.sidebar {
+  border-right: 1px solid #27272a;
+  padding: 1rem;
+}
+
+.sidebar a {
+  color: #e4e4e7;
+  text-decoration: none;
+}
+
+.content {
+  padding: 1.5rem;
+}
+
+.card-grid,
+.provider-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.card {
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: #18181b;
+}
+
+.banner {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.banner-error {
+  background: #450a0a;
+  border: 1px solid #881337;
+}
+
+.status-healthy {
+  color: #34d399;
+}
+
+.status-unhealthy {
+  color: #fb7185;
+}
+
+.status-muted {
+  color: #a1a1aa;
+}
+
+.sse-badge {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.sse-live {
+  color: #34d399;
+}
+
+.sse-connecting {
+  color: #fbbf24;
+}
+
+.sse-degraded {
+  color: #fb7185;
+}
+
+.ghost-button {
+  background: transparent;
+  border: 1px solid #3f3f46;
+  color: #fafafa;
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  border-color: #71717a;
+}

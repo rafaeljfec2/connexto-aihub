@@ -12,6 +12,7 @@ import (
 	"aihub/internal/gateway"
 	"aihub/internal/health"
 	"aihub/internal/metering"
+	"aihub/internal/operational"
 	"aihub/internal/providers"
 	"aihub/internal/records"
 	"aihub/internal/server"
@@ -21,7 +22,8 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
 	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
-	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service) (http.Handler, error) {
+	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
+	eventHub *operational.Hub) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
@@ -50,9 +52,10 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 		{Method: http.MethodGet, Pattern: "/v1/records/executions/{execution_id}", Handler: gateway.NewExecutionRecordHandler(recordsModule)},
 	}
 	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
-		append(routes, append(providerAdminRoutes(providerAdmin),
-			append(resourceAdminRoutes(resourceAdmin),
-				append(concurrencyAdminRoutes(concurrencyAdmin),
-					analyticsAdminRoutes(analyticsAdmin)...)...)...)...)...)
+		append(routes, append(operationalEventsRoutes(eventHub, readiness, providerManager.Statuses, logger),
+			append(providerAdminRoutes(providerAdmin),
+				append(resourceAdminRoutes(resourceAdmin),
+					append(concurrencyAdminRoutes(concurrencyAdmin),
+						analyticsAdminRoutes(analyticsAdmin)...)...)...)...)...)...)
 	return router, nil
 }

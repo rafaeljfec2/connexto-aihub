@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"aihub/internal/operational"
 	"aihub/internal/providers"
 )
 
@@ -30,13 +31,25 @@ const (
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
 // the configuration only; the credential is never returned, logged or echoed.
 type ProviderAdmin struct {
-	service *providers.Service
-	logger  *slog.Logger
+	service  *providers.Service
+	logger   *slog.Logger
+	eventHub *operational.Hub
+	statuses func() []providers.Status
 }
 
 // NewProviderAdmin builds the administrative handlers.
 func NewProviderAdmin(service *providers.Service, logger *slog.Logger) *ProviderAdmin {
 	return &ProviderAdmin{service: service, logger: logger}
+}
+
+// BindOperationalEvents connects provider administration actions to the operational SSE hub.
+func (a *ProviderAdmin) BindOperationalEvents(hub *operational.Hub, statuses func() []providers.Status) {
+	a.eventHub = hub
+	a.statuses = statuses
+}
+
+func (a *ProviderAdmin) notifyProviderStatus() {
+	PublishProviderStatus(a.eventHub, a.statuses)
 }
 
 type providerResponse struct {
@@ -170,6 +183,7 @@ func (a *ProviderAdmin) Validate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := a.service.Validate(r.Context(), r.PathValue("id"))
 		if err == nil {
+			a.notifyProviderStatus()
 			writeJSON(w, http.StatusOK, map[string]string{"status": "reachable"})
 
 			return
@@ -207,6 +221,7 @@ func (a *ProviderAdmin) stateChange(change func(context.Context, string) (provid
 		}
 
 		writeJSON(w, http.StatusOK, toProviderResponse(record))
+		a.notifyProviderStatus()
 	})
 }
 

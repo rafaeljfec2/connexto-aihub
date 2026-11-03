@@ -30,6 +30,7 @@ type Manager struct {
 	registry *Registry
 	mu       sync.RWMutex
 	states   map[string]State
+	onStateChange func()
 }
 
 // NewManager preserves the single-provider composition used by existing callers.
@@ -62,6 +63,13 @@ func NewRegistryManager(logger *slog.Logger, registry *Registry) *Manager {
 		manager.setState(providerID, state)
 	})
 	return manager
+}
+
+// SetStateChangeNotifier registers a callback invoked after runtime provider state changes.
+func (m *Manager) SetStateChangeNotifier(fn func()) {
+	m.mu.Lock()
+	m.onStateChange = fn
+	m.mu.Unlock()
 }
 
 func (m *Manager) Name() string {
@@ -119,8 +127,12 @@ func (m *Manager) Statuses() []Status {
 
 func (m *Manager) setState(providerID string, state State) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.states[providerID] = state
+	notify := m.onStateChange
+	m.mu.Unlock()
+	if notify != nil {
+		notify()
+	}
 }
 
 func (m *Manager) state(providerID string) State {

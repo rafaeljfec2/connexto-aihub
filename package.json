@@ -10,7 +10,7 @@
     "dev": "go run ./cmd/ai-hub",
     "lint": "go vet ./...",
     "test": "go test ./... -count=1 -race",
-    "check": "go vet ./... && go test ./... -count=1 -race"
+    "check": "go vet ./... && go test ./... -count=1 -race && pnpm --filter @connexto/frontend check"
   },
   "devDependencies": {
     "turbo": "^2.11.10"

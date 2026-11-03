@@ -26,6 +26,7 @@ import (
 	"aihub/internal/metering"
 	meteringpg "aihub/internal/metering/pgstore"
 	"aihub/internal/observability"
+	"aihub/internal/operational"
 	"aihub/internal/providers"
 	"aihub/internal/records"
 	"aihub/internal/resources"
@@ -89,6 +90,10 @@ func run() error {
 	providerRegistry.Bind(providers.OpenCodeGoID, providerClient)
 	providerRegistry.Bind(providers.OpenRouterID, openRouterClient)
 	providerModule := providers.NewRegistryManager(logger, providerRegistry)
+	eventHub := operational.NewHub(logger)
+	providerModule.SetStateChangeNotifier(func() {
+		gateway.PublishProviderStatus(eventHub, providerModule.Statuses)
+	})
 	recordsModule := records.New(records.Options{
 		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),
 		Logger:            logger,
@@ -142,6 +147,7 @@ func run() error {
 
 		configModule = providerConfig.module
 		providerAdmin = gateway.NewProviderAdmin(providerConfig.service, logger)
+		providerAdmin.BindOperationalEvents(eventHub, providerModule.Statuses)
 		resourceService := resources.NewService(resourcespg.New(pool))
 		resourceAdmission = resourceService
 		resourceAdmin = gateway.NewResourceAdmin(resourceService, logger)
@@ -174,7 +180,7 @@ func run() error {
 	})
 
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate, usageMetering)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate, usageMetering, eventHub)
 	if err != nil {
 		return err
 	}
