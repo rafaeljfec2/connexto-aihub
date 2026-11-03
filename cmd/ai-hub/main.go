@@ -12,6 +12,8 @@ import (
 	"syscall"
 
 	"aihub/cmd/ai-hub/lifecycle"
+	"aihub/internal/analytics"
+	analyticspg "aihub/internal/analytics/pgstore"
 	"aihub/internal/app"
 	"aihub/internal/catalog"
 	"aihub/internal/concurrency"
@@ -111,6 +113,7 @@ func run() error {
 		providerAdmin      *gateway.ProviderAdmin
 		resourceAdmin      *gateway.ResourceAdmin
 		concurrencyAdmin   *gateway.ConcurrencyAdmin
+		analyticsAdmin     *gateway.AnalyticsAdmin
 		resourceAdmission  gateway.ResourceAdmitter
 		concurrencyGate    gateway.ConcurrencyGate
 	)
@@ -142,6 +145,8 @@ func run() error {
 		concurrencyService := concurrency.NewService(concurrencypg.New(pool), concurrency.WithLogger(logger))
 		concurrencyGate = concurrencyService
 		concurrencyAdmin = gateway.NewConcurrencyAdmin(concurrencyService, logger)
+		analyticsService := analytics.NewService(analyticspg.New(pool))
+		analyticsAdmin = gateway.NewAnalyticsAdmin(analyticsService, resourceService, concurrencyService, logger)
 		executionManager = execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
 			gateway.StreamInactivityTimeout, execution.WithObserver(concurrency.NewReleaseObserver(concurrencyService, recordsModule)))
 
@@ -165,7 +170,7 @@ func run() error {
 	})
 
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, resourceAdmission, concurrencyGate)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate)
 	if err != nil {
 		return err
 	}

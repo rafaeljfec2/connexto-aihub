@@ -19,7 +19,7 @@ import (
 func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
-	concurrencyAdmin *gateway.ConcurrencyAdmin,
+	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
 	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
@@ -50,6 +50,8 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	}
 	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
 		append(routes, append(providerAdminRoutes(providerAdmin),
-			append(resourceAdminRoutes(resourceAdmin), concurrencyAdminRoutes(concurrencyAdmin)...)...)...)...)
+			append(resourceAdminRoutes(resourceAdmin),
+				append(concurrencyAdminRoutes(concurrencyAdmin),
+					analyticsAdminRoutes(analyticsAdmin)...)...)...)...)...)
 	return router, nil
 }
