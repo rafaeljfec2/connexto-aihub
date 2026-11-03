@@ -1,15 +1,40 @@
-# AI Hub — Implemented Architecture (E01–E06; E07 Validation)
+# AI Hub — Runtime Architecture and E01–E06 Baseline
 
-This document describes the current runtime through E06. E07 validates Codex
-CLI as the first supported harness but adds no production runtime behavior or
-durable AI Hub conversation state. The original product vision and proposed
-future layers remain in `AI-Hub-Product-Architecture-Kickoff.md`.
+This document preserves the architecture baseline established through E06 and
+the E07 Codex CLI harness validation. The current product also includes the
+PostgreSQL foundation, C1/C2 provider administration and multi-provider runtime,
+E08.1–E08.5 deterministic routing, and E09 resource management. The current
+delivery status and links to their detailed contracts are in the
+[consolidated roadmap](roadmap/AI-HUB-ROADMAP.md).
 
-## Runtime model
+The diagrams and package inventory below describe the earlier E01–E06
+architecture. They are not a complete inventory of later runtime modules.
+E07 remains validation-only and adds no durable AI Hub conversation state.
+The original product vision and proposed future layers remain in
+`../AI-Hub-Product-Architecture-Kickoff.md`.
 
-Single Go binary, modular monolith, local-first. No external database, queueing
-service, cache, or other runtime service is required; E06 uses a bounded
-in-process records queue.
+## Implemented increments after the baseline
+
+- **Phase B:** PostgreSQL persistence and embedded migrations are implemented;
+  see [ADR-020](adr/ADR-020-postgresql-persistence-foundation.md).
+- **C1/C2:** Provider administration, sealed credentials, runtime reconfiguration,
+  OpenCode Go and OpenRouter provider-ID-bound runtimes are implemented; see
+  [ADR-021](adr/ADR-021-provider-selection-and-openrouter-runtime.md) and
+  [C2 compatibility](specs/C2-openrouter-compatibility.md).
+- **E08:** E08.1–E08.5 add deterministic selection, eligibility, Responses
+  integration, and routing records; see
+  [ADR-022](adr/ADR-022-deterministic-intelligent-routing.md).
+- **E09:** Resource admission, quota/concurrency policies, provider usage, and
+  analytics are implemented in PostgreSQL mode; see
+  [E09 specification](specs/E09-resource-management.md) and
+  [E09.4 analytics](specs/E09.4-usage-analytics.md).
+
+## E01–E06 baseline runtime model
+
+Single Go binary, modular monolith, local-first. File persistence mode does
+not require an external database, queueing service, cache, or other runtime
+service; E06 uses a bounded in-process records queue. PostgreSQL mode adds the
+database-backed catalog, provider configuration, and E09 resource services.
 
 ```text
 cmd/ai-hub/main.go
@@ -55,9 +80,10 @@ depend on the standard library only.
 | `internal/execution`     | Per-request execution lifecycle, cancellation, terminal arbitration and drain coordination (E05).         |
 | `internal/records`       | Content-free execution records, bounded writer, JSONL persistence, retention and query index (E06).       |
 
-`providers` is a concrete adapter, not an interface-driven layer: the spike
-validated exactly one adapter shape (Responses in, Responses out); an
-abstraction will be introduced only when a second provider exists.
+The statement below describes the original E02 design decision only: the
+initial OpenCode Go adapter was concrete because only one adapter had been
+validated then. C2 later introduced provider-ID-bound OpenCode Go and OpenRouter
+runtimes; see ADR-021 for the current multi-provider design.
 
 ## Lifecycle
 

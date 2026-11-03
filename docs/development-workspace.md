@@ -1,7 +1,10 @@
 # Development Workspace — pnpm + Turborepo (Phase A)
 
 This document describes the hybrid monorepo workspace set up in the AI Hub
-Management Foundation Phase A and how a future frontend application joins it.
+Management Foundation Phase A and how the prioritized Frontend MVP can join it.
+No frontend application exists yet. Current frontend preparation and API
+security constraints are documented in the
+[Frontend MVP guide](frontend/FRONTEND-MVP.md).
 The tooling decision is recorded in
 [ADR-019](adr/ADR-019-hybrid-monorepo-workspace-tooling.md).
 
@@ -13,7 +16,7 @@ The tooling decision is recorded in
 ├── internal/         # Backend packages (Go)
 ├── scripts/          # Validation and forensic scripts (Go/Python/Bash)
 ├── docs/             # Architecture, specs, ADRs, validation docs
-├── apps/frontend/    # Future React + Vite dashboard (not created yet)
+├── apps/frontend/    # Planned React + Vite app (not created yet)
 ├── packages/ui/      # Future shared UI kit (not created yet)
 ├── package.json      # Root scripts + pnpm/Turbo toolchain pins
 ├── pnpm-workspace.yaml
@@ -34,7 +37,7 @@ The Go backend stays at the repository root. It was not moved into
 | pnpm       | JavaScript/TypeScript dependencies and workspace   |
 | Turborepo  | Workspace (`apps/*`, `packages/*`) task orchestration |
 | PostgreSQL | Persistence foundation (Phase B)                   |
-| React + Vite | Future dashboard application                     |
+| React + Vite | Planned frontend direction; no app exists yet    |
 
 The ecosystems are independent: Go never sees `node_modules`, and no Go file
 is exposed as a pnpm package. Turborepo coordinates only the JS/TS packages.
@@ -87,11 +90,11 @@ package). That is why today's Go gate lives in root scripts (`pnpm lint`,
 `pnpm test`, `pnpm check`) and `typecheck` has no implementation until the
 first TypeScript package exists.
 
-## Adding the future frontend
+## Adding the Frontend MVP
 
 Phase A deliberately does not create an empty frontend application. When the
-dashboard phase starts, follow this recipe; no structural reorganization of
-the Go tree is required:
+Frontend MVP implementation starts, follow this recipe; no structural
+reorganization of the Go tree is required:
 
 1. Scaffold the application:
    ```bash
@@ -115,8 +118,10 @@ the Go tree is required:
    (`packages/*` is already a workspace glob), consumed by ordinary pnpm
    workspace dependencies.
 
-Planned stack for the future dashboard (not part of this phase): React 19,
-TypeScript, Vite, TanStack Query, Tailwind CSS and shadcn/ui.
+The earlier dashboard proposal listed React 19, TypeScript, Vite, TanStack
+Query, Tailwind CSS, and shadcn/ui. Those packages are not installed in the
+current checkout. Select the frontend stack and justify its dependencies in
+the implementation SPEC; see the [Frontend MVP guide](frontend/FRONTEND-MVP.md).
 
 ## Known limitations
 

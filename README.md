@@ -3,14 +3,15 @@
 Local-first Personal AI Orchestrator. The product and architecture baseline is
 documented in [`AI-Hub-Product-Architecture-Kickoff.md`](AI-Hub-Product-Architecture-Kickoff.md).
 
-**Current status:** E01 (Core Foundation), E02 (OpenCode Go provider
-integration, Responses pass-through), E03 (Model Catalog), E04 (Gateway
-hardening and access control), E05 (execution lifecycle), E06 (execution
-records), and E07 (Codex CLI harness) are implemented. E07 is validated for
-Codex CLI `0.164.0-alpha.11.1` on Linux `amd64`; AC-14 is `OUT OF SCOPE`.
-E08 intelligent routing and E09 resource management, concurrency limits, and
-provider-usage analytics are implemented in PostgreSQL mode. Learning is not
-implemented.
+**Current status:** E01–E07, the PostgreSQL foundation, C1 provider
+administration, C2 multi-provider runtime, E08.1–E08.5 deterministic routing,
+and E09 resource management are implemented and accepted within their recorded
+scopes. E07 is validated for Codex CLI `0.164.0-alpha.11.1` on Linux
+`amd64`; AC-14 is `OUT OF SCOPE`. The next authorized development
+front is the Frontend MVP; no frontend app exists yet. E08.6–E08.8 remain
+deferred, while E10 Learning Engine and E11 Dashboard remain future work. See
+the [consolidated roadmap](docs/roadmap/AI-HUB-ROADMAP.md) and
+[Frontend MVP preparation](docs/frontend/FRONTEND-MVP.md).
 
 ## Scope implemented
 
@@ -35,15 +36,15 @@ implemented.
   append-only JSONL storage under `AIHUB_DATA_DIR`, bounded retention and
   cursor-based query endpoints.
 - Management Foundation Phase A (workspace foundation): pnpm 12 + Turborepo 2
-  workspace for the future dashboard, with the Go backend unchanged at the
-  root and validated through native Go commands.
+  workspace prepared for the Frontend MVP, with the Go backend unchanged at the
+  root and validated through native Go commands. No frontend app exists yet.
 
 ## Requirements
 
 - Go 1.23 or newer.
 - No external Go dependencies.
 - Node.js 22+ with pnpm 12 is required only for the workspace tooling
-  (Turborepo and future frontend); it is not needed to build or test the
+  (Turborepo and planned frontend); it is not needed to build or test the
   backend.
 
 ## Workspace (pnpm + Turborepo)
@@ -52,7 +53,8 @@ The repository is a hybrid monorepo since the Management Foundation Phase A
 (see [ADR-019](docs/adr/ADR-019-hybrid-monorepo-workspace-tooling.md) and the
 [workspace guide](docs/development-workspace.md)). The Go backend stays at the
 root and keeps native Go commands; pnpm/Turborepo cover `apps/*` and
-`packages/*` for the future React + Vite dashboard.
+`packages/*` for the planned frontend. React + Vite is the documented
+direction; the E11 dashboard remains future work.
 
 ```bash
 pnpm install   # JS/TS tooling (turbo); no effect on Go builds
@@ -701,9 +703,14 @@ The real-provider validator remains separately gated by `AIHUB_E07_LIVE=1`.
 
 ## Documentation
 
+- [`docs/roadmap/AI-HUB-ROADMAP.md`](docs/roadmap/AI-HUB-ROADMAP.md) — current
+  delivery status and product roadmap.
+- [`docs/frontend/FRONTEND-MVP.md`](docs/frontend/FRONTEND-MVP.md) — frontend
+  preparation, backend contracts, security boundary, and open decisions.
 - [`docs/development-workspace.md`](docs/development-workspace.md) — workspace
-  guide (pnpm + Turborepo, how the future frontend joins the pipeline).
-- [`docs/architecture.md`](docs/architecture.md) — implemented architecture and flow.
+  guide (pnpm + Turborepo and how the frontend joins the pipeline).
+- [`docs/architecture.md`](docs/architecture.md) — architecture baseline and
+  links to later runtime increments.
 - [`docs/specs/E02-provider-management.md`](docs/specs/E02-provider-management.md) — E02 spec and decisions.
 - [`docs/specs/E03-model-catalog.md`](docs/specs/E03-model-catalog.md) — E03 spec and decisions.
 - [`docs/design/E03-model-catalog-design.md`](docs/design/E03-model-catalog-design.md) — E03 technical design.
@@ -731,12 +738,16 @@ The real-provider validator remains separately gated by `AIHUB_E07_LIVE=1`.
 - Provider sessions are per-request in E02 and are not stored in E06 records;
   cross-turn continuity of generated `x-opencode-session` values depends on a
   future AI Hub context/session layer.
-- No retries, fallback or quota enforcement (E05/E09).
+- Failed Responses executions are not automatically retried and do not trigger
+  silent provider fallback. Resource quotas and concurrency limits are
+  enforced in PostgreSQL mode (E09).
 - Execution records are at-most-once and best-effort: queue overflow, storage
   failure, crash or flush expiry loses history, and `usage` stays `null` in
   schema v1.
-- No persistence beyond the catalog snapshot and execution-record segments;
-  readiness has no dependency checks registered yet.
+- File persistence mode uses the catalog snapshot and execution-record
+  segments. PostgreSQL mode also persists provider configuration and E09
+  resource/usage state; readiness checks the database in that mode. Provider
+  health does not determine application readiness.
 - The catalog is derived data: it reflects the last accepted sync, not a live
   execution probe. Synchronization runs at startup (healthy provider only) and
   on demand; there is no periodic refresh. One process owns a data directory.

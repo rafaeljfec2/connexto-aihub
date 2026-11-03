@@ -16,39 +16,64 @@
 
 # Current Project Status
 
-This section records the current implementation state. The initial plans below are retained as product and architecture context; their imperative language describes the original kickoff and is not a new authorization or current work order. Current behavior and approved scope are defined by the linked specifications, ADRs, and validation reports.
+**Status date:** 2026-11-03. This section replaces the earlier status snapshot.
+The original product and architecture plans below remain historical context;
+their imperative language is not current work authorization. Current behavior
+and approved scope are defined by the linked specifications, ADRs, and
+validation reports.
 
 ## Delivered
 
-- **E01 — Core Foundation:** Go application bootstrap, typed configuration, module lifecycle, local HTTP server, health endpoints, structured logging, request correlation, and graceful shutdown are implemented.
-- **E02 — Provider Management:** The OpenCode Go provider adapter, provider diagnostics, model endpoint passthrough, and Responses execution are implemented. The original Codex/OpenCode Go validation report remains **PARTIALLY VALIDATED** with the limitations recorded there.
-- **E03 — Model Catalog:** Provider-scoped model identity, conservative capability claims, synchronization, derived listing state, versioned JSON snapshot persistence, and recovery are implemented. Automated tests cover the contract. A real catalog was observed during E04 validation; there is no standalone E03 real-world E2E report.
-- **E04 — Gateway Hardening and Access Control:** Gateway authentication, Host and Origin policy, listener exposure checks, bounded request admission, and request/session identity are implemented. The real E04 report is **VALIDATED** within its stated local environment and limitations.
-- **E05 — Execution Lifecycle:** Per-request execution, terminal-result arbitration, cancellation, timeouts, streaming coordination, and shutdown drain are implemented. The specification and deterministic tests provide the primary evidence; there is no separate E05 E2E report.
-- **E06 — Execution Records:** Content-free schema-v1 records, bounded asynchronous observation, append-only JSONL persistence, retention/recovery, and authenticated query endpoints are implemented. Schema v1 always records usage as null.
-- **E07 — First Harness Integration:** The validation-only Codex harness is **PASS/COMPLETE for AC-1 through AC-13**. AC-14 is formally **OUT OF SCOPE** for the AI Hub product. The support claim is limited to Codex CLI 0.164.0-alpha.11.1 on Linux amd64. Codex CLI progressive rendering was not verified, while gateway SSE streaming passed. E07 adds no production harness adapter and no durable AI Hub conversation state.
+- **E01–E07 — Backend foundation and harness:** The Go modular monolith,
+  provider gateway, model catalog, access control, execution lifecycle,
+  content-free execution records, and validation-only Codex harness are
+  implemented. E07 is accepted for Codex CLI 0.164.0-alpha.11.1 on Linux
+  amd64; AC-14 remains out of scope.
+- **Phase B — PostgreSQL foundation:** PostgreSQL persistence, embedded
+  migrations, and recovery are implemented and validated through isolated
+  integration-test databases.
+- **C1/C2 — Provider administration and multi-provider runtime:** PostgreSQL
+  configuration, sealed provider credentials, runtime administration, provider
+  diagnostics, and provider-ID-bound OpenCode Go/OpenRouter runtimes are
+  implemented. C2 PostgreSQL integration validation is accepted. Operational
+  evidence includes an OpenCode Go stream and one authorized OpenRouter
+  Responses stream; see the C2 reports for limits and details.
+- **E08 — Intelligent Routing:** E08.1–E08.5 are accepted. Routing remains
+  deterministic, explainable, and based on explicit selections and trusted
+  catalog/runtime eligibility. E08.6–E08.8 are deferred and unauthorized.
+- **E09 — Resource Management:** Closed and published at
+  9338c538eed923c380ed2b9197b8ac6522d946ee. The final PostgreSQL-enabled
+  verification recorded 982 passing tests, 6 skipped live/external tests, and
+  no failures. The E09 test harness used isolated per-test databases; it did
+  not use or remove data from the existing ai_hub application database.
 
-See [README.md](README.md), [architecture](docs/architecture.md), [E01–E07 delivery history](docs/validation/E01-E07-execution-history.md), and the individual specifications and validation reports for the authoritative details. The older [E07 readiness snapshot](docs/discovery/E07-final-acceptance-readiness.md) is historical; the final E2E report dated 2026-11-02 and the consolidated delivery history record the later completed result.
+See the [README](README.md), [consolidated roadmap](docs/roadmap/AI-HUB-ROADMAP.md),
+[runtime architecture](docs/architecture.md), [E01–E07 delivery history](docs/validation/E01-E07-execution-history.md),
+and the individual specifications and reports for authoritative evidence. The
+older [E07 readiness snapshot](docs/discovery/E07-final-acceptance-readiness.md)
+is historical.
 
-## Not implemented
+## Next authorized development front
 
-E08 Intelligent Routing, E09 Resource Management, E10 Learning Engine, and E11 Dashboard are not implemented. Automatic task classification, provider/model selection, quota and cost policy enforcement, learning, and a dashboard are not current runtime capabilities. No later epic is implicitly started by this status update.
+The **Frontend MVP** is the next development front. This status update only
+formalizes the direction; no frontend app or UI has been implemented. The
+frontend MVP is distinct from **E11 Dashboard**, a future evolution whose scope
+is not yet defined. See the [Frontend MVP preparation](docs/frontend/FRONTEND-MVP.md).
 
-## Current request and model identity boundary
+## Deferred and future work
 
-The committed main revision used for this status has a byte-preserving POST /v1/responses provider passthrough. In the current uncommitted working tree, the handler reads the bounded body as bytes and also attempts a read-only extraction of a non-empty JSON model string into execution-target metadata. It still forwards the original payload without rewriting it and does not select a model or provider from that value. Missing, incompatible, malformed, blank, or over-limit model values leave target metadata empty. The lifecycle logs model_id from the execution target, and E06 persists it only when present.
+- **E08.6–E08.8:** Deferred and not authorized. No LLM classifier is an MVP
+  requirement.
+- **E10 — Learning Engine:** Future work. Real-user signals are not yet
+  sufficient to justify automated learning.
+- **E11 — Dashboard:** Future work, separate from the smaller Frontend MVP.
 
-An empty model_id therefore describes missing execution-target metadata. It does not, by itself, prove that the upstream request lacked a model or that provider routing failed. The current extraction and its documentation changes are uncommitted and have not been validated in this status pass. See [responses_handler.go](internal/gateway/responses_handler.go), [E05](docs/specs/E05-execution.md), [E06](docs/specs/E06-execution-records.md), and [ADR-014](docs/adr/ADR-014-execution-lifecycle-and-command-contract.md).
+## Repository snapshot
 
-## Repository and architecture snapshot
-
-The committed checkout is on main at 5af543b, the same revision shown by origin/main. The current working tree also contains the uncommitted model_id work described below and this documentation update. The service is a local-first Go modular monolith using the standard library. Current persistence is a versioned JSON catalog snapshot and bounded JSONL execution records; no database, distributed service, or dashboard is in use.
-
-The gateway listens locally by default, requires a distinct gateway bearer key, and keeps provider credentials separate. The Responses route preserves request bytes and streaming. The execution record path is deliberately content-free and best-effort; it does not store payloads, responses, credentials, provider sessions, or usage values.
-
-## Work in progress observed during this update
-
-The working tree contains uncommitted changes in [responses_handler.go](internal/gateway/responses_handler.go), [records_capture_test.go](internal/gateway/records_capture_test.go), [E05](docs/specs/E05-execution.md), and [ADR-014](docs/adr/ADR-014-execution-lifecycle-and-command-contract.md). The handler now attempts to extract a bounded, non-empty JSON model string for execution metadata while preserving the original payload. The tests add assertions for model capture, record persistence, and fallback when the value is missing or cannot be used. The accompanying SPEC and ADR edits describe this as read-only observability metadata, not request validation or routing. These working-tree changes were not run or independently reviewed during this documentation update, so they remain unverified and are not presented as a completed feature.
+The inspected starting checkout was on main at
+9338c538eed923c380ed2b9197b8ac6522d946ee, aligned with origin/main and clean.
+The original kickoff below records the proposed baseline at its creation; it
+does not override this current status.
 
 ------------------------------------------------------------------------
 
@@ -436,7 +461,11 @@ Catalog state is stored under AIHUB_DATA_DIR. Execution records contain operatio
 
 Gateway First prioritizes reliable request ingress and provider communication. Intelligent routing is intended to build on that core later.
 
-## 9.1 Epic status
+## 9.1 Original kickoff epic status (historical)
+
+This table records the proposed status when the original roadmap was written.
+For the current implementation state, use [Current Project Status](#current-project-status)
+and the [consolidated roadmap](docs/roadmap/AI-HUB-ROADMAP.md).
 
 | Epic | Name | Current status |
 | --- | --- | --- |
@@ -695,7 +724,11 @@ When credentials are unavailable, simulated HTTP servers can validate determinis
 
 # 13. Later Epics
 
-The following work was outside the original E01/E02 implementation scope. Current status is not implemented for all four epics.
+The following work was outside the original E01/E02 implementation scope. The
+descriptions below are original kickoff proposals, not current status or
+authorization. Current status is in
+[Current Project Status](#current-project-status) and the
+[consolidated roadmap](docs/roadmap/AI-HUB-ROADMAP.md).
 
 ## E08 — Intelligent Routing
 
