@@ -22,6 +22,7 @@ type Config struct {
 	Records     Records
 	Database    Database
 	Credentials Credentials
+	UI          UI
 }
 
 // Default returns the baseline configuration used as the starting point for

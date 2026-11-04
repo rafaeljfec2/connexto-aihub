@@ -96,5 +96,9 @@ func applyEnvironment(cfg *Config) error {
 		return err
 	}
 
+	if err := applyUIEnvironment(&cfg.UI); err != nil {
+		return err
+	}
+
 	return nil
 }

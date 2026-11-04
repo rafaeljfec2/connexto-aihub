@@ -7,10 +7,12 @@
   },
   "scripts": {
     "build": "go build ./...",
+    "build:release": "pnpm --filter @connexto/frontend build && node scripts/sync-frontend-dist.mjs && go build -o bin/ai-hub ./cmd/ai-hub/",
     "dev": "go run ./cmd/ai-hub",
     "lint": "go vet ./...",
     "test": "go test ./... -count=1 -race",
-    "check": "go vet ./... && go test ./... -count=1 -race && pnpm --filter @connexto/frontend check"
+    "check": "go vet ./... && go test ./... -count=1 -race && pnpm --filter @connexto/frontend check",
+    "e2e": "pnpm --dir e2e install && pnpm --dir e2e exec playwright install chromium && pnpm --dir e2e test"
   },
   "devDependencies": {
     "turbo": "^2.11.10"

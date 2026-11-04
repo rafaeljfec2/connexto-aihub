@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -22,6 +23,11 @@ var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 
 // PolicyConfig carries validated gateway settings into the immutable runtime
 // policy.
+// OperatorGate authorizes browser operators via UI session or loopback trust.
+type OperatorGate interface {
+	Authenticated(r *http.Request) bool
+}
+
 type PolicyConfig struct {
 	APIKey               string
 	AdminAPIKey          string
@@ -29,6 +35,7 @@ type PolicyConfig struct {
 	AllowedHostsExplicit bool
 	AllowedOrigins       []string
 	MaxBodyBytes         int64
+	Operator             OperatorGate
 }
 
 // Policy is an immutable, concurrency-safe access-control policy.
@@ -39,6 +46,7 @@ type Policy struct {
 	allowedHosts   map[string]struct{}
 	allowedOrigins map[string]struct{}
 	maxBodyBytes   int64
+	operator       OperatorGate
 }
 
 // NewPolicy validates and normalizes gateway access settings.
@@ -96,6 +104,7 @@ func NewPolicy(cfg PolicyConfig) (Policy, error) {
 		allowedHosts:   make(map[string]struct{}, len(normalizedHosts)),
 		allowedOrigins: make(map[string]struct{}, len(origins)),
 		maxBodyBytes:   limit,
+		operator:       cfg.Operator,
 	}
 
 	for _, host := range normalizedHosts {

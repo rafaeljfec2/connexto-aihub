@@ -21,7 +21,7 @@ func (p Policy) Authorize(next http.Handler) http.Handler {
 		}
 
 		metadata := Metadata{Host: host, Origin: origin}
-		if !healthExempt(r) {
+		if !healthExempt(r) && !uiLoginExempt(r) {
 			principal, authorized := p.authenticate(r)
 			if !authorized {
 				unauthorized(w)
@@ -61,18 +61,30 @@ func healthExempt(r *http.Request) bool {
 	return r.URL.Path == "/healthz" || r.URL.Path == "/readyz"
 }
 
+func uiLoginExempt(r *http.Request) bool {
+	return r.Method == http.MethodPost && r.URL.Path == "/api/ui/login"
+}
+
 // authenticate selects the credential for the route namespace: the
 // administrative API under /api/ accepts only the administrative key, and the
 // gateway routes accept only the gateway key. The two keys never cross.
 func (p Policy) authenticate(r *http.Request) (string, bool) {
 	token, ok := bearerToken(r.Header)
-	if !ok {
-		return "", false
+	if ok {
+		if strings.HasPrefix(r.URL.Path, adminPathPrefix) {
+			return AdminPrincipalID, p.adminKeyMatches(token)
+		}
+
+		return PrincipalID, p.keyMatches(token)
 	}
 
-	if strings.HasPrefix(r.URL.Path, adminPathPrefix) {
-		return AdminPrincipalID, p.adminKeyMatches(token)
+	if p.operator != nil && p.operator.Authenticated(r) {
+		if strings.HasPrefix(r.URL.Path, adminPathPrefix) {
+			return AdminPrincipalID, true
+		}
+
+		return PrincipalID, true
 	}
 
-	return PrincipalID, p.keyMatches(token)
+	return "", false
 }

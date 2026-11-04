@@ -16,6 +16,7 @@ import (
 	"aihub/internal/providers"
 	"aihub/internal/records"
 	"aihub/internal/server"
+	"aihub/internal/ui"
 )
 
 func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
@@ -23,11 +24,12 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
 	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
 	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
-	eventHub *operational.Hub) (http.Handler, error) {
+	eventHub *operational.Hub, operatorGate ui.Gate) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
 		AllowedOrigins: cfg.Gateway.AllowedOrigins, MaxBodyBytes: cfg.Gateway.MaxBodyBytes,
+		Operator: operatorGate,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build gateway access policy: %w", err)
@@ -52,10 +54,11 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 		{Method: http.MethodGet, Pattern: "/v1/records/executions/{execution_id}", Handler: gateway.NewExecutionRecordHandler(recordsModule)},
 	}
 	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
-		append(routes, append(operationalEventsRoutes(eventHub, readiness, providerManager.Statuses, logger),
-			append(providerAdminRoutes(providerAdmin),
-				append(resourceAdminRoutes(resourceAdmin),
-					append(concurrencyAdminRoutes(concurrencyAdmin),
-						analyticsAdminRoutes(analyticsAdmin)...)...)...)...)...)...)
+		append(routes, append(uiAuthRoutes(operatorGate, logger),
+			append(operationalEventsRoutes(eventHub, readiness, providerManager.Statuses, logger),
+				append(providerAdminRoutes(providerAdmin),
+					append(resourceAdminRoutes(resourceAdmin),
+						append(concurrencyAdminRoutes(concurrencyAdmin),
+							analyticsAdminRoutes(analyticsAdmin)...)...)...)...)...)...)...)
 	return router, nil
 }

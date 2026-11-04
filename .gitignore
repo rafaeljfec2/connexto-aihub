@@ -3,6 +3,7 @@
 /ai-hub
 *.test
 coverage.out
+internal/static/dist/
 
 # Node workspace artifacts (pnpm + Turborepo)
 node_modules/
@@ -17,3 +18,4 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+.playwright-mcp

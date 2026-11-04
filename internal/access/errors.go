@@ -56,6 +56,31 @@ func unauthorized(w http.ResponseWriter) {
 	writeError(w, http.StatusUnauthorized, ErrorUnauthorized, "a valid gateway bearer token is required")
 }
 
+// WriteUnauthorized emits a generic unauthorized JSON envelope.
+func WriteUnauthorized(w http.ResponseWriter, message string) {
+	if message == "" {
+		unauthorized(w)
+		return
+	}
+	writeError(w, http.StatusUnauthorized, ErrorUnauthorized, message)
+}
+
+// WriteInvalidRequest emits a bad request JSON envelope.
+func WriteInvalidRequest(w http.ResponseWriter, message string) {
+	invalidRequest(w, message)
+}
+
+// WriteInternalError emits an internal error JSON envelope.
+func WriteInternalError(w http.ResponseWriter) {
+	writeError(w, http.StatusInternalServerError, ErrorInternal, "an internal error occurred")
+}
+
+// WriteMethodNotAllowed emits HTTP 405 without a JSON body.
+func WriteMethodNotAllowed(w http.ResponseWriter) {
+	w.Header().Set("Allow", "GET, POST")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+}
+
 func invalidRequest(w http.ResponseWriter, message string) {
 	writeError(w, http.StatusBadRequest, ErrorInvalidRequest, message)
 }

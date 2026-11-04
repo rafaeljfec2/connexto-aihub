@@ -68,6 +68,11 @@ var knownEnvKeys = map[string]struct{}{
 	EnvDatabaseMinConns:          {},
 	EnvDatabaseConnectTimeout:    {},
 	EnvCatalogPersistence:        {},
+	EnvOperatorPassphrase:        {},
+	EnvUISessionSecret:           {},
+	EnvUISessionTTL:              {},
+	EnvUISecureCookies:           {},
+	EnvServeEmbeddedUI:           {},
 }
 
 // LogLevel is a validated log level accepted by the application.

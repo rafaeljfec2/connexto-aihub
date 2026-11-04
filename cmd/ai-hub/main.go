@@ -32,6 +32,7 @@ import (
 	"aihub/internal/resources"
 	resourcespg "aihub/internal/resources/pgstore"
 	"aihub/internal/server"
+	"aihub/internal/static"
 )
 
 const version = "0.1.0-dev"
@@ -179,10 +180,24 @@ func run() error {
 		SyncTimeout: cfg.Catalog.SyncTimeout,
 	})
 
+	operatorGate, err := cfg.BuildOperatorGate()
+	if err != nil {
+		return fmt.Errorf("operator ui gate: %w", err)
+	}
+
 	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate, usageMetering, eventHub)
+		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate, usageMetering, eventHub, operatorGate)
 	if err != nil {
 		return err
+	}
+
+	if cfg.UI.ServeEmbedded {
+		staticHandler, staticErr := static.Handler()
+		if staticErr != nil {
+			return fmt.Errorf("embedded frontend: %w", staticErr)
+		}
+		router = static.Wrap(router, staticHandler)
+		logger.Info("embedded operator ui enabled")
 	}
 
 	httpServer := server.New(cfg.Server, router, logger,
