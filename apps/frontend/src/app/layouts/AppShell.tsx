@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
+import { cn } from '../../shared/ui/cn'
 import { AppSidebar } from './AppSidebar'
 import { AppTopBar } from './AppTopBar'
+import { getAppShellMainContentClassName, isAppShellViewportFitPath } from './appShellLayout'
 import { resolvePageMeta } from './pageMeta'
 
 const SIDEBAR_COLLAPSED_KEY = 'connexto:sidebar-collapsed'
@@ -49,6 +51,9 @@ export function AppShell({ connectionState, onReconnect }: AppShellProps) {
     })
   }
 
+  const mainContentClassName = getAppShellMainContentClassName(location.pathname)
+  const viewportFit = isAppShellViewportFitPath(location.pathname)
+
   return (
     <div className="grid h-full w-full overflow-hidden bg-graphite lg:grid-cols-[auto_1fr]">
       <AppSidebar
@@ -70,8 +75,15 @@ export function AppShell({ connectionState, onReconnect }: AppShellProps) {
           onOpenMobileNav={() => setMobileOpen(true)}
           onToggleSidebar={handleToggleCollapsed}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto scrollbar-slim px-4 py-6 lg:px-8 lg:py-7">
-          <Outlet />
+        <main
+          className={cn(
+            'min-h-0 flex-1 overflow-hidden',
+            viewportFit ? 'py-2 lg:py-3' : 'py-3 lg:py-4',
+          )}
+        >
+          <div className={mainContentClassName}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

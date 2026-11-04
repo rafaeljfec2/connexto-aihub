@@ -25,14 +25,14 @@ type NavItemDef = {
 }
 
 const operationNav: NavItemDef[] = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/providers', label: 'Providers', icon: Plug },
-  { to: '/catalog', label: 'Models', icon: Layers },
-  { to: '/executions', label: 'Executions', icon: Activity },
-  { to: '/resources', label: 'Resources', icon: SlidersHorizontal },
+  { to: '/', label: 'Visão geral', icon: LayoutDashboard, end: true },
+  { to: '/providers', label: 'Provedores', icon: Plug },
+  { to: '/catalog', label: 'Modelos', icon: Layers },
+  { to: '/executions', label: 'Execuções', icon: Activity },
+  { to: '/resources', label: 'Recursos', icon: SlidersHorizontal },
 ]
 
-const toolsNav: NavItemDef[] = [
+const systemNav: NavItemDef[] = [
   { to: '/playground', label: 'Playground', icon: FlaskConical },
 ]
 
@@ -51,21 +51,21 @@ function sseFootCopy(state: OperationalConnectionState): {
 } {
   if (state === 'live') {
     return {
-      label: 'SSE connected',
-      detail: 'Operational event stream',
+      label: 'Gateway operacional',
+      detail: 'CONEXÃO OPERACIONAL ATIVA',
       dotClass: 'bg-healthy',
     }
   }
   if (state === 'connecting') {
     return {
-      label: 'SSE connecting',
-      detail: 'Opening event stream',
+      label: 'Gateway conectando',
+      detail: 'CONECTANDO EVENT STREAM',
       dotClass: 'bg-warning',
     }
   }
   return {
-    label: 'SSE degraded',
-    detail: 'Reconnect scheduled',
+    label: 'Gateway degradado',
+    detail: 'RECONEXÃO AGENDADA',
     dotClass: 'bg-failure',
   }
 }
@@ -209,6 +209,7 @@ export function AppSidebar({
         <aside
           ref={sidebarRef}
           id="app-sidebar"
+          role="navigation"
           aria-label="Primary navigation"
           aria-modal={mobileOpen ? true : undefined}
           className={cn(
@@ -236,20 +237,22 @@ export function AppSidebar({
             <div className="mx-1 mb-6 flex items-center gap-2.5 rounded-[10px] border border-line bg-white/[0.025] px-3 py-2.5">
               <span className="size-[7px] shrink-0 rounded-full bg-cobalt shadow-[0_0_0_4px_rgba(120,150,232,0.12)]" />
               <div>
-                <strong className="block text-[11px] font-semibold">Primary workspace</strong>
-                <small className="mt-0.5 block text-[10px] text-muted">Development instance</small>
+                <strong className="block text-[11px] font-semibold">Workspace principal</strong>
+                <small className="mt-0.5 block text-[10px] text-muted">Instância de desenvolvimento</small>
               </div>
             </div>
           ) : null}
 
-          <NavSection
-            label="Operations"
-            items={operationNav}
-            collapsed={collapsed}
-            onNavigate={onCloseMobile}
-          />
-          <div className="my-4 h-px bg-line" />
-          <NavSection label="Tools" items={toolsNav} collapsed={collapsed} onNavigate={onCloseMobile} />
+          <nav aria-label="Primary navigation" className="flex flex-col">
+            <NavSection
+              label="OPERAÇÃO"
+              items={operationNav}
+              collapsed={collapsed}
+              onNavigate={onCloseMobile}
+            />
+            <div className="my-4 h-px bg-line" />
+            <NavSection label="SISTEMA" items={systemNav} collapsed={collapsed} onNavigate={onCloseMobile} />
+          </nav>
 
           <div className="mt-auto space-y-3 pt-4">
             <Button

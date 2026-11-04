@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw, Search } from 'lucide-react'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
+import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { Button, FilterChips, MasterDetailLayout, Panel, PanelHeader } from '../../../shared/ui'
 import { executionsQueryKeys, getExecutionRecord, listExecutionRecords } from '../api/queries'
 import { ExecutionDetailPanel } from '../components/ExecutionDetailPanel'
@@ -65,7 +66,7 @@ export function ExecutionsPage() {
   const activeRecord = detailQuery.data ?? selectedRecord ?? records[0]
 
   return (
-    <div className="page executions-page space-y-4">
+    <div className={appPageClassName('executions-page', 'space-y-4')}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <AppPageHeader />
         <Button

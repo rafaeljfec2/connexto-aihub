@@ -3,10 +3,13 @@ import {
   getHealth,
   getProviderDiagnostics,
   getReadiness,
+  getRuntimeMeta,
+  getTrafficSummary,
   overviewQueryKeys,
 } from '../api/queries'
 import { listCatalogModels } from '../../catalog/api/queries'
 import { listExecutionRecords } from '../../executions/api/queries'
+import { getQuotaUtilization } from '../../resources/api/queries'
 
 export function useOverviewQueries() {
   const health = useQuery({
@@ -26,6 +29,27 @@ export function useOverviewQueries() {
   const providers = useQuery({
     queryKey: overviewQueryKeys.providerDiagnostics,
     queryFn: getProviderDiagnostics,
+    refetchInterval: false,
+    retry: 1,
+  })
+
+  const runtimeMeta = useQuery({
+    queryKey: overviewQueryKeys.runtimeMeta,
+    queryFn: getRuntimeMeta,
+    refetchInterval: false,
+    retry: 1,
+  })
+
+  const trafficSummary = useQuery({
+    queryKey: overviewQueryKeys.trafficSummary('24h'),
+    queryFn: () => getTrafficSummary('24h'),
+    refetchInterval: false,
+    retry: 1,
+  })
+
+  const quotaUtilization = useQuery({
+    queryKey: ['resources', 'quota-utilization', 'overview'],
+    queryFn: () => getQuotaUtilization({}),
     refetchInterval: false,
     retry: 1,
   })
@@ -52,6 +76,9 @@ export function useOverviewQueries() {
       health.refetch(),
       readiness.refetch(),
       providers.refetch(),
+      runtimeMeta.refetch(),
+      trafficSummary.refetch(),
+      quotaUtilization.refetch(),
       catalog.refetch(),
       recentExecutions.refetch(),
     ])
@@ -61,6 +88,9 @@ export function useOverviewQueries() {
     health,
     readiness,
     providers,
+    runtimeMeta,
+    trafficSummary,
+    quotaUtilization,
     catalog,
     recentExecutions,
     backendUnavailable,

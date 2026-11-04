@@ -207,6 +207,15 @@ func (s *Service) List(filter Filter) (Page, error) {
 	return s.index.page(filter), nil
 }
 
+// ListAll walks every page for the filter and returns the full ordered slice.
+func (s *Service) ListAll(filter Filter) ([]Record, error) {
+	if s.unavailableIndex() {
+		return nil, ErrUnavailable
+	}
+
+	return s.index.listAll(filter)
+}
+
 // Degraded reports process-local evidence of lost or incompletely recovered
 // records.
 func (s *Service) Degraded() bool {

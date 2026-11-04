@@ -1,13 +1,17 @@
-import { useState } from 'react'
-import { Search } from 'lucide-react'
-import { Panel, PanelHeader } from '../../../shared/ui'
+import { useMemo, useState } from 'react'
+import { GridPagination, Panel, PanelHeader, ProgressBar } from '../../../shared/ui'
+import { useGridPagination } from '../../../shared/hooks/useGridPagination'
+import {
+  providerConnectionSubtitle,
+  providerInitials,
+  providerSituation,
+} from '../lib/providerPresentation'
 import type { AdminProvider } from '../types'
 
 type ProviderQuotaTableProps = {
   providers: AdminProvider[]
   selectedId: string | null
   onSelect: (provider: AdminProvider) => void
-  onOpenManage: (provider: AdminProvider) => void
   isLoading?: boolean
 }
 
@@ -15,32 +19,38 @@ export function ProviderQuotaTable({
   providers,
   selectedId,
   onSelect,
-  onOpenManage,
   isLoading,
 }: ProviderQuotaTableProps) {
   const [search, setSearch] = useState('')
 
-  const filtered = providers.filter((p) => {
-    const q = search.toLowerCase().trim()
-    return p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
-  })
+  const filtered = useMemo(
+    () =>
+      providers.filter((provider) => {
+        const query = search.toLowerCase().trim()
+        return (
+          provider.name.toLowerCase().includes(query) || provider.id.toLowerCase().includes(query)
+        )
+      }),
+    [providers, search],
+  )
+
+  const pagination = useGridPagination(filtered, { resetKey: search })
 
   return (
-    <Panel className="space-y-3">
+    <Panel className="providers-panel min-w-0">
       <PanelHeader
+        className="!mb-2 shrink-0"
         title="Consumo por provedor"
-        subtitle="Cada provedor possui métricas, limites e credenciais próprias"
+        subtitle="Cada provedor pode ter unidade e ciclo diferentes · ordenação alfabética"
         action={
-          <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 size-3 -translate-y-1/2 text-muted" />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar provedor…"
-              className="w-full rounded-md border border-line bg-raised py-1.5 pl-7 pr-2.5 text-xs text-primary placeholder:text-muted focus:border-cobalt focus:outline-none"
-            />
-          </div>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="⌕  Buscar provedor..."
+            className="providers-search"
+            aria-label="Buscar provedor"
+          />
         }
       />
 
@@ -49,97 +59,92 @@ export function ProviderQuotaTable({
           Carregando lista de provedores…
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-8 text-center text-xs text-muted">
-          Nenhum provedor encontrado para a busca informada.
-        </div>
+        <div className="py-8 text-center text-xs text-muted">Nenhum provedor encontrado.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        <div className="providers-table-body">
+          <div className="grid-table-scroll scrollbar-slim">
+          <table className="providers-quota-table w-full">
             <thead>
-              <tr className="border-b border-line font-mono text-[9px] uppercase tracking-[0.04em] text-muted">
-                <th className="px-3 py-2">Provedor</th>
-                <th className="px-3 py-2">Credencial</th>
-                <th className="px-3 py-2">Consumo</th>
-                <th className="px-3 py-2">Situação</th>
-                <th className="px-3 py-2 text-right">Ação</th>
+              <tr>
+                <th>Provedor</th>
+                <th>Franquia monitorada</th>
+                <th>Consumo</th>
+                <th>Disponível</th>
+                <th>Situação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line/30 text-xs">
-              {filtered.map((p) => {
-                const isSelected = p.id === selectedId
-                const initials = p.name ? p.name.slice(0, 2).toUpperCase() : p.id.slice(0, 2).toUpperCase()
+            <tbody>
+              {pagination.pageItems.map((provider) => {
+                const isSelected = provider.id === selectedId
+                const situation = providerSituation(provider)
 
                 return (
                   <tr
-                    key={p.id}
-                    onClick={() => onSelect(p)}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'bg-cobalt/10 shadow-[inset_2px_0_#7896E8]'
-                        : 'hover:bg-white/[0.02]'
+                    key={provider.id}
+                    className={`cursor-pointer transition-colors hover:bg-white/[0.02] ${
+                      isSelected ? 'selected' : ''
                     }`}
+                    onClick={() => onSelect(provider)}
                   >
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <span className="grid size-7 place-items-center rounded-lg border border-line bg-raised font-mono text-[10px] font-semibold text-accent-light">
-                          {initials}
-                        </span>
+                    <td>
+                      <div className="providers-provider-name">
+                        <span className="providers-provider-icon">{providerInitials(provider)}</span>
                         <div>
-                          <strong className="block font-semibold text-primary">{p.name}</strong>
-                          <small className="block font-mono text-[9px] text-muted">{p.id}</small>
+                          <strong className="block text-[11px] font-semibold text-[#E1E8F3]">
+                            {provider.name}
+                          </strong>
+                          <small className="mt-[3px] block text-[9px] text-[#909DB0]">
+                            {providerConnectionSubtitle(provider)}
+                          </small>
                         </div>
                       </div>
                     </td>
-
-                    <td className="px-3 py-3">
-                      <span className="font-mono text-[10px] text-secondary">
-                        {p.credential_configured ? 'Configurada' : 'Pendente'}
+                    <td>
+                      <div className="providers-quota-title">Não monitorada</div>
+                      <div className="providers-quota-value">Sem fonte de quota configurada</div>
+                    </td>
+                    <td>
+                      <div>
+                        <div className="providers-progress-head">
+                          <span>Sem dados</span>
+                          <span>—</span>
+                        </div>
+                        <ProgressBar value={0} max={100} variant="na" />
+                      </div>
+                    </td>
+                    <td className="providers-remaining">—</td>
+                    <td>
+                      <span className={`providers-state ${situation.state}`}>
+                        <i aria-hidden />
+                        {situation.label}
                       </span>
-                    </td>
-
-                    <td className="px-3 py-3 font-mono text-[10px] text-muted">
-                      <span>Sem leitura de quota</span>
-                    </td>
-
-                    <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 font-mono text-[9px] ${
-                          p.enabled && p.credential_configured
-                            ? 'bg-healthy/10 text-healthy'
-                            : !p.enabled
-                              ? 'bg-muted/10 text-muted'
-                              : 'bg-warning/10 text-warning'
-                        }`}
-                      >
-                        <i className="size-1 rounded-full bg-current" />
-                        {p.enabled && p.credential_configured
-                          ? 'Normal'
-                          : !p.enabled
-                            ? 'Desabilitado'
-                            : 'Pendente'}
-                      </span>
-                    </td>
-
-                    <td className="px-3 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onOpenManage(p)
-                        }}
-                        className="rounded border border-line bg-raised px-2.5 py-1 text-[10px] text-accent-light transition-colors hover:bg-white/[0.04] hover:text-primary cursor-pointer"
-                      >
-                        Gerenciar
-                      </button>
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
+
+      {!isLoading && filtered.length > 0 ? (
+        <GridPagination
+          meta={pagination.meta}
+          onPreviousPage={pagination.goToPreviousPage}
+          onNextPage={pagination.goToNextPage}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.setPageSize}
+          className="grid-panel-pagination shrink-0"
+        />
+      ) : null}
+
+      <footer className="providers-panel-footnote shrink-0">
+        <span>
+          {providers.length} PROVEDOR{providers.length === 1 ? '' : 'ES'} · UNIDADES POR FRANQUIA
+        </span>
+        <span>DADOS DO BACKEND</span>
+      </footer>
     </Panel>
   )
 }
-

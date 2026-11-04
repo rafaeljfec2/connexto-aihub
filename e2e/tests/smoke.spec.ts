@@ -6,7 +6,7 @@ test.describe('embedded production smoke', () => {
     await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible({
       timeout: 30_000,
     })
-    await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible()
+    await expect(page.getByRole('link', { name: /visão geral|overview/i })).toBeVisible()
   })
 
   test('navigates core operator routes', async ({ page }) => {

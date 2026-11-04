@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
+import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { listProviders, providersQueryKeys } from '../../providers'
 import { Banner } from '../../../shared/ui/banner'
 import { Button } from '../../../shared/ui/button'
@@ -193,7 +194,7 @@ export function ResourcesPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={appPageClassName('space-y-4', 'pb-6')}>
       <AppPageHeader
         actions={
           <div className="flex items-center gap-2">
@@ -211,8 +212,7 @@ export function ResourcesPage() {
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-auto px-[30px] pb-5 pt-1">
-        {uniqueErrors.length > 0 ? (
+      {uniqueErrors.length > 0 ? (
           <Banner variant="error" className="mb-3" role="alert">
             <ul className="list-disc space-y-1 pl-4">
               {uniqueErrors.map((message) => (
@@ -310,7 +310,6 @@ export function ResourcesPage() {
           ]}
           updatedAt={latestUpdatedAt}
         />
-      </div>
     </div>
   )
 }

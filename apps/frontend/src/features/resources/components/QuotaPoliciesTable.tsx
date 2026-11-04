@@ -1,4 +1,5 @@
-import { Panel, PanelHeader } from '../../../shared/ui/panel'
+import { Panel, PanelHeader, GridPagination } from '../../../shared/ui'
+import { useGridPagination } from '../../../shared/hooks/useGridPagination'
 import { mergePoliciesWithUtilization } from '../lib/summaryMetrics'
 import {
   formatUtilizationDisplay,
@@ -26,6 +27,8 @@ export function QuotaPoliciesTable({
   fetchedAtMs,
 }: QuotaPoliciesTableProps) {
   const rows = mergePoliciesWithUtilization(policies, utilization)
+  const pagination = useGridPagination(rows)
+  const visibleRows = compact ? rows.slice(0, 5) : pagination.pageItems
 
   return (
     <Panel>
@@ -38,7 +41,7 @@ export function QuotaPoliciesTable({
       ) : rows.length === 0 ? (
         <p className="text-[10px] text-muted">No resource policies configured.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="grid-table-scroll scrollbar-slim overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line">
@@ -53,7 +56,7 @@ export function QuotaPoliciesTable({
               </tr>
             </thead>
             <tbody>
-              {(compact ? rows.slice(0, 5) : rows).map(({ policy, utilization: usageRow }) => {
+              {visibleRows.map(({ policy, utilization: usageRow }) => {
                 const display = usageRow ? quotaUtilizationDisplay(usageRow) : null
                 const near = usageRow ? isNearQuotaLimit(usageRow) : false
                 const stateVariant =
@@ -99,6 +102,16 @@ export function QuotaPoliciesTable({
           </table>
         </div>
       )}
+      {!compact && rows.length > 0 ? (
+        <GridPagination
+          meta={pagination.meta}
+          onPreviousPage={pagination.goToPreviousPage}
+          onNextPage={pagination.goToNextPage}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.setPageSize}
+          className="grid-panel-pagination"
+        />
+      ) : null}
       <SectionFetchedAt updatedAtMs={fetchedAtMs} />
     </Panel>
   )

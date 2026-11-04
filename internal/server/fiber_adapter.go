@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,6 +109,12 @@ func (w *fiberResponseWriter) WriteHeader(status int) {
 
 	w.status = status
 	for key, values := range w.header {
+		if strings.EqualFold(key, "Content-Length") && len(values) > 0 {
+			if n, err := strconv.Atoi(values[0]); err == nil {
+				w.context.Response.Header.SetContentLength(n)
+				continue
+			}
+		}
 		for _, value := range values {
 			w.context.Response.Header.Add(key, value)
 		}

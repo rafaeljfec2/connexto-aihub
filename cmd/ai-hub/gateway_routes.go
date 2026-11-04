@@ -53,12 +53,16 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 		{Method: http.MethodGet, Pattern: "/v1/records/executions", Handler: gateway.NewExecutionRecordsHandler(recordsModule)},
 		{Method: http.MethodGet, Pattern: "/v1/records/executions/{execution_id}", Handler: gateway.NewExecutionRecordHandler(recordsModule)},
 	}
-	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(),
-		append(routes, append(uiAuthRoutes(operatorGate, logger),
-			append(operationalEventsRoutes(eventHub, readiness, providerManager.Statuses, logger),
-				append(providerAdminRoutes(providerAdmin),
-					append(resourceAdminRoutes(resourceAdmin),
-						append(concurrencyAdminRoutes(concurrencyAdmin),
-							analyticsAdminRoutes(analyticsAdmin)...)...)...)...)...)...)...)
+	allRoutes := make([]server.Route, 0, len(routes)+32)
+	allRoutes = append(allRoutes, routes...)
+	allRoutes = append(allRoutes, uiAuthRoutes(operatorGate, logger)...)
+	allRoutes = append(allRoutes, runtimeRoutes(cfg, recordsModule, readiness)...)
+	allRoutes = append(allRoutes, operationalEventsRoutes(eventHub, readiness, providerManager.Statuses, logger)...)
+	allRoutes = append(allRoutes, providerAdminRoutes(providerAdmin)...)
+	allRoutes = append(allRoutes, resourceAdminRoutes(resourceAdmin)...)
+	allRoutes = append(allRoutes, concurrencyAdminRoutes(concurrencyAdmin)...)
+	allRoutes = append(allRoutes, analyticsAdminRoutes(analyticsAdmin)...)
+
+	router := server.NewRouter(logger, policy, health.Live(), readiness.Ready(), allRoutes...)
 	return router, nil
 }

@@ -1,31 +1,57 @@
 import { Activity, CheckCircle2, Layers, Plug } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '../../../shared/ui'
-import type { ProviderDiagnostic } from '../api/queries'
+import type { ProviderDiagnostic, TrafficSummary } from '../api/queries'
+import type { QuotaUtilizationEntry } from '../../resources/types'
 
 type OverviewStatCardsProps = {
   isOperational: boolean
   readinessChecks?: Record<string, string>
   providers?: ProviderDiagnostic[]
+  quotas?: QuotaUtilizationEntry[]
   modelCount?: number
-  executionCount?: number
+  trafficSummary?: TrafficSummary
   isLoading?: boolean
+}
+
+function formatRequestsCount(count: number): string {
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}M`
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}k`
+  }
+  return count.toLocaleString('pt-BR')
 }
 
 export function OverviewStatCards({
   isOperational,
   providers = [],
+  quotas = [],
   modelCount,
-  executionCount,
+  trafficSummary,
   isLoading,
 }: OverviewStatCardsProps) {
-  const degradedCount = providers.filter(
+  // Determine attention quotas: providers with utilization >= 80% or degraded state
+  const degradedProviders = providers.filter(
     (p) => p.state === 'degraded' || p.state === 'unreachable',
-  ).length
-  const totalProviders = providers.length
+  )
+  const highQuotaCount = quotas.filter((q) => q.utilization_percent >= 80).length
+  const attentionCount = Math.max(degradedProviders.length, highQuotaCount)
+  const totalMonitored = Math.max(providers.length, quotas.length)
+
+  const attentionNote =
+    highQuotaCount > 0
+      ? 'Franquia próxima do limite'
+      : degradedProviders.length > 0
+        ? `${degradedProviders.length} conexão requer verificação`
+        : 'Todas as conexões em estado normal'
+
+  const totalRequests = trafficSummary?.total_requests ?? 0
+  const trendPercent = trafficSummary?.trend_percentage ?? 0
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="overview-stats">
       <StatCard
         label="Estado do gateway"
         icon={<CheckCircle2 className="size-3.5" />}
@@ -33,9 +59,13 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : isOperational ? (
-            <span className="text-[22px] tracking-[-0.02em] text-[#88B995]">Operacional</span>
+            <span className="text-[23px] font-medium tracking-[-0.02em] text-[#F0F3EC]">
+              Operacional
+            </span>
           ) : (
-            <span className="text-[22px] tracking-[-0.02em] text-[#D88186]">Degradado</span>
+            <span className="text-[23px] font-medium tracking-[-0.02em] text-[#D88186]">
+              Degradado
+            </span>
           )
         }
         note={
@@ -61,19 +91,15 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : (
-            <div className="flex items-baseline gap-1">
-              <span>{String(degradedCount).padStart(2, '0')}</span>
-              <span className="text-sm font-normal text-muted">
-                / {String(totalProviders).padStart(2, '0')}
+            <div className="flex items-baseline gap-1 text-[28px] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+              <span>{String(attentionCount).padStart(2, '0')}</span>
+              <span className="text-base font-normal text-[#74877A]">
+                / {String(totalMonitored).padStart(2, '0')}
               </span>
             </div>
           )
         }
-        note={
-          degradedCount > 0
-            ? `${degradedCount} conexões requerem verificação`
-            : 'Conexões monitoradas em estado normal'
-        }
+        note={attentionNote}
       />
 
       <StatCard
@@ -83,7 +109,9 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : (
-            <span>{modelCount !== undefined ? modelCount : '—'}</span>
+            <span className="text-[28px] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+              {modelCount !== undefined ? modelCount : '—'}
+            </span>
           )
         }
         note={
@@ -97,18 +125,29 @@ export function OverviewStatCards({
       />
 
       <StatCard
-        label="Requisições registradas"
+        label="Requisições · 24h"
         icon={<Activity className="size-3.5" />}
         value={
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
-          ) : executionCount !== undefined ? (
-            <span>{executionCount}</span>
           ) : (
-            <span className="text-sm font-normal text-muted">Não instrumentado</span>
+            <span className="text-[28px] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+              {formatRequestsCount(totalRequests)}
+            </span>
           )
         }
-        note="Amostra de chamadas persistidas"
+        note={
+          trendPercent !== 0 ? (
+            <span className="flex items-center gap-1">
+              <span className="font-semibold text-healthy">
+                ↗ {trendPercent > 0 ? `+${trendPercent.toFixed(1)}%` : `${trendPercent.toFixed(1)}%`}
+              </span>{' '}
+              em relação ao período anterior
+            </span>
+          ) : (
+            <span>Tráfego processado nas últimas 24h</span>
+          )
+        }
       />
     </div>
   )

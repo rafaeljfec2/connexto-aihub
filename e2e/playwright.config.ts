@@ -15,17 +15,32 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: 1,
+  outputDir: '/tmp/playwright-test-results',
   reporter: [['list']],
   projects: [
     {
       name: 'loopback-chromium',
       testMatch: /smoke\.spec\.ts|gate-zero-screenshots\.spec\.ts/,
-      use: { ...devices['Desktop Chrome'], baseURL: loopbackBaseURL },
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        baseURL: loopbackBaseURL,
+        launchOptions: {
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        },
+      },
     },
     {
       name: 'passphrase-chromium',
       testMatch: /operator-auth\.spec\.ts/,
-      use: { ...devices['Desktop Chrome'], baseURL: passphraseBaseURL },
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        baseURL: passphraseBaseURL,
+        launchOptions: {
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        },
+      },
     },
   ],
   webServer: process.env.AIHUB_E2E_EXTERNAL

@@ -6,10 +6,10 @@ export type AppPageMeta = {
 }
 
 const overviewMeta: AppPageMeta = {
-  crumb: 'Overview',
+  crumb: 'Visão geral',
   eyebrow: 'CONTROL PLANE / OVERVIEW',
-  title: 'Operational overview',
-  lead: 'Gateway readiness, provider diagnostics, and operational signals in one place.',
+  title: 'Visão geral',
+  lead: 'Acompanhe provedores, franquias e operação do gateway em um só lugar.',
 }
 
 const unknownMeta: AppPageMeta = {
@@ -21,16 +21,16 @@ const unknownMeta: AppPageMeta = {
 export const pageMetaByPath: Record<string, AppPageMeta> = {
   '/': overviewMeta,
   '/providers': {
-    crumb: 'Providers',
-    eyebrow: 'PROVIDER GOVERNANCE / ADMIN',
-    title: 'Provider administration',
-    lead: 'Manage connectivity credentials and enablement. Secrets are write-only and never displayed from the API.',
+    crumb: 'Provedores',
+    eyebrow: 'PROVIDER GOVERNANCE / QUOTAS',
+    title: 'Franquias dos provedores',
+    lead: 'Consumo, saldo disponível e limites de cada conexão em um só lugar.',
   },
   '/catalog': {
-    crumb: 'Models',
+    crumb: 'Modelos',
     eyebrow: 'CATALOG / MODEL DISCOVERY',
-    title: 'Model catalog',
-    lead: 'Browse normalized models and trigger catalog synchronization.',
+    title: 'Catálogo de modelos',
+    lead: 'Encontre e explore os modelos disponíveis nos seus provedores.',
   },
   '/playground': {
     crumb: 'Playground',

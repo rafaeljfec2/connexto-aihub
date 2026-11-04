@@ -32,7 +32,7 @@ describe('ExecutionsTable', () => {
         isError={false}
       />,
     )
-    expect(screen.getByText(/No execution records match/)).toBeTruthy()
+    expect(screen.getByText(/Nenhuma execução corresponde/)).toBeTruthy()
   })
 
   it('does not render prompt or response columns', () => {

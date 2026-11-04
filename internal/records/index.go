@@ -99,6 +99,29 @@ func (i *index) page(filter Filter) Page {
 	return page
 }
 
+func (i *index) listAll(filter Filter) ([]Record, error) {
+	working := filter
+	if working.Limit <= 0 {
+		working.Limit = MaxPageLimit
+	}
+
+	collected := make([]Record, 0, pageLimit(working.Limit))
+	for {
+		page := i.page(working)
+		collected = append(collected, page.Records...)
+		if page.NextCursor == "" {
+			return collected, nil
+		}
+
+		cursor, err := ParseCursor(page.NextCursor)
+		if err != nil {
+			return nil, err
+		}
+
+		working.Cursor = &cursor
+	}
+}
+
 func (f Filter) matches(record Record) bool {
 	if f.ProviderID != "" && record.ProviderID != f.ProviderID {
 		return false

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
-import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
-import { MasterDetailLayout } from '../../../shared/ui'
+import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
+import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { listProviders, providersQueryKeys } from '../api/queries'
 import { ProviderDetailPanel } from '../components/ProviderDetailPanel'
 import { ProviderGovernanceMetrics } from '../components/ProviderGovernanceMetrics'
@@ -11,6 +11,7 @@ import { ProviderQuotaTable } from '../components/ProviderQuotaTable'
 import type { AdminProvider } from '../types'
 
 export function ProvidersPage() {
+  const meta = useAppPageMeta()
   const providersQuery = useQuery({
     queryKey: providersQueryKeys.list,
     queryFn: listProviders,
@@ -24,40 +25,57 @@ export function ProvidersPage() {
 
   const activeSelected =
     selectedProvider !== null
-      ? providers.find((p) => p.id === selectedProvider.id) ?? providers[0] ?? null
+      ? providers.find((provider) => provider.id === selectedProvider.id) ?? providers[0] ?? null
       : providers[0] ?? null
 
   return (
-    <div className="page providers-page space-y-4">
-      <AppPageHeader />
+    <div className={appPageClassName('providers-page')}>
+      <header className="providers-pagehead">
+        <div className="min-w-0">
+          <p className="providers-page-eyebrow">{meta.eyebrow}</p>
+          <h1 className="providers-page-title">{meta.title}</h1>
+          {meta.lead ? <p className="providers-page-lead">{meta.lead}</p> : null}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <span className="overview-backend-tag">DADOS DO BACKEND</span>
+          <button
+            type="button"
+            className="providers-primary-action cursor-not-allowed"
+            disabled
+            title="Cadastro de novos provedores é feito na configuração do gateway, fora desta tela."
+          >
+            ＋ Adicionar provedor
+          </button>
+        </div>
+      </header>
 
       <ProviderGovernanceMetrics providers={providers} />
 
-      <MasterDetailLayout
-        master={
-          <ProviderQuotaTable
-            providers={providers}
-            selectedId={activeSelected?.id ?? null}
-            onSelect={(p) => setSelectedProvider(p)}
-            onOpenManage={(p) => setManageTarget(p)}
-            isLoading={providersQuery.isLoading}
-          />
-        }
-        detail={
-          <ProviderDetailPanel
-            provider={activeSelected}
-            onOpenManage={(p) => setManageTarget(p)}
-          />
-        }
-      />
+      <div className="providers-layout">
+        <ProviderQuotaTable
+          providers={providers}
+          selectedId={activeSelected?.id ?? null}
+          onSelect={(provider) => setSelectedProvider(provider)}
+          isLoading={providersQuery.isLoading}
+        />
+        <ProviderDetailPanel
+          provider={activeSelected}
+          onOpenManage={(provider) => setManageTarget(provider)}
+        />
+      </div>
 
-      <div className="flex items-center gap-2.5 rounded-lg border border-cobalt/20 bg-cobalt/5 p-3 text-[11px] text-secondary">
-        <ShieldCheck className="size-4 shrink-0 text-accent-light" />
-        <p>
-          <strong className="text-primary">Leitura confiável:</strong> cada conexão reporta
-          apenas dados autenticados vindos do gateway ou provedor. Quando o provedor não reportar
-          franquias em tempo real, indicamos expressamente &quot;Sem leitura&quot; — nunca saldos estimados.
-        </p>
+      <div className="providers-page-footer">
+        <div className="providers-bottominfo">
+          <ShieldCheck className="size-3.5 shrink-0 text-accent-light" aria-hidden />
+          <p>
+            <strong className="text-primary">Leitura confiável:</strong> sem leitura de quota quando
+            o provedor não reportar dados — nunca saldo estimado.
+          </p>
+        </div>
+        <footer className="providers-page-footnote">
+          <span>FONTES · PROVIDER-REPORTED · GATEWAY-METERED · MANUAL ALLOWANCE</span>
+          <span>CONNEXTO AI HUB / PROVIDER QUOTAS</span>
+        </footer>
       </div>
 
       <ProviderManageDrawer

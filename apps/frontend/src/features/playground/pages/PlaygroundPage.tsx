@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
+import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { PlaygroundComposer } from '../components/PlaygroundComposer'
 import { PlaygroundMessageList } from '../components/PlaygroundMessageList'
 import { PlaygroundProviderModelSelect } from '../components/PlaygroundProviderModelSelect'
@@ -50,7 +51,7 @@ export function PlaygroundPage() {
   }, [dispatch, modelsForProvider, state.settings.modelId, state.settings.providerId])
 
   return (
-    <div className="page playground-page">
+    <div className={appPageClassName('playground-page')}>
       <AppPageHeader actions={<PlaygroundStatusBar phase={state.phase} />} />
 
       {catalog.isError ? (

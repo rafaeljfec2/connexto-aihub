@@ -3,6 +3,9 @@ import { useLocation } from 'react-router-dom'
 import { PageHeader } from '../../shared/ui'
 import { resolvePageMeta } from './pageMeta'
 
+/**
+ * Page title block only. Horizontal layout is owned by AppShell (`appShellLayout.ts`).
+ */
 export function useAppPageMeta() {
   const { pathname } = useLocation()
   return resolvePageMeta(pathname)

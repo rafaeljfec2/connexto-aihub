@@ -1,231 +1,273 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, Search } from 'lucide-react'
-import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
-import { Button, FilterChips, MasterDetailLayout, Panel, PanelHeader } from '../../../shared/ui'
+import { RefreshCw } from 'lucide-react'
+import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
+import { appPageClassName } from '../../../app/layouts/appShellLayout'
+import { GridPanel } from '../../../shared/ui'
+import { useGridPagination } from '../../../shared/hooks/useGridPagination'
+import { getRuntimeMeta, overviewQueryKeys } from '../../overview/api/queries'
 import { catalogQueryKeys, listCatalogModels } from '../api/queries'
 import { CatalogModelDetailPanel } from '../components/CatalogModelDetailPanel'
 import { CatalogModelsTable } from '../components/CatalogModelsTable'
 import { ModelCompareModal } from '../components/ModelCompareModal'
 import { useCatalogSync } from '../hooks/useCatalogSync'
+import {
+  applyCatalogColumnFilters,
+  defaultCatalogColumnFilters,
+  type CatalogColumnFilters,
+} from '../lib/catalogColumnFilters'
 import { formatCatalogSyncFeedback } from '../lib/syncFeedback'
-import type { CatalogFilter, CatalogModel } from '../types'
+import type { CatalogModel } from '../types'
+
+function formatOriginTag(dataOrigin?: string): string {
+  if (dataOrigin === 'demonstrative') {
+    return 'DADOS ILUSTRATIVOS'
+  }
+  if (dataOrigin === 'partial') {
+    return 'DADOS PARCIAIS'
+  }
+  if (dataOrigin === 'unavailable') {
+    return 'CATÁLOGO INDISPONÍVEL'
+  }
+  return 'DADOS OPERACIONAIS'
+}
+
+function listingLabel(model: CatalogModel): string {
+  return model.listing_state || 'Listado'
+}
 
 export function CatalogPage() {
-  const [search, setSearch] = useState('')
-  const [providerFilter, setProviderFilter] = useState('all')
+  const meta = useAppPageMeta()
+  const [columnFilters, setColumnFilters] = useState<CatalogColumnFilters>(
+    defaultCatalogColumnFilters,
+  )
   const [sortBy, setSortBy] = useState<'name' | 'provider'>('name')
   const [selectedModel, setSelectedModel] = useState<CatalogModel | null>(null)
   const [compareSet, setCompareSet] = useState<Set<string>>(new Set())
   const [compareModalOpen, setCompareModalOpen] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const modelFilterInputRef = useRef<HTMLInputElement>(null)
 
-  const appliedFilter = useMemo<CatalogFilter>(() => {
-    return providerFilter !== 'all' ? { provider: providerFilter } : {}
-  }, [providerFilter])
+  const catalogListFilter = useMemo(() => ({}), [])
 
   const modelsQuery = useQuery({
-    queryKey: catalogQueryKeys.models(appliedFilter),
-    queryFn: () => listCatalogModels(appliedFilter),
+    queryKey: catalogQueryKeys.models(catalogListFilter),
+    queryFn: () => listCatalogModels(catalogListFilter),
     refetchInterval: false,
     retry: 1,
   })
 
-  const sync = useCatalogSync(appliedFilter)
+  const runtimeMeta = useQuery({
+    queryKey: overviewQueryKeys.runtimeMeta,
+    queryFn: getRuntimeMeta,
+    refetchInterval: false,
+    retry: 1,
+  })
+
+  const sync = useCatalogSync(catalogListFilter)
   const syncFeedback = formatCatalogSyncFeedback(sync.error)
 
   const rawModels = modelsQuery.data?.data ?? []
 
-  // Atalho de teclado '/' para focar na busca
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (
-        e.key === '/' &&
-        document.activeElement !== searchInputRef.current &&
+        event.key === '/' &&
+        document.activeElement !== modelFilterInputRef.current &&
         !(document.activeElement instanceof HTMLInputElement) &&
         !(document.activeElement instanceof HTMLTextAreaElement)
       ) {
-        e.preventDefault()
-        searchInputRef.current?.focus()
+        event.preventDefault()
+        modelFilterInputRef.current?.focus()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  // Provedores únicos para os chips de filtro
-  const providerOptions = useMemo(() => {
-    const providers = Array.from(new Set(rawModels.map((m) => m.provider))).filter(Boolean)
-    return [
-      { id: 'all', label: 'Todos' },
-      ...providers.map((p) => ({ id: p, label: p })),
-    ]
+  const providerFilterOptions = useMemo(() => {
+    return Array.from(new Set(rawModels.map((model) => model.provider))).filter(Boolean).sort()
   }, [rawModels])
 
-  // Filtragem e ordenação local
-  const filteredAndSortedModels = useMemo(() => {
-    let result = rawModels.filter((m) => {
-      const q = search.toLowerCase().trim()
-      if (!q) return true
-      return (
-        m.name.toLowerCase().includes(q) ||
-        m.model_id.toLowerCase().includes(q) ||
-        m.provider.toLowerCase().includes(q)
-      )
-    })
+  const listingFilterOptions = useMemo(() => {
+    return Array.from(new Set(rawModels.map((model) => listingLabel(model)))).sort()
+  }, [rawModels])
 
-    result = [...result].sort((a, b) => {
+  const filteredAndSortedModels = useMemo(() => {
+    const filtered = applyCatalogColumnFilters(rawModels, columnFilters)
+
+    return [...filtered].sort((a, b) => {
       if (sortBy === 'provider') {
         return a.provider.localeCompare(b.provider) || a.name.localeCompare(b.name)
       }
       return a.name.localeCompare(b.name)
     })
+  }, [rawModels, columnFilters, sortBy])
 
-    return result
-  }, [rawModels, search, sortBy])
+  const gridPagination = useGridPagination(filteredAndSortedModels, {
+    resetKey: [
+      columnFilters.model,
+      columnFilters.provider,
+      columnFilters.modelId,
+      columnFilters.listing,
+      sortBy,
+    ].join('|'),
+  })
 
-  const activeSelected =
-    selectedModel !== null
-      ? filteredAndSortedModels.find(
-          (m) => `${m.provider}:${m.model_id}` === `${selectedModel.provider}:${selectedModel.model_id}`,
-        ) ?? filteredAndSortedModels[0] ?? null
-      : filteredAndSortedModels[0] ?? null
+  const activeSelected = useMemo(() => {
+    if (selectedModel !== null) {
+      return (
+        filteredAndSortedModels.find(
+          (model) =>
+            `${model.provider}:${model.model_id}` ===
+            `${selectedModel.provider}:${selectedModel.model_id}`,
+        ) ?? null
+      )
+    }
+    return gridPagination.pageItems[0] ?? filteredAndSortedModels[0] ?? null
+  }, [selectedModel, filteredAndSortedModels, gridPagination.pageItems])
 
   const handleToggleCompare = (model: CatalogModel) => {
     const key = `${model.provider}:${model.model_id}`
-    setCompareSet((prev) => {
-      const next = new Set(prev)
+    setCompareSet((previous) => {
+      const next = new Set(previous)
       if (next.has(key)) {
         next.delete(key)
-      } else {
-        if (next.size < 3) {
-          next.add(key)
-        }
+      } else if (next.size < 3) {
+        next.add(key)
       }
       return next
     })
   }
 
   const comparedModelsList = useMemo(() => {
-    return rawModels.filter((m) => compareSet.has(`${m.provider}:${m.model_id}`))
+    return rawModels.filter((model) => compareSet.has(`${model.provider}:${model.model_id}`))
   }, [rawModels, compareSet])
 
+  const originTag = formatOriginTag(runtimeMeta.data?.data_origin)
+  const versionLabel = runtimeMeta.data?.version ?? 'PREVIEW 03'
+  const visibleCountLabel = `${String(filteredAndSortedModels.length).padStart(2, '0')} REGISTROS`
+
+  const handleColumnFilterChange = (patch: Partial<CatalogColumnFilters>) => {
+    setColumnFilters((previous) => ({ ...previous, ...patch }))
+  }
+
   return (
-    <div className="page catalog-page space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <AppPageHeader />
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={sync.isPending}
-            onClick={() => sync.mutate(undefined)}
-            className="cursor-pointer gap-1.5"
-          >
-            <RefreshCw className={`size-3.5 ${sync.isPending ? 'animate-spin' : ''}`} />
-            <span>{sync.isPending ? 'Sincronizando…' : 'Sincronizar catálogo'}</span>
-          </Button>
-        </div>
-      </div>
-
-      {sync.isPending ? (
-        <div className="banner banner-info" role="status">
-          Sincronização do catálogo em andamento…
-        </div>
-      ) : null}
-
-      {syncFeedback ? (
-        <div
-          className={
-            syncFeedback.tone === 'warning'
-              ? 'banner banner-warning'
-              : syncFeedback.tone === 'info'
-                ? 'banner banner-info'
-                : 'banner banner-error'
-          }
-          role="alert"
-        >
-          {syncFeedback.message}
-        </div>
-      ) : null}
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
-          <input
-            ref={searchInputRef}
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome do modelo ou identificador…"
-            className="w-full rounded-lg border border-line bg-surface py-2 pl-8 pr-8 text-xs text-primary placeholder:text-muted focus:border-cobalt focus:outline-none"
-          />
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-line px-1.5 py-0.5 font-mono text-[9px] text-muted">
-            /
-          </span>
-        </div>
-
-        <span className="font-mono text-[10px] text-muted">
-          {filteredAndSortedModels.length} REGISTROS DISPONÍVEIS
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/40 pb-3">
-        <FilterChips
-          label="PROVEDOR"
-          options={providerOptions}
-          selectedId={providerFilter}
-          onSelect={(id: string) => setProviderFilter(id)}
-        />
-
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 font-mono text-[9px] text-muted uppercase">
-            <span>Ordenar</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'name' | 'provider')}
-              className="rounded border border-line bg-surface px-2 py-1 text-xs text-secondary focus:border-cobalt focus:outline-none"
+    <div className={appPageClassName('catalog-page')}>
+      <div className="catalog-page-top">
+        <div className="catalog-pagehead">
+          <div className="min-w-0">
+            <p className="catalog-page-eyebrow">{meta.eyebrow}</p>
+            <h1 className="catalog-page-title">{meta.title}</h1>
+            {meta.lead ? <p className="catalog-page-lead">{meta.lead}</p> : null}
+          </div>
+          <div className="catalog-headright">
+            <span className="overview-backend-tag">{originTag}</span>
+            <button
+              type="button"
+              className="catalog-sync-btn"
+              disabled={sync.isPending}
+              onClick={() => sync.mutate(undefined)}
             >
-              <option value="name">Nome A–Z</option>
-              <option value="provider">Provedor A–Z</option>
-            </select>
-          </label>
+              <RefreshCw className={`inline size-3.5 ${sync.isPending ? 'animate-spin' : ''}`} />
+              <span>{sync.isPending ? 'Sincronizando…' : 'Sincronizar catálogo'}</span>
+            </button>
+          </div>
+        </div>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={compareSet.size < 2}
-            onClick={() => setCompareModalOpen(true)}
-            className="text-[10px]"
-          >
-            <span>Comparar modelos</span>
-            <strong className="font-mono ml-1">{compareSet.size}/3</strong>
-          </Button>
+        {(sync.isPending || syncFeedback) && (
+          <div className="catalog-alerts">
+            {sync.isPending ? (
+              <div className="banner banner-info" role="status">
+                Sincronização do catálogo em andamento…
+              </div>
+            ) : null}
+            {syncFeedback ? (
+              <div
+                className={
+                  syncFeedback.tone === 'warning'
+                    ? 'banner banner-warning'
+                    : syncFeedback.tone === 'info'
+                      ? 'banner banner-info'
+                      : 'banner banner-error'
+                }
+                role="alert"
+              >
+                {syncFeedback.message}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        <div className="catalog-toolbar">
+          <div className="catalog-toolbar-row">
+            <span className="catalog-result-count">
+              {filteredAndSortedModels.length.toLocaleString('pt-BR')} REGISTROS VISÍVEIS
+            </span>
+            <div className="catalog-actions">
+              <label className="catalog-sort-label">
+                ORDENAR
+                <select
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as 'name' | 'provider')}
+                  className="catalog-sort"
+                >
+                  <option value="name">Nome A–Z</option>
+                  <option value="provider">Provedor A–Z</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className="catalog-compare-open"
+                disabled={compareSet.size < 2}
+                onClick={() => setCompareModalOpen(true)}
+              >
+                Comparar modelos <b className="ml-1 font-mono">{compareSet.size}/3</b>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <MasterDetailLayout
-        master={
-          <Panel>
-            <PanelHeader
-              title="Modelos disponíveis no catálogo"
-              subtitle="Catálogo normalizado recebido dos conectores habilitados"
-            />
-            <CatalogModelsTable
-              models={filteredAndSortedModels}
-              isLoading={modelsQuery.isLoading}
-              isError={modelsQuery.isError}
-              selectedModelId={
-                activeSelected ? `${activeSelected.provider}:${activeSelected.model_id}` : null
-              }
-              onSelectModel={(m) => setSelectedModel(m)}
-              compareSet={compareSet}
-              onToggleCompare={handleToggleCompare}
-            />
-          </Panel>
-        }
-        detail={<CatalogModelDetailPanel model={activeSelected} />}
-      />
+      <div className="catalog-layout">
+        <GridPanel
+          className="catalog-list-panel"
+          title="Modelos disponíveis no catálogo"
+          countLabel={visibleCountLabel}
+          pagination={{
+            meta: gridPagination.meta,
+            onPreviousPage: gridPagination.goToPreviousPage,
+            onNextPage: gridPagination.goToNextPage,
+            pageSize: gridPagination.pageSize,
+            onPageSizeChange: gridPagination.setPageSize,
+          }}
+          footnoteLeft="CATÁLOGO SINCRONIZADO"
+          footnoteRight={modelsQuery.isLoading ? 'CARREGANDO…' : 'DADOS DO BACKEND'}
+        >
+          <CatalogModelsTable
+            models={gridPagination.pageItems}
+            isLoading={modelsQuery.isLoading}
+            isError={modelsQuery.isError}
+            selectedModelId={
+              activeSelected ? `${activeSelected.provider}:${activeSelected.model_id}` : null
+            }
+            onSelectModel={(model) => setSelectedModel(model)}
+            compareSet={compareSet}
+            onToggleCompare={handleToggleCompare}
+            columnFilters={columnFilters}
+            onColumnFilterChange={handleColumnFilterChange}
+            providerOptions={providerFilterOptions}
+            listingOptions={listingFilterOptions}
+            modelFilterInputRef={modelFilterInputRef}
+          />
+        </GridPanel>
+
+        <CatalogModelDetailPanel model={activeSelected} />
+      </div>
+
+      <footer className="catalog-bottomnote">
+        <span>API · /v1/catalog/models &nbsp; /v1/catalog/providers &nbsp; /v1/catalog/sync</span>
+        <span>CONNEXTO AI HUB / {versionLabel}</span>
+      </footer>
 
       <ModelCompareModal
         models={comparedModelsList}

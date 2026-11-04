@@ -1,12 +1,13 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Radio } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { logoutOperator, operatorSessionQueryKey } from '../../features/auth/api/operatorSession'
 import { useOperatorSession } from '../../features/auth/hooks/useOperatorSession'
+import { getRuntimeMeta, overviewQueryKeys } from '../../features/overview/api/queries'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
-import { Badge } from '../../shared/ui/badge'
 import { Button } from '../../shared/ui/button'
 import { cn } from '../../shared/ui/cn'
+import { APP_SHELL_TOP_BAR_CLASS } from './appShellLayout'
 
 type AppTopBarProps = {
   crumb: string
@@ -27,6 +28,12 @@ function connectionLabel(state: OperationalConnectionState): string {
   return 'SSE degraded'
 }
 
+function formatEnvironmentName(env?: string): string {
+  if (env === 'production') return 'Produção'
+  if (env === 'staging' || env === 'homologation') return 'Homologação'
+  return 'Desenvolvimento'
+}
+
 export function AppTopBar({
   crumb,
   connectionState,
@@ -39,6 +46,13 @@ export function AppTopBar({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const session = useOperatorSession()
+
+  const runtimeMeta = useQuery({
+    queryKey: overviewQueryKeys.runtimeMeta,
+    queryFn: getRuntimeMeta,
+    refetchInterval: false,
+    retry: 1,
+  })
 
   const logoutMutation = useMutation({
     mutationFn: logoutOperator,
@@ -54,8 +68,12 @@ export function AppTopBar({
     session.data?.authenticated === true &&
     (session.data.mode === 'passphrase' || session.data.mode === 'loopback_trust')
 
+  const environmentLabel = formatEnvironmentName(runtimeMeta.data?.environment)
+  const isDemonstrative = runtimeMeta.data?.data_origin === 'demonstrative'
+  const originLabel = isDemonstrative ? 'DADOS DE EXEMPLO' : 'DADOS OPERACIONAIS'
+
   return (
-    <header className="flex h-[62px] shrink-0 items-center justify-between border-b border-line bg-surface/80 px-4 backdrop-blur-sm lg:px-8">
+    <header className={APP_SHELL_TOP_BAR_CLASS}>
       <div className="flex min-w-0 items-center gap-3">
         <Button
           variant="icon"
@@ -89,10 +107,13 @@ export function AppTopBar({
       </div>
       <div className="flex shrink-0 items-center gap-3 lg:gap-4">
         <div className="hidden items-center gap-2 rounded-[7px] border border-line bg-white/[0.025] px-2.5 py-1.5 text-[10px] text-[#BEC8D6] sm:flex">
-          <span className={cn('size-1.5 rounded-full', live ? 'bg-healthy' : 'bg-warning')} />
-          Development
-          <ChevronDown className="size-3 opacity-60" aria-hidden />
+          <span className="size-1.5 rounded-full bg-cobalt" />
+          {environmentLabel}
+          <ChevronDown className="size-3 text-[#8592A7]" aria-hidden />
         </div>
+        <span className="hidden font-mono text-[10px] tracking-[0.05em] text-[#8A98AB] md:inline">
+          {originLabel}
+        </span>
         <span
           className={cn(
             'inline-flex items-center gap-1.5 font-mono text-[10px]',
@@ -107,9 +128,6 @@ export function AppTopBar({
             Reconnect
           </Button>
         ) : null}
-        <Badge variant="mono" className="hidden md:inline-flex">
-          Backend data
-        </Badge>
         {showLogout ? (
           <Button
             variant="ghost"
@@ -121,7 +139,7 @@ export function AppTopBar({
             Sign out
           </Button>
         ) : null}
-        <Button variant="icon" aria-label="Notifications">
+        <Button variant="icon" aria-label="Notificações">
           <Bell className="size-3.5 opacity-70" />
         </Button>
       </div>

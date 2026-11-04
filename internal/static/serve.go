@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
-	"strconv"
 	"strings"
 )
 
@@ -68,7 +67,6 @@ func (s *fileServer) serveIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	if r.Method == http.MethodHead {
 		return
 	}
