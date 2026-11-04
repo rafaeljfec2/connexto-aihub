@@ -19,7 +19,7 @@ A evolução da capacidade está estruturada em **duas etapas independentes**:
 
 ### ETAPA 1 — MVP: Unified Quota Management (Escopo Desta Entrega)
 - **Objetivo**: Permitir que o operador acompanhe todas as suas contas cadastradas e respectivas franquias em uma única interface confiável.
-- **Premissa Fundamental**: O AI Hub atua exclusivamente como **integrador, normalizador e apresentador**. O Hub **não calcula** saldos, consumo, limites, percentuais ou datas de renovação. A fonte da verdade é estritamente o próprio provedor.
+- **Premissa Fundamental**: O AI Hub atua exclusivamente como **integrador, normalizador e apresentador**. A fonte da verdade é estritamente o próprio provedor. O Hub **não inventa** campos ausentes a partir de política interna, histórico de execução ou thresholds sintéticos. Apresentação derivada é permitida apenas quando ambos os operandos são campos oficiais do mesmo snapshot (fill de barra `used`/`limit` sem rótulo `%` inventado; `limit − used` quando `remaining` não veio no payload).
 - **Regras Operacionais**:
   1. Descoberta dinâmica de todos os provedores e contas cadastrados.
   2. Suporte a **múltiplas contas para o mesmo provedor** (ex: duas ou mais contas OpenRouter para diferentes times ou projetos).
@@ -30,7 +30,7 @@ A evolução da capacidade está estruturada em **duas etapas independentes**:
   7. Identificação transparente de contas sem suporte oficial de consulta (`Sem leitura`).
   8. Isolamento de falhas: uma falha em uma conta jamais impede ou bloqueia a visualização das demais.
   9. Atualização sob demanda e manual (sem polling em background).
-  10. Nenhuma inferência, agregação automática ou cálculo artificial.
+  10. Nenhuma inferência a partir de política Hub, execução histórica ou thresholds; apresentação aritmética limitada a fill visual `used`/`limit` e `limit − used` com operandos oficiais.
   11. **Nenhuma implementação de inteligência ou roteamento automático nesta etapa.**
 
 ### ETAPA 2 — Intelligence & Automatic Routing (Etapa Futura Independente)
@@ -136,7 +136,7 @@ classDiagram
   - `usage_daily`, `usage_weekly`, `usage_monthly` (cost/usage, USD)
   - `byok_usage`, `byok_usage_daily`, `byok_usage_weekly`, `byok_usage_monthly` (cost BYOK, USD)
   - `is_free_tier` (flag de conta gratuita)
-- **Regra de Renderização**: A API não envia campo percentual. Proibido calcular percentual ou exibir barra de progresso. Apresentam-se os valores oficiais: `US$ X consumido · Limite US$ Y` e `US$ Z disponível`.
+- **Regra de Renderização**: A API não envia campo percentual. Proibido inventar e rotular um percentual Hub-side. Apresentam-se os valores oficiais (`US$ X consumido · Limite US$ Y`). Quando `used` e `limit` oficiais existem no mesmo snapshot, a UI pode: (1) desenhar uma barra de progresso como fill visual de `used`/`limit` sem rótulo `%` inventado; (2) mostrar saldo disponível como `limit − used` se `remaining` não vier no payload.
 
 ### 4.2. Demais Provedores (OpenAI, Anthropic, OpenCode Go, Google AI, Azure OpenAI)
 - **Anthropic**: Possui Usage & Cost API de relatórios administrativos de organização, mas **não** disponibiliza API de saldo em tempo real para chaves de inferência (`x-api-key`). Status: `unsupported` (`Sem leitura`).

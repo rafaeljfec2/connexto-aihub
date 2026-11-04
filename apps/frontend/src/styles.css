@@ -728,27 +728,31 @@
   }
 
   .providers-state {
-    @apply inline-flex items-center gap-1.5 text-[9px];
+    @apply inline-flex items-center gap-1.5 rounded-[4px] border px-2 py-0.5 font-mono text-[9px] font-medium;
   }
 
   .providers-state.ok {
-    @apply text-[#88B995];
+    @apply border-healthy/25 bg-healthy/10 text-[#93C49D];
   }
 
   .providers-state.warn {
-    @apply text-[#D8B77E];
+    @apply border-warning/30 bg-warning/10 text-[#D9B87E];
   }
 
   .providers-state.na {
-    @apply text-[#7C8A80];
+    @apply border-line bg-[#1A222E] text-[#8A97A8];
   }
 
   .providers-state.off {
-    @apply text-muted;
+    @apply border-line bg-[#1A222E] text-muted;
   }
 
   .providers-state i {
-    @apply size-1.5 rounded-full bg-current;
+    @apply size-1.5 shrink-0 rounded-full bg-current;
+  }
+
+  .providers-large-fill {
+    @apply h-full rounded-full bg-warning transition-all duration-300;
   }
 
   .providers-panel-footnote {

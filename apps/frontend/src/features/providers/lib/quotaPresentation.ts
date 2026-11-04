@@ -33,12 +33,17 @@ export type ConsumptionCell =
       kind: 'percent'
       label: string
       percent: number
+      barValue: number
+      barMax: number
     }
   | {
       kind: 'usage'
       label: string
       primary: string
       secondary?: string
+      /** Official used/limit fill when both exist; omit when bar cannot be drawn from provider fields. */
+      barValue?: number
+      barMax?: number
     }
   | {
       kind: 'empty'
@@ -198,28 +203,36 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
       kind: 'percent',
       label: `Percentual ${goPeriodLabels[goMeter.id]}`,
       percent: goMeter.percent,
+      barValue: goMeter.percent,
+      barMax: 100,
     }
   }
 
   const { usage, credits } = accountUsageMetrics(snapshot)
-  if (usage != null || credits != null) {
-    const primary =
-      usage != null
-        ? formatMetricAmount(usage.used, usage.unit)
-        : credits != null
-          ? formatMetricAmount(credits.limit, credits.unit)
-          : EMPTY_DASH
-    const secondary =
-      usage != null && credits != null
-        ? `Limite ${formatMetricAmount(credits.limit, credits.unit)}`
-        : usage != null
-          ? 'Uso reportado'
-          : 'Créditos da conta'
+  if (usage != null && credits != null) {
     return {
       kind: 'usage',
       label: 'Leitura oficial',
-      primary,
-      secondary,
+      primary: `${formatMetricAmount(usage.used, usage.unit)} / ${formatMetricAmount(credits.limit, credits.unit)}`,
+      secondary: 'Uso / limite oficiais',
+      barValue: usage.used,
+      barMax: credits.limit,
+    }
+  }
+  if (usage != null) {
+    return {
+      kind: 'usage',
+      label: 'Leitura oficial',
+      primary: formatMetricAmount(usage.used, usage.unit),
+      secondary: 'Uso reportado',
+    }
+  }
+  if (credits != null) {
+    return {
+      kind: 'usage',
+      label: 'Leitura oficial',
+      primary: formatMetricAmount(credits.limit, credits.unit),
+      secondary: 'Créditos da conta',
     }
   }
 

@@ -87,11 +87,25 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
           {percent != null ? (
             <div className="providers-large-track">
               <div
-                className="h-full rounded-full bg-[#5E6B7C]"
+                className="providers-large-fill"
                 style={{ width: `${Math.min(percent, 100)}%` }}
               />
             </div>
-          ) : null}
+          ) : consumption.kind === 'usage' &&
+            consumption.barValue != null &&
+            consumption.barMax != null &&
+            consumption.barMax > 0 ? (
+            <div className="providers-large-track">
+              <div
+                className="providers-large-fill"
+                style={{
+                  width: `${Math.min(100, Math.max(0, (consumption.barValue / consumption.barMax) * 100))}%`,
+                }}
+              />
+            </div>
+          ) : (
+            <div className="providers-large-track" aria-hidden />
+          )}
           <div className="providers-quota-foot">
             <span>
               Consumo:{' '}
@@ -130,16 +144,11 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
           </div>
           <div className="providers-detail-row border-b-0">
             <span>Situação</span>
-            <strong
-              className={
-                situation.state === 'warn'
-                  ? 'text-warning'
-                  : situation.state === 'ok'
-                    ? 'text-healthy'
-                    : 'text-muted'
-              }
-            >
-              {situation.label}
+            <strong>
+              <span className={`providers-state ${situation.state}`}>
+                <i aria-hidden />
+                {situation.label}
+              </span>
             </strong>
           </div>
         </div>

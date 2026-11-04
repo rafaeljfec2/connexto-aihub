@@ -90,7 +90,6 @@ export function ProviderQuotaTable({
                 const franchise = franchiseSummary(snapshot)
                 const consumption = consumptionCell(snapshot)
                 const available = availableBalanceDisplay(snapshot)
-
                 return (
                   <tr
                     key={provider.id}
@@ -121,10 +120,14 @@ export function ProviderQuotaTable({
                       {consumption.kind === 'percent' ? (
                         <div>
                           <div className="providers-progress-head">
+                            <span>{`${consumption.percent.toLocaleString('pt-BR')}% usado`}</span>
                             <span>{consumption.label}</span>
-                            <span>{`${consumption.percent.toLocaleString('pt-BR')}%`}</span>
                           </div>
-                          <ProgressBar value={consumption.percent} max={100} />
+                          <ProgressBar
+                            value={consumption.barValue}
+                            max={consumption.barMax}
+                            variant="warn"
+                          />
                         </div>
                       ) : consumption.kind === 'usage' ? (
                         <div>
@@ -132,6 +135,17 @@ export function ProviderQuotaTable({
                             <span>{consumption.label}</span>
                             <span>{consumption.primary}</span>
                           </div>
+                          {consumption.barValue != null &&
+                          consumption.barMax != null &&
+                          consumption.barMax > 0 ? (
+                            <ProgressBar
+                              value={consumption.barValue}
+                              max={consumption.barMax}
+                              variant="warn"
+                            />
+                          ) : (
+                            <ProgressBar value={0} max={100} variant="na" />
+                          )}
                           {consumption.secondary ? (
                             <div className="providers-quota-value mt-0.5">{consumption.secondary}</div>
                           ) : null}

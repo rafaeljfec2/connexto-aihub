@@ -125,6 +125,8 @@ describe('franchiseSummary and consumptionCell', () => {
       kind: 'percent',
       label: 'Percentual semanal',
       percent: 36,
+      barValue: 36,
+      barMax: 100,
     })
     expect(formatQuotaResetAt(go)).not.toContain('T')
   })
@@ -157,8 +159,10 @@ describe('franchiseSummary and consumptionCell', () => {
     const cell = consumptionCell(account)
     expect(cell.kind).toBe('usage')
     if (cell.kind === 'usage') {
-      expect(cell.primary).toBe('US$ 4,84')
-      expect(cell.secondary).toContain('US$ 10,00')
+      expect(cell.primary).toBe('US$ 4,84 / US$ 10,00')
+      expect(cell.secondary).toBe('Uso / limite oficiais')
+      expect(cell.barValue).toBe(4.84186443)
+      expect(cell.barMax).toBe(10)
     }
     expect(availableBalanceDisplay(account)).toBe('US$ 5,16')
   })
