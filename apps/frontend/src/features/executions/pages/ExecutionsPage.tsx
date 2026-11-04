@@ -1,203 +1,150 @@
 import { useMemo, useState } from 'react'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { RefreshCw } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { RefreshCw, Search } from 'lucide-react'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
-import { listProviders, providersQueryKeys } from '../../providers/api/queries'
-import { Button } from '../../../shared/ui/button'
-import {
-  executionsQueryKeys,
-  getExecutionRecord,
-  listExecutionRecords,
-} from '../api/queries'
+import { Button, FilterChips, MasterDetailLayout, Panel, PanelHeader } from '../../../shared/ui'
+import { executionsQueryKeys, getExecutionRecord, listExecutionRecords } from '../api/queries'
 import { ExecutionDetailPanel } from '../components/ExecutionDetailPanel'
-import { ExecutionsFilters } from '../components/ExecutionsFilters'
+import { ExecutionsMetrics } from '../components/ExecutionsMetrics'
 import { ExecutionsTable } from '../components/ExecutionsTable'
-import {
-  DEFAULT_PAGE_LIMIT,
-  defaultExecutionsUiFilter,
-  executionsErrorMessage,
-  toApiFilter,
-} from '../hooks/executionsFilter'
-import type { ExecutionsUiFilter } from '../types'
+import type { ExecutionRecord, ExecutionRecordsFilter } from '../types'
 
 export function ExecutionsPage() {
-  const [draftFilter, setDraftFilter] = useState<ExecutionsUiFilter>(defaultExecutionsUiFilter)
-  const [appliedFilter, setAppliedFilter] = useState<ExecutionsUiFilter>(defaultExecutionsUiFilter)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'failed'>('all')
+  const [providerFilter, setProviderFilter] = useState('all')
+  const [selectedRecord, setSelectedRecord] = useState<ExecutionRecord | null>(null)
 
-  const apiFilter = useMemo(() => toApiFilter(appliedFilter), [appliedFilter])
+  const queryFilter = useMemo<ExecutionRecordsFilter>(() => {
+    const f: ExecutionRecordsFilter = { limit: 50 }
+    if (statusFilter !== 'all') {
+      f.outcome = statusFilter
+    }
+    if (providerFilter !== 'all') {
+      f.provider_id = providerFilter
+    }
+    return f
+  }, [statusFilter, providerFilter])
 
-  const providers = useQuery({
-    queryKey: providersQueryKeys.list,
-    queryFn: listProviders,
+  const listQuery = useQuery({
+    queryKey: executionsQueryKeys.list(queryFilter),
+    queryFn: () => listExecutionRecords(queryFilter),
     refetchInterval: false,
     retry: 1,
   })
 
-  const listQuery = useInfiniteQuery({
-    queryKey: executionsQueryKeys.list({ limit: DEFAULT_PAGE_LIMIT, ...apiFilter }),
-    queryFn: ({ pageParam }) =>
-      listExecutionRecords({
-        limit: DEFAULT_PAGE_LIMIT,
-        ...apiFilter,
-        cursor: pageParam,
-      }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
-    refetchInterval: false,
-    retry: 1,
-  })
+  const records = listQuery.data?.records ?? []
 
-  const records = useMemo(
-    () => listQuery.data?.pages.flatMap((page) => page.records) ?? [],
-    [listQuery.data?.pages],
-  )
-
-  const listErrorMessage = listQuery.isError
-    ? executionsErrorMessage(
-        listQuery.error,
-        'Execution records are unavailable. Verify gateway access and the records store.',
-      )
-    : undefined
-
-  const degraded = listQuery.data?.pages.some((page) => page.degraded) ?? false
-  const loadedCount = records.length
-
-  const paginationErrorMessage = listQuery.isFetchNextPageError
-    ? executionsErrorMessage(listQuery.error, 'Could not load the next page of records.')
-    : undefined
+  const activeSelectedId =
+    selectedRecord?.execution_id ??
+    selectedRecord?.request_id ??
+    records[0]?.execution_id ??
+    records[0]?.request_id ??
+    null
 
   const detailQuery = useQuery({
-    queryKey: executionsQueryKeys.detail(selectedId ?? ''),
-    queryFn: () => getExecutionRecord(selectedId ?? ''),
-    enabled: selectedId !== null && selectedId.length > 0,
-    refetchInterval: false,
+    queryKey: executionsQueryKeys.detail(activeSelectedId ?? ''),
+    queryFn: () => getExecutionRecord(activeSelectedId!),
+    enabled: Boolean(activeSelectedId),
     retry: 1,
   })
 
   const providerOptions = useMemo(() => {
-    const ids = providers.data?.providers.map((provider) => provider.id) ?? []
-    return [...new Set(ids)].sort()
-  }, [providers.data?.providers])
+    const providers = Array.from(
+      new Set(records.map((r) => r.provider_id).filter(Boolean)),
+    )
+    return ['all', ...providers]
+  }, [records])
 
-  function patchApplied(apiPatch: Partial<ExecutionsUiFilter>) {
-    setAppliedFilter((previous) => ({ ...previous, ...apiPatch }))
-    setSelectedId(null)
-  }
+  const statusChips = [
+    { id: 'all', label: 'Todas' },
+    { id: 'completed', label: 'Concluídas' },
+    { id: 'failed', label: 'Falhas' },
+  ]
 
-  function handleOutcomeChange(outcome: ExecutionsUiFilter['outcome']) {
-    const next = { ...draftFilter, outcome }
-    setDraftFilter(next)
-    patchApplied({ outcome })
-  }
-
-  function handleProviderChange(provider_id: string) {
-    const next = { ...draftFilter, provider_id }
-    setDraftFilter(next)
-    patchApplied({ provider_id })
-  }
-
-  function applyModelFilter() {
-    patchApplied({ model_id: draftFilter.model_id })
-  }
-
-  async function refreshAll() {
-    await listQuery.refetch()
-    if (selectedId) {
-      await detailQuery.refetch()
-    }
-  }
+  const activeRecord = detailQuery.data ?? selectedRecord ?? records[0]
 
   return (
-    <div className="page executions-page">
-      <AppPageHeader
-        actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={listQuery.isFetching}
-            onClick={() => void refreshAll()}
-          >
-            <RefreshCw className="size-3.5" aria-hidden="true" />
-            Refresh
-          </Button>
-        }
-      />
+    <div className="page executions-page space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <AppPageHeader />
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void listQuery.refetch()}
+          disabled={listQuery.isFetching}
+          className="cursor-pointer gap-1.5"
+        >
+          <RefreshCw className={`size-3.5 ${listQuery.isFetching ? 'animate-spin' : ''}`} />
+          <span>Atualizar</span>
+        </Button>
+      </div>
 
-      {degraded ? (
-        <div className="banner banner-warning" role="status">
-          Records index is degraded — history may be incomplete until the store recovers.
+      <ExecutionsMetrics records={records} isLoading={listQuery.isLoading} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/40 pb-3">
+        <div className="relative max-w-xs flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por ID, modelo ou provedor…"
+            className="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-3 text-xs text-primary placeholder:text-muted focus:border-cobalt focus:outline-none"
+          />
         </div>
-      ) : null}
 
-      <ExecutionsFilters
-        value={draftFilter}
-        providerOptions={providerOptions}
-        onChange={setDraftFilter}
-        onOutcomeChange={handleOutcomeChange}
-        onProviderChange={handleProviderChange}
-        onApplyModelFilter={applyModelFilter}
-      />
-
-      <div className="executions-grid">
-        <section className="executions-list-panel">
-          <div className="executions-panel-head">
-            <strong>Execution log</strong>
-            <span className="font-mono text-[9px] uppercase text-muted">
-              {loadedCount} loaded · limit {DEFAULT_PAGE_LIMIT}
-            </span>
-          </div>
-
-          <ExecutionsTable
-            records={records}
-            search={draftFilter.search}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            isLoading={listQuery.isLoading}
-            isError={listQuery.isError}
-            errorMessage={listErrorMessage}
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterChips
+            options={statusChips}
+            selectedId={statusFilter}
+            onSelect={(id) => setStatusFilter(id as typeof statusFilter)}
           />
 
-          {paginationErrorMessage ? (
-            <div className="banner banner-error mx-3 mb-2" role="alert">
-              {paginationErrorMessage}
-            </div>
-          ) : null}
-
-          {listQuery.hasNextPage ? (
-            <div className="executions-list-footer">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={listQuery.isFetchingNextPage}
-                onClick={() => void listQuery.fetchNextPage()}
-              >
-                {listQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}
-              </Button>
-            </div>
-          ) : null}
-
-          <div className="executions-footnote">
-            <span>API · /v1/records/executions</span>
-            <span>Content-free audit metadata</span>
-          </div>
-        </section>
-
-        <ExecutionDetailPanel
-          record={detailQuery.data}
-          isLoading={detailQuery.isLoading && selectedId !== null}
-          isError={detailQuery.isError}
-          errorMessage={
-            detailQuery.isError
-              ? executionsErrorMessage(
-                  detailQuery.error,
-                  'Could not load execution metadata.',
-                )
-              : undefined
-          }
-          selectedId={selectedId}
-        />
+          <select
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value)}
+            className="rounded border border-line bg-surface px-2.5 py-1.5 text-xs text-secondary focus:border-cobalt focus:outline-none"
+          >
+            <option value="all">Todos os provedores</option>
+            {providerOptions
+              .filter((p) => p !== 'all')
+              .map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+          </select>
+        </div>
       </div>
+
+      <MasterDetailLayout
+        master={
+          <Panel>
+            <PanelHeader
+              title="Registro de execuções"
+              subtitle={`${records.length} chamadas registradas no histórico recente`}
+            />
+            <ExecutionsTable
+              records={records}
+              search={search}
+              selectedId={activeSelectedId}
+              onSelect={(r) => setSelectedRecord(r)}
+              isLoading={listQuery.isLoading}
+              isError={listQuery.isError}
+            />
+          </Panel>
+        }
+        detail={
+          <ExecutionDetailPanel
+            record={activeRecord}
+            isLoading={detailQuery.isLoading}
+            isError={detailQuery.isError}
+            errorMessage={detailQuery.error ? String(detailQuery.error) : undefined}
+            selectedId={activeSelectedId}
+          />
+        }
+      />
     </div>
   )
 }

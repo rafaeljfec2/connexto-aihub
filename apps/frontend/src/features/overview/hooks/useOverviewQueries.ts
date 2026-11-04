@@ -5,6 +5,8 @@ import {
   getReadiness,
   overviewQueryKeys,
 } from '../api/queries'
+import { listCatalogModels } from '../../catalog/api/queries'
+import { listExecutionRecords } from '../../executions/api/queries'
 
 export function useOverviewQueries() {
   const health = useQuery({
@@ -28,8 +30,40 @@ export function useOverviewQueries() {
     retry: 1,
   })
 
+  const catalog = useQuery({
+    queryKey: ['catalog', 'models', 'overview-summary'],
+    queryFn: () => listCatalogModels({}),
+    refetchInterval: false,
+    retry: 1,
+  })
+
+  const recentExecutions = useQuery({
+    queryKey: ['executions', 'list', { limit: 5 }],
+    queryFn: () => listExecutionRecords({ limit: 5 }),
+    refetchInterval: false,
+    retry: 1,
+  })
+
   const backendUnavailable =
     health.isError || readiness.isError || providers.isError
 
-  return { health, readiness, providers, backendUnavailable }
+  const refetchAll = async () => {
+    await Promise.all([
+      health.refetch(),
+      readiness.refetch(),
+      providers.refetch(),
+      catalog.refetch(),
+      recentExecutions.refetch(),
+    ])
+  }
+
+  return {
+    health,
+    readiness,
+    providers,
+    catalog,
+    recentExecutions,
+    backendUnavailable,
+    refetchAll,
+  }
 }

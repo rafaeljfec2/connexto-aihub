@@ -1,20 +1,12 @@
 import type { ExecutionRecord } from '../types'
-import {
-  formatDurationNs,
-  formatRecordTime,
-  recordMatchesSearch,
-} from '../lib/formatExecution'
-import { ExecutionOutcomeBadge } from './ExecutionOutcomeBadge'
-import { cn } from '../../../shared/ui/cn'
 
 type ExecutionsTableProps = {
   records: ExecutionRecord[]
   search: string
   selectedId: string | null
-  onSelect: (executionId: string) => void
+  onSelect: (record: ExecutionRecord) => void
   isLoading: boolean
   isError: boolean
-  errorMessage?: string
 }
 
 export function ExecutionsTable({
@@ -24,75 +16,117 @@ export function ExecutionsTable({
   onSelect,
   isLoading,
   isError,
-  errorMessage,
 }: ExecutionsTableProps) {
   if (isLoading) {
-    return <p className="empty-state px-4 py-8">Loading execution records…</p>
-  }
-
-  if (isError) {
     return (
-      <div className="banner banner-error m-4" role="alert">
-        {errorMessage ??
-          'Execution records are unavailable. Verify gateway access and the records store.'}
+      <div className="py-8 text-center text-xs text-muted animate-pulse">
+        Carregando registros de execução…
       </div>
     )
   }
 
-  const visible = records.filter((record) => recordMatchesSearch(record, search))
-
-  if (visible.length === 0) {
+  if (isError) {
     return (
-      <p className="empty-state px-4 py-10 text-center">
-        No execution records match the current filters.
+      <div className="banner banner-error" role="alert">
+        Falha ao buscar registros de execução.
+      </div>
+    )
+  }
+
+  const query = search.toLowerCase().trim()
+  const filtered = records.filter((r) => {
+    if (!query) return true
+    const model = (r.model_id ?? '').toLowerCase()
+    const provider = (r.provider_id ?? '').toLowerCase()
+    const reqId = (r.request_id ?? r.execution_id ?? '').toLowerCase()
+    return model.includes(query) || provider.includes(query) || reqId.includes(query)
+  })
+
+  if (filtered.length === 0) {
+    return (
+      <p className="empty-state py-8 text-center text-xs text-muted">
+        No execution records match the active criteria.
       </p>
     )
   }
 
   return (
-    <div className="table-scroll executions-table-wrap">
-      <table className="data-table executions-table">
+    <div className="overflow-x-auto">
+      <table className="w-full text-left">
         <thead>
-          <tr>
-            <th scope="col">Time</th>
-            <th scope="col">Model / provider</th>
-            <th scope="col">Phase</th>
-            <th scope="col">Outcome</th>
-            <th scope="col">Duration</th>
+          <tr className="border-b border-line font-mono text-[9px] uppercase tracking-[0.04em] text-muted">
+            <th scope="col" className="px-3 py-2.5">
+              Horário
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Modelo / Provedor
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Tipo
+            </th>
+            <th scope="col" className="px-3 py-2.5">
+              Status
+            </th>
+            <th scope="col" className="px-3 py-2.5 text-right">
+              Duração
+            </th>
           </tr>
         </thead>
-        <tbody>
-          {visible.map((record) => (
-            <tr
-              key={record.execution_id}
-              className={cn(selectedId === record.execution_id && 'executions-row-selected')}
-              onClick={() => onSelect(record.execution_id)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  onSelect(record.execution_id)
-                }
-              }}
-              tabIndex={0}
-              role="button"
-              aria-pressed={selectedId === record.execution_id}
-            >
-              <td className="font-mono text-[10px] text-muted">
-                {formatRecordTime(record.completed_at)}
-              </td>
-              <td>
-                <div className="text-[11px] font-semibold text-[#E4EAF4]">
-                  {record.model_id ?? '—'}
-                </div>
-                <div className="text-[10px] text-[#C3CDDD]">{record.provider_id}</div>
-              </td>
-              <td className="font-mono text-[10px]">{record.phase}</td>
-              <td>
-                <ExecutionOutcomeBadge outcome={record.outcome} />
-              </td>
-              <td className="font-mono text-[10px]">{formatDurationNs(record.duration_ns)}</td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-line/30 text-xs">
+          {filtered.map((record) => {
+            const id = record.execution_id ?? record.request_id ?? ''
+            const isSelected = selectedId === id
+            const isSuccess = record.outcome === 'completed'
+
+            const time = record.started_at
+              ? new Date(record.started_at).toLocaleTimeString('pt-BR')
+              : '—'
+
+            const durationMs =
+              record.duration_ns !== undefined
+                ? Math.round(record.duration_ns / 1_000_000)
+                : undefined
+
+            const durationText = durationMs !== undefined ? `${durationMs} ms` : '—'
+
+            return (
+              <tr
+                key={id}
+                onClick={() => onSelect(record)}
+                className={`cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'bg-cobalt/10 shadow-[inset_2px_0_#7896E8]'
+                    : 'hover:bg-white/[0.02]'
+                }`}
+              >
+                <td className="px-3 py-3 font-mono text-muted">{time}</td>
+                <td className="px-3 py-3">
+                  <div className="font-semibold text-primary">
+                    {record.model_id ?? '—'}
+                  </div>
+                  <div className="text-[10px] text-secondary">
+                    {record.provider_id ?? '—'}
+                  </div>
+                </td>
+                <td className="px-3 py-3 font-mono text-[10px] text-muted">
+                  responses.create
+                </td>
+                <td className="px-3 py-3">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 font-mono text-[9px] ${
+                      isSuccess
+                        ? 'bg-healthy/10 text-healthy'
+                        : 'bg-failure/10 text-failure'
+                    }`}
+                  >
+                    <i className="size-1 rounded-full bg-current" />
+                    {isSuccess ? 'Concluída' : 'Falha'}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-right font-mono text-muted">{durationText}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

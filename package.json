@@ -8,7 +8,9 @@
   "scripts": {
     "build": "go build ./...",
     "build:release": "pnpm --filter @connexto/frontend build && node scripts/sync-frontend-dist.mjs && go build -o bin/ai-hub ./cmd/ai-hub/",
-    "dev": "go run ./cmd/ai-hub",
+    "dev": "turbo run dev //#dev:backend",
+    "dev:backend": "go run ./cmd/ai-hub",
+    "dev:frontend": "pnpm --filter @connexto/frontend dev",
     "lint": "go vet ./...",
     "test": "go test ./... -count=1 -race",
     "check": "go vet ./... && go test ./... -count=1 -race && pnpm --filter @connexto/frontend check",

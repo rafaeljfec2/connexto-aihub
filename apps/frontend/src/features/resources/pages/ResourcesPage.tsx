@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
@@ -195,10 +196,18 @@ export function ResourcesPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <AppPageHeader
         actions={
-          <Button variant="ghost" size="sm" onClick={() => void handleRefresh()}>
-            <RefreshCw className="size-3.5" aria-hidden />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/providers"
+              className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-accent-light transition-colors hover:bg-white/[0.04] hover:text-primary"
+            >
+              Ver franquias por provedor ↗
+            </Link>
+            <Button variant="ghost" size="sm" onClick={() => void handleRefresh()}>
+              <RefreshCw className="size-3.5" aria-hidden />
+              Refresh
+            </Button>
+          </div>
         }
       />
 

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, ChevronDown, LogOut, Menu, Radio } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Radio } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { logoutOperator, operatorSessionQueryKey } from '../../features/auth/api/operatorSession'
 import { useOperatorSession } from '../../features/auth/hooks/useOperatorSession'
@@ -11,8 +11,10 @@ import { cn } from '../../shared/ui/cn'
 type AppTopBarProps = {
   crumb: string
   connectionState: OperationalConnectionState
+  sidebarCollapsed?: boolean
   onReconnect: () => void
   onOpenMobileNav: () => void
+  onToggleSidebar?: () => void
 }
 
 function connectionLabel(state: OperationalConnectionState): string {
@@ -28,8 +30,10 @@ function connectionLabel(state: OperationalConnectionState): string {
 export function AppTopBar({
   crumb,
   connectionState,
+  sidebarCollapsed,
   onReconnect,
   onOpenMobileNav,
+  onToggleSidebar,
 }: AppTopBarProps) {
   const live = connectionState === 'live'
   const navigate = useNavigate()
@@ -62,6 +66,22 @@ export function AppTopBar({
         >
           <Menu className="size-4" />
         </Button>
+        {onToggleSidebar ? (
+          <Button
+            variant="icon"
+            size="sm"
+            className="hidden text-[#94A1B3] hover:text-[#E0E7F1] lg:inline-flex"
+            onClick={onToggleSidebar}
+            aria-label={sidebarCollapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar'}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
+          </Button>
+        ) : null}
         <p className="truncate text-[11px] text-[#94A1B3]">
           Workspace <span className="mx-2 text-[#58677B]">/</span>{' '}
           <b className="font-medium text-[#E0E7F1]">{crumb}</b>

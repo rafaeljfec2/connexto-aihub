@@ -22,7 +22,10 @@
 }
 
 @layer base {
-  html {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
     color-scheme: dark;
   }
 
@@ -31,7 +34,8 @@
   }
 
   #root {
-    @apply min-h-svh;
+    height: 100%;
+    overflow: hidden;
   }
 }
 

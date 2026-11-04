@@ -1,29 +1,13 @@
-import { ExecutionOutcomeBadge } from './ExecutionOutcomeBadge'
-import type { ExecutionRecord } from '../types'
-import {
-  formatDurationNs,
-  formatOutcomeLabel,
-  formatRecordTime,
-  toAuditSnapshot,
-} from '../lib/formatExecution'
 import { Link } from 'react-router-dom'
-import { Button } from '../../../shared/ui/button'
+import { Panel, PanelHeader } from '../../../shared/ui'
+import type { ExecutionRecord } from '../types'
 
 type ExecutionDetailPanelProps = {
-  record: ExecutionRecord | undefined
+  record?: ExecutionRecord
   isLoading: boolean
   isError: boolean
   errorMessage?: string
   selectedId: string | null
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="executions-detail-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
 }
 
 export function ExecutionDetailPanel({
@@ -33,88 +17,131 @@ export function ExecutionDetailPanel({
   errorMessage,
   selectedId,
 }: ExecutionDetailPanelProps) {
-  if (!selectedId) {
+  if (isError) {
     return (
-      <aside className="executions-detail-panel">
-        <div className="executions-panel-head">
-          <strong>Execution details</strong>
-          <span className="font-mono text-[9px] uppercase text-muted">None selected</span>
-        </div>
-        <p className="empty-state px-3 py-6">Select a row to inspect metadata.</p>
-      </aside>
+      <Panel>
+        <PanelHeader title="Detalhes da execução" subtitle="ERRO DE CARREGAMENTO" />
+        <p className="py-4 text-xs text-failure" role="alert">
+          {errorMessage ?? 'Falha ao carregar os detalhes da execução.'}
+        </p>
+      </Panel>
     )
   }
 
   if (isLoading) {
     return (
-      <aside className="executions-detail-panel">
-        <div className="executions-panel-head">
-          <strong>Execution details</strong>
-        </div>
-        <p className="empty-state px-3 py-6">Loading record…</p>
-      </aside>
+      <Panel>
+        <PanelHeader title="Detalhes da execução" subtitle="CARREGANDO…" />
+        <p className="py-8 text-center text-xs text-muted animate-pulse">
+          Carregando registro detalhado…
+        </p>
+      </Panel>
     )
   }
 
-  if (isError || !record) {
+  if (!record && !selectedId) {
     return (
-      <aside className="executions-detail-panel">
-        <div className="executions-panel-head">
-          <strong>Execution details</strong>
-        </div>
-        <div className="banner banner-error m-3" role="alert">
-          {errorMessage ?? 'Could not load execution metadata.'}
-        </div>
-      </aside>
+      <Panel>
+        <PanelHeader title="Detalhes da execução" subtitle="SELECIONE UM REGISTRO" />
+        <p className="py-8 text-center text-xs text-muted">
+          Clique em uma execução da lista para inspecionar os metadados técnicos.
+        </p>
+      </Panel>
     )
   }
 
-  const auditJson = JSON.stringify(toAuditSnapshot(record), null, 2)
+  const isCompleted = record?.outcome === 'completed'
+
+  const durationMs =
+    record?.duration_ns !== undefined
+      ? Math.round(record.duration_ns / 1_000_000)
+      : undefined
+
+  const durationText = durationMs !== undefined ? `${durationMs} ms` : '—'
+
+  const formattedTime = record?.started_at
+    ? new Date(record.started_at).toLocaleTimeString('pt-BR')
+    : '—'
+
+  const summaryJson = JSON.stringify(
+    {
+      execution_id: record?.execution_id ?? selectedId,
+      request_id: record?.request_id,
+      provider: record?.provider_id,
+      model: record?.model_id,
+      outcome: record?.outcome,
+      upstream_status: record?.upstream_status,
+      duration: durationText,
+    },
+    null,
+    2,
+  )
 
   return (
-    <aside className="executions-detail-panel">
-      <div className="executions-panel-head">
-        <strong>Execution details</strong>
-        <span className="font-mono text-[9px] uppercase text-muted">Selected</span>
-      </div>
+    <Panel className="space-y-3.5">
+      <PanelHeader title="Detalhes da execução" subtitle="SELECIONADA" />
 
-      <div className="executions-id-block">
-        <small className="font-mono text-[9px] uppercase text-muted">Execution ID</small>
-        <strong className="break-all font-mono text-[10px] text-[#CED8E8]">
-          {record.execution_id}
+      <div className="rounded-lg border border-line bg-raised p-3">
+        <small className="block font-mono text-[9px] uppercase tracking-[0.05em] text-muted">
+          REQUEST ID
+        </small>
+        <strong className="mt-1 block break-all font-mono text-xs text-primary">
+          {record?.request_id ?? record?.execution_id ?? selectedId}
         </strong>
       </div>
 
-      <div className="executions-detail-rows">
-        <DetailRow label="Outcome" value={formatOutcomeLabel(record.outcome)} />
-        <DetailRow label="Phase" value={record.phase} />
-        <DetailRow label="Model" value={record.model_id ?? '—'} />
-        <DetailRow label="Provider" value={record.provider_id} />
-        <DetailRow label="Request ID" value={record.request_id ?? '—'} />
-        <DetailRow label="Started" value={formatRecordTime(record.started_at)} />
-        <DetailRow label="Completed" value={formatRecordTime(record.completed_at)} />
-        <DetailRow label="Duration" value={formatDurationNs(record.duration_ns)} />
-        <DetailRow label="Cause" value={record.cause ?? '—'} />
-        <DetailRow
-          label="Upstream status"
-          value={record.upstream_status === null ? '—' : String(record.upstream_status)}
-        />
-        <DetailRow label="Response committed" value={record.response_committed ? 'Yes' : 'No'} />
-        <DetailRow label="Usage (E06)" value="Not reported (null)" />
+      <div className="divide-y divide-line/30 text-[10px]">
+        <div className="flex justify-between py-2">
+          <span className="text-muted">Resultado</span>
+          <strong
+            className={`font-mono ${
+              isCompleted ? 'text-healthy' : 'text-failure'
+            }`}
+          >
+            {isCompleted ? 'Concluída' : 'Falha'}
+          </strong>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-muted">Modelo</span>
+          <strong className="font-mono text-primary">
+            {record?.model_id ?? '—'}
+          </strong>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-muted">Provedor</span>
+          <strong className="font-mono text-secondary">
+            {record?.provider_id ?? '—'}
+          </strong>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-muted">Horário</span>
+          <strong className="font-mono text-secondary">{formattedTime}</strong>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-muted">Duração</span>
+          <strong className="font-mono text-secondary">{durationText}</strong>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-muted">Operação</span>
+          <strong className="font-mono text-secondary">responses.create</strong>
+        </div>
       </div>
 
-      <div className="executions-detail-outcome">
-        <ExecutionOutcomeBadge outcome={record.outcome} />
-      </div>
+      <Link
+        to="/catalog"
+        className="block w-full rounded-md border border-cobalt/30 bg-accent-deep py-2 text-center text-xs font-semibold text-[#EAF0FC] transition-colors hover:bg-cobalt/30"
+      >
+        Explorar catálogo de modelos ↗
+      </Link>
 
-      <Button variant="ghost" size="sm" className="executions-catalog-link" asChild>
-        <Link to="/catalog">Explore model catalog ↗</Link>
-      </Button>
-
-      <div className="executions-audit-block">
-        <small className="font-mono text-[9px] uppercase text-muted">Audit snapshot</small>
-        <code>{auditJson}</code>
+      <div className="rounded-lg border border-line bg-[#141B25] p-3">
+        <small className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.05em] text-muted">
+          Resumo do registro (sanitizado)
+        </small>
+        <pre className="max-h-48 overflow-auto font-mono text-[10px] leading-relaxed text-[#B8C7DE]">
+          {summaryJson}
+        </pre>
       </div>
-    </aside>
+    </Panel>
   )
 }

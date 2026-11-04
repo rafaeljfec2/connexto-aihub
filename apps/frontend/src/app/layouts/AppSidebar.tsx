@@ -2,14 +2,12 @@ import { useEffect, useRef } from 'react'
 import { FocusScope } from '@radix-ui/react-focus-scope'
 import {
   Activity,
-  Brain,
   FlaskConical,
   Layers,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
-  Settings,
   SlidersHorizontal,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -30,13 +28,13 @@ const operationNav: NavItemDef[] = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/providers', label: 'Providers', icon: Plug },
   { to: '/catalog', label: 'Models', icon: Layers },
-  { to: '/playground', label: 'Playground', icon: FlaskConical },
-  { soon: true, label: 'Intelligence', icon: Brain },
   { to: '/executions', label: 'Executions', icon: Activity },
   { to: '/resources', label: 'Resources', icon: SlidersHorizontal },
 ]
 
-const systemNav: NavItemDef[] = [{ soon: true, label: 'Settings', icon: Settings }]
+const toolsNav: NavItemDef[] = [
+  { to: '/playground', label: 'Playground', icon: FlaskConical },
+]
 
 type AppSidebarProps = {
   collapsed: boolean
@@ -214,7 +212,7 @@ export function AppSidebar({
           aria-label="Primary navigation"
           aria-modal={mobileOpen ? true : undefined}
           className={cn(
-            'z-50 flex min-h-svh flex-col border-r border-line bg-sidebar px-3.5 pb-4 pt-[22px] transition-[width,transform] duration-200 lg:min-h-0 lg:h-full',
+            'z-50 flex h-full flex-col overflow-y-auto border-r border-line bg-sidebar px-3.5 pb-4 pt-[22px] transition-[width,transform] duration-200',
             collapsed ? 'w-[72px]' : 'w-[224px]',
             'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -251,7 +249,7 @@ export function AppSidebar({
             onNavigate={onCloseMobile}
           />
           <div className="my-4 h-px bg-line" />
-          <NavSection label="System" items={systemNav} collapsed={collapsed} onNavigate={onCloseMobile} />
+          <NavSection label="Tools" items={toolsNav} collapsed={collapsed} onNavigate={onCloseMobile} />
 
           <div className="mt-auto space-y-3 pt-4">
             <Button

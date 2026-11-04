@@ -6,7 +6,10 @@
       "outputs": ["dist/**", "bin/**"]
     },
     "dev": {
-      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "//#dev:backend": {
       "cache": false,
       "persistent": true
     },
