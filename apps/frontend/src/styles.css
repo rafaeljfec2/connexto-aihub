@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+:root {
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-interface: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 @theme {
   --color-graphite: #10141b;
   --color-sidebar: #131a24;
@@ -16,9 +23,10 @@
   --color-warning: #d6ad72;
   --color-failure: #d88186;
 
-  --font-display: "Newsreader", ui-serif, Georgia, serif;
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: var(--font-display);
+  --font-interface: var(--font-interface);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 
   --width-app-content-max: 77.5rem;
 }
@@ -33,6 +41,8 @@
 
   body {
     @apply m-0 bg-graphite font-sans text-[13px] text-primary antialiased;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
   }
 
   #root {
@@ -472,7 +482,7 @@
   }
 
   .overview-page-title {
-    @apply font-display text-[28px] font-normal leading-[1.05] tracking-[-0.04em] text-[#F0F3EC];
+    @apply font-display text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-[#F0F3EC];
   }
 
   .overview-page-lead {
@@ -626,7 +636,7 @@
   }
 
   .providers-page-title {
-    @apply font-display text-[28px] font-normal leading-[1.05] tracking-[-0.04em] text-[#F0F3EC];
+    @apply font-display text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-[#F0F3EC];
   }
 
   .providers-page-lead {
@@ -944,7 +954,7 @@
   }
 
   .catalog-page-title {
-    @apply font-display text-[34px] font-normal leading-[1.05] tracking-[-0.03em] text-[#F0F3F8];
+    @apply font-display text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-[#F0F3F8];
   }
 
   .catalog-page-lead {

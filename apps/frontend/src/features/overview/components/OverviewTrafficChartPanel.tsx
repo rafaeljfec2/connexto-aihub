@@ -95,7 +95,7 @@ export function OverviewTrafficChartPanel({
                   tick={{
                     fill: '#8592A7',
                     fontSize: 9,
-                    fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
+                    fontFamily: 'var(--font-mono), "Geist Mono", ui-monospace, monospace',
                   }}
                   interval={0}
                   padding={{ left: 0, right: 0 }}

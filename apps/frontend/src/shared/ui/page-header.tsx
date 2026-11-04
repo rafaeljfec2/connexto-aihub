@@ -16,7 +16,7 @@ export function PageHeader({ eyebrow, title, lead, actions, className }: PageHea
         <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.13em] text-cobalt">
           {eyebrow}
         </p>
-        <h1 className="font-display text-[clamp(1.75rem,4vw,2.15rem)] font-normal leading-[1.05] tracking-[-0.03em] text-[#F0F3F8]">
+        <h1 className="font-display text-[28px] font-bold leading-[36px] tracking-[-0.02em] text-[#F0F3F8]">
           {title}
         </h1>
         {lead ? <p className="mt-2 max-w-2xl text-xs text-secondary">{lead}</p> : null}
