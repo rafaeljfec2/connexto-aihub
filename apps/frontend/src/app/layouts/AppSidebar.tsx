@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { FocusScope } from '@radix-ui/react-focus-scope'
+import { GoPlusUsageSidebarCard } from '../../features/overview/components/GoPlusUsageSidebarCard'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
 import { cn } from '../../shared/ui/cn'
 import { AppSidebarNavigation } from './AppSidebarNavigation'
@@ -107,7 +108,10 @@ export function AppSidebar({
           ) : null}
 
           <AppSidebarNavigation collapsed={collapsed} onNavigate={onCloseMobile} />
-          <AppSidebarStatus collapsed={collapsed} connectionState={connectionState} />
+          <div className="mt-auto flex flex-col pt-2">
+            <GoPlusUsageSidebarCard collapsed={collapsed} />
+            <AppSidebarStatus collapsed={collapsed} connectionState={connectionState} />
+          </div>
         </aside>
       </FocusScope>
     </>

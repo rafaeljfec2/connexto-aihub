@@ -79,6 +79,27 @@ type ProviderQuotaError struct {
 	Message string `json:"message"`
 }
 
+// ProviderUsageChartPoint is one provider-reported daily cost bar.
+type ProviderUsageChartPoint struct {
+	Date           string  `json:"date"`
+	CostMicroCents int64   `json:"cost_micro_cents"`
+	CostUSD        float64 `json:"cost_usd"`
+	Tokens         *int64  `json:"tokens,omitempty"`
+	Requests       *int64  `json:"requests,omitempty"`
+}
+
+// ProviderUsageChart holds the official workspace usage series for the drawer chart.
+type ProviderUsageChart struct {
+	Title           string                    `json:"title"`
+	Subtitle        string                    `json:"subtitle"`
+	TotalMicroCents int64                     `json:"total_micro_cents"`
+	TotalUSD        float64                   `json:"total_usd"`
+	Unit            string                    `json:"unit"`
+	PeriodStart     string                    `json:"period_start"`
+	PeriodEnd       string                    `json:"period_end"`
+	Points          []ProviderUsageChartPoint `json:"points"`
+}
+
 // ProviderQuotaSnapshot holds the normalized official reading for an account.
 type ProviderQuotaSnapshot struct {
 	AccountID         string                `json:"account_id"`
@@ -94,6 +115,7 @@ type ProviderQuotaSnapshot struct {
 	WorkspaceID       *string               `json:"workspace_id,omitempty"`
 	WorkspaceName     *string               `json:"workspace_name,omitempty"`
 	UsageURL          *string               `json:"usage_url,omitempty"`
+	UsageChart        *ProviderUsageChart   `json:"usage_chart,omitempty"`
 }
 
 // ProviderQuotasResponse wraps all account snapshots returned by the query.

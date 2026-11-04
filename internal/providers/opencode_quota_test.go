@@ -26,9 +26,17 @@ func readOpenCodeFixture(t *testing.T, name string) []byte {
 }
 
 func TestOpenCodeQuotaAdapter_MapsGoUsageAndBudgets(t *testing.T) {
+	prevNow := openCodeNow
+	openCodeNow = func() time.Time {
+		return time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	}
+	t.Cleanup(func() { openCodeNow = prevNow })
+
 	usageBody := readOpenCodeFixture(t, "opencode_go_usage_sanitized.json")
 	budgetBody := readOpenCodeFixture(t, "opencode_current_budgets_sanitized.json")
 	statusBody := readOpenCodeFixture(t, "opencode_go_status_sanitized.json")
+	costBody := readOpenCodeFixture(t, "opencode_cost_by_day_sanitized.json")
+	summaryBody := readOpenCodeFixture(t, "opencode_usage_summary_sanitized.json")
 
 	var paths []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +52,10 @@ func TestOpenCodeQuotaAdapter_MapsGoUsageAndBudgets(t *testing.T) {
 			_, _ = w.Write(budgetBody)
 		case "/console/api/go/status":
 			_, _ = w.Write(statusBody)
+		case "/console/api/usage/cost-by-day":
+			_, _ = w.Write(costBody)
+		case "/console/api/usage/summary":
+			_, _ = w.Write(summaryBody)
 		default:
 			t.Errorf("unexpected path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -106,15 +118,74 @@ func TestOpenCodeQuotaAdapter_MapsGoUsageAndBudgets(t *testing.T) {
 		t.Fatalf("budget resets_at = %v (epoch 1793491200000 → RFC3339 UTC)", budget.ResetsAt)
 	}
 
+	if snapshot.UsageChart == nil {
+		t.Fatal("expected usage_chart from cost-by-day + summary")
+	}
+	if snapshot.UsageChart.TotalMicroCents != 1775065590 {
+		t.Fatalf("usage_chart total_micro_cents = %d", snapshot.UsageChart.TotalMicroCents)
+	}
+	if snapshot.UsageChart.TotalUSD < 17.75 || snapshot.UsageChart.TotalUSD >= 17.76 {
+		t.Fatalf("usage_chart total_usd = %v, want ~17.75", snapshot.UsageChart.TotalUSD)
+	}
+	if len(snapshot.UsageChart.Points) < 4 {
+		t.Fatalf("usage_chart points = %d, want calendar month bars", len(snapshot.UsageChart.Points))
+	}
+	first := snapshot.UsageChart.Points[0]
+	if first.Date != "2026-11-01" || first.CostMicroCents != 412345678 {
+		t.Fatalf("first chart point = %+v", first)
+	}
+
 	wantPaths := map[string]bool{
 		"/zen/go/v1/usage":                      true,
 		"/console/api/policies/current-budgets": true,
 		"/console/api/go/status":                true,
+		"/console/api/usage/cost-by-day":        true,
+		"/console/api/usage/summary":            true,
 	}
 	for _, path := range paths {
 		if !wantPaths[path] {
 			t.Fatalf("unexpected path %s in %v", path, paths)
 		}
+	}
+}
+
+func TestOpenCodeQuotaAdapter_MalformedCostByDayOmitsChart(t *testing.T) {
+	prevNow := openCodeNow
+	openCodeNow = func() time.Time {
+		return time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	}
+	t.Cleanup(func() { openCodeNow = prevNow })
+
+	usageBody := readOpenCodeFixture(t, "opencode_go_usage_sanitized.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/zen/go/v1/usage":
+			_, _ = w.Write(usageBody)
+		case "/console/api/policies/current-budgets":
+			_, _ = w.Write([]byte(`[]`))
+		case "/console/api/go/status":
+			_, _ = w.Write([]byte(`{"product":"go-plus"}`))
+		case "/console/api/usage/cost-by-day":
+			_, _ = w.Write([]byte(`[{"date":"2026-11-01","totalCostMicroCents":"not-a-number"}]`))
+		case "/console/api/usage/summary":
+			_, _ = w.Write([]byte(`{"totalCostMicroCents":"100"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	adapter := NewOpenCodeQuotaAdapter(server.Client(), []string{"127.0.0.1", "localhost"})
+	snapshot, err := adapter.FetchQuota(context.Background(), server.URL, "oc_sk_test")
+	if err != nil {
+		t.Fatalf("FetchQuota: %v", err)
+	}
+	if snapshot.Status != QuotaStatusAvailable {
+		t.Fatalf("status = %s", snapshot.Status)
+	}
+	if snapshot.UsageChart != nil {
+		t.Fatalf("usage_chart must be omitted on malformed cost: %+v", snapshot.UsageChart)
 	}
 }
 

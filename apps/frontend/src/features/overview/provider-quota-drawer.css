@@ -1,0 +1,211 @@
+.provider-quota-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.provider-quota-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  height: 100vh;
+  width: min(380px, 100vw);
+  flex-direction: column;
+  border-left: 1px solid rgb(180 194 218 / 0.12);
+  background: #121925;
+  box-shadow: -12px 0 40px rgb(0 0 0 / 0.35);
+  outline: none;
+}
+
+.provider-quota-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgb(180 194 218 / 0.1);
+  padding: 18px 18px 14px;
+}
+
+.provider-quota-drawer-eyebrow {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8290a5;
+}
+
+.provider-quota-drawer-title {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e7ecf5;
+}
+
+.provider-quota-drawer-description {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: #8d9aaf;
+}
+
+.provider-quota-close {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgb(180 194 218 / 0.12);
+  background: transparent;
+  color: #bec8d6;
+  cursor: pointer;
+}
+
+.provider-quota-close:hover {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.provider-quota-drawer-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px 24px;
+}
+
+.workspace-usage-card {
+  margin-top: 16px;
+  overflow: visible;
+  border-radius: 12px;
+  border: 1px solid rgb(180 194 218 / 0.1);
+  background: #0e1520;
+  padding: 14px 14px 12px;
+}
+
+.workspace-usage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-usage-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e7ecf5;
+}
+
+.workspace-usage-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #8d9aaf;
+}
+
+.workspace-usage-total {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f3f6fb;
+}
+
+.workspace-usage-bars {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 72px;
+  margin-top: 12px;
+  padding-top: 32px;
+  box-sizing: content-box;
+  overflow: visible;
+}
+
+.workspace-usage-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  border-radius: 8px;
+  border: 1px solid rgb(180 194 218 / 0.16);
+  background: #1a2332;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: #e7ecf5;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+.workspace-usage-tooltip.is-align-start {
+  left: 0;
+  transform: none;
+}
+
+.workspace-usage-tooltip.is-align-center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.workspace-usage-tooltip.is-align-end {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
+.workspace-usage-bar-hit {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.workspace-usage-bar-hit:focus-visible {
+  outline: 1px solid #3b82f6;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.workspace-usage-bar {
+  display: block;
+  width: 100%;
+  height: var(--bar-height, 4%);
+  border-radius: 999px;
+  background: #2a3342;
+  transition: background 120ms ease, filter 120ms ease;
+}
+
+.workspace-usage-bar-hit.is-active .workspace-usage-bar {
+  background: #3b82f6;
+}
+
+.workspace-usage-bar-hit.is-hovered .workspace-usage-bar {
+  filter: brightness(1.18);
+}
+
+.workspace-usage-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  color: #68778c;
+}
+
+@media (max-width: 640px) {
+  .provider-quota-drawer {
+    width: 100vw;
+  }
+}

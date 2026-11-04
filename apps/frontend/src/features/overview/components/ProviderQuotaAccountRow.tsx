@@ -1,15 +1,22 @@
+import {
+  goPlusChipPercent,
+  goPlusMetersFromSnapshot,
+  productUsageTitle,
+} from '../lib/goPlusMeters'
+import { formatQuotaFetchedAt } from '../lib/formatQuotaDate'
 import type { DataScope, ProviderQuotaSnapshot } from '../types/quota'
 import { OverviewQuotaMetricRow } from './OverviewQuotaMetricRow'
 
 type ProviderQuotaAccountRowProps = Readonly<{
   snapshots: readonly ProviderQuotaSnapshot[]
+  selected?: boolean
+  onSelect?: (accountId: string) => void
 }>
 
 const keySummaryMetrics = new Set(['usage', 'limit', 'limit_remaining', 'free_model_daily_requests'])
 const accountSummaryMetrics = new Set(['total_credits', 'total_usage'])
-const subscriptionSummaryMetrics = new Set(['go_rolling', 'go_weekly', 'go_monthly'])
 
-function accountName(snapshots: readonly ProviderQuotaSnapshot[]): string {
+export function accountName(snapshots: readonly ProviderQuotaSnapshot[]): string {
   const primary =
     snapshots.find((snapshot) => snapshot.scope === 'subscription') ??
     snapshots.find((snapshot) => snapshot.scope === 'api_key') ??
@@ -62,9 +69,6 @@ function statusMessage(snapshot: ProviderQuotaSnapshot): string {
 function isSummaryMetric(scope: DataScope, metric: string): boolean {
   if (scope === 'api_key') return keySummaryMetrics.has(metric)
   if (scope === 'account') return accountSummaryMetrics.has(metric)
-  if (scope === 'subscription' || scope === 'workspace') {
-    return subscriptionSummaryMetrics.has(metric) || metric.startsWith('budget_')
-  }
   return false
 }
 
@@ -94,12 +98,28 @@ function formatAvailableBalance(value: number): string {
   return `US$ ${amount}`
 }
 
+function goSummaryLine(snapshots: readonly ProviderQuotaSnapshot[]): string | undefined {
+  const subscription = snapshots.find(
+    (snapshot) =>
+      snapshot.status === 'available' &&
+      (snapshot.scope === 'subscription' || snapshot.scope === 'workspace'),
+  )
+  if (!subscription) return undefined
+  const meters = goPlusMetersFromSnapshot(subscription)
+  const percent = goPlusChipPercent(meters)
+  if (percent == null) return undefined
+  return `${productUsageTitle(subscription.workspace_name).replace(/ usage$/i, '')} ${percent.toLocaleString('pt-BR')}% used`
+}
+
 function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }>) {
   const metrics = snapshot.quotas.filter((metric) => isSummaryMetric(snapshot.scope, metric.metric))
   const balance = availableBalance(snapshot)
 
   return (
-    <section className="border-t border-[rgb(180_194_218_/_0.08)] pt-1.5 first:border-t-0 first:pt-0" data-testid={`quota-scope-${snapshot.account_id}-${snapshot.scope}`}>
+    <section
+      className="border-t border-[rgb(180_194_218_/_0.08)] pt-1.5 first:border-t-0 first:pt-0"
+      data-testid={`quota-scope-${snapshot.account_id}-${snapshot.scope}`}
+    >
       <header className="mb-1 flex items-center justify-between gap-2 text-[9px]">
         <span className="font-medium text-[#AEBBD0]">{scopeLabel(snapshot.scope)}</span>
         <span className="text-[#8290A5]">{statusLabel(snapshot.status)}</span>
@@ -115,40 +135,95 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
             />
           ))}
           {balance != null ? (
-            <div className="flex items-baseline justify-between gap-2" data-testid={`quota-balance-${snapshot.account_id}`}>
+            <div
+              className="flex items-baseline justify-between gap-2"
+              data-testid={`quota-balance-${snapshot.account_id}`}
+            >
               <span className="text-[9px] font-medium text-[#CBD5E2]">Saldo disponível</span>
               <span className="text-[9px] text-[#A7B3C3]">{formatAvailableBalance(balance)}</span>
             </div>
           ) : null}
         </div>
       ) : (
-        <p className="text-[9px] text-muted" role="status">{statusMessage(snapshot)}</p>
+        <p className="text-[9px] text-muted" role="status">
+          {statusMessage(snapshot)}
+        </p>
       )}
-      <p className="mt-1 text-[8px] text-[#68778C]">Consultado em: {snapshot.source.fetched_at}</p>
+      <p className="mt-1 text-[8px] text-[#68778C]">
+        Consultado em: {formatQuotaFetchedAt(snapshot.source.fetched_at)}
+      </p>
     </section>
   )
 }
 
-export function ProviderQuotaAccountRow({ snapshots }: ProviderQuotaAccountRowProps) {
+export function ProviderQuotaAccountRow({
+  snapshots,
+  selected = false,
+  onSelect,
+}: ProviderQuotaAccountRowProps) {
   const firstSnapshot = snapshots[0]
   if (firstSnapshot === undefined) return null
   const name = accountName(snapshots)
   const summaries = visibleSnapshots(snapshots)
+  const goLine = goSummaryLine(snapshots)
+  const isGoAccount = goLine != null
+  const primary = summaries[0]
+  const clickable = onSelect != null
 
   return (
     <article
-      className="rounded-lg border border-[rgb(180_194_218_/_0.09)] bg-[#182333]/70 p-2"
+      className={`rounded-lg border border-[rgb(180_194_218_/_0.09)] bg-[#182333]/70 p-2 ${
+        clickable ? 'cursor-pointer transition-colors hover:bg-white/[0.03]' : ''
+      } ${selected ? 'ring-1 ring-cobalt/50' : ''}`}
       data-testid={`provider-summary-${firstSnapshot.account_id}`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={
+        clickable
+          ? () => {
+              onSelect(firstSnapshot.account_id)
+            }
+          : undefined
+      }
+      onKeyDown={
+        clickable
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onSelect(firstSnapshot.account_id)
+              }
+            }
+          : undefined
+      }
     >
-      <header className="mb-1.5 flex items-center gap-2">
+      <header className="flex items-center gap-2">
         <span className="overview-provider-icon">{initials(name)}</span>
-        <span className="truncate text-[11px] font-semibold text-[#E1E8F3]">{name}</span>
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-[11px] font-semibold text-[#E1E8F3]">{name}</span>
+          {isGoAccount ? (
+            <div className="mt-0.5 flex items-center justify-between gap-2 text-[9px]">
+              <span className="truncate text-[#AEBBD0]" data-testid={`go-plus-summary-${firstSnapshot.account_id}`}>
+                {goLine}
+              </span>
+              <span className="shrink-0 text-[#8290A5]">
+                {primary ? statusLabel(primary.status) : 'Sem leitura'}
+              </span>
+            </div>
+          ) : null}
+        </div>
       </header>
-      <div className="space-y-1.5">
-        {summaries.map((snapshot) => (
-          <ScopeSummary key={snapshot.scope} snapshot={snapshot} />
-        ))}
-      </div>
+      {!isGoAccount ? (
+        <div className="mt-1.5 space-y-1.5">
+          {summaries.map((snapshot) => (
+            <ScopeSummary key={snapshot.scope} snapshot={snapshot} />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-1 text-[8px] text-[#68778C]">
+          Clique para ver 5h / semanal / mensal
+          {primary ? ` · Consultado em: ${formatQuotaFetchedAt(primary.source.fetched_at)}` : ''}
+        </p>
+      )}
     </article>
   )
 }

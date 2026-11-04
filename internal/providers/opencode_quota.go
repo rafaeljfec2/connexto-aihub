@@ -13,12 +13,18 @@ import (
 )
 
 const (
-	openCodeDefaultRoot     = "https://opencode.ai"
-	openCodeGoUsagePath     = "/zen/go/v1/usage"
-	openCodeBudgetsPath     = "/console/api/policies/current-budgets"
-	openCodeGoStatusPath    = "/console/api/go/status"
-	openCodeQuotaSourceName = "opencode_go_usage_api"
+	openCodeDefaultRoot       = "https://opencode.ai"
+	openCodeGoUsagePath       = "/zen/go/v1/usage"
+	openCodeBudgetsPath       = "/console/api/policies/current-budgets"
+	openCodeGoStatusPath      = "/console/api/go/status"
+	openCodeUsageSummaryPath  = "/console/api/usage/summary"
+	openCodeCostByDayPath     = "/console/api/usage/cost-by-day"
+	openCodeQuotaSourceName   = "opencode_go_usage_api"
+	openCodeMicroCentsPerUSD = 100_000_000.0
 )
+
+// openCodeNow is overridable in tests to freeze the usage-chart calendar month.
+var openCodeNow = time.Now
 
 // OpenCodeQuotaAdapter queries official OpenCode Go franchise meters and Console budgets.
 type OpenCodeQuotaAdapter struct {
@@ -73,7 +79,18 @@ type openCodeGoStatus struct {
 	Product string `json:"product"`
 }
 
-// FetchQuota reads Go usage meters, Console budgets, and optional product label.
+type openCodeUsageSummary struct {
+	TotalCostMicroCents json.Number `json:"totalCostMicroCents"`
+}
+
+type openCodeCostByDayRow struct {
+	Date                string      `json:"date"`
+	TotalCostMicroCents json.Number `json:"totalCostMicroCents"`
+	TotalTokens         json.Number `json:"totalTokens"`
+	TotalRequests       json.Number `json:"totalRequests"`
+}
+
+// FetchQuota reads Go usage meters, Console budgets, workspace usage chart, and product label.
 func (a *OpenCodeQuotaAdapter) FetchQuota(ctx context.Context, endpoint, credential string) (ProviderQuotaSnapshot, error) {
 	snapshot := newOpenCodeSnapshot()
 	if strings.TrimSpace(credential) == "" {
@@ -126,6 +143,9 @@ func (a *OpenCodeQuotaAdapter) FetchQuota(ctx context.Context, endpoint, credent
 			snapshot.WorkspaceName = &product
 		}
 	}
+
+	periodStart, periodEnd := openCodeCurrentMonthBounds(openCodeNow().UTC())
+	mapOpenCodeUsageChart(ctx, a, root, credential, &snapshot, periodStart, periodEnd)
 
 	snapshot.Status = QuotaStatusAvailable
 	return snapshot, nil
@@ -275,4 +295,98 @@ func openCodeStatusError(status int) *ProviderQuotaError {
 	default:
 		return &ProviderQuotaError{Code: fmt.Sprintf("http_%d", status), Message: fmt.Sprintf("OpenCode retornou status HTTP %d", status)}
 	}
+}
+
+func openCodeCurrentMonthBounds(now time.Time) (time.Time, time.Time) {
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 1, -1)
+	return start, end
+}
+
+func mapOpenCodeUsageChart(
+	ctx context.Context,
+	adapter *OpenCodeQuotaAdapter,
+	root, credential string,
+	snapshot *ProviderQuotaSnapshot,
+	periodStart, periodEnd time.Time,
+) {
+	from := periodStart.Format("2006-01-02")
+	to := periodEnd.Format("2006-01-02")
+	query := url.Values{"from": {from}, "to": {to}}.Encode()
+
+	costBody, costErr := adapter.request(ctx, root+openCodeCostByDayPath+"?"+query, credential)
+	if costErr != nil {
+		return
+	}
+	var rows []openCodeCostByDayRow
+	if err := json.Unmarshal(costBody, &rows); err != nil {
+		return
+	}
+
+	byDate := make(map[string]openCodeCostByDayRow, len(rows))
+	for _, row := range rows {
+		date := strings.TrimSpace(row.Date)
+		if date == "" {
+			continue
+		}
+		// Fail closed: never present a day as $0 because cost failed to parse.
+		if _, err := row.TotalCostMicroCents.Int64(); err != nil {
+			return
+		}
+		byDate[date] = row
+	}
+
+	subtitle := "Workspace"
+	if snapshot.WorkspaceName != nil && strings.TrimSpace(*snapshot.WorkspaceName) != "" {
+		subtitle = strings.TrimSpace(*snapshot.WorkspaceName)
+	}
+
+	chart := &ProviderUsageChart{
+		Title:       "Workspace usage",
+		Subtitle:    subtitle,
+		Unit:        "USD",
+		PeriodStart: from,
+		PeriodEnd:   to,
+		Points:      make([]ProviderUsageChartPoint, 0),
+	}
+
+	for day := periodStart; !day.After(periodEnd); day = day.AddDate(0, 0, 1) {
+		date := day.Format("2006-01-02")
+		point := ProviderUsageChartPoint{Date: date}
+		if row, ok := byDate[date]; ok {
+			micro, err := row.TotalCostMicroCents.Int64()
+			if err != nil {
+				return
+			}
+			point.CostMicroCents = micro
+			point.CostUSD = float64(micro) / openCodeMicroCentsPerUSD
+			if tokens, err := row.TotalTokens.Int64(); err == nil {
+				point.Tokens = &tokens
+			}
+			if requests, err := row.TotalRequests.Int64(); err == nil {
+				point.Requests = &requests
+			}
+		}
+		chart.Points = append(chart.Points, point)
+	}
+
+	if summaryBody, summaryErr := adapter.request(ctx, root+openCodeUsageSummaryPath+"?"+query, credential); summaryErr == nil {
+		var summary openCodeUsageSummary
+		if err := json.Unmarshal(summaryBody, &summary); err == nil {
+			if total, err := summary.TotalCostMicroCents.Int64(); err == nil {
+				chart.TotalMicroCents = total
+				chart.TotalUSD = float64(total) / openCodeMicroCentsPerUSD
+			}
+		}
+	}
+	if chart.TotalMicroCents == 0 {
+		var sum int64
+		for _, point := range chart.Points {
+			sum += point.CostMicroCents
+		}
+		chart.TotalMicroCents = sum
+		chart.TotalUSD = float64(sum) / openCodeMicroCentsPerUSD
+	}
+
+	snapshot.UsageChart = chart
 }

@@ -35,7 +35,7 @@ export function AppSidebarStatus({ collapsed, connectionState }: AppSidebarStatu
     : status.detail
 
   return (
-    <div className="mt-auto pt-4">
+    <div className="pt-3">
       <div className={cn('flex items-center gap-2 border-t border-line pt-3.5', collapsed && 'justify-center')}>
         <span className={cn('size-2 shrink-0 rounded-full', status.dotClass)} />
         {!collapsed ? (

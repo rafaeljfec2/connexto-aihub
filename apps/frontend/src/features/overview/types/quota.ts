@@ -56,6 +56,25 @@ export interface ProviderQuotaError {
   message: string
 }
 
+export interface ProviderUsageChartPoint {
+  date: string
+  cost_micro_cents: number
+  cost_usd: number
+  tokens?: number
+  requests?: number
+}
+
+export interface ProviderUsageChart {
+  title: string
+  subtitle: string
+  total_micro_cents: number
+  total_usd: number
+  unit: string
+  period_start: string
+  period_end: string
+  points: ProviderUsageChartPoint[]
+}
+
 export interface ProviderQuotaSnapshot {
   account_id: string
   account_label: string
@@ -70,6 +89,7 @@ export interface ProviderQuotaSnapshot {
   workspace_id?: string
   workspace_name?: string
   usage_url?: string
+  usage_chart?: ProviderUsageChart
 }
 
 export interface ProviderQuotasResponse {

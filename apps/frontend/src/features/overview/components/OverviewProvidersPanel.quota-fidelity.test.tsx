@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { ProviderQuotaMetric, ProviderQuotaSnapshot, ProviderQuotaStatus } from '../types/quota'
@@ -170,7 +170,7 @@ describe('OverviewProvidersPanel quota fidelity', () => {
     expect(screen.queryByTestId('quota-empty')).toBeNull()
   })
 
-  it('renders OpenCode Go subscription meters with provider-reported percentages', () => {
+  it('renders a compact OpenCode Go summary and opens the detail drawer on click', () => {
     renderPanel([
       snapshot(
         'subscription',
@@ -206,10 +206,14 @@ describe('OverviewProvidersPanel quota fidelity', () => {
     ])
 
     expect(screen.getByTestId('provider-summary-opencode-go')).toBeTruthy()
-    expect(screen.getByText('Assinatura')).toBeTruthy()
-    expect(screen.getByTestId('quota-metric-opencode-go-subscription-go_rolling').textContent).toContain('12%')
-    expect(screen.getByTestId('quota-metric-opencode-go-subscription-go_weekly').textContent).toContain('36%')
-    expect(screen.getByTestId('quota-metric-opencode-go-subscription-go_monthly').textContent).toContain('24%')
-    expect(screen.queryByTestId('quota-balance-opencode-go')).toBeNull()
+    expect(screen.getByTestId('go-plus-summary-opencode-go').textContent).toContain('Go Plus 36% used')
+    expect(screen.queryByTestId('go-plus-overview-opencode-go-meter-go_rolling')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('provider-summary-opencode-go'))
+
+    expect(screen.getByTestId('provider-quota-drawer')).toBeTruthy()
+    expect(screen.getByTestId('go-plus-drawer-meter-go_rolling').textContent).toContain('12% used')
+    expect(screen.getByTestId('go-plus-drawer-meter-go_weekly').textContent).toContain('36% used')
+    expect(screen.getByTestId('go-plus-drawer-meter-go_monthly').textContent).toContain('24% used')
   })
 })
