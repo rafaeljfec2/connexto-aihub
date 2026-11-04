@@ -520,11 +520,31 @@
   }
 
   .overview-chart-summary {
-    @apply mb-1 flex items-baseline gap-2;
+    @apply mb-2 flex shrink-0 items-baseline gap-2;
   }
 
-  .overview-chart-svg {
-    @apply h-[72px] w-full;
+  .overview-chart-body {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .overview-chart-plot {
+    @apply h-[120px] w-full min-h-[120px] shrink-0 overflow-hidden;
+  }
+
+  .overview-chart-empty {
+    @apply relative flex h-full flex-col items-center justify-center px-2;
+  }
+
+  .overview-chart-empty-line {
+    @apply absolute inset-x-0 bottom-[22px] border-t border-dashed border-[rgb(180_194_218_/_0.18)];
+  }
+
+  .overview-chart-empty-copy {
+    @apply relative z-[1] max-w-[280px] text-center font-mono text-[11px] text-[#7D8A9D];
+  }
+
+  .overview-chart-labels {
+    @apply mt-1 flex shrink-0 justify-between font-mono text-[9px] text-[#8592A7];
   }
 
   .overview-executions-panel {
@@ -561,7 +581,7 @@
   }
 
   .overview-panel-link {
-    @apply rounded-md border border-line bg-[#222D3D] px-2 py-1.5 text-[10px] text-[#B5C1D3] transition-colors hover:bg-white/[0.04] hover:text-primary;
+    @apply inline-flex items-center gap-1 rounded-md border border-line bg-[#222D3D] px-2 py-1.5 text-[10px] text-[#B5C1D3] transition-colors hover:bg-white/[0.04] hover:text-primary;
   }
 
   .overview-catalog-link {
