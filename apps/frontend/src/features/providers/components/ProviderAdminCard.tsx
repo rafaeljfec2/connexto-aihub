@@ -31,6 +31,9 @@ export function ProviderAdminCard({ provider }: ProviderAdminCardProps) {
             Enabled: {provider.enabled ? 'yes' : 'no'} · Credential:{' '}
             {provider.credential_configured ? 'configured' : 'missing'}
           </p>
+          {provider.type === 'openrouter' ? (
+            <p>Management API Key: {provider.management_credential_configured ? 'configured' : 'missing'}</p>
+          ) : null}
         </div>
         <button type="button" className="ghost-button" onClick={() => setExpanded((value) => !value)}>
           {expanded ? 'Collapse' : 'Manage'}

@@ -185,21 +185,23 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Payload:           executionPayload,
 		ContentType:       contentType,
 	}, responseWriter)
+	captured := streamTap.Finalize(responseWriter.contentType)
 	if h.usage != nil && err == nil {
 		h.usage.RecordFromCaptureBestEffort(r.Context(), metering.RecordInput{
 			ExecutionID: result.ExecutionID,
 			ProviderID:  providerID,
 			ModelID:     modelID,
-			Capture:     streamTap.Finalize(responseWriter.contentType),
+			Capture:     captured,
 		})
 	}
 	if h.generations != nil && err == nil {
 		h.generations.RecordBestEffort(r.Context(), generations.TelemetryInput{
-			ExecutionID: result.ExecutionID,
-			ProviderID:  providerID,
-			ModelID:     modelID,
-			SessionID:   sessionID,
-			Result:      result,
+			ExecutionID:  result.ExecutionID,
+			ProviderID:   providerID,
+			ModelID:      modelID,
+			SessionID:    sessionID,
+			FinishReason: capture.ExtractFinishReason(captured),
+			Result:       result,
 		})
 	}
 	stopRenew()

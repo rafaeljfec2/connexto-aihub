@@ -69,7 +69,8 @@ export function GenerationDetailsDrawer({
                 <section className="generation-detail-metrics" aria-label="Generation summary">
                   <Metric label="Provider latency" value={formatOptionalDuration(detail?.telemetry?.provider_latency_ns ?? null)} />
                   <Metric label="Throughput" value={formatGenerationThroughput(current)} />
-                  <Metric label="Provider-reported cost" value={formatProviderReportedCost(current.usage.provider_reported_cost, current.usage.currency)} />
+                  <Metric label="Reported cost (usage.cost)" value={formatProviderReportedCost(current.usage.provider_reported_cost, current.usage.currency)} />
+                  <Metric label="List cost (opencode.list_cost)" value={formatProviderReportedCost(current.usage.provider_list_cost, current.usage.currency)} />
                   <Metric label="Input → output tokens" value={`${formatGenerationTokens(current.usage.input_tokens)} → ${formatGenerationTokens(current.usage.output_tokens)}`} />
                 </section>
 
@@ -95,7 +96,8 @@ export function GenerationDetailsDrawer({
                   <DetailRow label="Execution ID" value={current.execution_id} mono />
                   <DetailRow label="Request ID" value={current.request_id ?? 'Not reported'} mono />
                   <DetailRow label="Provider session" value={detail?.provider_session_id ?? 'Not reported'} mono />
-                  <DetailRow label="Provider-reported cost" value={formatProviderReportedCost(current.usage.provider_reported_cost, current.usage.currency)} />
+                  <DetailRow label="Reported cost (usage.cost)" value={formatProviderReportedCost(current.usage.provider_reported_cost, current.usage.currency)} />
+                  <DetailRow label="List cost (opencode.list_cost)" value={formatProviderReportedCost(current.usage.provider_list_cost, current.usage.currency)} />
                   <DetailRow label="Cost source" value={current.usage.source} />
                 </DetailSection>
 

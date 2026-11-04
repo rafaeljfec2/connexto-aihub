@@ -22,6 +22,33 @@ func TestMigration0002RollbackAndReapplyIntegration(t *testing.T) {
 		t.Fatalf("Migrate: %v", err)
 	}
 
+	down8, err := os.ReadFile("migrations/0008_provider_execution_list_cost.down.sql")
+	if err != nil {
+		t.Fatalf("read down migration 0008: %v", err)
+	}
+	if _, err := pool.Exec(ctx, string(down8)); err != nil {
+		t.Fatalf("apply down migration 0008: %v", err)
+	}
+
+	down7, err := os.ReadFile("migrations/0007_provider_management_credential.down.sql")
+	if err != nil {
+		t.Fatalf("read down migration 0007: %v", err)
+	}
+	if _, err := pool.Exec(ctx, string(down7)); err != nil {
+		t.Fatalf("apply down migration 0007: %v", err)
+	}
+
+	down6, err := os.ReadFile("migrations/0006_generation_telemetry.down.sql")
+	if err != nil {
+		t.Fatalf("read down migration 0006: %v", err)
+	}
+	if _, err := pool.Exec(ctx, string(down6)); err != nil {
+		t.Fatalf("apply down migration 0006: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM schema_migrations WHERE version = 6`); err != nil {
+		t.Fatalf("forget migration 0006: %v", err)
+	}
+
 	down5, err := os.ReadFile("migrations/0005_provider_execution_usage.down.sql")
 	if err != nil {
 		t.Fatalf("read down migration 0005: %v", err)
@@ -66,7 +93,7 @@ func TestMigration0002RollbackAndReapplyIntegration(t *testing.T) {
 
 	var columns int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns
-		WHERE table_name = 'providers' AND column_name IN ('name', 'type', 'endpoint', 'enabled', 'config', 'credential_ciphertext')`,
+		WHERE table_name = 'providers' AND column_name IN ('name', 'type', 'endpoint', 'enabled', 'config', 'credential_ciphertext', 'management_credential_ciphertext')`,
 	).Scan(&columns); err != nil || columns != 0 {
 		t.Fatalf("management columns after rollback = %d, err %v; want 0", columns, err)
 	}
@@ -81,7 +108,7 @@ func TestMigration0002RollbackAndReapplyIntegration(t *testing.T) {
 		t.Fatalf("re-apply Migrate: %v", err)
 	}
 
-	if len(applied) != 4 || applied[0] != 2 || applied[1] != 3 || applied[2] != 4 || applied[3] != 5 || version != 5 {
-		t.Fatalf("re-apply = %v version %d, want [2 3 4 5] version 5", applied, version)
+	if len(applied) != 7 || applied[0] != 2 || applied[1] != 3 || applied[2] != 4 || applied[3] != 5 || applied[4] != 6 || applied[5] != 7 || applied[6] != 8 || version != 8 {
+		t.Fatalf("re-apply = %v version %d, want [2 3 4 5 6 7 8] version 8", applied, version)
 	}
 }

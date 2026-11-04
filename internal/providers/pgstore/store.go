@@ -29,23 +29,25 @@ func New(pool *pgxpool.Pool) *Store {
 }
 
 const (
-	managedColumns = `id, name, type, endpoint, enabled, credential_ciphertext IS NOT NULL, created_at, updated_at`
+	managedColumns = `id, name, type, endpoint, enabled, credential_ciphertext IS NOT NULL,
+                       management_credential_ciphertext IS NOT NULL, created_at, updated_at`
 
 	insertManaged = `
-INSERT INTO providers (id, name, type, endpoint, enabled, credential_ciphertext,
+INSERT INTO providers (id, name, type, endpoint, enabled, credential_ciphertext, management_credential_ciphertext,
                        outcome, error_class, upstream_status)
-VALUES ($1, $2, $3, $4, $5, $6, 'never', 'none', 0)
+VALUES ($1, $2, $3, $4, $5, $6, $7, 'never', 'none', 0)
 RETURNING ` + managedColumns
 
 	ensureManaged = `
-INSERT INTO providers (id, name, type, endpoint, enabled, credential_ciphertext,
+INSERT INTO providers (id, name, type, endpoint, enabled, credential_ciphertext, management_credential_ciphertext,
                        outcome, error_class, upstream_status)
-VALUES ($1, $2, $3, $4, $5, $6, 'never', 'none', 0)
+VALUES ($1, $2, $3, $4, $5, $6, $7, 'never', 'none', 0)
 ON CONFLICT (id) DO UPDATE SET
     name                 = COALESCE(providers.name, EXCLUDED.name),
     type                 = COALESCE(providers.type, EXCLUDED.type),
     endpoint             = COALESCE(providers.endpoint, EXCLUDED.endpoint),
     credential_ciphertext = COALESCE(providers.credential_ciphertext, EXCLUDED.credential_ciphertext),
+    management_credential_ciphertext = COALESCE(providers.management_credential_ciphertext, EXCLUDED.management_credential_ciphertext),
     enabled              = CASE WHEN providers.name IS NULL THEN EXCLUDED.enabled ELSE providers.enabled END,
     updated_at           = CASE WHEN providers.name IS NULL THEN now() ELSE providers.updated_at END
 RETURNING ` + managedColumns
@@ -59,6 +61,7 @@ UPDATE providers SET
     name                  = COALESCE($2::text, name),
     endpoint              = COALESCE($3::text, endpoint),
     credential_ciphertext = COALESCE($4::bytea, credential_ciphertext),
+    management_credential_ciphertext = COALESCE($5::bytea, management_credential_ciphertext),
     updated_at            = now()
 WHERE id = $1 AND name IS NOT NULL
 RETURNING ` + managedColumns
@@ -69,12 +72,14 @@ WHERE id = $1 AND name IS NOT NULL
 RETURNING ` + managedColumns
 
 	selectSealed = `SELECT credential_ciphertext FROM providers WHERE id = $1 AND name IS NOT NULL`
+
+	selectSealedManagement = `SELECT management_credential_ciphertext FROM providers WHERE id = $1 AND name IS NOT NULL`
 )
 
 // Create inserts a new configuration.
 func (s *Store) Create(ctx context.Context, record providers.NewRecord) (providers.Record, error) {
 	row := s.pool.QueryRow(ctx, insertManaged, record.ID, record.Name, record.Type,
-		record.Endpoint, record.Enabled, record.Credential)
+		record.Endpoint, record.Enabled, record.Credential, record.ManagementCredential)
 
 	return mapWriteError(scanRecord(row))
 }
@@ -82,7 +87,7 @@ func (s *Store) Create(ctx context.Context, record providers.NewRecord) (provide
 // EnsureConfigured seeds a configuration without overwriting persisted values.
 func (s *Store) EnsureConfigured(ctx context.Context, record providers.NewRecord) (providers.Record, error) {
 	row := s.pool.QueryRow(ctx, ensureManaged, record.ID, record.Name, record.Type,
-		record.Endpoint, record.Enabled, record.Credential)
+		record.Endpoint, record.Enabled, record.Credential, record.ManagementCredential)
 
 	return mapWriteError(scanRecord(row))
 }
@@ -122,7 +127,8 @@ func (s *Store) List(ctx context.Context) ([]providers.Record, error) {
 // Update applies name, endpoint and credential changes in one statement; nil
 // fields keep their stored value.
 func (s *Store) Update(ctx context.Context, id string, changes providers.Changes) (providers.Record, error) {
-	row := s.pool.QueryRow(ctx, updateManaged, id, changes.Name, changes.Endpoint, changes.Credential)
+	row := s.pool.QueryRow(ctx, updateManaged, id, changes.Name, changes.Endpoint,
+		changes.Credential, changes.ManagementCredential)
 
 	return mapWriteError(scanRecord(row))
 }
@@ -143,6 +149,15 @@ func (s *Store) SealedCredential(ctx context.Context, id string) ([]byte, error)
 	return sealed, nil
 }
 
+// SealedManagementCredential returns the separately encrypted administrative credential.
+func (s *Store) SealedManagementCredential(ctx context.Context, id string) ([]byte, error) {
+	var sealed []byte
+	if err := s.pool.QueryRow(ctx, selectSealedManagement, id).Scan(&sealed); err != nil {
+		return nil, translateNotFound(err)
+	}
+	return sealed, nil
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }
@@ -151,7 +166,8 @@ func scanRecord(row rowScanner) (providers.Record, error) {
 	var record providers.Record
 
 	if err := row.Scan(&record.ID, &record.Name, &record.Type, &record.Endpoint,
-		&record.Enabled, &record.HasCredential, &record.CreatedAt, &record.UpdatedAt); err != nil {
+		&record.Enabled, &record.HasCredential, &record.HasManagementCredential,
+		&record.CreatedAt, &record.UpdatedAt); err != nil {
 		return providers.Record{}, translateNotFound(err)
 	}
 

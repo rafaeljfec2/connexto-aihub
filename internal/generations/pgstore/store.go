@@ -46,7 +46,7 @@ ON CONFLICT (execution_id) DO UPDATE SET
     recorded_at = now()`,
 		input.ExecutionID, generations.SafeSessionID(input.SessionID), input.Result.Streaming,
 		input.Result.ProviderLatencyNS, input.Result.RoutingOverheadNS, input.Result.TimeToFirstTokenNS,
-		input.Result.OutputStreamDurationNS, nil,
+		input.Result.OutputStreamDurationNS, input.FinishReason,
 	); err != nil {
 		return err
 	}

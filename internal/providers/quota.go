@@ -29,6 +29,11 @@ const (
 	ScopeUnknown      DataScope = "unknown"
 )
 
+// AccountQuotaAdapter reads provider-level balances requiring administrative credentials.
+type AccountQuotaAdapter interface {
+	FetchAccountQuota(ctx context.Context, endpoint, managementCredential string) (ProviderQuotaSnapshot, error)
+}
+
 // MetricNature specifies the operational classification of each metric.
 type MetricNature string
 
@@ -55,6 +60,8 @@ type ProviderQuotaMetric struct {
 	StartsAt         *string      `json:"starts_at,omitempty"`
 	EndsAt           *string      `json:"ends_at,omitempty"`
 	ResetsAt         *string      `json:"resets_at,omitempty"`
+	Scope            string       `json:"scope,omitempty"`
+	IncludeBYOK      *bool        `json:"include_byok,omitempty"`
 }
 
 // ProviderQuotaSource documents provenance, scope, and timestamps.
@@ -74,15 +81,16 @@ type ProviderQuotaError struct {
 
 // ProviderQuotaSnapshot holds the normalized official reading for an account.
 type ProviderQuotaSnapshot struct {
-	AccountID    string                `json:"account_id"`
-	AccountLabel string                `json:"account_label"`
-	ProviderID   string                `json:"provider_id"`
-	ProviderName string                `json:"provider_name"`
-	Status       ProviderQuotaStatus   `json:"status"`
-	Scope        DataScope             `json:"scope"`
-	Quotas       []ProviderQuotaMetric `json:"quotas"`
-	Source       ProviderQuotaSource   `json:"source"`
-	Error        *ProviderQuotaError   `json:"error,omitempty"`
+	AccountID         string                `json:"account_id"`
+	AccountLabel      string                `json:"account_label"`
+	ProviderID        string                `json:"provider_id"`
+	ProviderName      string                `json:"provider_name"`
+	Status            ProviderQuotaStatus   `json:"status"`
+	Scope             DataScope             `json:"scope"`
+	Quotas            []ProviderQuotaMetric `json:"quotas"`
+	Source            ProviderQuotaSource   `json:"source"`
+	Error             *ProviderQuotaError   `json:"error,omitempty"`
+	ProviderExpiresAt *string               `json:"provider_expires_at,omitempty"`
 }
 
 // ProviderQuotasResponse wraps all account snapshots returned by the query.
@@ -95,4 +103,3 @@ type ProviderQuotasResponse struct {
 type QuotaAdapter interface {
 	FetchQuota(ctx context.Context, endpoint, credential string) (ProviderQuotaSnapshot, error)
 }
-

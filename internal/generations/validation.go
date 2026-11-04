@@ -25,6 +25,9 @@ func ValidateTelemetry(input TelemetryInput) error {
 			return errInvalidTelemetry
 		}
 	}
+	if input.FinishReason != nil && !validText(*input.FinishReason, 1, 128) {
+		return errInvalidTelemetry
+	}
 	return nil
 }
 

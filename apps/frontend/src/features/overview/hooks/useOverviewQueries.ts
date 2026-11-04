@@ -52,6 +52,8 @@ export function useOverviewQueries() {
     queryKey: overviewQueryKeys.providerQuotas,
     queryFn: getProviderQuotas,
     refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: 1,
   })
 

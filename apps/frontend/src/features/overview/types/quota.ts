@@ -39,6 +39,8 @@ export interface ProviderQuotaMetric {
   starts_at?: string
   ends_at?: string
   resets_at?: string
+  scope?: string
+  include_byok?: boolean
 }
 
 export interface ProviderQuotaSource {
@@ -64,6 +66,7 @@ export interface ProviderQuotaSnapshot {
   quotas: ProviderQuotaMetric[]
   source: ProviderQuotaSource
   error?: ProviderQuotaError
+  provider_expires_at?: string
 }
 
 export interface ProviderQuotasResponse {

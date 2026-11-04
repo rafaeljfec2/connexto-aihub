@@ -11,21 +11,23 @@ type ProbeFunc func(ctx context.Context, endpoint, credential string) error
 
 // CreateInput is the administrative input for a new configuration.
 type CreateInput struct {
-	ID         string
-	Name       string
-	Type       string
-	Endpoint   string
-	Credential string
-	Enabled    bool
+	ID                   string
+	Name                 string
+	Type                 string
+	Endpoint             string
+	Credential           string
+	ManagementCredential string
+	Enabled              bool
 }
 
 // UpdateInput changes the optional fields of a configuration. A nil field is
 // unchanged; an empty Credential is rejected rather than clearing the stored
 // secret silently.
 type UpdateInput struct {
-	Name       *string
-	Endpoint   *string
-	Credential *string
+	Name                 *string
+	Endpoint             *string
+	Credential           *string
+	ManagementCredential *string
 }
 
 // Service owns provider administration: validation, credential protection,
@@ -51,6 +53,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
 		return Record{}, err
 	}
+	if input.ManagementCredential != "" && input.Type != TypeOpenRouter {
+		return Record{}, ErrInvalid
+	}
 
 	if err := s.validateEndpoint(strings.TrimSpace(input.Endpoint)); err != nil {
 		return Record{}, err
@@ -60,14 +65,19 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 	if err != nil {
 		return Record{}, err
 	}
+	sealedManagement, err := s.sealManagementOptional(input.ID, input.ManagementCredential)
+	if err != nil {
+		return Record{}, err
+	}
 
 	return s.repo.Create(ctx, NewRecord{
-		ID:         input.ID,
-		Name:       strings.TrimSpace(input.Name),
-		Type:       input.Type,
-		Endpoint:   strings.TrimSpace(input.Endpoint),
-		Enabled:    input.Enabled,
-		Credential: sealed,
+		ID:                   input.ID,
+		Name:                 strings.TrimSpace(input.Name),
+		Type:                 input.Type,
+		Endpoint:             strings.TrimSpace(input.Endpoint),
+		Enabled:              input.Enabled,
+		Credential:           sealed,
+		ManagementCredential: sealedManagement,
 	})
 }
 
@@ -84,6 +94,16 @@ func (s *Service) List(ctx context.Context) ([]Record, error) {
 // Update changes name, endpoint and/or credential, then propagates the result
 // to the bound runtime.
 func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Record, error) {
+	if input.ManagementCredential != nil {
+		record, err := s.repo.Get(ctx, id)
+		if err != nil {
+			return Record{}, err
+		}
+		if record.Type != TypeOpenRouter {
+			return Record{}, ErrInvalid
+		}
+	}
+
 	changes, err := s.buildChanges(id, input)
 	if err != nil {
 		return Record{}, err
@@ -183,6 +203,13 @@ func (s *Service) buildChanges(id string, input UpdateInput) (Changes, error) {
 		}
 
 		changes.Credential = sealed
+	}
+	if input.ManagementCredential != nil {
+		sealed, err := s.sealManagement(id, *input.ManagementCredential)
+		if err != nil {
+			return Changes{}, err
+		}
+		changes.ManagementCredential = sealed
 	}
 
 	return changes, nil

@@ -109,6 +109,17 @@ func normalizeOpenCodeUsage(raw json.RawMessage, source Source) Record {
 		record.ProviderReportedCost = cost
 		record.Currency = currency
 	}
+	if usage.listCostSet {
+		listCost, _, err := parseReportedCost(usage.listCostRaw, "USD")
+		if err != nil {
+			record.Status = StatusInvalid
+			return record
+		}
+		record.ProviderListCost = listCost
+		if record.Currency == "" {
+			record.Currency = "USD"
+		}
+	}
 	record.Status = classifyTokenStatus(record)
 	return record
 }
@@ -120,7 +131,8 @@ func decodeOpenCodeUsage(raw json.RawMessage) (openCodeUsageDecoded, error) {
 		TotalTokens  *uint64         `json:"total_tokens"`
 		Cost         json.RawMessage `json:"cost"`
 		OpenCode     *struct {
-			Tokens *struct {
+			ListCost json.RawMessage `json:"list_cost"`
+			Tokens   *struct {
 				CacheRead *uint64 `json:"cache_read"`
 			} `json:"tokens"`
 		} `json:"opencode"`
@@ -149,13 +161,17 @@ func decodeOpenCodeUsage(raw json.RawMessage) (openCodeUsageDecoded, error) {
 		out.cacheRead = *payload.OpenCode.Tokens.CacheRead
 		out.cacheReadSet = true
 	}
+	if payload.OpenCode != nil && len(payload.OpenCode.ListCost) > 0 && string(payload.OpenCode.ListCost) != "null" {
+		out.listCostRaw = payload.OpenCode.ListCost
+		out.listCostSet = true
+	}
 	return out, nil
 }
 
 type openCodeUsageDecoded struct {
 	inputTokens, outputTokens, totalTokens, cacheRead uint64
-	inputTokensSet, outputTokensSet, totalTokensSet, cacheReadSet, costSet bool
-	costRaw json.RawMessage
+	inputTokensSet, outputTokensSet, totalTokensSet, cacheReadSet, costSet, listCostSet bool
+	costRaw, listCostRaw json.RawMessage
 }
 
 func normalizeOpenRouterUsage(raw json.RawMessage, source Source) Record {

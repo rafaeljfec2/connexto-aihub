@@ -14,6 +14,7 @@ type generationUsageDTO struct {
 	InputTokens          *int64  `json:"input_tokens"`
 	OutputTokens         *int64  `json:"output_tokens"`
 	ProviderReportedCost *string `json:"provider_reported_cost"`
+	ProviderListCost     *string `json:"provider_list_cost"`
 	Currency             *string `json:"currency"`
 }
 
@@ -156,6 +157,7 @@ func newGenerationListDTO(generation generations.Generation) generationListDTO {
 			InputTokens:          generation.Usage.InputTokens,
 			OutputTokens:         generation.Usage.OutputTokens,
 			ProviderReportedCost: generation.Usage.ProviderReportedCost,
+			ProviderListCost:     generation.Usage.ProviderListCost,
 			Currency:             generation.Usage.Currency,
 		},
 		Telemetry: generationTelemetryDTO{

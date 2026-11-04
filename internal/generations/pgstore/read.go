@@ -21,7 +21,7 @@ SELECT requested.execution_id,
        t.provider_session_id, t.streaming,
        t.provider_latency_ns, t.routing_overhead_ns,
        t.time_to_first_token_ns, t.output_stream_duration_ns, t.finish_reason,
-       u.input_tokens, u.output_tokens, u.provider_reported_cost,
+       u.input_tokens, u.output_tokens, u.provider_reported_cost, u.provider_list_cost,
        u.currency, u.usage_status, u.usage_source
   FROM unnest($1::text[]) AS requested(execution_id)
   LEFT JOIN generation_telemetry t ON t.execution_id = requested.execution_id
@@ -36,10 +36,10 @@ SELECT requested.execution_id,
 		var streaming pgtype.Bool
 		var providerLatency, routingOverhead, firstToken, outputDuration pgtype.Int8
 		var inputTokens, outputTokens pgtype.Int8
-		var reportedCost pgtype.Numeric
+		var reportedCost, listCost pgtype.Numeric
 		if err := rows.Scan(&executionID, &hasTelemetry, &hasUsage, &sessionID, &streaming,
 			&providerLatency, &routingOverhead, &firstToken, &outputDuration, &finishReason,
-			&inputTokens, &outputTokens, &reportedCost, &currency, &usageStatus, &usageSource); err != nil {
+			&inputTokens, &outputTokens, &reportedCost, &listCost, &currency, &usageStatus, &usageSource); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -64,6 +64,7 @@ SELECT requested.execution_id,
 				InputTokens:          int64Value(inputTokens),
 				OutputTokens:         int64Value(outputTokens),
 				ProviderReportedCost: numericValue(reportedCost),
+				ProviderListCost:     numericValue(listCost),
 				Currency:             textValue(currency),
 			}
 		}

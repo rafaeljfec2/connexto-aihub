@@ -1,0 +1,145 @@
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it } from 'vitest'
+import type { ProviderQuotaMetric, ProviderQuotaSnapshot, ProviderQuotaStatus } from '../types/quota'
+import { OverviewProvidersPanel } from './OverviewProvidersPanel'
+
+function renderPanel(snapshots: ProviderQuotaSnapshot[], isError = false) {
+  render(
+    <MemoryRouter>
+      <OverviewProvidersPanel snapshots={snapshots} isError={isError} />
+    </MemoryRouter>,
+  )
+}
+
+function snapshot(
+  scope: 'api_key' | 'account',
+  quotas: ProviderQuotaMetric[],
+  status: ProviderQuotaStatus = 'available',
+  accountId = 'openrouter-primary',
+): ProviderQuotaSnapshot {
+  return {
+    account_id: accountId,
+    account_label: 'OpenRouter Primary',
+    provider_id: 'openrouter',
+    provider_name: 'OpenRouter',
+    status,
+    scope,
+    quotas,
+    source: {
+      type: 'provider_api',
+      name: scope === 'api_key' ? 'openrouter_key_api' : 'openrouter_credits_api',
+      scope,
+      fetched_at: '2026-11-04T14:00:00Z',
+    },
+  }
+}
+
+describe('OverviewProvidersPanel quota fidelity', () => {
+  it('shows the account summary without the API-key scope block when both scopes exist', () => {
+    renderPanel([
+      snapshot('api_key', [
+        { metric: 'usage', label: 'Total usage', nature: 'cost', used: 0, unit: 'USD' },
+        { metric: 'usage_daily', label: 'Daily usage', nature: 'cost', used: 2, unit: 'USD', period: 'daily' },
+        { metric: 'byok_usage', label: 'Total BYOK usage', nature: 'cost', used: 0.5, unit: 'USD' },
+        {
+          metric: 'free_model_daily_requests',
+          label: 'Free model daily requests',
+          nature: 'quota',
+          used: 0,
+          limit: 1000,
+          remaining: 1000,
+          unit: 'requests',
+          period: 'daily',
+        },
+      ]),
+      snapshot('account', [
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 4.84186443, unit: 'USD' },
+        { metric: 'total_credits', label: 'Total account credits', nature: 'quota', limit: 10, unit: 'USD' },
+      ]),
+    ])
+
+    expect(screen.getAllByTestId('provider-summary-openrouter-primary')).toHaveLength(1)
+    expect(screen.queryByTestId('quota-scope-openrouter-primary-api_key')).toBeNull()
+    expect(screen.queryByTestId('quota-metric-openrouter-primary-api_key-usage')).toBeNull()
+    expect(screen.queryByText('Chave API')).toBeNull()
+    expect(screen.getByText('Créditos comprados')).toBeTruthy()
+    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_credits').textContent).toContain('Total US$ 10,00')
+    expect(screen.getByText('Uso total da conta')).toBeTruthy()
+    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_usage').textContent).toContain('Usado US$ 4,84186443')
+    expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('Saldo disponível')
+    expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('US$ 5,16')
+    expect(screen.queryByTestId('quota-metric-openrouter-primary-api_key-free_model_daily_requests')).toBeNull()
+    expect(screen.queryByText('Daily usage')).toBeNull()
+    expect(screen.queryByText('Total BYOK usage')).toBeNull()
+    expect(screen.queryByText(/%/)).toBeNull()
+  })
+
+  it('keeps a missing account credential visible inside the existing account card', () => {
+    renderPanel([
+      snapshot('api_key', [
+        { metric: 'usage', label: 'Key usage', nature: 'cost', used: 2, unit: 'USD' },
+      ]),
+      snapshot('account', [], 'unconfigured_credential'),
+    ])
+
+    expect(screen.getAllByTestId('provider-summary-openrouter-primary')).toHaveLength(1)
+    expect(screen.getByText('Management API Key não configurada')).toBeTruthy()
+  })
+
+  it('omits available balance when the provider did not return usage', () => {
+    renderPanel([
+      snapshot('account', [
+        { metric: 'total_credits', label: 'Total account credits', nature: 'quota', limit: 10, unit: 'USD' },
+      ]),
+    ])
+
+    expect(screen.queryByTestId('quota-balance-openrouter-primary')).toBeNull()
+  })
+
+  it('keeps an explicit zero account usage and derives balance from that zero', () => {
+    renderPanel([
+      snapshot('account', [
+        { metric: 'total_credits', label: 'Total account credits', nature: 'quota', limit: 10, unit: 'USD' },
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 0, unit: 'USD' },
+      ]),
+    ])
+
+    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_usage').textContent).toContain('Usado US$ 0,00')
+    expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('US$ 10,00')
+  })
+
+  it('does not derive a balance from metrics with incompatible units', () => {
+    renderPanel([
+      snapshot('account', [
+        { metric: 'total_credits', label: 'Total account credits', nature: 'quota', limit: 10, unit: 'USD' },
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 4, unit: 'EUR' },
+      ]),
+    ])
+
+    expect(screen.queryByTestId('quota-balance-openrouter-primary')).toBeNull()
+  })
+
+  it('derives each account balance from that account snapshot only', () => {
+    renderPanel([
+      snapshot('account', [
+        { metric: 'total_credits', label: 'Credits', nature: 'quota', limit: 10, unit: 'USD' },
+        { metric: 'total_usage', label: 'Usage', nature: 'cost', used: 4, unit: 'USD' },
+      ], 'available', 'openrouter-a'),
+      snapshot('account', [
+        { metric: 'total_credits', label: 'Credits', nature: 'quota', limit: 20, unit: 'USD' },
+        { metric: 'total_usage', label: 'Usage', nature: 'cost', used: 7, unit: 'USD' },
+      ], 'available', 'openrouter-b'),
+    ])
+
+    expect(screen.getByTestId('quota-balance-openrouter-a').textContent).toContain('US$ 6,00')
+    expect(screen.getByTestId('quota-balance-openrouter-b').textContent).toContain('US$ 13,00')
+  })
+
+  it('shows a quota request failure instead of reporting that no accounts exist', () => {
+    renderPanel([], true)
+
+    expect(screen.getByRole('alert').textContent).toContain('Falha ao consultar os dados oficiais')
+    expect(screen.queryByTestId('quota-empty')).toBeNull()
+  })
+})

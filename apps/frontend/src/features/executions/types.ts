@@ -8,6 +8,7 @@ export type GenerationUsage = {
   readonly input_tokens: number | null
   readonly output_tokens: number | null
   readonly provider_reported_cost: string | null
+  readonly provider_list_cost: string | null
   readonly currency: string | null
 }
 

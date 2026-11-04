@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aihub/internal/providers"
@@ -44,6 +45,10 @@ func (f *fakeQuotaRepoForHandler) SealedCredential(ctx context.Context, id strin
 	return f.creds[id], nil
 }
 
+func (f *fakeQuotaRepoForHandler) SealedManagementCredential(ctx context.Context, id string) ([]byte, error) {
+	return nil, nil
+}
+
 func TestProviderQuotasHandler_Success(t *testing.T) {
 	cipher, _ := providers.NewCredentialCipher([]byte("01234567890123456789012345678901"))
 	sealed, _ := cipher.Seal("openrouter-1", "test-key")
@@ -51,7 +56,7 @@ func TestProviderQuotasHandler_Success(t *testing.T) {
 	serverMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"data":{"usage":12.5,"limit":50.0,"limit_remaining":37.5}}`))
+		_, _ = w.Write([]byte(`{"data":{"label":"sk-provider-label-marker","usage":12.5,"limit":50.0,"limit_remaining":37.5}}`))
 	}))
 	defer serverMock.Close()
 
@@ -89,14 +94,17 @@ func TestProviderQuotasHandler_Success(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d, body: %s", rec.Code, rec.Body.String())
 	}
+	if strings.Contains(rec.Body.String(), "sk-provider-label-marker") || strings.Contains(rec.Body.String(), "test-key") {
+		t.Fatal("quota response exposed provider key details or a credential")
+	}
 
 	var resp providers.ProviderQuotasResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(resp.Snapshots) != 1 {
-		t.Fatalf("expected 1 snapshot, got %d", len(resp.Snapshots))
+	if len(resp.Snapshots) != 2 {
+		t.Fatalf("expected one key and one account snapshot, got %d", len(resp.Snapshots))
 	}
 
 	s := resp.Snapshots[0]
@@ -108,6 +116,12 @@ func TestProviderQuotasHandler_Success(t *testing.T) {
 	}
 	if s.Status != providers.QuotaStatusAvailable {
 		t.Errorf("expected status available, got %s", s.Status)
+	}
+	if s.Scope != providers.ScopeAPIKey || resp.Snapshots[1].Scope != providers.ScopeAccount {
+		t.Fatalf("snapshot scopes = %q and %q, want api_key and account", s.Scope, resp.Snapshots[1].Scope)
+	}
+	if resp.Snapshots[1].Status != providers.QuotaStatusUnconfiguredCredential {
+		t.Fatalf("account snapshot status = %q, want unconfigured credential", resp.Snapshots[1].Status)
 	}
 }
 

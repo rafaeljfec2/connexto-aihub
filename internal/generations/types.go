@@ -22,6 +22,7 @@ type Usage struct {
 	InputTokens          *int64
 	OutputTokens         *int64
 	ProviderReportedCost *string
+	ProviderListCost     *string
 	Currency             *string
 }
 
@@ -75,11 +76,12 @@ type Page struct {
 
 // TelemetryInput binds observed execution metadata to its validated gateway session.
 type TelemetryInput struct {
-	ExecutionID string
-	ProviderID  string
-	ModelID     string
-	SessionID   string
-	Result      execution.Result
+	ExecutionID  string
+	ProviderID   string
+	ModelID      string
+	SessionID    string
+	FinishReason *string
+	Result       execution.Result
 }
 
 // Repository persists content-free per-execution telemetry and events.

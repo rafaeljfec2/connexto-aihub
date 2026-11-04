@@ -56,8 +56,8 @@ describe('OverviewProvidersPanel', () => {
 
     expect(screen.getByText('Consumo de franquias')).toBeTruthy()
     expect(screen.getByText('OpenRouter Principal')).toBeTruthy()
-    expect(screen.getByText(/US\$\s*25,50\s*consumido/)).toBeTruthy()
-    expect(screen.getByText(/US\$\s*74,50\s*disponível/)).toBeTruthy()
+    expect(screen.getByText(/Usado US\$\s*25,50/)).toBeTruthy()
+    expect(screen.getByText(/Restante US\$\s*74,50/)).toBeTruthy()
     expect(screen.getByText('OP')).toBeTruthy() // Initials in badge
 
     // Must NOT contain an artificial percent string
@@ -137,8 +137,8 @@ describe('OverviewProvidersPanel', () => {
 
     expect(screen.getByText('OpenRouter Squad A')).toBeTruthy()
     expect(screen.getByText('OpenRouter Squad B')).toBeTruthy()
-    expect(screen.getByText(/US\$\s*90,00\s*disponível/)).toBeTruthy()
-    expect(screen.getByText(/US\$\s*10,00\s*disponível/)).toBeTruthy()
+    expect(screen.getByText(/Restante US\$\s*90,00/)).toBeTruthy()
+    expect(screen.getByText(/Restante US\$\s*10,00/)).toBeTruthy()
   })
 
   it('renders unsupported provider as Sem leitura without inventing values', () => {
@@ -167,7 +167,7 @@ describe('OverviewProvidersPanel', () => {
     )
 
     expect(screen.getByText('Anthropic Produção')).toBeTruthy()
-    expect(screen.getByText('Franquia ainda não monitorada')).toBeTruthy()
+    expect(screen.getByText('Este provedor não oferece uma leitura oficial configurada')).toBeTruthy()
     expect(screen.getByText('Sem leitura')).toBeTruthy()
   })
 
@@ -197,11 +197,11 @@ describe('OverviewProvidersPanel', () => {
     )
 
     expect(screen.getByText('OpenAI Dev')).toBeTruthy()
-    expect(screen.getByText('Credencial não configurada')).toBeTruthy()
-    expect(screen.getByText('Sem leitura')).toBeTruthy()
+    expect(screen.getByText('Credencial da chave API não configurada')).toBeTruthy()
+    expect(screen.getByText('Credencial ausente')).toBeTruthy()
   })
 
-  it('renders official percent and progress bar only when explicitly returned by provider', () => {
+  it('omits percentage-only fields from the compact raw summary', () => {
     const snapshots: ProviderQuotaSnapshot[] = [
       {
         account_id: 'official-percent-provider',
@@ -234,7 +234,8 @@ describe('OverviewProvidersPanel', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('32% disponível')).toBeTruthy()
+    expect(screen.queryByText('Consumo percentual')).toBeNull()
+    expect(screen.getByText('O provedor não retornou campos do resumo')).toBeTruthy()
   })
 
   it('renders loading state when isLoading is true', () => {

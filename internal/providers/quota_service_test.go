@@ -8,8 +8,9 @@ import (
 )
 
 type fakeQuotaRepo struct {
-	records []Record
-	creds   map[string][]byte
+	records         []Record
+	creds           map[string][]byte
+	managementCreds map[string][]byte
 }
 
 func (f *fakeQuotaRepo) Create(ctx context.Context, r NewRecord) (Record, error) {
@@ -43,6 +44,10 @@ func (f *fakeQuotaRepo) SetEnabled(ctx context.Context, id string, enabled bool)
 
 func (f *fakeQuotaRepo) SealedCredential(ctx context.Context, id string) ([]byte, error) {
 	return f.creds[id], nil
+}
+
+func (f *fakeQuotaRepo) SealedManagementCredential(ctx context.Context, id string) ([]byte, error) {
+	return f.managementCreds[id], nil
 }
 
 type fakeMockAdapter struct {

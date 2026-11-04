@@ -35,7 +35,11 @@ func TestProviderValidationUpdatesOnlyTargetStateAndSanitizesErrors(t *testing.T
 	defer upstream.Close()
 	endpoint := upstream.URL + "/api/v1"
 
-	repo := &inMemoryProviders{records: map[string]providers.Record{}, sealed: map[string][]byte{}}
+	repo := &inMemoryProviders{
+		records:          map[string]providers.Record{},
+		sealed:           map[string][]byte{},
+		sealedManagement: map[string][]byte{},
+	}
 	registry := providers.NewRegistry()
 	openCode, err := providers.NewClient(config.ProviderOpenCodeGo{BaseURL: endpoint, APIKey: adminSecret}, nil)
 	if err != nil {

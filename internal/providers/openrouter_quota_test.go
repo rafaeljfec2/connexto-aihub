@@ -27,7 +27,9 @@ func TestOpenRouterQuotaAdapter_Success(t *testing.T) {
 		}
 	}`
 
+	requestedPaths := make([]string, 0, 2)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPaths = append(requestedPaths, r.URL.Path)
 		if r.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
@@ -68,6 +70,9 @@ func TestOpenRouterQuotaAdapter_Success(t *testing.T) {
 	if snapshot.ProviderID != TypeOpenRouter {
 		t.Errorf("expected provider openrouter, got %s", snapshot.ProviderID)
 	}
+	if len(requestedPaths) != 1 || requestedPaths[0] != "/api/v1/key" {
+		t.Fatalf("key-scoped read requested %v, want only /api/v1/key", requestedPaths)
+	}
 
 	// Verify that NO percent calculations were performed
 	for _, q := range snapshot.Quotas {
@@ -82,9 +87,9 @@ func TestOpenRouterQuotaAdapter_Success(t *testing.T) {
 		}
 	}
 
-	// Verify mapped metrics count and values (10 key metrics + 2 account credits metrics)
-	if len(snapshot.Quotas) != 12 {
-		t.Fatalf("expected 12 mapped metrics, got %d", len(snapshot.Quotas))
+	// The key-scoped response must not include account-scoped credits.
+	if len(snapshot.Quotas) != 10 {
+		t.Fatalf("expected 10 key-scoped metrics, got %d", len(snapshot.Quotas))
 	}
 
 	metricsMap := make(map[string]ProviderQuotaMetric)
@@ -113,6 +118,34 @@ func TestOpenRouterQuotaAdapter_Success(t *testing.T) {
 	dailyMetric, ok := metricsMap["usage_daily"]
 	if !ok || dailyMetric.Used == nil || *dailyMetric.Used != 2.1 {
 		t.Errorf("usage_daily metric mismatch: %+v", dailyMetric)
+	}
+	if _, found := metricsMap["total_credits"]; found {
+		t.Fatal("account-scoped credits were mixed into the api_key snapshot")
+	}
+}
+
+func TestOpenRouterQuotaAdapter_PreservesZeroAndOmittedFields(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"usage":0}}`))
+	}))
+	defer server.Close()
+
+	adapter := NewOpenRouterQuotaAdapter(server.Client(), []string{"127.0.0.1"})
+	snapshot, err := adapter.FetchQuota(context.Background(), server.URL, "test-key")
+	if err != nil {
+		t.Fatalf("FetchQuota: %v", err)
+	}
+
+	metrics := make(map[string]ProviderQuotaMetric, len(snapshot.Quotas))
+	for _, metric := range snapshot.Quotas {
+		metrics[metric.Metric] = metric
+	}
+	usage, found := metrics["usage"]
+	if !found || usage.Used == nil || *usage.Used != 0 {
+		t.Fatalf("explicit zero usage was not preserved: %+v", usage)
+	}
+	if _, found := metrics["usage_daily"]; found {
+		t.Fatal("omitted usage_daily field was converted into a metric")
 	}
 }
 
@@ -204,4 +237,3 @@ func TestOpenRouterQuotaAdapter_Timeout(t *testing.T) {
 		t.Fatalf("expected timeout, got %s", snapshot.Status)
 	}
 }
-

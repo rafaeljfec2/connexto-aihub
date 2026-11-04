@@ -7,6 +7,7 @@ const patchSchema = z.object({
   name: z.string().min(1, 'Name is required').max(128),
   endpoint: z.string().url('Endpoint must be a valid URL'),
   credential: z.string().optional(),
+  management_credential: z.string().optional(),
 })
 
 type PatchFormValues = z.infer<typeof patchSchema>
@@ -15,7 +16,7 @@ type ProviderPatchFormProps = {
   provider: AdminProvider
   isPending: boolean
   errorMessage?: string
-  onSubmit: (values: { name?: string; endpoint?: string; credential?: string }) => void
+  onSubmit: (values: { name?: string; endpoint?: string; credential?: string; management_credential?: string }) => void
 }
 
 export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit }: ProviderPatchFormProps) {
@@ -29,6 +30,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
       name: provider.name,
       endpoint: provider.endpoint,
       credential: '',
+      management_credential: '',
     },
   })
 
@@ -36,7 +38,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
     <form
       className="provider-patch-form"
       onSubmit={handleSubmit((values) => {
-        const payload: { name?: string; endpoint?: string; credential?: string } = {}
+        const payload: { name?: string; endpoint?: string; credential?: string; management_credential?: string } = {}
         if (values.name !== provider.name) {
           payload.name = values.name
         }
@@ -46,6 +48,9 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         if (values.credential && values.credential.length > 0) {
           payload.credential = values.credential
         }
+        if (provider.type === 'openrouter' && values.management_credential && values.management_credential.length > 0) {
+          payload.management_credential = values.management_credential
+        }
         onSubmit(payload)
       })}
     >
@@ -54,6 +59,18 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         <input type="text" autoComplete="off" {...register('name')} />
         {errors.name ? <span className="field-error">{errors.name.message}</span> : null}
       </label>
+      {provider.type === 'openrouter' ? (
+        <label>
+          Management API Key (write-only)
+          <input
+            type="password"
+            autoComplete="new-password"
+            placeholder={provider.management_credential_configured ? 'Configured — enter to replace' : 'Not configured'}
+            {...register('management_credential')}
+          />
+          {errors.management_credential ? <span className="field-error">{errors.management_credential.message}</span> : null}
+        </label>
+      ) : null}
       <label>
         Endpoint
         <input type="url" autoComplete="off" {...register('endpoint')} />

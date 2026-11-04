@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"aihub/internal/operational"
 	"aihub/internal/providers"
@@ -63,45 +62,6 @@ func (a *ProviderAdmin) notifyProviderStatus() {
 	PublishProviderStatus(a.eventHub, a.statuses)
 }
 
-type providerResponse struct {
-	ID                   string    `json:"id"`
-	Name                 string    `json:"name"`
-	Type                 string    `json:"type"`
-	Endpoint             string    `json:"endpoint"`
-	Enabled              bool      `json:"enabled"`
-	CredentialConfigured bool      `json:"credential_configured"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-}
-
-type createProviderRequest struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	Endpoint   string `json:"endpoint"`
-	Credential string `json:"credential"`
-	Enabled    *bool  `json:"enabled"`
-}
-
-type updateProviderRequest struct {
-	Name       *string `json:"name"`
-	Endpoint   *string `json:"endpoint"`
-	Credential *string `json:"credential"`
-}
-
-func toProviderResponse(record providers.Record) providerResponse {
-	return providerResponse{
-		ID:                   record.ID,
-		Name:                 record.Name,
-		Type:                 record.Type,
-		Endpoint:             record.Endpoint,
-		Enabled:              record.Enabled,
-		CredentialConfigured: record.HasCredential,
-		CreatedAt:            record.CreatedAt,
-		UpdatedAt:            record.UpdatedAt,
-	}
-}
-
 // Create handles POST /api/providers.
 func (a *ProviderAdmin) Create() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -116,12 +76,13 @@ func (a *ProviderAdmin) Create() http.Handler {
 		}
 
 		record, err := a.service.Create(r.Context(), providers.CreateInput{
-			ID:         request.ID,
-			Name:       request.Name,
-			Type:       request.Type,
-			Endpoint:   request.Endpoint,
-			Credential: request.Credential,
-			Enabled:    enabled,
+			ID:                   request.ID,
+			Name:                 request.Name,
+			Type:                 request.Type,
+			Endpoint:             request.Endpoint,
+			Credential:           request.Credential,
+			ManagementCredential: request.ManagementCredential,
+			Enabled:              enabled,
 		})
 		if err != nil {
 			a.writeError(w, err)
@@ -175,9 +136,10 @@ func (a *ProviderAdmin) Update() http.Handler {
 		}
 
 		record, err := a.service.Update(r.Context(), r.PathValue("id"), providers.UpdateInput{
-			Name:       request.Name,
-			Endpoint:   request.Endpoint,
-			Credential: request.Credential,
+			Name:                 request.Name,
+			Endpoint:             request.Endpoint,
+			Credential:           request.Credential,
+			ManagementCredential: request.ManagementCredential,
 		})
 		if err != nil {
 			a.writeError(w, err)

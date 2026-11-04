@@ -16,34 +16,37 @@ var (
 // independent of the adapter type: several records may share a type (C2+).
 // It never carries the credential, only whether one is stored.
 type Record struct {
-	ID            string
-	Name          string
-	Type          string
-	Endpoint      string
-	Enabled       bool
-	HasCredential bool
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID                      string
+	Name                    string
+	Type                    string
+	Endpoint                string
+	Enabled                 bool
+	HasCredential           bool
+	HasManagementCredential bool
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 // NewRecord is the data needed to create a configuration. Credential holds
 // the sealed ciphertext; nil means no credential is stored yet.
 type NewRecord struct {
-	ID         string
-	Name       string
-	Type       string
-	Endpoint   string
-	Enabled    bool
-	Credential []byte
+	ID                   string
+	Name                 string
+	Type                 string
+	Endpoint             string
+	Enabled              bool
+	Credential           []byte
+	ManagementCredential []byte
 }
 
 // Changes carries the optional fields of an update. A nil field is unchanged.
 // Credential holds the sealed ciphertext so that every change is written in a
 // single statement.
 type Changes struct {
-	Name       *string
-	Endpoint   *string
-	Credential []byte
+	Name                 *string
+	Endpoint             *string
+	Credential           []byte
+	ManagementCredential []byte
 }
 
 // Repository persists provider configurations. Implementations live outside
@@ -62,4 +65,6 @@ type Repository interface {
 	SetEnabled(ctx context.Context, id string, enabled bool) (Record, error)
 	// SealedCredential returns the stored ciphertext, or nil when none exists.
 	SealedCredential(ctx context.Context, id string) ([]byte, error)
+	// SealedManagementCredential returns the separately protected administrative credential.
+	SealedManagementCredential(ctx context.Context, id string) ([]byte, error)
 }

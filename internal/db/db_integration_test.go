@@ -27,12 +27,12 @@ func TestMigrationsApplyOnceAndAreIdempotentIntegration(t *testing.T) {
 		t.Fatalf("first Migrate: %v", err)
 	}
 
-	if firstVersion != 5 {
-		t.Fatalf("schema_version after first run = %d, want 5", firstVersion)
+	if firstVersion != 8 {
+		t.Fatalf("schema_version after first run = %d, want 8", firstVersion)
 	}
 
-	if len(firstApplied) != 5 || firstApplied[0] != 1 || firstApplied[1] != 2 || firstApplied[2] != 3 || firstApplied[3] != 4 || firstApplied[4] != 5 {
-		t.Fatalf("applied versions = %v, want exactly [1 2 3 4 5]", firstApplied)
+	if len(firstApplied) != 8 || firstApplied[0] != 1 || firstApplied[1] != 2 || firstApplied[2] != 3 || firstApplied[3] != 4 || firstApplied[4] != 5 || firstApplied[5] != 6 || firstApplied[6] != 7 || firstApplied[7] != 8 {
+		t.Fatalf("applied versions = %v, want exactly [1 2 3 4 5 6 7 8]", firstApplied)
 	}
 
 	secondApplied, secondVersion, err := db.Migrate(ctx, pool)
@@ -40,8 +40,8 @@ func TestMigrationsApplyOnceAndAreIdempotentIntegration(t *testing.T) {
 		t.Fatalf("second Migrate: %v", err)
 	}
 
-	if secondVersion != 5 {
-		t.Fatalf("schema_version after second run = %d, want 5", secondVersion)
+	if secondVersion != 8 {
+		t.Fatalf("schema_version after second run = %d, want 8", secondVersion)
 	}
 
 	if len(secondApplied) != 0 {
@@ -59,7 +59,7 @@ func TestMigrateRejectsForeignBookkeepingVersionsIntegration(t *testing.T) {
 		t.Fatalf("prepare: %v", err)
 	}
 
-	if _, err := pool.Exec(ctx, "INSERT INTO schema_migrations (version, name) VALUES (7, 'foreign')"); err != nil {
+	if _, err := pool.Exec(ctx, "INSERT INTO schema_migrations (version, name) VALUES (99, 'foreign')"); err != nil {
 		t.Fatalf("insert foreign version: %v", err)
 	}
 

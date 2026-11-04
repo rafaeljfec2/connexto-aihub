@@ -70,7 +70,8 @@ export function GenerationsTable({
               <th scope="col">App</th>
               <th scope="col" className="text-right">Input</th>
               <th scope="col" className="text-right">Output</th>
-              <th scope="col">Provider cost</th>
+              <th scope="col">Reported cost</th>
+              <th scope="col">List cost</th>
               <th scope="col">Usage</th>
               <th scope="col">Speed</th>
               <th scope="col">Routing overhead</th>
@@ -106,8 +107,11 @@ export function GenerationsTable({
                   <td className="generation-muted">Not reported</td>
                   <td className="text-right font-mono">{formatGenerationTokens(generation.usage.input_tokens)}</td>
                   <td className="text-right font-mono">{formatGenerationTokens(generation.usage.output_tokens)}</td>
-                  <td className="generation-cost" title="Provider-reported cost">
+                  <td className="generation-cost" title="OpenCode usage.cost (charged amount reported by provider)">
                     {formatProviderReportedCost(generation.usage.provider_reported_cost, generation.usage.currency)}
+                  </td>
+                  <td className="generation-cost" title="OpenCode usage.opencode.list_cost (list price)">
+                    {formatProviderReportedCost(generation.usage.provider_list_cost, generation.usage.currency)}
                   </td>
                   <td>{formatGenerationStatus(generation.usage.status)}</td>
                   <td className="font-mono">{formatGenerationThroughput(generation)}</td>

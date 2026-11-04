@@ -87,6 +87,14 @@ func TestNormalizeOpenCodeNullAndAbsentTokensRemainUnknown(t *testing.T) {
 	}
 }
 
+func TestNormalizeOpenCodeListCostFromOpenCodeMetadata(t *testing.T) {
+	event := []byte(`{"usage":{"input_tokens":36,"output_tokens":19,"total_tokens":55,"cost":0,"opencode":{"list_cost":0.0000168,"tokens":{"cache_read":0}}}}`)
+	record := metering.NormalizeExecutionUsage(providers.OpenCodeGoID, capture.Result{FinalEventData: event})
+	if !record.ProviderReportedCost.Valid || !record.ProviderListCost.Valid {
+		t.Fatalf("reported cost = %+v list cost = %+v", record.ProviderReportedCost, record.ProviderListCost)
+	}
+}
+
 func TestNormalizeOpenRouterCachedTokensAndMissingCurrency(t *testing.T) {
 	event := []byte(`{"type":"response.done","response":{"usage":{"input_tokens":12,"output_tokens":45,"total_tokens":57,"cached_input_tokens":3,"cost":0}}}`)
 	record := metering.NormalizeExecutionUsage(providers.OpenRouterID, capture.Result{FinalEventData: event})

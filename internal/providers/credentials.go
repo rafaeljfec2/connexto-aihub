@@ -45,24 +45,42 @@ func NewCredentialCipher(key []byte) (*CredentialCipher, error) {
 
 // Seal encrypts a credential for one provider. The output is nonce||ciphertext.
 func (c *CredentialCipher) Seal(providerID, credential string) ([]byte, error) {
+	return c.seal(providerID, credential)
+}
+
+// SealManagement protects an administrative provider credential in a distinct cryptographic context.
+func (c *CredentialCipher) SealManagement(providerID, credential string) ([]byte, error) {
+	return c.seal(providerID+"\x00management", credential)
+}
+
+func (c *CredentialCipher) seal(contextID, credential string) ([]byte, error) {
 	nonce := make([]byte, c.aead.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, fmt.Errorf("generate credential nonce: %w", err)
 	}
 
-	sealed := c.aead.Seal(nonce, nonce, []byte(credential), []byte(providerID))
+	sealed := c.aead.Seal(nonce, nonce, []byte(credential), []byte(contextID))
 
 	return sealed, nil
 }
 
 // Open decrypts a credential previously sealed for the same provider.
 func (c *CredentialCipher) Open(providerID string, sealed []byte) (string, error) {
+	return c.open(providerID, sealed)
+}
+
+// OpenManagement opens an administrative credential only in its own cryptographic context.
+func (c *CredentialCipher) OpenManagement(providerID string, sealed []byte) (string, error) {
+	return c.open(providerID+"\x00management", sealed)
+}
+
+func (c *CredentialCipher) open(contextID string, sealed []byte) (string, error) {
 	nonceSize := c.aead.NonceSize()
 	if len(sealed) < nonceSize+c.aead.Overhead() {
 		return "", ErrCredentialUnreadable
 	}
 
-	plaintext, err := c.aead.Open(nil, sealed[:nonceSize], sealed[nonceSize:], []byte(providerID))
+	plaintext, err := c.aead.Open(nil, sealed[:nonceSize], sealed[nonceSize:], []byte(contextID))
 	if err != nil {
 		return "", ErrCredentialUnreadable
 	}

@@ -7,6 +7,7 @@ import { OverviewRecentExecutionsPanel } from '../components/OverviewRecentExecu
 import { OverviewStatCards } from '../components/OverviewStatCards'
 import { OverviewTrafficChartPanel } from '../components/OverviewTrafficChartPanel'
 import { useOverviewQueries } from '../hooks/useOverviewQueries'
+import '../overviewResponsive.css'
 
 export function OverviewPage() {
   const meta = useAppPageMeta()
@@ -34,7 +35,7 @@ export function OverviewPage() {
   const executionsList = recentExecutions.data?.records ?? []
   const quotasList = quotaUtilization.data?.quota_utilization ?? []
 
-  const isRefreshing = health.isFetching || readiness.isFetching || trafficSummary.isFetching
+  const isRefreshing = health.isFetching || readiness.isFetching || trafficSummary.isFetching || providerQuotas.isFetching
   const dataOrigin = runtimeMeta.data?.data_origin ?? 'live'
   const versionString = runtimeMeta.data?.version ?? 'PREVIEW 01'
 
@@ -93,6 +94,7 @@ export function OverviewPage() {
           <OverviewProvidersPanel
             snapshots={providerQuotas.data?.snapshots ?? []}
             isLoading={providerQuotas.isLoading}
+            isError={providerQuotas.isError}
           />
         </div>
 

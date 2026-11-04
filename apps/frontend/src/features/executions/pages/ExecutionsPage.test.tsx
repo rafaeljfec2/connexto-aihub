@@ -24,6 +24,7 @@ const generation = {
     input_tokens: 0,
     output_tokens: 7,
     provider_reported_cost: '0.000000000000',
+    provider_list_cost: '0.000016800000',
     currency: 'USD',
   },
   telemetry: {

@@ -79,6 +79,35 @@ type readErrorBody struct {
 func (b *readErrorBody) Read([]byte) (int, error) { return 0, errors.New("upstream read failed") }
 func (b *readErrorBody) Close() error             { b.closed++; return nil }
 
+func TestStreamRecordsTimeToFirstTokenOnFirstChunk(t *testing.T) {
+	manager := newTestManager(time.Second, func(context.Context, Target, []byte, string, string) (*http.Response, error) {
+		return responseFor(io.NopCloser(strings.NewReader("token")), http.StatusOK), nil
+	})
+	result, err := manager.Execute(context.Background(), validCommand(), &sinkProbe{})
+	if err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+	if result.Outcome != OutcomeCompleted {
+		t.Fatalf("result = %+v, want completed", result)
+	}
+	if result.TimeToFirstTokenNS == nil || *result.TimeToFirstTokenNS < 0 {
+		t.Fatalf("time_to_first_token_ns = %v, want observed latency", result.TimeToFirstTokenNS)
+	}
+	var firstOutput *TelemetryEvent
+	for index := range result.TelemetryEvents {
+		if result.TelemetryEvents[index].Kind == EventFirstOutput {
+			firstOutput = &result.TelemetryEvents[index]
+			break
+		}
+	}
+	if firstOutput == nil || firstOutput.DurationNS == nil {
+		t.Fatal("missing first_output telemetry event")
+	}
+	if *firstOutput.DurationNS != *result.TimeToFirstTokenNS {
+		t.Fatalf("first_output duration = %d, time_to_first_token_ns = %d", *firstOutput.DurationNS, *result.TimeToFirstTokenNS)
+	}
+}
+
 func TestCompletedEmptyResponseRetainsUpstreamStatus(t *testing.T) {
 	manager := newTestManager(time.Second, func(context.Context, Target, []byte, string, string) (*http.Response, error) {
 		return responseFor(io.NopCloser(strings.NewReader("")), http.StatusNoContent), nil

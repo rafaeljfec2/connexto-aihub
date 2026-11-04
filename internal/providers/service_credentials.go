@@ -16,11 +16,36 @@ func (s *Service) credentialOf(ctx context.Context, record Record) (string, erro
 	return s.cipher.Open(record.ID, sealed)
 }
 
+func (s *Service) managementCredentialOf(ctx context.Context, record Record) (string, error) {
+	sealed, err := s.repo.SealedManagementCredential(ctx, record.ID)
+	if err != nil {
+		return "", err
+	}
+	if sealed == nil {
+		return "", nil
+	}
+	return s.cipher.OpenManagement(record.ID, sealed)
+}
+
 func (s *Service) sealOptional(id, credential string) ([]byte, error) {
 	if credential == "" {
 		return nil, nil
 	}
 	return s.seal(id, credential)
+}
+
+func (s *Service) sealManagementOptional(id, credential string) ([]byte, error) {
+	if credential == "" {
+		return nil, nil
+	}
+	return s.sealManagement(id, credential)
+}
+
+func (s *Service) sealManagement(id, credential string) ([]byte, error) {
+	if err := validateCredential(credential); err != nil {
+		return nil, err
+	}
+	return s.cipher.SealManagement(id, strings.TrimSpace(credential))
 }
 
 func (s *Service) seal(id, credential string) ([]byte, error) {

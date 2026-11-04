@@ -75,6 +75,7 @@ func (e *execution) observeFirstOutput(observedAt time.Time) {
 	}
 	e.firstOutputAt = observedAt
 	firstOutputLatency := durationValue(observedAt.Sub(e.dispatchedAt))
+	e.timeToFirstTokenNS = firstOutputLatency
 	e.addTelemetryEvent(TelemetryEvent{
 		Kind:       EventFirstOutput,
 		ObservedAt: observedAt.UTC(),

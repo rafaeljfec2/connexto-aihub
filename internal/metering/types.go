@@ -38,6 +38,7 @@ type Record struct {
 	TotalTokens          *int64
 	CachedInputTokens    *int64
 	ProviderReportedCost pgtype.Numeric
+	ProviderListCost     pgtype.Numeric
 	Currency             string
 	Status               Status
 	Source               Source
