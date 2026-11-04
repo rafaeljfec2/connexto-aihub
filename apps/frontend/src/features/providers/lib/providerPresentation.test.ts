@@ -14,7 +14,7 @@ const base: AdminProvider = {
 }
 
 describe('providerSituation', () => {
-  it('marks enabled providers without quota as sem leitura', () => {
+  it('marks enabled providers without considering quota as sem leitura', () => {
     expect(providerSituation(base)).toEqual({ state: 'na', label: 'Sem leitura' })
   })
 
@@ -22,6 +22,13 @@ describe('providerSituation', () => {
     expect(providerSituation({ ...base, enabled: false })).toEqual({
       state: 'off',
       label: 'Desabilitado',
+    })
+  })
+
+  it('marks providers pending credential', () => {
+    expect(providerSituation({ ...base, credential_configured: false })).toEqual({
+      state: 'warn',
+      label: 'Pendente',
     })
   })
 })

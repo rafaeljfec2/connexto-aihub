@@ -8,6 +8,7 @@ import { ProviderDetailPanel } from '../components/ProviderDetailPanel'
 import { ProviderGovernanceMetrics } from '../components/ProviderGovernanceMetrics'
 import { ProviderManageDrawer } from '../components/ProviderManageDrawer'
 import { ProviderQuotaTable } from '../components/ProviderQuotaTable'
+import { primaryQuotaSnapshot } from '../lib/quotaPresentation'
 import type { AdminProvider } from '../types'
 
 export function ProvidersPage() {
@@ -39,13 +40,7 @@ export function ProvidersPage() {
 
   const activeSnapshot = useMemo(() => {
     if (!activeSelected) return undefined
-    const matches = snapshots.filter((snapshot) => snapshot.account_id === activeSelected.id)
-    return (
-      matches.find((snapshot) => snapshot.scope === 'subscription') ??
-      matches.find((snapshot) => snapshot.scope === 'account') ??
-      matches.find((snapshot) => snapshot.scope === 'api_key') ??
-      matches[0]
-    )
+    return primaryQuotaSnapshot(activeSelected.id, snapshots)
   }, [activeSelected, snapshots])
 
   const isRefreshing = providersQuery.isFetching || quotasQuery.isFetching
@@ -84,7 +79,7 @@ export function ProvidersPage() {
         </div>
       </header>
 
-      <ProviderGovernanceMetrics providers={providers} />
+      <ProviderGovernanceMetrics providers={providers} snapshots={snapshots} />
 
       <div className="providers-layout">
         <ProviderQuotaTable

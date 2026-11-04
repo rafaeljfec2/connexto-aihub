@@ -1,13 +1,17 @@
+import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
+import { countGovernanceMetrics } from '../lib/quotaPresentation'
 import type { AdminProvider } from '../types'
-import { countProvidersWithoutQuotaReading } from '../lib/providerPresentation'
 
 type ProviderGovernanceMetricsProps = {
   providers: AdminProvider[]
+  snapshots: ProviderQuotaSnapshot[]
 }
 
-export function ProviderGovernanceMetrics({ providers }: ProviderGovernanceMetricsProps) {
-  const monitored = providers.length
-  const withoutQuotaReading = countProvidersWithoutQuotaReading(providers)
+export function ProviderGovernanceMetrics({
+  providers,
+  snapshots,
+}: ProviderGovernanceMetricsProps) {
+  const metrics = countGovernanceMetrics(providers, snapshots)
 
   return (
     <div className="providers-metrics">
@@ -16,28 +20,28 @@ export function ProviderGovernanceMetrics({ providers }: ProviderGovernanceMetri
           <span>Provedores monitorados</span>
           <small>Conexões cadastradas no gateway</small>
         </div>
-        <strong>{String(monitored).padStart(2, '0')}</strong>
+        <strong>{String(metrics.monitored).padStart(2, '0')}</strong>
       </div>
       <div className="providers-metric">
         <div>
           <span>Próximos do limite</span>
-          <small>Acima de 80% de uso</small>
+          <small>Sinal oficial do provedor</small>
         </div>
-        <strong className="text-[#D9B87E]">00</strong>
+        <strong className="text-[#D9B87E]">{String(metrics.nearLimit).padStart(2, '0')}</strong>
       </div>
       <div className="providers-metric">
         <div>
           <span>Limite atingido</span>
           <small>Requer atenção imediata</small>
         </div>
-        <strong>00</strong>
+        <strong>{String(metrics.atLimit).padStart(2, '0')}</strong>
       </div>
       <div className="providers-metric">
         <div>
           <span>Sem leitura de franquia</span>
           <small>Monitoramento não disponível na API</small>
         </div>
-        <strong>{String(withoutQuotaReading).padStart(2, '0')}</strong>
+        <strong>{String(metrics.withoutReading).padStart(2, '0')}</strong>
       </div>
     </div>
   )

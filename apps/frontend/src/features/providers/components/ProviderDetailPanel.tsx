@@ -4,29 +4,24 @@ import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
   providerConnectionSubtitle,
   providerInitials,
-  providerSituation,
 } from '../lib/providerPresentation'
+import {
+  availableBalanceDisplay,
+  consumptionCell,
+  formatQuotaResetAt,
+  formatQuotaSourceName,
+  formatQuotaUpdatedAt,
+  franchiseSummary,
+  primaryGoPercent,
+  primaryGoPeriodLabel,
+  providerQuotaSituation,
+} from '../lib/quotaPresentation'
 import type { AdminProvider } from '../types'
 
 type ProviderDetailPanelProps = {
   provider: AdminProvider | null
   snapshot?: ProviderQuotaSnapshot
   onOpenManage: (provider: AdminProvider) => void
-}
-
-function primaryGoPercent(snapshot: ProviderQuotaSnapshot | undefined): number | undefined {
-  return snapshot?.quotas.find((metric) => metric.metric === 'go_rolling')?.consumed_percent
-}
-
-function resetLabel(snapshot: ProviderQuotaSnapshot | undefined): string {
-  const rolling = snapshot?.quotas.find((metric) => metric.metric === 'go_rolling')
-  return rolling?.resets_at ?? 'Não informado'
-}
-
-function sourceLabel(snapshot: ProviderQuotaSnapshot | undefined): string {
-  if (!snapshot) return 'Sem leitura na API'
-  if (snapshot.status !== 'available') return snapshot.error?.message ?? 'Sem leitura na API'
-  return snapshot.source.name
 }
 
 export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: ProviderDetailPanelProps) {
@@ -44,17 +39,19 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
     )
   }
 
-  const situation = providerSituation(provider)
-  const updatedAt = snapshot?.source.fetched_at
-    ? new Date(snapshot.source.fetched_at).toLocaleString('pt-BR')
-    : provider.updated_at
-      ? new Date(provider.updated_at).toLocaleString('pt-BR')
-      : '—'
+  const situation = providerQuotaSituation(provider, snapshot)
+  const updatedAt = formatQuotaUpdatedAt(snapshot, provider.updated_at)
   const percent = primaryGoPercent(snapshot)
-  const available =
-    snapshot?.status === 'available' && percent != null
-      ? `${percent.toLocaleString('pt-BR')}% (provedor)`
-      : '—'
+  const goPeriod = primaryGoPeriodLabel(snapshot)
+  const consumption = consumptionCell(snapshot)
+  const franchise = franchiseSummary(snapshot)
+  const balance = availableBalanceDisplay(snapshot)
+  const primaryReading =
+    percent != null
+      ? `${percent.toLocaleString('pt-BR')}% (${goPeriod ?? 'provedor'})`
+      : consumption.kind === 'usage'
+        ? consumption.primary
+        : '—'
 
   return (
     <Panel className="providers-panel min-w-0">
@@ -78,36 +75,54 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
         <div className="providers-quota-box" data-testid={`providers-detail-quota-${provider.id}`}>
           <div className="providers-quota-box-label">CONSUMO DA FRANQUIA</div>
           <div className="providers-quota-box-main">
-            <strong>{percent != null ? `${percent.toLocaleString('pt-BR')}%` : 'Sem leitura'}</strong>
+            <strong>
+              {percent != null
+                ? `${percent.toLocaleString('pt-BR')}%`
+                : consumption.kind === 'usage'
+                  ? consumption.primary
+                  : 'Sem leitura'}
+            </strong>
             <span>utilizado</span>
           </div>
-          <div className="providers-large-track">
-            <div
-              className="h-full rounded-full bg-[#5E6B7C]"
-              style={{ width: percent != null ? `${Math.min(percent, 100)}%` : '0%' }}
-            />
-          </div>
+          {percent != null ? (
+            <div className="providers-large-track">
+              <div
+                className="h-full rounded-full bg-[#5E6B7C]"
+                style={{ width: `${Math.min(percent, 100)}%` }}
+              />
+            </div>
+          ) : null}
           <div className="providers-quota-foot">
             <span>
               Consumo:{' '}
-              {percent != null ? `${percent.toLocaleString('pt-BR')}% (rolling)` : 'não reportado'}
+              {percent != null
+                ? `${percent.toLocaleString('pt-BR')}% (${goPeriod ?? 'provedor'})`
+                : consumption.kind === 'usage'
+                  ? franchise.value
+                  : 'não reportado'}
             </span>
-            <span>Limite: percentual do provedor</span>
+            <span>
+              {percent != null
+                ? 'Limite: percentual do provedor'
+                : balance !== '—'
+                  ? `Disponível: ${balance}`
+                  : 'Limite: leitura oficial'}
+            </span>
           </div>
         </div>
 
         <div className="mt-1">
           <div className="providers-detail-row">
             <span>Leitura principal</span>
-            <strong>{available}</strong>
+            <strong>{primaryReading}</strong>
           </div>
           <div className="providers-detail-row">
             <span>Renovação / reset</span>
-            <strong>{resetLabel(snapshot)}</strong>
+            <strong>{formatQuotaResetAt(snapshot)}</strong>
           </div>
           <div className="providers-detail-row">
             <span>Fonte da medição</span>
-            <strong>{sourceLabel(snapshot)}</strong>
+            <strong>{formatQuotaSourceName(snapshot)}</strong>
           </div>
           <div className="providers-detail-row">
             <span>Última atualização</span>

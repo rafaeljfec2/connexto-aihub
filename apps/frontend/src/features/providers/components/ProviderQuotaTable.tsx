@@ -5,8 +5,14 @@ import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
   providerConnectionSubtitle,
   providerInitials,
-  providerSituation,
 } from '../lib/providerPresentation'
+import {
+  availableBalanceDisplay,
+  consumptionCell,
+  franchiseSummary,
+  primaryQuotaSnapshot,
+  providerQuotaSituation,
+} from '../lib/quotaPresentation'
 import type { AdminProvider } from '../types'
 
 type ProviderQuotaTableProps = {
@@ -15,43 +21,6 @@ type ProviderQuotaTableProps = {
   selectedId: string | null
   onSelect: (provider: AdminProvider) => void
   isLoading?: boolean
-}
-
-function primarySnapshot(
-  providerId: string,
-  snapshots: ProviderQuotaSnapshot[],
-): ProviderQuotaSnapshot | undefined {
-  const matches = snapshots.filter((snapshot) => snapshot.account_id === providerId)
-  return (
-    matches.find((snapshot) => snapshot.scope === 'subscription') ??
-    matches.find((snapshot) => snapshot.scope === 'account') ??
-    matches.find((snapshot) => snapshot.scope === 'api_key') ??
-    matches[0]
-  )
-}
-
-function franchiseTitle(snapshot: ProviderQuotaSnapshot | undefined): { title: string; value: string } {
-  if (!snapshot || snapshot.status !== 'available') {
-    return { title: 'Não monitorada', value: snapshot?.error?.message ?? 'Sem fonte de quota configurada' }
-  }
-  const rolling = snapshot.quotas.find((metric) => metric.metric === 'go_rolling')
-  if (rolling?.consumed_percent != null) {
-    return {
-      title: 'Franquia Go (rolling)',
-      value: `${rolling.consumed_percent.toLocaleString('pt-BR')}% reportado pelo provedor`,
-    }
-  }
-  const usage = snapshot.quotas.find((metric) => metric.metric === 'total_usage' || metric.metric === 'usage')
-  if (usage?.used != null) {
-    return { title: 'Leitura oficial', value: `Uso reportado: ${usage.used}` }
-  }
-  return { title: 'Leitura oficial', value: `${snapshot.quotas.length} métrica(s) do provedor` }
-}
-
-function consumedPercent(snapshot: ProviderQuotaSnapshot | undefined): number | undefined {
-  if (!snapshot || snapshot.status !== 'available') return undefined
-  const rolling = snapshot.quotas.find((metric) => metric.metric === 'go_rolling')
-  return rolling?.consumed_percent
 }
 
 export function ProviderQuotaTable({
@@ -116,10 +85,11 @@ export function ProviderQuotaTable({
             <tbody>
               {pagination.pageItems.map((provider) => {
                 const isSelected = provider.id === selectedId
-                const situation = providerSituation(provider)
-                const snapshot = primarySnapshot(provider.id, snapshots)
-                const franchise = franchiseTitle(snapshot)
-                const percent = consumedPercent(snapshot)
+                const snapshot = primaryQuotaSnapshot(provider.id, snapshots)
+                const situation = providerQuotaSituation(provider, snapshot)
+                const franchise = franchiseSummary(snapshot)
+                const consumption = consumptionCell(snapshot)
+                const available = availableBalanceDisplay(snapshot)
 
                 return (
                   <tr
@@ -148,19 +118,35 @@ export function ProviderQuotaTable({
                       <div className="providers-quota-value">{franchise.value}</div>
                     </td>
                     <td>
-                      <div>
-                        <div className="providers-progress-head">
-                          <span>{percent != null ? 'Percentual do provedor' : 'Sem dados'}</span>
-                          <span>{percent != null ? `${percent.toLocaleString('pt-BR')}%` : '—'}</span>
+                      {consumption.kind === 'percent' ? (
+                        <div>
+                          <div className="providers-progress-head">
+                            <span>{consumption.label}</span>
+                            <span>{`${consumption.percent.toLocaleString('pt-BR')}%`}</span>
+                          </div>
+                          <ProgressBar value={consumption.percent} max={100} />
                         </div>
-                        {percent != null ? (
-                          <ProgressBar value={percent} max={100} />
-                        ) : (
+                      ) : consumption.kind === 'usage' ? (
+                        <div>
+                          <div className="providers-progress-head">
+                            <span>{consumption.label}</span>
+                            <span>{consumption.primary}</span>
+                          </div>
+                          {consumption.secondary ? (
+                            <div className="providers-quota-value mt-0.5">{consumption.secondary}</div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="providers-progress-head">
+                            <span>{consumption.label}</span>
+                            <span>—</span>
+                          </div>
                           <ProgressBar value={0} max={100} variant="na" />
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </td>
-                    <td className="providers-remaining">—</td>
+                    <td className="providers-remaining">{available}</td>
                     <td>
                       <span className={`providers-state ${situation.state}`}>
                         <i aria-hidden />

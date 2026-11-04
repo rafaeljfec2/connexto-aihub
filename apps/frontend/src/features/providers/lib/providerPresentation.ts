@@ -20,6 +20,7 @@ export function providerConnectionSubtitle(provider: AdminProvider): string {
   return `${typeLabel}conectado`
 }
 
+/** Connection-only situation when no quota snapshot is considered. */
 export function providerSituation(provider: AdminProvider): {
   state: ProviderSituation
   label: string
@@ -31,8 +32,4 @@ export function providerSituation(provider: AdminProvider): {
     return { state: 'warn', label: 'Pendente' }
   }
   return { state: 'na', label: 'Sem leitura' }
-}
-
-export function countProvidersWithoutQuotaReading(providers: AdminProvider[]): number {
-  return providers.length
 }
