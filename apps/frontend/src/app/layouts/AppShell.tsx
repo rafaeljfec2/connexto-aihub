@@ -9,7 +9,7 @@ const SIDEBAR_COLLAPSED_KEY = 'connexto:sidebar-collapsed'
 
 function getInitialSidebarCollapsed(): boolean {
   if (typeof window === 'undefined') {
-    return true
+    return false
   }
   try {
     const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
@@ -19,8 +19,7 @@ function getInitialSidebarCollapsed(): boolean {
   } catch {
     // Ignore storage read errors in restricted contexts
   }
-  // Default to slim (collapsed = true) per user requirement
-  return true
+  return false
 }
 
 type AppShellProps = {
@@ -71,7 +70,7 @@ export function AppShell({ connectionState, onReconnect }: AppShellProps) {
           onOpenMobileNav={() => setMobileOpen(true)}
           onToggleSidebar={handleToggleCollapsed}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-6 lg:px-8 lg:py-7">
+        <main className="min-h-0 flex-1 overflow-y-auto scrollbar-slim px-4 py-6 lg:px-8 lg:py-7">
           <Outlet />
         </main>
       </div>

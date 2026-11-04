@@ -212,7 +212,7 @@ export function AppSidebar({
           aria-label="Primary navigation"
           aria-modal={mobileOpen ? true : undefined}
           className={cn(
-            'z-50 flex h-full flex-col overflow-y-auto border-r border-line bg-sidebar px-3.5 pb-4 pt-[22px] transition-[width,transform] duration-200',
+            'z-50 flex h-full flex-col overflow-y-auto scrollbar-slim border-r border-line bg-sidebar px-3.5 pb-4 pt-[22px] transition-[width,transform] duration-200',
             collapsed ? 'w-[72px]' : 'w-[224px]',
             'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',

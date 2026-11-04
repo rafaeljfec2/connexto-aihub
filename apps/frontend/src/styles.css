@@ -37,9 +37,87 @@
     height: 100%;
     overflow: hidden;
   }
+
+  /* Global slim scrollbar pattern — invisible when idle, smoothly revealed on interaction */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  *:hover,
+  *:focus-within {
+    scrollbar-color: rgb(120 150 232 / 0.3) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  *:hover::-webkit-scrollbar-thumb,
+  *:focus-within::-webkit-scrollbar-thumb {
+    background: rgb(120 150 232 / 0.28);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(120 150 232 / 0.55);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: rgb(120 150 232 / 0.8);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @layer components {
+  /* Explicit utility for slim auto-hiding scrollbar */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .scrollbar-slim:hover,
+  .scrollbar-slim:focus-within {
+    scrollbar-color: rgb(120 150 232 / 0.35) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  .scrollbar-slim:hover::-webkit-scrollbar-thumb,
+  .scrollbar-slim:focus-within::-webkit-scrollbar-thumb {
+    background: rgb(120 150 232 / 0.3);
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb:hover {
+    background: rgb(120 150 232 / 0.6);
+  }
+
   .page-lead {
     @apply text-secondary;
   }
