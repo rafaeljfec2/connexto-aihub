@@ -1,4 +1,7 @@
 import { fetchJson } from '../../../shared/api/client'
+import type { ProviderQuotasResponse } from '../types/quota'
+
+export * from '../types/quota'
 
 export type HealthReport = { status: string }
 
@@ -58,10 +61,15 @@ export async function getTrafficSummary(range = '24h'): Promise<TrafficSummary> 
   return fetchJson<TrafficSummary>(`/api/telemetry/traffic-summary?range=${encodeURIComponent(range)}`)
 }
 
+export async function getProviderQuotas(): Promise<ProviderQuotasResponse> {
+  return fetchJson<ProviderQuotasResponse>('/api/ui/providers/quotas')
+}
+
 export const overviewQueryKeys = {
   health: ['overview', 'health'] as const,
   readiness: ['overview', 'readiness'] as const,
   providerDiagnostics: ['overview', 'providerDiagnostics'] as const,
+  providerQuotas: ['overview', 'providerQuotas'] as const,
   runtimeMeta: ['overview', 'runtimeMeta'] as const,
   trafficSummary: (range: string) => ['overview', 'trafficSummary', range] as const,
 }

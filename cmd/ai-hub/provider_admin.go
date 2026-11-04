@@ -64,5 +64,6 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/validate", Handler: admin.Validate()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/enable", Handler: admin.Enable()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/disable", Handler: admin.Disable()},
+		{Method: http.MethodGet, Pattern: "/api/ui/providers/quotas", Handler: admin.Quotas()},
 	}
 }

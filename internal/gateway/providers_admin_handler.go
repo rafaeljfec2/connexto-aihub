@@ -31,10 +31,11 @@ const (
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
 // the configuration only; the credential is never returned, logged or echoed.
 type ProviderAdmin struct {
-	service  *providers.Service
-	logger   *slog.Logger
-	eventHub *operational.Hub
-	statuses func() []providers.Status
+	service      *providers.Service
+	logger       *slog.Logger
+	eventHub     *operational.Hub
+	statuses     func() []providers.Status
+	quotaService *providers.QuotaService
 }
 
 // NewProviderAdmin builds the administrative handlers.
@@ -46,6 +47,16 @@ func NewProviderAdmin(service *providers.Service, logger *slog.Logger) *Provider
 func (a *ProviderAdmin) BindOperationalEvents(hub *operational.Hub, statuses func() []providers.Status) {
 	a.eventHub = hub
 	a.statuses = statuses
+}
+
+// BindQuotaService attaches the quota query service to provider administration.
+func (a *ProviderAdmin) BindQuotaService(quotaService *providers.QuotaService) {
+	a.quotaService = quotaService
+}
+
+// Quotas handles GET /api/ui/providers/quotas.
+func (a *ProviderAdmin) Quotas() http.Handler {
+	return NewProviderQuotasHandler(a.quotaService, a.logger)
 }
 
 func (a *ProviderAdmin) notifyProviderStatus() {

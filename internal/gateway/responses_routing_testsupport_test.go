@@ -104,7 +104,7 @@ func newOpenCodeRoutingHandlerWithResources(
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, client)
 
-	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	now := time.Now()
 	descriptors := make([]providers.ModelDescriptor, 0, len(modelIDs))
 	for _, id := range modelIDs {
 		descriptors = append(descriptors, gatewayTestDescriptor(id))
@@ -150,7 +150,7 @@ func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoin
 	registry.Bind(providers.OpenCodeGoID, openCode)
 	registry.Bind(providers.OpenRouterID, openRouter)
 
-	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	now := time.Now()
 	catalogManager := gatewayTestCatalog(t, now, map[string]catalog.SourceFunc{
 		providers.OpenCodeGoID: func(context.Context) ([]providers.ModelDescriptor, error) {
 			return []providers.ModelDescriptor{gatewayTestDescriptor("opencode-default-model")}, nil

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   getHealth,
   getProviderDiagnostics,
+  getProviderQuotas,
   getReadiness,
   getRuntimeMeta,
   getTrafficSummary,
@@ -47,6 +48,13 @@ export function useOverviewQueries() {
     retry: 1,
   })
 
+  const providerQuotas = useQuery({
+    queryKey: overviewQueryKeys.providerQuotas,
+    queryFn: getProviderQuotas,
+    refetchInterval: false,
+    retry: 1,
+  })
+
   const quotaUtilization = useQuery({
     queryKey: ['resources', 'quota-utilization', 'overview'],
     queryFn: () => getQuotaUtilization({}),
@@ -76,6 +84,7 @@ export function useOverviewQueries() {
       health.refetch(),
       readiness.refetch(),
       providers.refetch(),
+      providerQuotas.refetch(),
       runtimeMeta.refetch(),
       trafficSummary.refetch(),
       quotaUtilization.refetch(),
@@ -88,6 +97,7 @@ export function useOverviewQueries() {
     health,
     readiness,
     providers,
+    providerQuotas,
     runtimeMeta,
     trafficSummary,
     quotaUtilization,

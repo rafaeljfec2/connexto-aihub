@@ -14,6 +14,7 @@ export function OverviewPage() {
     health,
     readiness,
     providers,
+    providerQuotas,
     runtimeMeta,
     trafficSummary,
     quotaUtilization,
@@ -90,9 +91,8 @@ export function OverviewPage() {
             isLoading={trafficSummary.isLoading}
           />
           <OverviewProvidersPanel
-            providers={providers.data?.providers ?? []}
-            quotas={quotasList}
-            isLoading={providers.isLoading}
+            snapshots={providerQuotas.data?.snapshots ?? []}
+            isLoading={providerQuotas.isLoading}
           />
         </div>
 
