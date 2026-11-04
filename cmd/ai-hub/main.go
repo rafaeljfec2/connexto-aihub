@@ -12,25 +12,15 @@ import (
 	"syscall"
 
 	"aihub/cmd/ai-hub/lifecycle"
-	"aihub/internal/analytics"
-	analyticspg "aihub/internal/analytics/pgstore"
 	"aihub/internal/app"
 	"aihub/internal/catalog"
-	"aihub/internal/concurrency"
-	concurrencypg "aihub/internal/concurrency/pgstore"
 	"aihub/internal/config"
-	"aihub/internal/db"
-	"aihub/internal/execution"
 	"aihub/internal/gateway"
 	"aihub/internal/health"
-	"aihub/internal/metering"
-	meteringpg "aihub/internal/metering/pgstore"
 	"aihub/internal/observability"
 	"aihub/internal/operational"
 	"aihub/internal/providers"
 	"aihub/internal/records"
-	"aihub/internal/resources"
-	resourcespg "aihub/internal/resources/pgstore"
 	"aihub/internal/server"
 	"aihub/internal/static"
 )
@@ -95,6 +85,10 @@ func run() error {
 	providerModule.SetStateChangeNotifier(func() {
 		gateway.PublishProviderStatus(eventHub, providerModule.Statuses)
 	})
+	catalogSources := map[string]catalog.SourceFunc{
+		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
+		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
+	}
 	recordsModule := records.New(records.Options{
 		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),
 		Logger:            logger,
@@ -104,78 +98,14 @@ func run() error {
 		SegmentBytes:      cfg.Records.SegmentBytes,
 		RetentionInterval: cfg.Records.RetentionInterval,
 	})
-	var executionManager *execution.Manager
-
-	var catalogStore catalog.SnapshotStore = catalog.NewStore(cfg.Catalog.DataDir, logger)
-
 	readiness := health.NewRegistry()
-
-	// Database module (ADR-020): present only in postgres persistence mode.
-	// It is declared between the providers and the catalog so startup
-	// migrates and pings before the catalog loads its snapshot, and shutdown
-	// closes the pool only after the catalog and records stop.
-	var databaseModule app.Module
-
-	var (
-		configModule       app.Module
-		providerAdmin      *gateway.ProviderAdmin
-		resourceAdmin      *gateway.ResourceAdmin
-		concurrencyAdmin   *gateway.ConcurrencyAdmin
-		analyticsAdmin     *gateway.AnalyticsAdmin
-		resourceAdmission  gateway.ResourceAdmitter
-		concurrencyGate    gateway.ConcurrencyGate
-		usageMetering      *metering.Service
-	)
-
-	if cfg.Catalog.Persistence == config.EnvCatalogPersistencePostgres {
-		pool, err := db.Open(db.Settings{
-			URL:            cfg.Database.URL,
-			MaxConns:       cfg.Database.MaxConns,
-			MinConns:       cfg.Database.MinConns,
-			ConnectTimeout: cfg.Database.ConnectTimeout,
-		})
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-
-		databaseModule = db.NewModule(pool, logger)
-		catalogStore = catalog.NewPostgresStore(pool, logger)
-
-		providerConfig, err := buildProviderConfiguration(cfg, pool, providerRegistry, logger)
-		if err != nil {
-			return err
-		}
-
-		configModule = providerConfig.module
-		providerAdmin = gateway.NewProviderAdmin(providerConfig.service, logger)
-		providerAdmin.BindOperationalEvents(eventHub, providerModule.Statuses)
-		resourceService := resources.NewService(resourcespg.New(pool))
-		resourceAdmission = resourceService
-		resourceAdmin = gateway.NewResourceAdmin(resourceService, logger)
-		concurrencyService := concurrency.NewService(concurrencypg.New(pool), concurrency.WithLogger(logger))
-		concurrencyGate = concurrencyService
-		concurrencyAdmin = gateway.NewConcurrencyAdmin(concurrencyService, logger)
-		analyticsService := analytics.NewService(analyticspg.New(pool))
-		analyticsAdmin = gateway.NewAnalyticsAdmin(analyticsService, resourceService, concurrencyService, logger)
-		usageMetering = metering.NewService(meteringpg.New(pool), metering.WithLogger(logger))
-		executionManager = execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
-			gateway.StreamInactivityTimeout, execution.WithObserver(concurrency.NewReleaseObserver(concurrencyService, recordsModule)))
-
-		if err := readiness.Register("database", db.PingCheck(pool, cfg.Database.ConnectTimeout)); err != nil {
-			return fmt.Errorf("register database readiness check: %w", err)
-		}
-
-		logger.Info("catalog persistence configured", "mode", config.EnvCatalogPersistencePostgres)
-	} else {
-		logger.Info("catalog persistence configured", "mode", config.EnvCatalogPersistenceFile)
-		executionManager = execution.NewMultiProviderManager(logger, openResponsesFromRegistry(providerRegistry),
-			gateway.StreamInactivityTimeout, execution.WithObserver(recordsModule))
+	runtime, err := buildPersistenceRuntime(cfg, logger, providerRegistry, providerModule, recordsModule,
+		readiness, eventHub, catalogSources)
+	if err != nil {
+		return err
 	}
 
-	catalogModule := catalog.NewManager(logger, providerModule.Statuses, map[string]catalog.SourceFunc{
-		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
-		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
-	}, catalogStore, catalog.Options{
+	catalogModule := catalog.NewManager(logger, providerModule.Statuses, catalogSources, runtime.catalogStore, catalog.Options{
 		StaleAfter:  cfg.Catalog.StaleAfter,
 		SyncTimeout: cfg.Catalog.SyncTimeout,
 	})
@@ -185,8 +115,11 @@ func run() error {
 		return fmt.Errorf("operator ui gate: %w", err)
 	}
 
-	router, err := buildGatewayRouter(cfg, logger, providerRegistry, providerModule, executionManager,
-		catalogModule, recordsModule, readiness, providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission, concurrencyGate, usageMetering, eventHub, operatorGate)
+	router, err := buildGatewayRouterWithGenerations(cfg, logger, providerRegistry, providerModule,
+		runtime.executionManager, catalogModule, recordsModule, runtime.generationService,
+		readiness, runtime.providerAdmin, runtime.resourceAdmin, runtime.concurrencyAdmin,
+		runtime.analyticsAdmin, runtime.resourceAdmission, runtime.concurrencyGate,
+		runtime.usageMetering, eventHub, operatorGate)
 	if err != nil {
 		return err
 	}
@@ -203,17 +136,18 @@ func run() error {
 	httpServer := server.New(cfg.Server, router, logger,
 		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),
 	)
-	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
-	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, executionManager)
+	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, runtime.executionManager, cfg.Server.ShutdownTimeout)
+	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, runtime.executionManager)
 
-	modules := make([]app.Module, 0, 6)
-	if databaseModule != nil {
-		modules = append(modules, databaseModule)
+	modules := make([]app.Module, 0, 7)
+	if runtime.databaseModule != nil {
+		modules = append(modules, runtime.databaseModule)
 	}
-	if configModule != nil {
-		modules = append(modules, configModule)
+	if runtime.configModule != nil {
+		modules = append(modules, runtime.configModule)
 	}
-	modules = append(modules, guardedProvider, catalogModule, recordsModule, serviceLifecycle)
+	modules = append(modules, guardedProvider, catalogModule, recordsModule,
+		runtime.generationService, serviceLifecycle)
 
 	application, err := app.New(logger, modules...)
 	if err != nil {

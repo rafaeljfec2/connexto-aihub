@@ -2,15 +2,14 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"aihub/internal/execution"
+	"aihub/internal/generations"
 	"aihub/internal/metering"
 	"aihub/internal/metering/capture"
 	"aihub/internal/observability"
@@ -20,11 +19,6 @@ import (
 
 // StreamInactivityTimeout bounds silence between streamed chunks.
 const StreamInactivityTimeout = 2 * time.Minute
-
-const (
-	// Keep captured identifiers within the execution-record model_id bound.
-	maxObservedModelIDBytes = 4096
-)
 
 // NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {
@@ -48,6 +42,16 @@ func NewResponsesHandlerWithRegistry(registry *providers.Registry, manager *exec
 	return &responsesHandler{registry: registry, manager: manager, logger: logger, inactivity: inactivity, routing: routingDeps, resources: resourceAdmission, concurrency: concurrencyGate, usage: usage}
 }
 
+// NewResponsesHandlerWithRegistryAndGenerations adds optional telemetry persistence to the shared manager.
+func NewResponsesHandlerWithRegistryAndGenerations(registry *providers.Registry, manager *execution.Manager, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting, resourceAdmission ResourceAdmitter, concurrencyGate ConcurrencyGate, usage *metering.Service, generationService *generations.Service) http.Handler {
+	handler := NewResponsesHandlerWithRegistry(registry, manager, logger, inactivity, routingDeps, resourceAdmission, concurrencyGate, usage)
+	responses, ok := handler.(*responsesHandler)
+	if ok {
+		responses.generations = generationService
+	}
+	return handler
+}
+
 type responsesHandler struct {
 	client      *providers.Client
 	registry    *providers.Registry
@@ -58,6 +62,7 @@ type responsesHandler struct {
 	resources   ResourceAdmitter
 	concurrency ConcurrencyGate
 	usage       *metering.Service
+	generations *generations.Service
 }
 
 func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -90,10 +95,13 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var routingDecision routing.RoutingDecision
 	pendingRoutingLog := false
+	var routingOverheadNS *int64
+	var routingSelectedAt time.Time
 	if h.routing != nil {
 		var target routing.Target
 		var prepared []byte
 		var routeErr error
+		routingStartedAt := time.Now()
 		target, prepared, routingDecision, routeErr = routeResponses(h.routing, h.registry, requestID, explicitProvider, payload)
 		logRoutingDecision := func(reachedExecution bool) {
 			routing.LogDecision(r.Context(), h.logger, routing.DecisionLogInput{
@@ -119,6 +127,9 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			logRoutingDecision(false)
 			return
 		}
+		elapsed := int64(time.Since(routingStartedAt))
+		routingOverheadNS = &elapsed
+		routingSelectedAt = time.Now().UTC()
 		pendingRoutingLog = true
 	} else {
 		providerID, err = requestedProviderID(r)
@@ -169,6 +180,8 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ModelID:    modelID,
 		},
 		ProviderSessionID: sessionID,
+		RoutingOverheadNS: routingOverheadNS,
+		RoutingSelectedAt: routingSelectedAt,
 		Payload:           executionPayload,
 		ContentType:       contentType,
 	}, responseWriter)
@@ -178,6 +191,15 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProviderID:  providerID,
 			ModelID:     modelID,
 			Capture:     streamTap.Finalize(responseWriter.contentType),
+		})
+	}
+	if h.generations != nil && err == nil {
+		h.generations.RecordBestEffort(r.Context(), generations.TelemetryInput{
+			ExecutionID: result.ExecutionID,
+			ProviderID:  providerID,
+			ModelID:     modelID,
+			SessionID:   sessionID,
+			Result:      result,
 		})
 	}
 	stopRenew()
@@ -210,37 +232,4 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if result.Outcome == execution.OutcomeFailed && result.Phase == execution.PhaseOpening {
 		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
 	}
-}
-
-func structuralRejectionFromRouteError(err error) string {
-	if err == nil {
-		return ""
-	}
-
-	var failure routingHTTPError
-	if !errors.As(err, &failure) {
-		return ""
-	}
-
-	if failure.typ != string(routing.StructuralInvalidRequest) && failure.typ != invalidRequestType {
-		return ""
-	}
-
-	return failure.typ
-}
-
-func requestedModelID(payload []byte) string {
-	var request struct {
-		Model *string `json:"model"`
-	}
-	if err := json.Unmarshal(payload, &request); err != nil || request.Model == nil {
-		return ""
-	}
-
-	modelID := *request.Model
-	if strings.TrimSpace(modelID) == "" || len(modelID) > maxObservedModelIDBytes {
-		return ""
-	}
-
-	return modelID
 }

@@ -1,8 +1,14 @@
 import { fetchJson } from '../../../shared/api/client'
-import type { CatalogFilter, CatalogModelsResponse, CatalogSyncResponse } from '../types'
+import type {
+  CatalogFilter,
+  CatalogModelsResponse,
+  CatalogProvidersResponse,
+  CatalogSyncResponse,
+} from '../types'
 
 export const catalogQueryKeys = {
   models: (filter: CatalogFilter) => ['catalog', 'models', filter] as const,
+  providers: ['catalog', 'providers'] as const,
 }
 
 function buildCatalogQuery(filter: CatalogFilter): string {
@@ -25,6 +31,10 @@ function buildCatalogQuery(filter: CatalogFilter): string {
 
 export async function listCatalogModels(filter: CatalogFilter): Promise<CatalogModelsResponse> {
   return fetchJson<CatalogModelsResponse>(buildCatalogQuery(filter))
+}
+
+export async function listCatalogProviders(): Promise<CatalogProvidersResponse> {
+  return fetchJson<CatalogProvidersResponse>('/v1/catalog/providers')
 }
 
 export async function syncCatalog(provider?: string): Promise<CatalogSyncResponse> {

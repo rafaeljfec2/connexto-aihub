@@ -8,8 +8,10 @@ import (
 
 func (e *execution) run(sink Sink) Result {
 	e.setState(stateOpening)
+	e.dispatchProvider()
 	response, openErr := e.manager.opener(e.ctx, e.command.Target, e.command.Payload,
 		e.command.ContentType, e.command.ProviderSessionID)
+	e.observeProviderResponse(response, time.Now())
 	if response != nil && response.Body != nil {
 		e.attachBody(response.Body)
 	}
@@ -90,6 +92,7 @@ func (e *execution) forward(sink Sink) {
 				e.requestCancellation(terminalEvent{outcome: OutcomeCanceled, phase: PhaseForwarding, cause: CauseClient})
 				return
 			}
+			e.observeFirstOutput(time.Now())
 			rearm(timer, e.manager.inactivity)
 		}
 	}

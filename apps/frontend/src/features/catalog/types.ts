@@ -26,6 +26,11 @@ export type CatalogModelsResponse = {
   meta: { count: number; generated_at: string }
 }
 
+export type CatalogProvidersResponse = {
+  object: string
+  data: Array<{ provider: string }>
+}
+
 export type CatalogSyncResponse = {
   providers: Array<{
     provider: string

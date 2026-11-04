@@ -1,6 +1,19 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('embedded production smoke', () => {
+  test('keeps sidebar unfocused on page load and reload', async ({ page }) => {
+    await page.goto('/executions')
+    const sidebar = page.locator('#app-sidebar')
+
+    await expect(sidebar).toBeVisible()
+    await expect(sidebar).not.toBeFocused()
+
+    await page.reload()
+
+    await expect(sidebar).toBeVisible()
+    await expect(sidebar).not.toBeFocused()
+  })
+
   test('boots SPA from Go origin and loads overview', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible({
@@ -11,9 +24,9 @@ test.describe('embedded production smoke', () => {
 
   test('navigates core operator routes', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('link', { name: /executions/i }).click()
+    await page.getByRole('link', { name: /executions|execuções/i }).click()
     await expect(page).toHaveURL(/\/executions/)
-    await page.getByRole('link', { name: /resources/i }).click()
+    await page.getByRole('link', { name: /resources|recursos/i }).click()
     await expect(page).toHaveURL(/\/resources/)
   })
 

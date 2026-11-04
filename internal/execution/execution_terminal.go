@@ -27,16 +27,34 @@ func (e *execution) finish() Result {
 		<-readerDone
 	}
 
+	finishedAt := time.Now()
 	e.mu.Lock()
 	e.state = event.finalState()
+	duration := finishedAt.Sub(e.started)
+	if !e.firstOutputAt.IsZero() {
+		e.outputStreamDurationNS = durationValue(finishedAt.Sub(e.firstOutputAt))
+	}
+	e.telemetryEvents = append(e.telemetryEvents, TelemetryEvent{
+		Kind:       EventGenerationFinished,
+		ObservedAt: finishedAt.UTC(),
+		ProviderID: e.command.Target.ProviderID,
+		ModelID:    e.command.Target.ModelID,
+		DurationNS: durationValue(duration),
+	})
 	result := Result{
-		ExecutionID:    e.id,
-		Outcome:        event.outcome,
-		Phase:          event.phase,
-		Cause:          event.cause,
-		UpstreamStatus: e.status,
-		Committed:      e.committed,
-		Duration:       time.Since(e.started),
+		ExecutionID:            e.id,
+		Outcome:                event.outcome,
+		Phase:                  event.phase,
+		Cause:                  event.cause,
+		UpstreamStatus:         e.status,
+		Committed:              e.committed,
+		Duration:               duration,
+		Streaming:              e.streaming,
+		RoutingOverheadNS:      e.routingOverheadNS,
+		ProviderLatencyNS:      e.providerLatencyNS,
+		TimeToFirstTokenNS:     e.timeToFirstTokenNS,
+		OutputStreamDurationNS: e.outputStreamDurationNS,
+		TelemetryEvents:        append([]TelemetryEvent(nil), e.telemetryEvents...),
 	}
 	e.mu.Unlock()
 	e.manager.logFinished(result, e.command)

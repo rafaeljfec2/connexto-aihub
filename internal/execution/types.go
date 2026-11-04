@@ -18,6 +18,8 @@ type Command struct {
 	ExecutionID       string
 	Target            Target
 	ProviderSessionID string
+	RoutingOverheadNS *int64
+	RoutingSelectedAt time.Time
 	Payload           []byte
 	ContentType       string
 }
@@ -54,13 +56,19 @@ const (
 
 // Result is published after the upstream body is closed and the reader joins.
 type Result struct {
-	ExecutionID    string
-	Outcome        Outcome
-	Phase          Phase
-	Cause          Cause
-	UpstreamStatus int
-	Committed      bool
-	Duration       time.Duration
+	ExecutionID            string
+	Outcome                Outcome
+	Phase                  Phase
+	Cause                  Cause
+	UpstreamStatus         int
+	Committed              bool
+	Duration               time.Duration
+	Streaming              *bool
+	RoutingOverheadNS      *int64
+	ProviderLatencyNS      *int64
+	TimeToFirstTokenNS     *int64
+	OutputStreamDurationNS *int64
+	TelemetryEvents        []TelemetryEvent
 }
 
 // FinishedExecution is the minimal immutable observation offered to consumers
