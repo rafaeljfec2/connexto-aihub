@@ -14,19 +14,39 @@ function metricLabel(scope: DataScope, metric: ProviderQuotaMetric): string {
   return metric.label
 }
 
-function rawValues(metric: ProviderQuotaMetric): string[] {
+function formatMetricValue(scope: DataScope, metric: ProviderQuotaMetric, value: number): string {
+  if (scope !== 'account' || metric.metric !== 'total_usage' || metric.unit !== 'USD') {
+    return formatQuotaValue(value, metric.unit)
+  }
+
+  const formatted = value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `US$ ${formatted}`
+}
+
+function rawValues(scope: DataScope, metric: ProviderQuotaMetric): string[] {
   const values: string[] = []
-  if (metric.used != null) values.push(`Usado ${formatQuotaValue(metric.used, metric.unit)}`)
+  if (metric.used != null) {
+    const value = formatMetricValue(scope, metric, metric.used)
+    values.push(scope === 'account' && metric.metric === 'total_usage' ? value : `Usado ${value}`)
+  }
   if (metric.limit != null) {
-    const valueLabel = metric.metric === 'total_credits' ? 'Total' : 'Limite'
-    values.push(`${valueLabel} ${formatQuotaValue(metric.limit, metric.unit)}`)
+    const value = formatMetricValue(scope, metric, metric.limit)
+    if (scope === 'account' && metric.metric === 'total_credits') {
+      values.push(value)
+    } else {
+      const valueLabel = metric.metric === 'total_credits' ? 'Total' : 'Limite'
+      values.push(`${valueLabel} ${value}`)
+    }
   }
   if (metric.remaining != null) values.push(`Restante ${formatQuotaValue(metric.remaining, metric.unit)}`)
   return values
 }
 
 export function OverviewQuotaMetricRow({ accountId, snapshotScope, metric }: OverviewQuotaMetricRowProps) {
-  const values = rawValues(metric)
+  const values = rawValues(snapshotScope, metric)
   const testId = `quota-metric-${accountId}-${snapshotScope}-${metric.metric}`
 
   return (

@@ -46,7 +46,9 @@ Correct any contract or presentation gaps found while establishing that proof.
    zero. The Overview shows one compact card per account. When an `account`
    snapshot exists, its raw summary is shown and the matching `api_key` section
    is omitted from that card; an `api_key`-only account keeps its summary. The
-   Overview may calculate available balance only from
+   Overview displays USD `total_usage` rounded to two decimal places while the
+   DTO retains the provider value and the available balance uses that precise
+   value. It may calculate available balance only from
    `total_credits - total_usage` in that same account snapshot, when both
    values are present and use USD. Missing fields do not produce a balance,
    zero remains a valid input, and values are never combined across accounts
@@ -84,7 +86,7 @@ between scopes or accounts.
 | Claim | Success type | Evidence path | Budget |
 | --- | --- | --- | --- |
 | Each provider route uses only its own credential and returns its own scope | test, oracle | Adapter and quota-service tests; authorized OpenRouter reads, if credentials are present | All quota fields, status classes, omitted and zero fields, and two accounts |
-| The UI displays provider values without changing raw values and derives only the approved account balance | test, manual | Component tests and browser rendering of live `/api/ui/providers/quotas` data | Zero, high-precision amount, account total credits and usage, balance, budget scope and reset timestamp |
+| The UI preserves precise DTO values, applies approved usage rounding, and derives only the account balance | test, manual | Component tests and browser rendering of live `/api/ui/providers/quotas` data | Zero, high-precision DTO amount, rounded account usage, total credits, balance, budget scope and reset timestamp |
 | Secrets and payloads do not leak | test, manual | API/admin response assertions, log capture, frontend network inspection | Both credentials and provider error bodies |
 | Refresh is explicit and non-periodic | test, manual | Hook inspection/tests and browser network timeline | Initial query plus one manual refresh |
 | Evidence is durable | command | AI Memory write followed by exact-page read | Session, sanitized data, tests, accounts, screenshots, limits |
@@ -205,10 +207,10 @@ to a clarification about the earlier no-derived-values constraint. For an
 available account snapshot, calculate only `total_credits - total_usage` when
 both values are explicitly present and both units are USD. The API-key `usage`
 value remains a separate key-scope reading and is never used in this
-calculation. Preserve both raw account values beside the calculated balance,
-render the balance with two decimal places, and omit it when either value is
-absent or the units differ. An explicit zero is present and remains valid.
-Never combine values across snapshots, scopes, or accounts.
+calculation. Preserve the raw account values in the DTO, render the available
+balance with two decimal places, and omit it when either value is absent or
+the units differ. An explicit zero is present and remains valid. Never combine
+values across snapshots, scopes, or accounts.
 
 ### Overview display refinement — 2026-11-04
 
@@ -217,15 +219,21 @@ provider card when an `account` snapshot is present. Keep the API-key snapshot
 and its raw data in the response for fidelity, but do not render its section in
 that card. Continue rendering API-key summaries for accounts that do not have
 an account-scope snapshot. The account section continues to show raw purchased
-credits and total usage, plus the approved available-balance calculation.
+credits and total usage, plus the approved available-balance calculation. The
+left-side metric names identify credits and usage, so the redundant right-side
+`Total` and `Usado` captions are omitted.
+
+At the product owner's request, display account `total_usage` in USD rounded to
+two decimal places. Keep the full provider value in the DTO and use that
+unrounded value when calculating available balance.
 
 Follow-up validation completed on 2026-11-04:
 
-- Component tests verify the USD 10.00 purchased-credit value, USD 4.84186443
-  account usage, USD 5.16 available balance, explicit zero, missing-field
-  omission, unit mismatch omission, and independent calculations for two
-  account snapshots.
-- Frontend check passed: 41 test files and 108 tests. Production build passed;
+- Component tests verify the USD 10.00 purchased-credit value, raw USD
+  4.84186443 account usage displayed as USD 4.84, USD 5.16 available balance,
+  half-up rounding, explicit zero, missing-field omission, unit mismatch
+  omission, and independent calculations for two account snapshots.
+- Frontend check passed: 41 test files and 109 tests. Production build passed;
   Vite emitted existing dependency-comment and bundle-size warnings.
 - The independent senior code review returned `APPROVED_WITH_NOTES` with no
   critical or important findings. Its minor finding about sensitive field-name

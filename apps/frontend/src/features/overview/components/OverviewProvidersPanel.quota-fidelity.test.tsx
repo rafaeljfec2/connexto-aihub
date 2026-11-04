@@ -64,9 +64,14 @@ describe('OverviewProvidersPanel quota fidelity', () => {
     expect(screen.queryByTestId('quota-metric-openrouter-primary-api_key-usage')).toBeNull()
     expect(screen.queryByText('Chave API')).toBeNull()
     expect(screen.getByText('Créditos comprados')).toBeTruthy()
-    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_credits').textContent).toContain('Total US$ 10,00')
+    const creditsRow = screen.getByTestId('quota-metric-openrouter-primary-account-total_credits')
+    expect(creditsRow.textContent).toContain('US$ 10,00')
+    expect(creditsRow.textContent).not.toContain('Total ')
     expect(screen.getByText('Uso total da conta')).toBeTruthy()
-    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_usage').textContent).toContain('Usado US$ 4,84186443')
+    const usageRow = screen.getByTestId('quota-metric-openrouter-primary-account-total_usage')
+    expect(usageRow.textContent).toContain('US$ 4,84')
+    expect(usageRow.textContent).not.toContain('4,84186443')
+    expect(usageRow.textContent).not.toContain('Usado ')
     expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('Saldo disponível')
     expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('US$ 5,16')
     expect(screen.queryByTestId('quota-metric-openrouter-primary-api_key-free_model_daily_requests')).toBeNull()
@@ -105,8 +110,22 @@ describe('OverviewProvidersPanel quota fidelity', () => {
       ]),
     ])
 
-    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_usage').textContent).toContain('Usado US$ 0,00')
+    const usageRow = screen.getByTestId('quota-metric-openrouter-primary-account-total_usage')
+    expect(usageRow.textContent).toContain('US$ 0,00')
+    expect(usageRow.textContent).not.toContain('Usado ')
     expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('US$ 10,00')
+  })
+
+  it('rounds account usage for display while calculating balance from the precise value', () => {
+    renderPanel([
+      snapshot('account', [
+        { metric: 'total_credits', label: 'Total account credits', nature: 'quota', limit: 10, unit: 'USD' },
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 4.845, unit: 'USD' },
+      ]),
+    ])
+
+    expect(screen.getByTestId('quota-metric-openrouter-primary-account-total_usage').textContent).toContain('US$ 4,85')
+    expect(screen.getByTestId('quota-balance-openrouter-primary').textContent).toContain('US$ 5,16')
   })
 
   it('does not derive a balance from metrics with incompatible units', () => {

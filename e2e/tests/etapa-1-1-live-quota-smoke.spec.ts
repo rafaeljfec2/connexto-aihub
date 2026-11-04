@@ -50,11 +50,12 @@ function sensitiveKeys(value: unknown): string[] {
   ])
 }
 
-function formatProviderValue(value: number, unit?: string): string {
+function formatProviderValue(value: number, unit?: string, scope?: string, metricName?: string): string {
   const isCount = unit === 'requests'
+  const isAccountUsage = scope === 'account' && metricName === 'total_usage' && unit === 'USD'
   const formatted = value.toLocaleString('pt-BR', {
     minimumFractionDigits: isCount ? 0 : 2,
-    maximumFractionDigits: isCount ? 0 : 20,
+    maximumFractionDigits: isCount ? 0 : isAccountUsage ? 2 : 20,
   })
   return unit === 'USD' ? `US$ ${formatted}` : unit ? `${formatted} ${unit}` : formatted
 }
@@ -84,7 +85,7 @@ async function expectSnapshotMetricRendered(page: Page, snapshot: QuotaSnapshot,
     const value = metric?.[field]
     if (typeof value === 'number') {
       displayedFieldCount += 1
-      await expect(row).toContainText(formatProviderValue(value, metric?.unit))
+      await expect(row).toContainText(formatProviderValue(value, metric?.unit, snapshot.scope, metricName))
     }
   }
   expect(displayedFieldCount).toBeGreaterThan(0)
