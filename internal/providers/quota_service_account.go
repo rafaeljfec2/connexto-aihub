@@ -21,11 +21,25 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 			"unsupported", "Provedor não disponibiliza leitura oficial para esta conta")}
 	}
 
+	if record.Type == TypeOpenCodeGo {
+		return []ProviderQuotaSnapshot{s.queryOpenCodeSubscription(ctx, record, adapter)}
+	}
+
 	snapshots := []ProviderQuotaSnapshot{s.queryKeyScope(ctx, record, adapter)}
 	if accountAdapter, ok := adapter.(AccountQuotaAdapter); ok {
 		snapshots = append(snapshots, s.queryAccountScope(ctx, record, accountAdapter))
 	}
 	return snapshots
+}
+
+func (s *QuotaService) queryOpenCodeSubscription(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {
+	credential, err := s.adminService.credentialOf(ctx, record)
+	if err != nil {
+		s.logCredentialFailure(record, "inference", err)
+		return unavailableSnapshot(record, ScopeSubscription, openCodeQuotaSourceName, QuotaStatusError,
+			"credential_decrypt_failed", "Falha ao recuperar credencial da chave API")
+	}
+	return s.queryWithCredential(ctx, record, adapter.FetchQuota, credential, ScopeSubscription, openCodeQuotaSourceName)
 }
 
 func (s *QuotaService) queryKeyScope(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {

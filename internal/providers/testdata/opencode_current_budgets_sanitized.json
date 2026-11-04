@@ -1,0 +1,24 @@
+[
+  {
+    "id": "rule_sanitized_budget_1",
+    "limit": 20,
+    "spent": 15,
+    "scope": "each",
+    "per": "model",
+    "coverage": "models",
+    "models": [
+      {
+        "providerID": "opencode",
+        "modelID": "example-model",
+        "name": "Example Model",
+        "spent": 15
+      }
+    ],
+    "vendors": [
+      "OpenAI"
+    ],
+    "picked": false,
+    "shared": false,
+    "resetsAt": 1793491200000
+  }
+]

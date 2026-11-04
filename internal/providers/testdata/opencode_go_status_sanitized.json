@@ -1,0 +1,22 @@
+{
+  "product": "go-plus",
+  "renewalProduct": "go-plus",
+  "resumability": "renewing",
+  "access": {
+    "startsAt": "2026-11-01T19:00:43.000Z",
+    "endsAt": "2026-12-01T19:00:43.000Z",
+    "meters": {
+      "fiveHour": {
+        "startsAt": "2026-11-04T13:31:46.000Z",
+        "resetsAt": "2026-11-04T18:31:46.000Z"
+      },
+      "week": {
+        "startsAt": "2026-11-02T00:00:00.000Z",
+        "resetsAt": "2026-11-09T00:00:00.000Z"
+      },
+      "month": {
+        "resetsAt": "2026-12-01T19:00:43.000Z"
+      }
+    }
+  }
+}

@@ -91,6 +91,9 @@ type ProviderQuotaSnapshot struct {
 	Source            ProviderQuotaSource   `json:"source"`
 	Error             *ProviderQuotaError   `json:"error,omitempty"`
 	ProviderExpiresAt *string               `json:"provider_expires_at,omitempty"`
+	WorkspaceID       *string               `json:"workspace_id,omitempty"`
+	WorkspaceName     *string               `json:"workspace_name,omitempty"`
+	UsageURL          *string               `json:"usage_url,omitempty"`
 }
 
 // ProviderQuotasResponse wraps all account snapshots returned by the query.

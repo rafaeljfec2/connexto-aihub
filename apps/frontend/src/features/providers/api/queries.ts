@@ -1,9 +1,15 @@
 import { fetchJson } from '../../../shared/api/client'
+import type { ProviderQuotasResponse } from '../../overview/types/quota'
 import type { AdminProvider, ProviderListResponse, UpdateProviderInput } from '../types'
 
 export const providersQueryKeys = {
   list: ['providers', 'list'] as const,
   detail: (id: string) => ['providers', 'detail', id] as const,
+  quotas: ['providers', 'quotas'] as const,
+}
+
+export async function getProviderQuotas(): Promise<ProviderQuotasResponse> {
+  return fetchJson<ProviderQuotasResponse>('/api/ui/providers/quotas')
 }
 
 export async function listProviders(): Promise<ProviderListResponse> {

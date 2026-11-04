@@ -13,22 +13,30 @@ function renderPanel(snapshots: ProviderQuotaSnapshot[], isError = false) {
 }
 
 function snapshot(
-  scope: 'api_key' | 'account',
+  scope: 'api_key' | 'account' | 'subscription',
   quotas: ProviderQuotaMetric[],
   status: ProviderQuotaStatus = 'available',
   accountId = 'openrouter-primary',
 ): ProviderQuotaSnapshot {
+  const providerId = scope === 'subscription' ? 'opencode-go' : 'openrouter'
+  const sourceName =
+    scope === 'api_key'
+      ? 'openrouter_key_api'
+      : scope === 'account'
+        ? 'openrouter_credits_api'
+        : 'opencode_go_usage_api'
   return {
     account_id: accountId,
-    account_label: 'OpenRouter Primary',
-    provider_id: 'openrouter',
-    provider_name: 'OpenRouter',
+    account_label: scope === 'subscription' ? 'OpenCode Go' : 'OpenRouter Primary',
+    provider_id: providerId,
+    provider_name: scope === 'subscription' ? 'OpenCode Go' : 'OpenRouter',
     status,
     scope,
     quotas,
+    workspace_name: scope === 'subscription' ? 'go-plus' : undefined,
     source: {
       type: 'provider_api',
-      name: scope === 'api_key' ? 'openrouter_key_api' : 'openrouter_credits_api',
+      name: sourceName,
       scope,
       fetched_at: '2026-11-04T14:00:00Z',
     },
@@ -160,5 +168,48 @@ describe('OverviewProvidersPanel quota fidelity', () => {
 
     expect(screen.getByRole('alert').textContent).toContain('Falha ao consultar os dados oficiais')
     expect(screen.queryByTestId('quota-empty')).toBeNull()
+  })
+
+  it('renders OpenCode Go subscription meters with provider-reported percentages', () => {
+    renderPanel([
+      snapshot(
+        'subscription',
+        [
+          {
+            metric: 'go_rolling',
+            label: 'Go rolling',
+            nature: 'quota',
+            consumed_percent: 12,
+            period: 'rolling',
+            resets_at: '2026-11-04T18:31:46.000Z',
+          },
+          {
+            metric: 'go_weekly',
+            label: 'Go weekly',
+            nature: 'quota',
+            consumed_percent: 36,
+            period: 'weekly',
+            resets_at: '2026-11-09T00:00:00.000Z',
+          },
+          {
+            metric: 'go_monthly',
+            label: 'Go monthly',
+            nature: 'quota',
+            consumed_percent: 24,
+            period: 'monthly',
+            resets_at: '2026-12-01T19:00:43.000Z',
+          },
+        ],
+        'available',
+        'opencode-go',
+      ),
+    ])
+
+    expect(screen.getByTestId('provider-summary-opencode-go')).toBeTruthy()
+    expect(screen.getByText('Assinatura')).toBeTruthy()
+    expect(screen.getByTestId('quota-metric-opencode-go-subscription-go_rolling').textContent).toContain('12%')
+    expect(screen.getByTestId('quota-metric-opencode-go-subscription-go_weekly').textContent).toContain('36%')
+    expect(screen.getByTestId('quota-metric-opencode-go-subscription-go_monthly').textContent).toContain('24%')
+    expect(screen.queryByTestId('quota-balance-opencode-go')).toBeNull()
   })
 })

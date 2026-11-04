@@ -11,6 +11,9 @@ function metricLabel(scope: DataScope, metric: ProviderQuotaMetric): string {
   if (scope === 'api_key' && metric.metric === 'usage') return 'Uso desta chave'
   if (scope === 'account' && metric.metric === 'total_usage') return 'Uso total da conta'
   if (scope === 'account' && metric.metric === 'total_credits') return 'Créditos comprados'
+  if (metric.metric === 'go_rolling') return 'Franquia rolling'
+  if (metric.metric === 'go_weekly') return 'Franquia semanal'
+  if (metric.metric === 'go_monthly') return 'Franquia mensal'
   return metric.label
 }
 
@@ -28,6 +31,9 @@ function formatMetricValue(scope: DataScope, metric: ProviderQuotaMetric, value:
 
 function rawValues(scope: DataScope, metric: ProviderQuotaMetric): string[] {
   const values: string[] = []
+  if (metric.consumed_percent != null) {
+    values.push(`${metric.consumed_percent.toLocaleString('pt-BR')}%`)
+  }
   if (metric.used != null) {
     const value = formatMetricValue(scope, metric, metric.used)
     values.push(scope === 'account' && metric.metric === 'total_usage' ? value : `Usado ${value}`)

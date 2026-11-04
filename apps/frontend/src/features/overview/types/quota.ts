@@ -67,6 +67,9 @@ export interface ProviderQuotaSnapshot {
   source: ProviderQuotaSource
   error?: ProviderQuotaError
   provider_expires_at?: string
+  workspace_id?: string
+  workspace_name?: string
+  usage_url?: string
 }
 
 export interface ProviderQuotasResponse {

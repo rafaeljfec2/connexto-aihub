@@ -7,12 +7,20 @@ type ProviderQuotaAccountRowProps = Readonly<{
 
 const keySummaryMetrics = new Set(['usage', 'limit', 'limit_remaining', 'free_model_daily_requests'])
 const accountSummaryMetrics = new Set(['total_credits', 'total_usage'])
+const subscriptionSummaryMetrics = new Set(['go_rolling', 'go_weekly', 'go_monthly'])
 
 function accountName(snapshots: readonly ProviderQuotaSnapshot[]): string {
-  const primary = snapshots.find((snapshot) => snapshot.scope === 'api_key') ?? snapshots[0]
+  const primary =
+    snapshots.find((snapshot) => snapshot.scope === 'subscription') ??
+    snapshots.find((snapshot) => snapshot.scope === 'api_key') ??
+    snapshots[0]
   if (primary === undefined) return 'Provedor'
-  return [primary.account_label, primary.provider_name, primary.account_id]
-    .find((name) => name.trim().length > 0) ?? primary.account_id
+  const product = primary.workspace_name?.trim()
+  const base =
+    [primary.account_label, primary.provider_name, primary.account_id].find(
+      (name) => name.trim().length > 0,
+    ) ?? primary.account_id
+  return product ? `${base} (${product})` : base
 }
 
 function initials(label: string): string {
@@ -24,6 +32,8 @@ function initials(label: string): string {
 function scopeLabel(scope: DataScope): string {
   if (scope === 'api_key') return 'Chave API'
   if (scope === 'account') return 'Conta'
+  if (scope === 'subscription') return 'Assinatura'
+  if (scope === 'workspace') return 'Workspace'
   return `Escopo ${scope}`
 }
 
@@ -52,6 +62,9 @@ function statusMessage(snapshot: ProviderQuotaSnapshot): string {
 function isSummaryMetric(scope: DataScope, metric: string): boolean {
   if (scope === 'api_key') return keySummaryMetrics.has(metric)
   if (scope === 'account') return accountSummaryMetrics.has(metric)
+  if (scope === 'subscription' || scope === 'workspace') {
+    return subscriptionSummaryMetrics.has(metric) || metric.startsWith('budget_')
+  }
   return false
 }
 

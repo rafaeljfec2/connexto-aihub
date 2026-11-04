@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Panel } from '../../../shared/ui'
+import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
   providerConnectionSubtitle,
   providerInitials,
@@ -9,10 +10,26 @@ import type { AdminProvider } from '../types'
 
 type ProviderDetailPanelProps = {
   provider: AdminProvider | null
+  snapshot?: ProviderQuotaSnapshot
   onOpenManage: (provider: AdminProvider) => void
 }
 
-export function ProviderDetailPanel({ provider, onOpenManage }: ProviderDetailPanelProps) {
+function primaryGoPercent(snapshot: ProviderQuotaSnapshot | undefined): number | undefined {
+  return snapshot?.quotas.find((metric) => metric.metric === 'go_rolling')?.consumed_percent
+}
+
+function resetLabel(snapshot: ProviderQuotaSnapshot | undefined): string {
+  const rolling = snapshot?.quotas.find((metric) => metric.metric === 'go_rolling')
+  return rolling?.resets_at ?? 'Não informado'
+}
+
+function sourceLabel(snapshot: ProviderQuotaSnapshot | undefined): string {
+  if (!snapshot) return 'Sem leitura na API'
+  if (snapshot.status !== 'available') return snapshot.error?.message ?? 'Sem leitura na API'
+  return snapshot.source.name
+}
+
+export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: ProviderDetailPanelProps) {
   if (!provider) {
     return (
       <Panel className="providers-panel min-w-0">
@@ -28,9 +45,16 @@ export function ProviderDetailPanel({ provider, onOpenManage }: ProviderDetailPa
   }
 
   const situation = providerSituation(provider)
-  const updatedAt = provider.updated_at
-    ? new Date(provider.updated_at).toLocaleString('pt-BR')
-    : '—'
+  const updatedAt = snapshot?.source.fetched_at
+    ? new Date(snapshot.source.fetched_at).toLocaleString('pt-BR')
+    : provider.updated_at
+      ? new Date(provider.updated_at).toLocaleString('pt-BR')
+      : '—'
+  const percent = primaryGoPercent(snapshot)
+  const available =
+    snapshot?.status === 'available' && percent != null
+      ? `${percent.toLocaleString('pt-BR')}% (provedor)`
+      : '—'
 
   return (
     <Panel className="providers-panel min-w-0">
@@ -46,37 +70,44 @@ export function ProviderDetailPanel({ provider, onOpenManage }: ProviderDetailPa
             <strong className="block text-xs font-semibold text-[#E7ECF5]">{provider.name}</strong>
             <small className="mt-0.5 block text-[9px] text-muted">
               {providerConnectionSubtitle(provider)}
+              {snapshot?.workspace_name ? ` · ${snapshot.workspace_name}` : ''}
             </small>
           </div>
         </div>
 
-        <div className="providers-quota-box">
+        <div className="providers-quota-box" data-testid={`providers-detail-quota-${provider.id}`}>
           <div className="providers-quota-box-label">CONSUMO DA FRANQUIA</div>
           <div className="providers-quota-box-main">
-            <strong>Sem leitura</strong>
+            <strong>{percent != null ? `${percent.toLocaleString('pt-BR')}%` : 'Sem leitura'}</strong>
             <span>utilizado</span>
           </div>
           <div className="providers-large-track">
-            <div className="h-full w-0 rounded-full bg-[#5E6B7C]" />
+            <div
+              className="h-full rounded-full bg-[#5E6B7C]"
+              style={{ width: percent != null ? `${Math.min(percent, 100)}%` : '0%' }}
+            />
           </div>
           <div className="providers-quota-foot">
-            <span>Consumo: não reportado</span>
-            <span>Limite: não informado</span>
+            <span>
+              Consumo:{' '}
+              {percent != null ? `${percent.toLocaleString('pt-BR')}% (rolling)` : 'não reportado'}
+            </span>
+            <span>Limite: percentual do provedor</span>
           </div>
         </div>
 
         <div className="mt-1">
           <div className="providers-detail-row">
-            <span>Saldo disponível</span>
-            <strong>—</strong>
+            <span>Leitura principal</span>
+            <strong>{available}</strong>
           </div>
           <div className="providers-detail-row">
             <span>Renovação / reset</span>
-            <strong>Não informado</strong>
+            <strong>{resetLabel(snapshot)}</strong>
           </div>
           <div className="providers-detail-row">
             <span>Fonte da medição</span>
-            <strong>Sem leitura na API</strong>
+            <strong>{sourceLabel(snapshot)}</strong>
           </div>
           <div className="providers-detail-row">
             <span>Última atualização</span>
