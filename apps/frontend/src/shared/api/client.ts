@@ -15,7 +15,10 @@ export class ApiError extends Error {
 }
 
 export async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init)
+  const response = await fetch(input, {
+    credentials: 'same-origin',
+    ...init,
+  })
   if (!response.ok) {
     let body: ApiErrorBody = { type: 'request_failed', message: response.statusText }
     try {

@@ -1,4 +1,8 @@
-import { Bell, ChevronDown, Menu, Radio } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Bell, ChevronDown, LogOut, Menu, Radio } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { logoutOperator, operatorSessionQueryKey } from '../../features/auth/api/operatorSession'
+import { useOperatorSession } from '../../features/auth/hooks/useOperatorSession'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
 import { Badge } from '../../shared/ui/badge'
 import { Button } from '../../shared/ui/button'
@@ -28,6 +32,23 @@ export function AppTopBar({
   onOpenMobileNav,
 }: AppTopBarProps) {
   const live = connectionState === 'live'
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const session = useOperatorSession()
+
+  const logoutMutation = useMutation({
+    mutationFn: logoutOperator,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: operatorSessionQueryKey })
+      if (session.data?.mode === 'passphrase') {
+        navigate('/login', { replace: true })
+      }
+    },
+  })
+
+  const showLogout =
+    session.data?.authenticated === true &&
+    (session.data.mode === 'passphrase' || session.data.mode === 'loopback_trust')
 
   return (
     <header className="flex h-[62px] shrink-0 items-center justify-between border-b border-line bg-surface/80 px-4 backdrop-blur-sm lg:px-8">
@@ -69,6 +90,17 @@ export function AppTopBar({
         <Badge variant="mono" className="hidden md:inline-flex">
           Backend data
         </Badge>
+        {showLogout ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={logoutMutation.isPending}
+            onClick={() => logoutMutation.mutate()}
+          >
+            <LogOut className="size-3.5" aria-hidden />
+            Sign out
+          </Button>
+        ) : null}
         <Button variant="icon" aria-label="Notifications">
           <Bell className="size-3.5 opacity-70" />
         </Button>

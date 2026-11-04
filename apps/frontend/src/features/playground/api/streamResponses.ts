@@ -31,6 +31,7 @@ export async function streamResponses(params: StreamResponsesParams): Promise<vo
     headers,
     body: JSON.stringify(body),
     signal: params.signal,
+    credentials: 'same-origin',
   })
 
   if (!response.ok) {

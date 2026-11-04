@@ -12,5 +12,10 @@ export AIHUB_ADMIN_API_KEY="${AIHUB_ADMIN_API_KEY:-10987654321098765432109876543
 export AIHUB_DATA_DIR="${AIHUB_DATA_DIR:-/tmp/aihub-e2e-data}"
 
 cd "$ROOT"
-node scripts/sync-frontend-dist.mjs >/dev/null
+if [[ -z "${HUB_BIN:-}" ]]; then
+  node scripts/sync-frontend-dist.mjs >/dev/null
+fi
+if [[ -n "${HUB_BIN:-}" && -x "${HUB_BIN}" ]]; then
+  exec "${HUB_BIN}"
+fi
 exec go run ./cmd/ai-hub

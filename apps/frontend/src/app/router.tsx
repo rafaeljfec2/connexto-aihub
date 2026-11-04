@@ -1,4 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { LoginPage, OperatorAuthGate } from '../features/auth'
 import { CatalogPage } from '../features/catalog'
 import { ExecutionsPage } from '../features/executions'
 import { ResourcesPage } from '../features/resources'
@@ -8,9 +9,14 @@ import { ProvidersPage } from '../features/providers'
 import { RootLayout } from './layouts/RootLayout'
 
 const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
   {
     path: '/',
-    element: <RootLayout />,
+    element: (
+      <OperatorAuthGate>
+        <RootLayout />
+      </OperatorAuthGate>
+    ),
     children: [
       { index: true, element: <OverviewPage /> },
       { path: 'providers', element: <ProvidersPage /> },

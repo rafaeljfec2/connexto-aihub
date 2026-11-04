@@ -2,11 +2,12 @@ package static
 
 import (
 	"embed"
+	"io"
 	"io/fs"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
-	"time"
 )
 
 // Dist is populated before release builds via scripts/sync-frontend-dist.mjs.
@@ -57,7 +58,24 @@ func (s *fileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *fileServer) serveIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeContent(w, r, "index.html", time.Time{}, mustOpen(s.fs, "index.html"))
+
+	file := mustOpen(s.fs, "index.html")
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "embedded index unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	if r.Method == http.MethodHead {
+		return
+	}
+
+	if _, err := w.Write(data); err != nil {
+		return
+	}
 }
 
 func mustOpen(fs http.FileSystem, name string) http.File {

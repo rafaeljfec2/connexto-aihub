@@ -53,6 +53,50 @@ func TestPassphraseLoginSessionCookie(t *testing.T) {
 	}
 }
 
+func TestRemoteClientDeniedWithoutPassphrase(t *testing.T) {
+	gate, err := NewGate(Settings{LoopbackServer: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/resource-policies", nil)
+	request.RemoteAddr = "203.0.113.50:54321"
+	if gate.Authenticated(request) {
+		t.Fatal("expected remote client denied without passphrase session")
+	}
+
+	info := gate.Session(request)
+	if info.Authenticated || info.Mode != "none" {
+		t.Fatalf("session = %+v", info)
+	}
+}
+
+func TestPassphraseDisablesLoopbackTrust(t *testing.T) {
+	secret := make([]byte, 32)
+	for i := range secret {
+		secret[i] = byte('b')
+	}
+
+	gate, err := NewGate(Settings{
+		Passphrase:     "test-passphrase-minimum-length-value",
+		SessionSecret:  secret,
+		LoopbackServer: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if gate.LoopbackTrustEnabled() {
+		t.Fatal("loopback trust must be disabled when passphrase is configured")
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	request.RemoteAddr = "127.0.0.1:12345"
+	if gate.Authenticated(request) {
+		t.Fatal("loopback TCP must not bypass passphrase mode")
+	}
+}
+
 func cookieValueFromSetCookie(setCookie string) string {
 	const prefix = CookieName + "="
 	start := strings.Index(setCookie, prefix)

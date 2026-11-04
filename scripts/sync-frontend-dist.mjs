@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, rmSync, existsSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,7 +11,11 @@ if (!existsSync(source)) {
   process.exit(1)
 }
 
+const staging = `${target}.staging`
+
+rmSync(staging, { recursive: true, force: true })
+mkdirSync(staging, { recursive: true })
+cpSync(source, staging, { recursive: true })
 rmSync(target, { recursive: true, force: true })
-mkdirSync(target, { recursive: true })
-cpSync(source, target, { recursive: true })
+renameSync(staging, target)
 console.log('sync-frontend-dist: copied to internal/static/dist')
