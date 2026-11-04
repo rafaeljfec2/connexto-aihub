@@ -1,2 +1,2 @@
 export { ProvidersPage } from './pages/ProvidersPage'
-export { providersQueryKeys } from './api/queries'
+export { listProviders, providersQueryKeys } from './api/queries'

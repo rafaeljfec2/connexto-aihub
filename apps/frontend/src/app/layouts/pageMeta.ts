@@ -44,6 +44,13 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     title: 'Executions',
     lead: 'Review content-free gateway execution records and audit metadata.',
   },
+  '/resources': {
+    crumb: 'Resources',
+    eyebrow: 'GOVERNANCE / RESOURCES',
+    title: 'Policies & concurrency',
+    lead:
+      'Cross-gateway quota policies, concurrency occupancy, and provider-reported usage from E09 admin APIs.',
+  },
 }
 
 export function resolvePageMeta(pathname: string): AppPageMeta {

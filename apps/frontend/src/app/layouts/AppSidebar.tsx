@@ -33,7 +33,7 @@ const operationNav: NavItemDef[] = [
   { to: '/playground', label: 'Playground', icon: FlaskConical },
   { soon: true, label: 'Intelligence', icon: Brain },
   { to: '/executions', label: 'Executions', icon: Activity },
-  { soon: true, label: 'Resources', icon: SlidersHorizontal },
+  { to: '/resources', label: 'Resources', icon: SlidersHorizontal },
 ]
 
 const systemNav: NavItemDef[] = [{ soon: true, label: 'Settings', icon: Settings }]
