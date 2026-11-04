@@ -78,6 +78,7 @@ This roadmap decomposes the Frontend MVP into **independent, dependency-ordered 
 
 ### 3.3 Future improvements (post-MVP)
 
+- Operator UI **internationalization (i18n)** — **Portuguese (pt-BR)** and **English (en)** with locale-aware formatting (dates, numbers, duration labels) and a single source of truth for copy; requires Lead-approved SPEC (locale detection, persistence, fallback, and scope per feature). **Out of MVP Setores 0–8**; English remains the default for repository artifacts and API-facing strings until i18n lands.
 - `sessionStorage` tab-scoped playground recovery (discovery optional enhancement).
 - Light theme, shared `packages/ui` design system extraction.
 - Durable operational event replay API.
@@ -207,6 +208,7 @@ Discovery FE increments map to sectors as follows:
 | FE-05 Execution records | 7 (part 1) | Complementary |
 | FE-06 Resources & analytics | 7 (part 2) | Complementary |
 | FE-07 UI preferences | 7 (part 3) or post-MVP polish | Complementary |
+| i18n (pt-BR + en) | Post-MVP (after Setor 8) | Future — SPEC required |
 
 **Sector count:** **9** (Setor 0 through Setor 8).
 
@@ -830,6 +832,7 @@ When PostgreSQL checks fail or admin routes unavailable, UI shows degraded mode 
 | G6 | FE-07 UI preferences in MVP vs post-MVP | Complementary | Setor 7 scope negotiation |
 | G7 | E2E tool choice (Playwright vs script) | Open | Setor 8 |
 | G8 | Frontend source topology (layer-by-type vs feature modules) | **Resolved — Feature-First (Lead approved 2026-11-03); see §4** | All frontend sectors |
+| G9 | Operator UI i18n (pt-BR + en): library, locale switch, copy extraction, date/number formatting | **Future (post-MVP)** — not in Setores 0–8 | Post–Setor 8 SPEC |
 
 ---
 

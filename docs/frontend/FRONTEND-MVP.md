@@ -249,6 +249,14 @@ Resolve these before expanding beyond the first status view:
 7. **Design and responsiveness:** Select the design system, visual language,
    accessibility baseline, and responsive behavior.
 
+## Future scope (post-MVP)
+
+- **Internationalization (i18n):** Operator-facing UI in **Portuguese (pt-BR)** and
+  **English (en)** — locale selection, translated strings, and locale-aware
+  formatting. Requires a dedicated SPEC after MVP release (Setor 8); see
+  `MVP-ROADMAP.md` §3.3 and gap **G9**. Repository docs and API contracts stay
+  in English until i18n is implemented.
+
 ## Recommended first vertical increment
 
 1. Confirm the browser-to-backend trust boundary and same-origin proxy/BFF.

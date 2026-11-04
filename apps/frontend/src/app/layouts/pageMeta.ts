@@ -38,6 +38,12 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     title: 'Playground',
     lead: 'Stream inference through POST /v1/responses (in-memory only).',
   },
+  '/executions': {
+    crumb: 'Executions',
+    eyebrow: 'OBSERVABILITY / EXECUTIONS',
+    title: 'Executions',
+    lead: 'Review content-free gateway execution records and audit metadata.',
+  },
 }
 
 export function resolvePageMeta(pathname: string): AppPageMeta {

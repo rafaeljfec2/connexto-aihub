@@ -32,7 +32,7 @@ const operationNav: NavItemDef[] = [
   { to: '/catalog', label: 'Models', icon: Layers },
   { to: '/playground', label: 'Playground', icon: FlaskConical },
   { soon: true, label: 'Intelligence', icon: Brain },
-  { soon: true, label: 'Executions', icon: Activity },
+  { to: '/executions', label: 'Executions', icon: Activity },
   { soon: true, label: 'Resources', icon: SlidersHorizontal },
 ]
 

@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { CatalogPage } from '../features/catalog'
+import { ExecutionsPage } from '../features/executions'
 import { OverviewPage } from '../features/overview'
 import { PlaygroundPage } from '../features/playground'
 import { ProvidersPage } from '../features/providers'
@@ -14,6 +15,7 @@ const router = createBrowserRouter([
       { path: 'providers', element: <ProvidersPage /> },
       { path: 'catalog', element: <CatalogPage /> },
       { path: 'playground', element: <PlaygroundPage /> },
+      { path: 'executions', element: <ExecutionsPage /> },
     ],
   },
 ])
