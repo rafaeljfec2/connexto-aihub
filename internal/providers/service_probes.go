@@ -12,5 +12,12 @@ func NewServiceWithProbes(repo Repository, cipher *CredentialCipher, registry *R
 	for providerType, probe := range probes {
 		probeCopy[providerType] = probe
 	}
-	return &Service{repo: repo, cipher: cipher, registry: registry, probes: probeCopy, allowedHosts: hosts}
+	return &Service{
+		repo:             repo,
+		cipher:           cipher,
+		registry:         registry,
+		probes:           probeCopy,
+		allowedHosts:     hosts,
+		defaultEndpoints: make(map[string]string),
+	}
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Edit2 } from 'lucide-react'
 import { GridPagination, Panel, PanelHeader, ProgressBar } from '../../../shared/ui'
 import { useGridPagination } from '../../../shared/hooks/useGridPagination'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
@@ -20,6 +21,7 @@ type ProviderQuotaTableProps = {
   snapshots: ProviderQuotaSnapshot[]
   selectedId: string | null
   onSelect: (provider: AdminProvider) => void
+  onOpenManage?: (provider: AdminProvider) => void
   isLoading?: boolean
 }
 
@@ -28,6 +30,7 @@ export function ProviderQuotaTable({
   snapshots,
   selectedId,
   onSelect,
+  onOpenManage,
   isLoading,
 }: ProviderQuotaTableProps) {
   const [search, setSearch] = useState('')
@@ -80,6 +83,7 @@ export function ProviderQuotaTable({
                 <th>Consumo</th>
                 <th>Disponível</th>
                 <th>Situação</th>
+                {onOpenManage ? <th className="text-right">Ações</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -167,6 +171,22 @@ export function ProviderQuotaTable({
                         {situation.label}
                       </span>
                     </td>
+                    {onOpenManage ? (
+                      <td className="text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onOpenManage(provider)
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded border border-line bg-surface/80 px-2.5 py-1 text-[11px] font-medium text-secondary hover:border-cobalt hover:bg-raised hover:text-primary transition-all cursor-pointer shadow-xs"
+                          aria-label={`Editar ${provider.name}`}
+                        >
+                          <Edit2 className="size-3 text-cobalt" />
+                          Editar
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 )
               })}

@@ -77,6 +77,48 @@ func TestConnextoProxyResponsesRoutingAndStreaming(t *testing.T) {
 	}
 }
 
+func TestCursorResponsesRoutingAndStreaming(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Gateway-API-Key") != connextoProxyTestKey {
+			t.Errorf("X-Gateway-API-Key = %q, want %q", r.Header.Get("X-Gateway-API-Key"), connextoProxyTestKey)
+		}
+		if r.Header.Get("Authorization") != "Bearer "+connextoProxyTestKey {
+			t.Errorf("Authorization = %q, want Bearer token", r.Header.Get("Authorization"))
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "data: {\"type\":\"response.created\"}\n\n")
+		w.(http.Flusher).Flush()
+	}))
+	defer upstream.Close()
+
+	handler := newConnextoProxyRoutedHandler(t, upstream.URL)
+	gatewayServer := httptest.NewServer(handler)
+	defer gatewayServer.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, gatewayServer.URL+"/v1/responses",
+		strings.NewReader(`{"model":"composer-2.5","input":"hello from cursor","stream":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(gateway.ProviderHeader, providers.CursorID)
+
+	response, err := gatewayServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("gateway request error = %v", err)
+	}
+	defer response.Body.Close()
+
+	line, err := bufio.NewReader(response.Body).ReadString('\n')
+	if err != nil || !strings.Contains(line, "response.created") {
+		t.Fatalf("first SSE line = %q, error = %v", line, err)
+	}
+}
+
 func TestConnextoProxyUnavailableWhenDisabled(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -143,9 +185,13 @@ func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Hand
 
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, openCode)
+	registry.Bind(providers.CursorID, proxyClient)
 	registry.Bind(providers.ConnextoProxyID, proxyClient)
 
 	catalogManager := gatewayTestCatalog(t, time.Now(), map[string]catalog.SourceFunc{
+		providers.CursorID: func(context.Context) ([]providers.ModelDescriptor, error) {
+			return []providers.ModelDescriptor{gatewayTestDescriptor("composer-2.5")}, nil
+		},
 		providers.ConnextoProxyID: func(context.Context) ([]providers.ModelDescriptor, error) {
 			return []providers.ModelDescriptor{gatewayTestDescriptor("composer-2.5")}, nil
 		},
@@ -161,6 +207,7 @@ func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Hand
 		Statuses: func() []providers.Status {
 			return []providers.Status{
 				{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy},
+				{ID: providers.CursorID, Enabled: true, State: providers.StateHealthy},
 				{ID: providers.ConnextoProxyID, Enabled: true, State: providers.StateHealthy},
 			}
 		},

@@ -128,3 +128,23 @@ func TestNormalizeConnextoProxyUsageReported(t *testing.T) {
 		t.Fatalf("total = %v, want 130", record.TotalTokens)
 	}
 }
+
+func TestNormalizeCursorUsageReported(t *testing.T) {
+	event := []byte(`{"type":"response.completed","response":{"usage":{"input_tokens":100,"output_tokens":250,"total_tokens":350}}}`)
+	record := metering.NormalizeExecutionUsage(providers.CursorID, capture.Result{FinalEventData: event})
+	if record.Status != metering.StatusReported {
+		t.Fatalf("status = %s", record.Status)
+	}
+	if record.Source != metering.SourceCursor {
+		t.Fatalf("source = %s, want %s", record.Source, metering.SourceCursor)
+	}
+	if record.InputTokens == nil || *record.InputTokens != 100 {
+		t.Fatalf("input = %v, want 100", record.InputTokens)
+	}
+	if record.OutputTokens == nil || *record.OutputTokens != 250 {
+		t.Fatalf("output = %v, want 250", record.OutputTokens)
+	}
+	if record.TotalTokens == nil || *record.TotalTokens != 350 {
+		t.Fatalf("total = %v, want 350", record.TotalTokens)
+	}
+}

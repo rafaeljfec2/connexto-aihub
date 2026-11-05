@@ -41,9 +41,27 @@ func (m *ConfigModule) Name() string {
 // Start seeds or loads the configuration and applies it to the runtime. A
 // failure fails startup: running with an unknown provider state is unsafe.
 func (m *ConfigModule) Start(ctx context.Context) error {
+	bootstrapped := make(map[string]struct{}, len(m.bootstraps))
 	for _, bootstrap := range m.bootstraps {
+		bootstrapped[bootstrap.ID] = struct{}{}
 		if err := m.startProvider(ctx, bootstrap); err != nil {
 			return err
+		}
+	}
+	// Restore all other persisted configurations to their bound runtime adapters.
+	records, err := m.service.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if _, ok := bootstrapped[record.ID]; ok {
+			continue
+		}
+		if err := m.service.Apply(ctx, record.ID); err != nil {
+			m.logger.Warn("could not apply persisted provider configuration on startup", "provider", record.ID, "error", err)
+		} else {
+			m.logger.Info("persisted provider configuration loaded", "provider", record.ID,
+				"enabled", record.Enabled, "credential_configured", record.HasCredential)
 		}
 	}
 	return nil

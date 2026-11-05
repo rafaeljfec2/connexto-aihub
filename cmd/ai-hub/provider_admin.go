@@ -31,9 +31,14 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 	service := providers.NewServiceWithProbes(pgstore.New(pool), cipher, registry, map[string]providers.ProbeFunc{
 		providers.TypeOpenCodeGo:    providers.ProbeEndpoint,
 		providers.TypeOpenRouter:    providers.ProbeOpenRouterEndpoint,
+		providers.TypeCursor:        providers.ProbeCursorEndpoint,
 		providers.TypeConnextoProxy: providers.ProbeConnextoProxyEndpoint,
 	},
 		cfg.Provider.AllowedEndpointHosts)
+
+	service.SetDefaultEndpoint(providers.CursorID, cfg.Provider.ConnextoProxy.BaseURL)
+	service.SetDefaultEndpoint(providers.OpenCodeGoID, cfg.Provider.OpenCodeGo.BaseURL)
+	service.SetDefaultEndpoint(providers.OpenRouterID, providers.OpenRouterEndpoint)
 
 	module := providers.NewConfigModuleSet(service, []providers.BootstrapInput{
 		{
@@ -44,10 +49,6 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 		{
 			ID: providers.OpenRouterID, Name: "OpenRouter", Type: providers.TypeOpenRouter,
 			Endpoint: providers.OpenRouterEndpoint, Enabled: true,
-		},
-		{
-			ID: providers.ConnextoProxyID, Name: "Connexto Proxy CLI LLMs", Type: providers.TypeConnextoProxy,
-			Endpoint: cfg.Provider.ConnextoProxy.BaseURL, Enabled: true,
 		},
 	}, logger)
 
@@ -62,11 +63,14 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 	}
 
 	return []server.Route{
+		{Method: http.MethodGet, Pattern: "/api/providers/available", Handler: admin.Available()},
 		{Method: http.MethodPost, Pattern: "/api/providers", Handler: admin.Create()},
 		{Method: http.MethodGet, Pattern: "/api/providers", Handler: admin.List()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}", Handler: admin.Get()},
 		{Method: http.MethodPatch, Pattern: "/api/providers/{id}", Handler: admin.Update()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/validate", Handler: admin.Validate()},
+		{Method: http.MethodPost, Pattern: "/api/providers/{id}/sync-models", Handler: admin.SyncModels()},
+		{Method: http.MethodGet, Pattern: "/api/providers/{id}/status", Handler: admin.Status()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/enable", Handler: admin.Enable()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/disable", Handler: admin.Disable()},
 		{Method: http.MethodGet, Pattern: "/api/ui/providers/quotas", Handler: admin.Quotas()},

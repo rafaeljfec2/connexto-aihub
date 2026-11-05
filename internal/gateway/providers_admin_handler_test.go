@@ -90,3 +90,77 @@ func TestProviderAdminValidateReportsMissingCredentialAndUnreachableUpstream(t *
 		t.Fatalf("validate unreachable = %d %s, want 502", status, body)
 	}
 }
+
+func TestProviderAdminAvailableProviders(t *testing.T) {
+	server := adminServer(t)
+
+	status, payload := adminCall(t, http.MethodGet, server.URL+"/api/providers/available", "")
+	if status != http.StatusOK {
+		t.Fatalf("available status = %d, want 200", status)
+	}
+
+	var response struct {
+		Providers []struct {
+			ID             string   `json:"id"`
+			Name           string   `json:"name"`
+			CredentialType string   `json:"credential_type"`
+			Capabilities   []string `json:"capabilities"`
+			ConnectionType string   `json:"connection_type"`
+			Enabled        bool     `json:"enabled"`
+		} `json:"providers"`
+	}
+	if err := json.Unmarshal([]byte(payload), &response); err != nil {
+		t.Fatalf("decode available: %v", err)
+	}
+
+	foundCursor := false
+	for _, p := range response.Providers {
+		if p.ID == "cursor" {
+			foundCursor = true
+			if p.Name != "Cursor" || p.ConnectionType != "cursor" || !p.Enabled {
+				t.Fatalf("cursor available provider metadata = %+v", p)
+			}
+		}
+	}
+	if !foundCursor {
+		t.Fatal("cursor not found in available providers list")
+	}
+}
+
+func TestProviderAdminCreateDynamicCursorConnection(t *testing.T) {
+	server := adminServer(t)
+
+	// Omit name, type, endpoint - must be populated from AvailableProvider defaults.
+	status, payload := adminCall(t, http.MethodPost, server.URL+"/api/providers",
+		`{"id":"cursor","credential":"user-cursor-key"}`)
+	if status != http.StatusCreated {
+		t.Fatalf("create cursor status = %d body = %s, want 201", status, payload)
+	}
+
+	var response map[string]any
+	if err := json.Unmarshal([]byte(payload), &response); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if response["id"] != "cursor" || response["name"] != "Cursor" || response["type"] != "cursor" {
+		t.Fatalf("unexpected cursor creation response: %v", response)
+	}
+	if response["credential_configured"] != true {
+		t.Fatalf("credential_configured = false, want true")
+	}
+	if _, leaked := response["credential"]; leaked {
+		t.Fatal("credential secret leaked in response")
+	}
+
+	// Status endpoint check
+	statusStatus, statusPayload := adminCall(t, http.MethodGet, server.URL+"/api/providers/cursor/status", "")
+	if statusStatus != http.StatusOK {
+		t.Fatalf("status status = %d body = %s, want 200", statusStatus, statusPayload)
+	}
+	var statusResp map[string]any
+	if err := json.Unmarshal([]byte(statusPayload), &statusResp); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if statusResp["id"] != "cursor" || statusResp["credential_state"] != "configured" {
+		t.Fatalf("unexpected status response = %v", statusResp)
+	}
+}

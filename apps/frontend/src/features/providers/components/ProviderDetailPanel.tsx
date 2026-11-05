@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Edit2 } from 'lucide-react'
 import { Panel } from '../../../shared/ui'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
@@ -157,20 +158,25 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
           Percentuais e saldos só aparecem com leitura confiável do gateway ou do provedor.
         </p>
 
-        <div className="providers-detail-actions">
-          <Link to="/resources" className="providers-detail-secondary">
-            Ver políticas ↗
-          </Link>
-          <Link to="/catalog" className="providers-detail-ghost">
-            Explorar modelos ↗
-          </Link>
+        <div className="providers-detail-actions flex flex-col gap-2 pt-1">
           <button
             type="button"
             onClick={() => onOpenManage(provider)}
-            className="providers-detail-ghost cursor-pointer"
+            className="flex items-center justify-center gap-2 w-full rounded-md bg-cobalt px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#345ED0] transition-colors cursor-pointer"
+            aria-label={`Editar credenciais e conexão de ${provider.name}`}
           >
-            Gerenciar credenciais ↗
+            <Edit2 className="size-3.5" />
+            Editar credenciais e conexão
           </button>
+
+          <div className="flex items-center gap-2 w-full">
+            <Link to="/resources" className="providers-detail-secondary flex-1 text-center">
+              Ver políticas ↗
+            </Link>
+            <Link to="/catalog" className="providers-detail-ghost flex-1 text-center">
+              Explorar modelos ↗
+            </Link>
+          </div>
         </div>
       </div>
     </Panel>

@@ -4,6 +4,7 @@ import { RefreshCw, ShieldCheck } from 'lucide-react'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { getProviderQuotas, listProviders, providersQueryKeys } from '../api/queries'
+import { AddProviderModal } from '../components/AddProviderModal'
 import { ProviderDetailPanel } from '../components/ProviderDetailPanel'
 import { ProviderGovernanceMetrics } from '../components/ProviderGovernanceMetrics'
 import { ProviderManageDrawer } from '../components/ProviderManageDrawer'
@@ -32,6 +33,7 @@ export function ProvidersPage() {
   const snapshots = quotasQuery.data?.snapshots ?? []
   const [selectedProvider, setSelectedProvider] = useState<AdminProvider | null>(null)
   const [manageTarget, setManageTarget] = useState<AdminProvider | null>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const activeSelected =
     selectedProvider !== null
@@ -70,9 +72,9 @@ export function ProvidersPage() {
           </button>
           <button
             type="button"
-            className="providers-primary-action cursor-not-allowed"
-            disabled
-            title="Cadastro de novos provedores é feito na configuração do gateway, fora desta tela."
+            className="providers-primary-action"
+            onClick={() => setIsAddModalOpen(true)}
+            aria-label="Adicionar provedor"
           >
             ＋ Adicionar provedor
           </button>
@@ -87,6 +89,7 @@ export function ProvidersPage() {
           snapshots={snapshots}
           selectedId={activeSelected?.id ?? null}
           onSelect={(provider) => setSelectedProvider(provider)}
+          onOpenManage={(provider) => setManageTarget(provider)}
           isLoading={providersQuery.isLoading || quotasQuery.isLoading}
         />
         <ProviderDetailPanel
@@ -115,6 +118,17 @@ export function ProvidersPage() {
         provider={manageTarget}
         open={manageTarget !== null}
         onClose={() => setManageTarget(null)}
+      />
+
+      <AddProviderModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        existingProviders={providers}
+        onProviderAdded={(newProvider) => {
+          setSelectedProvider(newProvider)
+          void providersQuery.refetch()
+          void quotasQuery.refetch()
+        }}
       />
     </div>
   )

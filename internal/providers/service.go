@@ -33,11 +33,12 @@ type UpdateInput struct {
 // Service owns provider administration: validation, credential protection,
 // persistence and propagation of the configuration to the bound runtime.
 type Service struct {
-	repo         Repository
-	cipher       *CredentialCipher
-	registry     *Registry
-	probes       map[string]ProbeFunc
-	allowedHosts map[string]struct{}
+	repo             Repository
+	cipher           *CredentialCipher
+	registry         *Registry
+	probes           map[string]ProbeFunc
+	allowedHosts     map[string]struct{}
+	defaultEndpoints map[string]string
 }
 
 // NewService builds the administrative service. allowedHosts is the exact
@@ -47,13 +48,102 @@ func NewService(repo Repository, cipher *CredentialCipher, registry *Registry, p
 	return NewServiceWithProbes(repo, cipher, registry, map[string]ProbeFunc{TypeOpenCodeGo: probe}, allowedHosts)
 }
 
-// Create stores a new configuration. It does not bind a runtime: only the
-// startup bootstrap and the update paths reconfigure an adapter.
+// SetDefaultEndpoint configures the baseline URL for an available provider.
+func (s *Service) SetDefaultEndpoint(providerID, endpoint string) {
+	if s.defaultEndpoints == nil {
+		s.defaultEndpoints = make(map[string]string)
+	}
+	s.defaultEndpoints[providerID] = strings.TrimSpace(endpoint)
+}
+
+// AvailableProviders returns all supported provider templates with UI metadata.
+func (s *Service) AvailableProviders() []AvailableProvider {
+	cursorEndpoint := DefaultConnextoProxyEndpoint
+	if ep, ok := s.defaultEndpoints[CursorID]; ok && ep != "" {
+		cursorEndpoint = ep
+	}
+	openCodeEndpoint := "https://opencode.ai/inference/go"
+	if ep, ok := s.defaultEndpoints[OpenCodeGoID]; ok && ep != "" {
+		openCodeEndpoint = ep
+	}
+	openRouterEndpoint := OpenRouterEndpoint
+	if ep, ok := s.defaultEndpoints[OpenRouterID]; ok && ep != "" {
+		openRouterEndpoint = ep
+	}
+
+	return []AvailableProvider{
+		{
+			ID:                    CursorID,
+			Name:                  "Cursor",
+			Description:           "Modelos de inteligência artificial do Cursor (Composer, Grok, etc.)",
+			Logo:                  "cursor",
+			CredentialType:        "api_key",
+			CredentialLabel:       "API Key / Token do Cursor",
+			CredentialPlaceholder: "Informe seu token ou chave do Cursor",
+			Capabilities:          []string{"models", "responses", "streaming"},
+			ConnectionType:        TypeCursor,
+			DefaultEndpoint:       cursorEndpoint,
+			Enabled:               true,
+		},
+		{
+			ID:                    OpenRouterID,
+			Name:                  "OpenRouter",
+			Description:           "Roteamento unificado para centenas de modelos de IA",
+			Logo:                  "openrouter",
+			CredentialType:        "api_key",
+			CredentialLabel:       "API Key do OpenRouter",
+			CredentialPlaceholder: "sk-or-v1-...",
+			Capabilities:          []string{"models", "responses", "streaming"},
+			ConnectionType:        TypeOpenRouter,
+			DefaultEndpoint:       openRouterEndpoint,
+			Enabled:               true,
+		},
+		{
+			ID:                    OpenCodeGoID,
+			Name:                  "OpenCode Go",
+			Description:           "Runtime de alto desempenho para modelos de código",
+			Logo:                  "opencode",
+			CredentialType:        "api_key",
+			CredentialLabel:       "Token OpenCode Go",
+			CredentialPlaceholder: "opencode-...",
+			Capabilities:          []string{"models", "responses", "streaming"},
+			ConnectionType:        TypeOpenCodeGo,
+			DefaultEndpoint:       openCodeEndpoint,
+			Enabled:               true,
+		},
+	}
+}
+
+// AvailableProvider returns the available provider descriptor matching id.
+func (s *Service) AvailableProvider(id string) (AvailableProvider, bool) {
+	for _, p := range s.AvailableProviders() {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return AvailableProvider{}, false
+}
+
+// Create stores a new configuration and applies it to the bound runtime adapter.
 func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error) {
+	if input.ID == "" {
+		return Record{}, ErrInvalid
+	}
+	if avail, ok := s.AvailableProvider(input.ID); ok {
+		if input.Name == "" {
+			input.Name = avail.Name
+		}
+		if input.Type == "" {
+			input.Type = avail.ConnectionType
+		}
+		if input.Endpoint == "" {
+			input.Endpoint = avail.DefaultEndpoint
+		}
+	}
 	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
 		return Record{}, err
 	}
-	if input.ManagementCredential != "" && input.Type != TypeOpenRouter && input.Type != TypeConnextoProxy {
+	if input.ManagementCredential != "" && input.Type != TypeOpenRouter && input.Type != TypeConnextoProxy && input.Type != TypeCursor {
 		return Record{}, ErrInvalid
 	}
 
@@ -70,7 +160,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 		return Record{}, err
 	}
 
-	return s.repo.Create(ctx, NewRecord{
+	record, err := s.repo.Create(ctx, NewRecord{
 		ID:                   input.ID,
 		Name:                 strings.TrimSpace(input.Name),
 		Type:                 input.Type,
@@ -79,6 +169,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 		Credential:           sealed,
 		ManagementCredential: sealedManagement,
 	})
+	if err != nil {
+		return Record{}, err
+	}
+
+	_ = s.apply(ctx, record)
+	return record, nil
 }
 
 // Get returns one configuration.
@@ -99,7 +195,7 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Rec
 		if err != nil {
 			return Record{}, err
 		}
-		if record.Type != TypeOpenRouter && record.Type != TypeConnextoProxy {
+		if record.Type != TypeOpenRouter && record.Type != TypeConnextoProxy && record.Type != TypeCursor {
 			return Record{}, ErrInvalid
 		}
 	}
@@ -164,6 +260,33 @@ func (s *Service) Validate(ctx context.Context, id string) error {
 	err = probe(probeContext, record.Endpoint, credential)
 	s.registry.reportHealthCheck(id, version, err)
 	return err
+}
+
+// ValidateCredential checks a specific credential against the provider's endpoint.
+func (s *Service) ValidateCredential(ctx context.Context, id, credential string) error {
+	if strings.TrimSpace(credential) == "" {
+		return ErrNoCredential
+	}
+	endpoint := ""
+	providerType := ""
+	if record, err := s.repo.Get(ctx, id); err == nil {
+		endpoint = record.Endpoint
+		providerType = record.Type
+	} else if avail, ok := s.AvailableProvider(id); ok {
+		endpoint = avail.DefaultEndpoint
+		providerType = avail.ConnectionType
+	} else {
+		return ErrNotFound
+	}
+
+	probe, ok := s.probes[providerType]
+	if !ok || probe == nil {
+		return ErrProbeUnavailable
+	}
+
+	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	return probe(probeContext, endpoint, credential)
 }
 
 func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) (Record, error) {

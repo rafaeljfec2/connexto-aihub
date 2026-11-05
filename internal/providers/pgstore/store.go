@@ -36,6 +36,15 @@ const (
 INSERT INTO providers (id, name, type, endpoint, enabled, credential_ciphertext, management_credential_ciphertext,
                        outcome, error_class, upstream_status)
 VALUES ($1, $2, $3, $4, $5, $6, $7, 'never', 'none', 0)
+ON CONFLICT (id) DO UPDATE SET
+    name                             = EXCLUDED.name,
+    type                             = EXCLUDED.type,
+    endpoint                         = EXCLUDED.endpoint,
+    enabled                          = EXCLUDED.enabled,
+    credential_ciphertext            = EXCLUDED.credential_ciphertext,
+    management_credential_ciphertext = EXCLUDED.management_credential_ciphertext,
+    updated_at                       = now()
+WHERE providers.name IS NULL
 RETURNING ` + managedColumns
 
 	ensureManaged = `
@@ -185,6 +194,10 @@ func translateNotFound(err error) error {
 func mapWriteError(record providers.Record, err error) (providers.Record, error) {
 	if err == nil {
 		return record, nil
+	}
+
+	if errors.Is(err, providers.ErrNotFound) {
+		return providers.Record{}, providers.ErrConflict
 	}
 
 	var pgErr *pgconn.PgError

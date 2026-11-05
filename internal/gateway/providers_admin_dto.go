@@ -20,12 +20,17 @@ type providerResponse struct {
 
 type createProviderRequest struct {
 	ID                   string `json:"id"`
+	ProviderID           string `json:"provider_id"`
 	Name                 string `json:"name"`
 	Type                 string `json:"type"`
 	Endpoint             string `json:"endpoint"`
 	Credential           string `json:"credential"`
 	ManagementCredential string `json:"management_credential"`
 	Enabled              *bool  `json:"enabled"`
+}
+
+type validateProviderRequest struct {
+	Credential string `json:"credential"`
 }
 
 type updateProviderRequest struct {

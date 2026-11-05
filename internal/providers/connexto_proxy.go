@@ -86,8 +86,8 @@ func (c *ConnextoProxyClient) ListModels(ctx context.Context) (*http.Response, e
 
 // OpenTargetResponses forwards a stateless Responses request without rewriting it.
 func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target ResponsesTarget, payload []byte, contentType, _ string) (*http.Response, error) {
-	if target.ProviderID != ConnextoProxyID {
-		return nil, errors.New("provider target does not match Connexto Proxy")
+	if target.ProviderID != CursorID && target.ProviderID != ConnextoProxyID {
+		return nil, errors.New("provider target does not match Cursor provider")
 	}
 	if target.ModelID != "" && strings.TrimSpace(target.ModelID) == "" {
 		return nil, errors.New("provider model identity must not be empty")
@@ -202,6 +202,11 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 
 func (c *ConnextoProxyClient) CloseIdle() {
 	c.httpClient.CloseIdleConnections()
+}
+
+// ProbeCursorEndpoint verifies Cursor provider availability via the internal transport adapter.
+func ProbeCursorEndpoint(ctx context.Context, endpoint, credential string) error {
+	return ProbeConnextoProxyEndpoint(ctx, endpoint, credential)
 }
 
 // ProbeConnextoProxyEndpoint verifies service availability without consuming model generation.

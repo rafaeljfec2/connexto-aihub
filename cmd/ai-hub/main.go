@@ -87,6 +87,7 @@ func run() error {
 	providerRegistry := providers.NewRegistry()
 	providerRegistry.Bind(providers.OpenCodeGoID, providerClient)
 	providerRegistry.Bind(providers.OpenRouterID, openRouterClient)
+	providerRegistry.Bind(providers.CursorID, connextoProxyClient)
 	providerRegistry.Bind(providers.ConnextoProxyID, connextoProxyClient)
 	providerModule := providers.NewRegistryManager(logger, providerRegistry)
 	eventHub := operational.NewHub(logger)
@@ -94,8 +95,9 @@ func run() error {
 		gateway.PublishProviderStatus(eventHub, providerModule.Statuses)
 	})
 	catalogSources := map[string]catalog.SourceFunc{
-		providers.OpenCodeGoID:     providerClient.FetchModelDescriptors,
-		providers.OpenRouterID:     openRouterClient.FetchModelDescriptors,
+		providers.OpenCodeGoID:    providerClient.FetchModelDescriptors,
+		providers.OpenRouterID:    openRouterClient.FetchModelDescriptors,
+		providers.CursorID:        connextoProxyClient.FetchModelDescriptors,
 		providers.ConnextoProxyID: connextoProxyClient.FetchModelDescriptors,
 	}
 	recordsModule := records.New(records.Options{
@@ -118,6 +120,10 @@ func run() error {
 		StaleAfter:  cfg.Catalog.StaleAfter,
 		SyncTimeout: cfg.Catalog.SyncTimeout,
 	})
+
+	if runtime.providerAdmin != nil {
+		runtime.providerAdmin.BindCatalogManager(catalogModule)
+	}
 
 	operatorGate, err := cfg.BuildOperatorGate()
 	if err != nil {
