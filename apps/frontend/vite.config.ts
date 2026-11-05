@@ -27,11 +27,21 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:8080',
           changeOrigin: true,
           headers: gatewayKey ? { Authorization: `Bearer ${gatewayKey}` } : {},
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.removeHeader('origin')
+            })
+          },
         },
         '/api': {
           target: 'http://127.0.0.1:8080',
           changeOrigin: true,
           headers: adminKey ? { Authorization: `Bearer ${adminKey}` } : {},
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.removeHeader('origin')
+            })
+          },
         },
       },
     },
