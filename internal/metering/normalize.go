@@ -27,6 +27,8 @@ func NormalizeExecutionUsage(providerID string, capture capture.Result) Record {
 		return normalizeOpenCodeUsage(rawUsage, source)
 	case providers.OpenRouterID:
 		return normalizeOpenRouterUsage(rawUsage, source)
+	case providers.ConnextoProxyID:
+		return normalizeConnextoProxyUsage(rawUsage, source)
 	default:
 		return unavailableRecord(source)
 	}
@@ -38,6 +40,8 @@ func meteringSource(providerID string) Source {
 		return SourceOpenCodeGo
 	case providers.OpenRouterID:
 		return SourceOpenRouter
+	case providers.ConnextoProxyID:
+		return SourceConnextoProxy
 	default:
 		return SourceUnknown
 	}
@@ -175,6 +179,30 @@ type openCodeUsageDecoded struct {
 }
 
 func normalizeOpenRouterUsage(raw json.RawMessage, source Source) Record {
+	record := Record{Source: source}
+	usage, err := decodeOpenRouterUsage(raw)
+	if err != nil {
+		record.Status = StatusInvalid
+		return record
+	}
+	record.InputTokens = int64PtrFromUint(usage.inputTokens, usage.inputTokensSet)
+	record.OutputTokens = int64PtrFromUint(usage.outputTokens, usage.outputTokensSet)
+	record.TotalTokens = int64PtrFromUint(usage.totalTokens, usage.totalTokensSet)
+	record.CachedInputTokens = int64PtrFromUint(usage.cachedInputTokens, usage.cachedInputTokensSet)
+	if usage.costSet {
+		cost, currency, err := parseReportedCost(usage.costRaw, usage.currency)
+		if err != nil {
+			record.Status = StatusInvalid
+			return record
+		}
+		record.ProviderReportedCost = cost
+		record.Currency = currency
+	}
+	record.Status = classifyTokenStatus(record)
+	return record
+}
+
+func normalizeConnextoProxyUsage(raw json.RawMessage, source Source) Record {
 	record := Record{Source: source}
 	usage, err := decodeOpenRouterUsage(raw)
 	if err != nil {

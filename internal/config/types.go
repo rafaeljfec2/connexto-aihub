@@ -20,6 +20,8 @@ const (
 	EnvLogFormat                 = "AIHUB_LOG_FORMAT"
 	EnvProviderOpenCodeGoBaseURL = "AIHUB_PROVIDER_OPENCODEGO_BASE_URL"
 	EnvProviderOpenCodeGoAPIKey  = "AIHUB_PROVIDER_OPENCODEGO_API_KEY"
+	EnvProviderConnextoProxyBaseURL = "AIHUB_PROVIDER_CONNEXTO_PROXY_BASE_URL"
+	EnvConnextoProxyGatewayKey      = "AIHUB_CONNEXTO_PROXY_GATEWAY_KEY"
 	EnvDataDir                   = "AIHUB_DATA_DIR"
 	EnvCatalogStaleAfter         = "AIHUB_CATALOG_STALE_AFTER"
 	EnvCatalogSyncTimeout        = "AIHUB_CATALOG_SYNC_TIMEOUT"
@@ -46,9 +48,11 @@ var knownEnvKeys = map[string]struct{}{
 	EnvServerShutdownTimeout:     {},
 	EnvLogLevel:                  {},
 	EnvLogFormat:                 {},
-	EnvProviderOpenCodeGoBaseURL: {},
-	EnvProviderOpenCodeGoAPIKey:  {},
-	EnvDataDir:                   {},
+	EnvProviderOpenCodeGoBaseURL:    {},
+	EnvProviderOpenCodeGoAPIKey:     {},
+	EnvProviderConnextoProxyBaseURL: {},
+	EnvConnextoProxyGatewayKey:      {},
+	EnvDataDir:                      {},
 	EnvCatalogStaleAfter:         {},
 	EnvCatalogSyncTimeout:        {},
 	EnvGatewayAPIKey:             {},
@@ -165,9 +169,16 @@ func (p ProviderOpenCodeGo) Enabled() bool {
 	return p.APIKey != ""
 }
 
+// ProviderConnextoProxy groups the settings of the Connexto Proxy CLI LLMs provider.
+type ProviderConnextoProxy struct {
+	BaseURL    string
+	GatewayKey string
+}
+
 // Provider groups every configured integration.
 type Provider struct {
-	OpenCodeGo ProviderOpenCodeGo
+	OpenCodeGo    ProviderOpenCodeGo
+	ConnextoProxy ProviderConnextoProxy
 	// AllowedEndpointHosts are the only hosts the provider credential may be
 	// sent to when an endpoint is configured through the administrative API.
 	AllowedEndpointHosts []string

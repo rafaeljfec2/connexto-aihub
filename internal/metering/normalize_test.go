@@ -108,3 +108,23 @@ func TestNormalizeOpenRouterCachedTokensAndMissingCurrency(t *testing.T) {
 		t.Fatalf("reported cost = %+v currency = %q, want zero USD", record.ProviderReportedCost, record.Currency)
 	}
 }
+
+func TestNormalizeConnextoProxyUsageReported(t *testing.T) {
+	event := []byte(`{"type":"response.completed","response":{"usage":{"input_tokens":42,"output_tokens":88,"total_tokens":130}}}`)
+	record := metering.NormalizeExecutionUsage(providers.ConnextoProxyID, capture.Result{FinalEventData: event})
+	if record.Status != metering.StatusReported {
+		t.Fatalf("status = %s", record.Status)
+	}
+	if record.Source != metering.SourceConnextoProxy {
+		t.Fatalf("source = %s, want %s", record.Source, metering.SourceConnextoProxy)
+	}
+	if record.InputTokens == nil || *record.InputTokens != 42 {
+		t.Fatalf("input = %v, want 42", record.InputTokens)
+	}
+	if record.OutputTokens == nil || *record.OutputTokens != 88 {
+		t.Fatalf("output = %v, want 88", record.OutputTokens)
+	}
+	if record.TotalTokens == nil || *record.TotalTokens != 130 {
+		t.Fatalf("total = %v, want 130", record.TotalTokens)
+	}
+}

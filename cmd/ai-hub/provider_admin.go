@@ -29,8 +29,9 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 	}
 
 	service := providers.NewServiceWithProbes(pgstore.New(pool), cipher, registry, map[string]providers.ProbeFunc{
-		providers.TypeOpenCodeGo: providers.ProbeEndpoint,
-		providers.TypeOpenRouter: providers.ProbeOpenRouterEndpoint,
+		providers.TypeOpenCodeGo:    providers.ProbeEndpoint,
+		providers.TypeOpenRouter:    providers.ProbeOpenRouterEndpoint,
+		providers.TypeConnextoProxy: providers.ProbeConnextoProxyEndpoint,
 	},
 		cfg.Provider.AllowedEndpointHosts)
 
@@ -43,6 +44,10 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 		{
 			ID: providers.OpenRouterID, Name: "OpenRouter", Type: providers.TypeOpenRouter,
 			Endpoint: providers.OpenRouterEndpoint, Enabled: true,
+		},
+		{
+			ID: providers.ConnextoProxyID, Name: "Connexto Proxy CLI LLMs", Type: providers.TypeConnextoProxy,
+			Endpoint: cfg.Provider.ConnextoProxy.BaseURL, Enabled: true,
 		},
 	}, logger)
 

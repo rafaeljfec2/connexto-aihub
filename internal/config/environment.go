@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -55,6 +56,14 @@ func applyEnvironment(cfg *Config) error {
 
 	if value, ok := os.LookupEnv(EnvProviderOpenCodeGoAPIKey); ok {
 		cfg.Provider.OpenCodeGo.APIKey = value
+	}
+
+	if value, ok := os.LookupEnv(EnvProviderConnextoProxyBaseURL); ok {
+		cfg.Provider.ConnextoProxy.BaseURL = strings.TrimSpace(value)
+	}
+
+	if value, ok := os.LookupEnv(EnvConnextoProxyGatewayKey); ok {
+		cfg.Provider.ConnextoProxy.GatewayKey = strings.TrimSpace(value)
 	}
 
 	if value, ok := os.LookupEnv(EnvDataDir); ok {

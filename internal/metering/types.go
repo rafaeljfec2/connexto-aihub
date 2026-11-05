@@ -23,9 +23,10 @@ const (
 type Source string
 
 const (
-	SourceOpenCodeGo Source = "provider_opencode_go"
-	SourceOpenRouter Source = "provider_openrouter"
-	SourceUnknown    Source = "provider_unknown"
+	SourceOpenCodeGo     Source = "provider_opencode_go"
+	SourceOpenRouter     Source = "provider_openrouter"
+	SourceConnextoProxy  Source = "provider_connexto_proxy"
+	SourceUnknown        Source = "provider_unknown"
 )
 
 // Record is the normalized, content-free usage row for one execution.

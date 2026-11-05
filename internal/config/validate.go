@@ -51,7 +51,11 @@ func (c Config) Validate() error {
 		errs = append(errs, fmt.Errorf("log.format must be one of json, text, pretty; got %q", c.Log.Format))
 	}
 
-	if err := ValidateBaseURL(c.Provider.OpenCodeGo.BaseURL); err != nil {
+	if err := ValidateNamedBaseURL("provider.opencode-go.base_url", c.Provider.OpenCodeGo.BaseURL); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := ValidateNamedBaseURL("provider.connexto-proxy.base_url", c.Provider.ConnextoProxy.BaseURL); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -81,8 +85,11 @@ func (c Config) Validate() error {
 // ValidateBaseURL rejects provider base URLs that cannot be joined safely with
 // the fixed endpoint paths, including URLs with embedded credentials.
 func ValidateBaseURL(baseURL string) error {
-	const field = "provider.opencode-go.base_url"
+	return ValidateNamedBaseURL("provider.opencode-go.base_url", baseURL)
+}
 
+// ValidateNamedBaseURL rejects provider base URLs with an explicit field identifier.
+func ValidateNamedBaseURL(field, baseURL string) error {
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
 		return fmt.Errorf("%s: %w", field, err)

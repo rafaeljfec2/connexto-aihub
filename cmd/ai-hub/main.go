@@ -77,17 +77,26 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("build OpenRouter provider: %w", err)
 	}
+	connextoProxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:       cfg.Provider.ConnextoProxy.BaseURL,
+		ManagementKey: cfg.Provider.ConnextoProxy.GatewayKey,
+	}, nil)
+	if err != nil {
+		return fmt.Errorf("build Connexto Proxy provider: %w", err)
+	}
 	providerRegistry := providers.NewRegistry()
 	providerRegistry.Bind(providers.OpenCodeGoID, providerClient)
 	providerRegistry.Bind(providers.OpenRouterID, openRouterClient)
+	providerRegistry.Bind(providers.ConnextoProxyID, connextoProxyClient)
 	providerModule := providers.NewRegistryManager(logger, providerRegistry)
 	eventHub := operational.NewHub(logger)
 	providerModule.SetStateChangeNotifier(func() {
 		gateway.PublishProviderStatus(eventHub, providerModule.Statuses)
 	})
 	catalogSources := map[string]catalog.SourceFunc{
-		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
-		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
+		providers.OpenCodeGoID:     providerClient.FetchModelDescriptors,
+		providers.OpenRouterID:     openRouterClient.FetchModelDescriptors,
+		providers.ConnextoProxyID: connextoProxyClient.FetchModelDescriptors,
 	}
 	recordsModule := records.New(records.Options{
 		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),

@@ -46,6 +46,9 @@ func Default() Config {
 			OpenCodeGo: ProviderOpenCodeGo{
 				BaseURL: "https://opencode.ai/inference/go",
 			},
+			ConnextoProxy: ProviderConnextoProxy{
+				BaseURL: "http://127.0.0.1:9090/v1",
+			},
 			AllowedEndpointHosts: append([]string(nil), defaultProviderAllowedHosts...),
 		},
 		Catalog: Catalog{

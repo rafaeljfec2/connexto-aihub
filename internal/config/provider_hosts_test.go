@@ -15,7 +15,7 @@ func TestLoadDefaultsProviderEndpointAllowlistToSupportedProviders(t *testing.T)
 		t.Fatalf("Load() returned error: %v", err)
 	}
 
-	if want := []string{"opencode.ai", "openrouter.ai"}; !reflect.DeepEqual(cfg.Provider.AllowedEndpointHosts, want) {
+	if want := []string{"opencode.ai", "openrouter.ai", "127.0.0.1", "localhost"}; !reflect.DeepEqual(cfg.Provider.AllowedEndpointHosts, want) {
 		t.Fatalf("allowed endpoint hosts = %v, want %v", cfg.Provider.AllowedEndpointHosts, want)
 	}
 }

@@ -53,7 +53,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
 		return Record{}, err
 	}
-	if input.ManagementCredential != "" && input.Type != TypeOpenRouter {
+	if input.ManagementCredential != "" && input.Type != TypeOpenRouter && input.Type != TypeConnextoProxy {
 		return Record{}, ErrInvalid
 	}
 
@@ -99,7 +99,7 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Rec
 		if err != nil {
 			return Record{}, err
 		}
-		if record.Type != TypeOpenRouter {
+		if record.Type != TypeOpenRouter && record.Type != TypeConnextoProxy {
 			return Record{}, ErrInvalid
 		}
 	}
@@ -113,7 +113,7 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Rec
 	if err != nil {
 		return Record{}, err
 	}
-	if input.Endpoint == nil && input.Credential == nil {
+	if input.Endpoint == nil && input.Credential == nil && input.ManagementCredential == nil {
 		return record, nil
 	}
 
@@ -228,10 +228,16 @@ func (s *Service) apply(ctx context.Context, record Record) error {
 		return err
 	}
 
+	managementKey, err := s.managementCredentialOf(ctx, record)
+	if err != nil {
+		return err
+	}
+
 	if err := s.registry.Reconfigure(record.ID, Settings{
-		BaseURL: record.Endpoint,
-		APIKey:  credential,
-		Enabled: record.Enabled,
+		BaseURL:       record.Endpoint,
+		APIKey:        credential,
+		ManagementKey: managementKey,
+		Enabled:       record.Enabled,
 	}); err != nil {
 		return fmt.Errorf("apply provider %s configuration: %w", record.ID, err)
 	}

@@ -69,9 +69,10 @@ type Client struct {
 // Settings is the runtime configuration of the adapter. Changing it never
 // cancels executions that were already admitted; it only affects new requests.
 type Settings struct {
-	BaseURL string
-	APIKey  string
-	Enabled bool
+	BaseURL       string
+	APIKey        string
+	ManagementKey string
+	Enabled       bool
 }
 
 // NewClient builds the provider client. A nil httpClient selects the package
