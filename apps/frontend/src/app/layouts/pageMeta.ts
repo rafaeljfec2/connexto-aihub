@@ -39,10 +39,10 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     lead: 'Stream inference through POST /v1/responses (in-memory only).',
   },
   '/executions': {
-    crumb: 'Generations',
+    crumb: 'Execuções',
     eyebrow: 'OBSERVABILITY / GENERATIONS',
-    title: 'Generations',
-    lead: 'Inspect content-free generations processed by the gateway.',
+    title: 'Execuções',
+    lead: 'Inspecione cada geração processada pelo gateway.',
   },
   '/resources': {
     crumb: 'Resources',

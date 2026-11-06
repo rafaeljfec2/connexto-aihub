@@ -47,6 +47,10 @@ function generationResponse(generations = [generation]) {
   }
 }
 
+function generationListPaths(paths: string[]): string[] {
+  return paths.filter((path) => path.includes('/v1/generations'))
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -108,7 +112,7 @@ describe('ExecutionsPage generations experience', () => {
 
     renderPage()
 
-    const providerFilter = await screen.findByLabelText('Provider filter')
+    const providerFilter = await screen.findByLabelText('Filtrar por provedor')
     await waitFor(() => {
       expect(within(providerFilter).getByRole('option', { name: 'catalog-only-provider' })).toBeTruthy()
     })
@@ -186,24 +190,37 @@ describe('ExecutionsPage generations experience', () => {
     renderPage()
 
     expect(await screen.findByRole('row', { name: /vendor\/model/ })).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Provider filter'), { target: { value: 'opencode-go' } })
-    fireEvent.change(screen.getByLabelText('Model ID filter'), { target: { value: 'vendor/model' } })
-    fireEvent.change(screen.getByLabelText('Start date filter'), { target: { value: '2026-11-03' } })
-    fireEvent.change(screen.getByLabelText('End date filter'), { target: { value: '2026-11-04' } })
-    fireEvent.click(screen.getByRole('button', { name: 'completed' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Concluídas' }))
+    await waitFor(() => {
+      expect(generationListPaths(requestedPaths).some((path) => path.includes('outcome=completed'))).toBe(true)
+    })
+
+    const providerSelect = await screen.findByLabelText('Filtrar por provedor')
+    await waitFor(() => {
+      expect(within(providerSelect).getByRole('option', { name: 'opencode-go' })).toBeTruthy()
+    })
+    fireEvent.change(providerSelect, { target: { value: 'opencode-go' } })
+    await waitFor(() => {
+      expect(generationListPaths(requestedPaths).some((path) => path.includes('provider_id=opencode-go'))).toBe(true)
+    })
+
+    fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'custom' } })
+    fireEvent.change(screen.getByLabelText('Filtrar por ID do modelo'), { target: { value: 'vendor/model' } })
+    fireEvent.change(screen.getByLabelText('Data inicial'), { target: { value: '2026-11-03' } })
+    fireEvent.change(screen.getByLabelText('Data final'), { target: { value: '2026-11-04' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
 
     await waitFor(() => {
-      expect(requestedPaths.some((path) => path.includes('provider_id=opencode-go') &&
+      expect(generationListPaths(requestedPaths).some((path) => path.includes('provider_id=opencode-go') &&
         path.includes('model_id=vendor%2Fmodel') && path.includes('outcome=completed') &&
         path.includes('started_after=2026-11-03T00%3A00%3A00.000Z') &&
         path.includes('started_before=2026-11-04T23%3A59%3A59.999Z'))).toBe(true)
     })
 
     const row = await screen.findByRole('row', { name: /vendor\/model/ })
-    fireEvent.change(screen.getByLabelText('Search loaded generations'), { target: { value: 'req-test-123' } })
+    fireEvent.change(screen.getByLabelText('Buscar gerações carregadas'), { target: { value: 'req-test-123' } })
     expect(within(row).getByText('0')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Search loaded generations'), { target: { value: 'missing-value' } })
+    fireEvent.change(screen.getByLabelText('Buscar gerações carregadas'), { target: { value: 'missing-value' } })
     expect(screen.getByText('No generations match the current filters.')).toBeTruthy()
   })
 
@@ -233,7 +250,7 @@ describe('ExecutionsPage generations experience', () => {
     expect(requestedPaths.some((path) => path.includes('cursor=cursor-2'))).toBe(true)
 
     const callsBeforeRefresh = requestedPaths.length
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }))
     await waitFor(() => expect(requestedPaths.length).toBeGreaterThan(callsBeforeRefresh))
   })
 })

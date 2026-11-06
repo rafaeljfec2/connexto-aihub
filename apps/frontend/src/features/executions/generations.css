@@ -1,12 +1,63 @@
 .generations-page {
   position: relative;
 }
-.generations-pagehead {
+
+.generations-page-top {
   display: flex;
   flex: none;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.generations-pagehead {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .generations-pagehead {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.generations-page-eyebrow {
+  margin-bottom: 8px;
+  color: var(--color-cobalt);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+
+.generations-page-title {
+  color: #f0f3f8;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 36px;
+}
+
+.generations-page-lead {
+  margin-top: 8px;
+  color: #a9b4c4;
+  font-size: 12px;
+}
+
+.generations-headright {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (min-width: 1024px) {
+  .generations-headright {
+    padding-top: 4px;
+  }
 }
 
 .generations-tabs {
@@ -35,21 +86,136 @@
   font-weight: 600;
 }
 
-.generations-filters {
+.generations-activity-panel {
+  padding: 12px 14px 10px;
+  border: 1px solid rgb(180 194 218 / 12%);
+  border-radius: 10px;
+  background: rgb(23 30 41 / 55%);
+}
+
+.generations-activity-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.generations-activity-title {
+  color: #e7ecf5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.generations-activity-note {
+  color: #8d9aaf;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.generations-activity-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 88px;
+  padding-top: 4px;
+}
+
+.generations-activity-bar-wrap {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.generations-activity-bar {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, rgb(120 150 232 / 72%), rgb(120 150 232 / 28%));
+}
+
+.generations-activity-bar-wrap span {
+  color: #7d8a9d;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.generations-filter-bar {
   display: flex;
   flex: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(180 194 218 / 12%);
+  border-radius: 10px;
+  background: rgb(23 30 41 / 55%);
+}
+
+.generations-filter-primary {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
-  padding-bottom: 8px;
+  gap: 8px;
+}
+
+.generations-filter-advanced {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+  border-top: 1px solid rgb(180 194 218 / 10%);
+}
+
+.generations-outcome-chips {
+  flex: 0 1 auto;
+}
+
+.generations-compact-select {
+  height: 34px;
+  min-width: 132px;
+  max-width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: #171e29;
+  color: #afbbcd;
+  font-size: 10px;
+}
+
+.generations-period-select {
+  min-width: 148px;
+}
+
+.generations-filter-apply {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(120 150 232 / 28%);
+  border-radius: 6px;
+  background: #202d46;
+  color: #c7d5f5;
+  cursor: pointer;
+}
+
+.generations-filter-apply:hover {
+  background: #263a62;
 }
 
 .generations-search {
   display: flex;
-  min-width: min(100%, 240px);
-  max-width: 360px;
+  min-width: min(100%, 260px);
+  max-width: 420px;
   height: 34px;
-  flex: 1 1 240px;
+  flex: 1 1 280px;
   align-items: center;
   gap: 8px;
   padding: 0 10px;
@@ -93,7 +259,7 @@
 
 .generations-filter-field select:focus-visible,
 .generations-filter-field input:focus-visible,
-.generations-apply:focus-visible,
+.generations-filter-apply:focus-visible,
 .generations-tab:focus-visible {
   outline: 2px solid #afc2f2;
   outline-offset: 2px;
@@ -101,18 +267,6 @@
 
 .generations-model-field {
   min-width: 145px;
-}
-
-.generations-apply {
-  height: 32px;
-  margin-top: 12px;
-  padding: 0 10px;
-  border: 1px solid rgb(120 150 232 / 35%);
-  border-radius: 6px;
-  background: #263a62;
-  color: #eaf0fc;
-  font-size: 10px;
-  cursor: pointer;
 }
 
 .generations-table {

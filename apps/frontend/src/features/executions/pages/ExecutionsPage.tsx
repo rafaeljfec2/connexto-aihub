@@ -1,38 +1,55 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
-import { Button } from '../../../shared/ui'
 import { catalogQueryKeys, listCatalogProviders } from '../../catalog'
+import { getRuntimeMeta, overviewQueryKeys } from '../../overview/api/queries'
 import { executionsErrorMessage } from '../hooks/executionsFilter'
 import { getGeneration, generationsQueryKeys, listGenerations } from '../api/generations'
 import { GenerationDetailsDrawer } from '../components/GenerationDetailsDrawer'
+import { GenerationsActivityPanel } from '../components/GenerationsActivityPanel'
 import { GenerationsFilters } from '../components/GenerationsFilters'
 import type { GenerationFilterDraft } from '../components/GenerationsFilters'
 import { GenerationsTable } from '../components/GenerationsTable'
+import { formatDataOriginTag } from '../lib/formatDataOriginTag'
+import {
+  inferPeriodPreset,
+  resolvePeriodPresetRange,
+  type GenerationPeriodPreset,
+} from '../lib/generationPeriodPresets'
 import type { ExecutionOutcome, Generation, GenerationsFilter } from '../types'
+import { validateGenerationFilterDraft } from '../lib/validateGenerationFilters'
 import { generationMatchesSearch } from '../lib/formatGeneration'
 import '../generations.css'
 import '../generation-drawer.css'
 
 const PAGE_LIMIT = 50
-const defaultFilters: GenerationFilterDraft = {
-  provider_id: '',
-  model_id: '',
-  outcome: 'all',
-  start_date: '',
-  end_date: '',
+
+function buildDefaultFilters(): GenerationFilterDraft {
+  const range = resolvePeriodPresetRange('30d')
+  return {
+    provider_id: '',
+    model_id: '',
+    outcome: 'all',
+    start_date: range.start_date,
+    end_date: range.end_date,
+  }
 }
 
 export function ExecutionsPage() {
+  const meta = useAppPageMeta()
+  const defaultFilters = useMemo(() => buildDefaultFilters(), [])
   const [search, setSearch] = useState('')
   const [draftFilters, setDraftFilters] = useState(defaultFilters)
   const [activeFilters, setActiveFilters] = useState(defaultFilters)
+  const [periodPreset, setPeriodPreset] = useState<GenerationPeriodPreset>('30d')
   const [filterError, setFilterError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const focusedRowRef = useRef<HTMLTableRowElement | null>(null)
+  const draftFiltersRef = useRef(draftFilters)
+  draftFiltersRef.current = draftFilters
 
   const apiFilter = useMemo(() => toApiFilter(activeFilters), [activeFilters])
   const listFilter = useMemo(() => ({ ...apiFilter, limit: PAGE_LIMIT }), [apiFilter])
@@ -47,6 +64,12 @@ export function ExecutionsPage() {
   const providersQuery = useQuery({
     queryKey: catalogQueryKeys.providers,
     queryFn: listCatalogProviders,
+    refetchInterval: false,
+    retry: 1,
+  })
+  const runtimeMeta = useQuery({
+    queryKey: overviewQueryKeys.runtimeMeta,
+    queryFn: getRuntimeMeta,
     refetchInterval: false,
     retry: 1,
   })
@@ -86,6 +109,26 @@ export function ExecutionsPage() {
     return null
   }, [listQuery.data])
 
+  const originTag = formatDataOriginTag(runtimeMeta.data?.data_origin)
+
+  const commitFilters = useCallback(
+    (next: GenerationFilterDraft) => {
+      const validation = validateGenerationFilterDraft(next)
+      if (!validation.ok) {
+        setFilterError(validation.message)
+        return false
+      }
+      setFilterError(null)
+      setDraftFilters(next)
+      setActiveFilters(next)
+      if (periodPreset !== 'custom') {
+        setPeriodPreset(inferPeriodPreset(next.start_date, next.end_date))
+      }
+      return true
+    },
+    [periodPreset],
+  )
+
   useEffect(() => {
     setSelectedId(null)
     setDrawerOpen(false)
@@ -99,12 +142,31 @@ export function ExecutionsPage() {
   }, [selectedId, visibleGenerations])
 
   const applyFilters = () => {
-    if (draftFilters.start_date && draftFilters.end_date && draftFilters.start_date > draftFilters.end_date) {
-      setFilterError('The start date must be on or before the end date.')
+    commitFilters(draftFilters)
+  }
+
+  const handlePeriodPresetChange = (preset: GenerationPeriodPreset) => {
+    setPeriodPreset(preset)
+    if (preset === 'custom') {
       return
     }
-    setFilterError(null)
-    setActiveFilters({ ...draftFilters })
+    const range = resolvePeriodPresetRange(preset)
+    commitFilters({ ...draftFiltersRef.current, ...range })
+  }
+
+  const handleOutcomeChange = (outcome: GenerationFilterDraft['outcome']) => {
+    commitFilters({ ...draftFiltersRef.current, outcome })
+  }
+
+  const handleProviderChange = (providerId: string) => {
+    commitFilters({ ...draftFiltersRef.current, provider_id: providerId })
+  }
+
+  const handleDraftChange = (next: GenerationFilterDraft) => {
+    setDraftFilters(next)
+    if (periodPreset !== 'custom') {
+      setPeriodPreset(inferPeriodPreset(next.start_date, next.end_date))
+    }
   }
 
   const selectGeneration = (generation: Generation) => {
@@ -117,59 +179,82 @@ export function ExecutionsPage() {
       focusedRowRef.current.focus()
       return
     }
-    document.querySelector<HTMLInputElement>('[aria-label="Search loaded generations"]')?.focus()
+    document.querySelector<HTMLInputElement>('[aria-label="Buscar gerações carregadas"]')?.focus()
   }
 
   return (
-    <div className={appPageClassName('executions-page generations-page', 'flex h-full flex-col gap-3 overflow-hidden')}>
-      <div className="generations-pagehead">
-        <AppPageHeader />
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void listQuery.refetch()}
-          disabled={listQuery.isFetching}
-          className="cursor-pointer gap-1.5"
-        >
-          <RefreshCw className={`size-3.5 ${listQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />
-          <span>Refresh</span>
-        </Button>
-      </div>
+    <div className={appPageClassName('executions-page generations-page', 'flex h-full flex-col gap-2 overflow-hidden')}>
+      <div className="generations-page-top">
+        <header className="generations-pagehead">
+          <div className="min-w-0 flex-1">
+            <p className="generations-page-eyebrow">{meta.eyebrow}</p>
+            <h1 className="generations-page-title">{meta.title}</h1>
+            {meta.lead ? <p className="generations-page-lead">{meta.lead}</p> : null}
+          </div>
+          <div className="generations-headright">
+            <span className="overview-backend-tag">{originTag}</span>
+            <button
+              type="button"
+              className="overview-refresh cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => void listQuery.refetch()}
+              disabled={listQuery.isFetching}
+            >
+              <RefreshCw className={`inline size-3.5 ${listQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden />
+              <span>Atualizar</span>
+            </button>
+          </div>
+        </header>
 
-      <nav className="generations-tabs" aria-label="Generation views" role="tablist">
-        <button type="button" role="tab" aria-selected="true" className="generations-tab generations-tab-active">
-          Generations
-        </button>
-      </nav>
+        <nav className="generations-tabs" aria-label="Visões de gerações" role="tablist">
+          <button type="button" role="tab" aria-selected="true" className="generations-tab generations-tab-active">
+            Generations
+          </button>
+        </nav>
+
+        <GenerationsActivityPanel />
+      </div>
 
       <GenerationsFilters
         search={search}
         onSearchChange={setSearch}
         value={draftFilters}
+        periodPreset={periodPreset}
+        onPeriodPresetChange={handlePeriodPresetChange}
         providers={providerOptions}
-        onChange={setDraftFilters}
+        onDraftChange={handleDraftChange}
+        onOutcomeChange={handleOutcomeChange}
+        onProviderChange={handleProviderChange}
         onApply={applyFilters}
       />
-      {filterError ? <p className="text-xs text-failure" role="alert">{filterError}</p> : null}
+      {filterError ? (
+        <p className="text-xs text-failure" role="alert">
+          {filterError}
+        </p>
+      ) : null}
 
       <GenerationsTable
         generations={visibleGenerations}
         selectedId={selectedId}
         onSelect={selectGeneration}
-        onFocusRow={(row) => { focusedRowRef.current = row }}
+        onFocusRow={(row) => {
+          focusedRowRef.current = row
+        }}
         isLoading={listQuery.isLoading}
         isError={listQuery.isError}
-        errorMessage={listQuery.error ? executionsErrorMessage(listQuery.error, 'Unable to load generations.') : undefined}
+        errorMessage={
+          listQuery.error ? executionsErrorMessage(listQuery.error, 'Não foi possível carregar as gerações.') : undefined
+        }
         enrichmentNotice={enrichmentNotice}
         hasNextPage={Boolean(listQuery.hasNextPage)}
         isFetchingNextPage={listQuery.isFetchingNextPage}
         onLoadMore={() => void listQuery.fetchNextPage()}
         loadedCount={generations.length}
+        originTag={originTag}
       />
 
       <footer className="generations-footnote">
         <span>API · /v1/generations</span>
-        <span>SEARCH COVERS LOADED RESULTS</span>
+        <span>A BUSCA COBRE APENAS OS RESULTADOS CARREGADOS</span>
       </footer>
 
       <GenerationDetailsDrawer
@@ -179,7 +264,11 @@ export function ExecutionsPage() {
         detail={detailQuery.data}
         isLoading={detailQuery.isLoading}
         isError={detailQuery.isError}
-        errorMessage={detailQuery.error ? executionsErrorMessage(detailQuery.error, 'Unable to load generation details.') : undefined}
+        errorMessage={
+          detailQuery.error
+            ? executionsErrorMessage(detailQuery.error, 'Não foi possível carregar os detalhes da geração.')
+            : undefined
+        }
         onRestoreFocus={restoreFocus}
       />
     </div>
@@ -190,7 +279,7 @@ function toApiFilter(filters: GenerationFilterDraft): Omit<GenerationsFilter, 'c
   return {
     provider_id: filters.provider_id || undefined,
     model_id: filters.model_id.trim() || undefined,
-    outcome: filters.outcome === 'all' ? undefined : filters.outcome as ExecutionOutcome,
+    outcome: filters.outcome === 'all' ? undefined : (filters.outcome as ExecutionOutcome),
     started_after: filters.start_date ? `${filters.start_date}T00:00:00.000Z` : undefined,
     started_before: filters.end_date ? `${filters.end_date}T23:59:59.999Z` : undefined,
   }
