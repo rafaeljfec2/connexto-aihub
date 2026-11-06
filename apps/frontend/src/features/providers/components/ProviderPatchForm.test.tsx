@@ -1,7 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProviderPatchForm } from './ProviderPatchForm'
+import * as queries from '../api/queries'
 import type { AdminProvider } from '../types'
+
+vi.mock('../api/queries', async () => {
+  const actual = await vi.importActual<typeof queries>('../api/queries')
+  return {
+    ...actual,
+    validateProvider: vi.fn(),
+  }
+})
 
 const openRouterProvider: AdminProvider = {
   id: 'openrouter-primary',
@@ -16,7 +25,21 @@ const openRouterProvider: AdminProvider = {
 }
 
 describe('ProviderPatchForm', () => {
-  it('submits separate OpenRouter credentials through blank password fields', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(queries.validateProvider).mockResolvedValue({ status: 'reachable' })
+  })
+
+  it('keeps name field locked and disabled so the user cannot change provider identity', () => {
+    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={vi.fn()} />)
+
+    const nameInput = screen.getByLabelText('Name')
+    expect(nameInput.hasAttribute('disabled')).toBe(true)
+    expect(nameInput.getAttribute('readonly')).toBe('')
+    expect((nameInput as HTMLInputElement).value).toBe('OpenRouter Primary')
+  })
+
+  it('submits separate OpenRouter credentials after successful connection test', async () => {
     const onSubmit = vi.fn()
     render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={onSubmit} />)
 
@@ -30,15 +53,51 @@ describe('ProviderPatchForm', () => {
 
     fireEvent.change(managementInput, { target: { value: 'management-key-fixture' } })
     fireEvent.change(inferenceInput, { target: { value: 'inference-key-fixture' } })
-    const form = screen.getByRole('button', { name: 'Save changes' }).closest('form')
+
+    const form = screen.getByRole('button', { name: /Save changes|Salvar alterações/i }).closest('form')
     if (!form) throw new Error('Provider patch form was not rendered')
     fireEvent.submit(form)
 
     await waitFor(() => {
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', 'inference-key-fixture')
       expect(onSubmit).toHaveBeenCalledWith({
         management_credential: 'management-key-fixture',
         credential: 'inference-key-fixture',
       })
+    })
+  })
+
+  it('allows testing connection explicitly via Testar conexão button', async () => {
+    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={vi.fn()} />)
+
+    const inferenceInput = screen.getByLabelText('Credential (write-only)')
+    fireEvent.change(inferenceInput, { target: { value: 'test-key-probe' } })
+
+    const testBtn = screen.getByRole('button', { name: /Testar conexão/i })
+    fireEvent.click(testBtn)
+
+    await waitFor(() => {
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', 'test-key-probe')
+      expect(screen.getByText(/Conexão testada com sucesso!/i)).toBeDefined()
+    })
+  })
+
+  it('blocks saving and shows error message if connection test fails', async () => {
+    vi.mocked(queries.validateProvider).mockRejectedValue(new Error('Credencial inválida no upstream'))
+    const onSubmit = vi.fn()
+    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={onSubmit} />)
+
+    const inferenceInput = screen.getByLabelText('Credential (write-only)')
+    fireEvent.change(inferenceInput, { target: { value: 'invalid-secret' } })
+
+    const form = screen.getByRole('button', { name: /Save changes|Salvar alterações/i }).closest('form')
+    if (!form) throw new Error('Provider patch form was not rendered')
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', 'invalid-secret')
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(screen.getByText(/Falha no teste de conexão: Credencial inválida no upstream/i)).toBeDefined()
     })
   })
 

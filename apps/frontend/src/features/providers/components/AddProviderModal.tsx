@@ -48,6 +48,8 @@ export function AddProviderModal({
   const [showSecret, setShowSecret] = useState(false)
   const [phase, setPhase] = useState<ModalPhase>('select')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [probeSuccessMessage, setProbeSuccessMessage] = useState<string | null>(null)
+  const [testingProbe, setTestingProbe] = useState(false)
   const [syncResult, setSyncResult] = useState<SyncModelsResponse | null>(null)
 
   const availableQuery = useQuery({
@@ -67,6 +69,8 @@ export function AddProviderModal({
     setShowSecret(false)
     setPhase('select')
     setErrorMessage(null)
+    setProbeSuccessMessage(null)
+    setTestingProbe(false)
     setSyncResult(null)
   }
 
@@ -81,6 +85,26 @@ export function AddProviderModal({
     setSelectedProvider(provider)
     setPhase('credential')
     setErrorMessage(null)
+    setProbeSuccessMessage(null)
+  }
+
+  async function handleQuickTestConnection() {
+    if (!selectedProvider || !credential.trim()) return
+    setTestingProbe(true)
+    setErrorMessage(null)
+    setProbeSuccessMessage(null)
+    try {
+      await validateProvider(selectedProvider.id, credential.trim())
+      setProbeSuccessMessage('Conexão testada com sucesso! O provedor está acessível e a credencial respondeu.')
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? `Falha no teste de conexão: ${err.message}`
+          : 'Falha no teste de conexão. Verifique o segredo informado.',
+      )
+    } finally {
+      setTestingProbe(false)
+    }
   }
 
   async function handleValidateAndSave() {
@@ -274,19 +298,49 @@ export function AddProviderModal({
               <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
                 <AlertCircle className="size-4 shrink-0 text-red-400 mt-0.5" />
                 <div className="space-y-0.5">
-                  <p className="font-semibold text-red-300">Falha na validação</p>
+                  <p className="font-semibold text-red-300">Falha na conexão</p>
                   <p className="text-red-200/90 leading-relaxed">{errorMessage}</p>
                 </div>
               </div>
             ) : null}
 
+            {probeSuccessMessage ? (
+              <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+                <CheckCircle className="size-4 shrink-0 text-emerald-400 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-emerald-300">Conexão verificada</p>
+                  <p className="text-emerald-200/90 leading-relaxed">{probeSuccessMessage}</p>
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-1.5">
-              <label
-                htmlFor="provider-credential-input"
-                className="block text-xs font-medium text-secondary"
-              >
-                {selectedProvider?.credential_label ?? 'API Key / Token'}
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="provider-credential-input"
+                  className="block text-xs font-medium text-secondary"
+                >
+                  {selectedProvider?.credential_label ?? 'API Key / Token'}
+                </label>
+                <button
+                  type="button"
+                  disabled={isBusy || testingProbe || !credential.trim()}
+                  onClick={() => void handleQuickTestConnection()}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                >
+                  {testingProbe ? (
+                    <>
+                      <RefreshCw className="size-3 animate-spin text-cobalt" />
+                      <span>Testando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="size-3" />
+                      <span>Testar conexão</span>
+                    </>
+                  )}
+                </button>
+              </div>
               <div className="relative">
                 <input
                   id="provider-credential-input"
