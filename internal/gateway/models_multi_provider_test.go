@@ -13,14 +13,14 @@ import (
 	"aihub/internal/providers"
 )
 
-func TestModelsRouteSelectsProviderByIDAndDefaultsToOpenCode(t *testing.T) {
+func TestModelsRouteAggregatesAllProvidersWithoutSelector(t *testing.T) {
 	var openCodeHits, openRouterHits int
 	openCodeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		openCodeHits++
 		if r.URL.Path != "/v1/models" {
 			t.Errorf("OpenCode models path = %q", r.URL.Path)
 		}
-		_, _ = io.WriteString(w, `{"data":[{"id":"deepseek-v4.1-flash"}]}`)
+		_, _ = io.WriteString(w, `{"object":"list","data":[{"id":"deepseek-v4.1-flash"}]}`)
 	}))
 	defer openCodeServer.Close()
 	openRouterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,7 @@ func TestModelsRouteSelectsProviderByIDAndDefaultsToOpenCode(t *testing.T) {
 		if r.URL.Path != "/api/v1/models" {
 			t.Errorf("OpenRouter models path = %q", r.URL.Path)
 		}
-		_, _ = io.WriteString(w, `{"data":[{"id":"anthropic/claude-sonnet-4.5"}]}`)
+		_, _ = io.WriteString(w, `{"object":"list","data":[{"id":"anthropic/claude-sonnet-4.5"}]}`)
 	}))
 	defer openRouterServer.Close()
 	openCode, err := providers.NewClient(config.ProviderOpenCodeGo{BaseURL: openCodeServer.URL, APIKey: openCodeTestKey}, nil)
@@ -45,14 +45,21 @@ func TestModelsRouteSelectsProviderByIDAndDefaultsToOpenCode(t *testing.T) {
 	handler := gateway.NewRegistryModelsHandler(registry, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	defaultResponse := serveModels(handler, "")
-	if defaultResponse.Code != http.StatusOK || !strings.Contains(defaultResponse.Body.String(), "deepseek-v4.1-flash") {
+	if defaultResponse.Code != http.StatusOK {
 		t.Fatalf("default models response = %d %s", defaultResponse.Code, defaultResponse.Body.String())
 	}
+	body := defaultResponse.Body.String()
+	if !strings.Contains(body, "deepseek-v4.1-flash") || !strings.Contains(body, "anthropic/claude-sonnet-4.5") {
+		t.Fatalf("aggregated models response = %s", body)
+	}
 	routedResponse := serveModels(handler, providers.OpenRouterID)
-	if routedResponse.Code != http.StatusOK || !strings.Contains(routedResponse.Body.String(), "anthropic/claude-sonnet-4.5") {
+	if !strings.Contains(routedResponse.Body.String(), "anthropic/claude-sonnet-4.5") {
 		t.Fatalf("OpenRouter models response = %d %s", routedResponse.Code, routedResponse.Body.String())
 	}
-	if openCodeHits != 1 || openRouterHits != 1 {
+	if strings.Count(routedResponse.Body.String(), `"id":`) != 1 {
+		t.Fatalf("explicit provider should passthrough one upstream list, got %s", routedResponse.Body.String())
+	}
+	if openCodeHits != 1 || openRouterHits != 2 {
 		t.Fatalf("model requests = OpenCode %d, OpenRouter %d", openCodeHits, openRouterHits)
 	}
 }

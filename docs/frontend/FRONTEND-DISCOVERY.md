@@ -46,7 +46,7 @@ This technical discovery establishes the product, architectural, operational, an
 
 ### 2.2 Backend Baseline Capabilities
 - **Operational Health:** Public `GET /healthz` (process liveness) and `GET /readyz` (dependency readiness). Authenticated `GET /diagnostics/providers` (runtime health and availability).
-- **Model Catalog:** Provider-scoped models (`GET /v1/models`), normalized catalog with capability provenance (`GET /v1/catalog/models`), single model lookup (`GET /v1/catalog/models/{provider}/{model...}`), provider sync state (`GET /v1/catalog/providers`), and sync trigger (`POST /v1/catalog/sync`).
+- **Model Catalog:** Aggregated provider models (`GET /v1/models`), optional per-provider native list via `X-AIHub-Provider`, normalized catalog with capability provenance (`GET /v1/catalog/models`), single model lookup (`GET /v1/catalog/models/{provider}/{model...}`), provider sync state (`GET /v1/catalog/providers`), and sync trigger (`POST /v1/catalog/sync`).
 - **Provider Administration (PostgreSQL Mode):** Full CRUD, credential sealing, probe validation (`POST /api/providers/{id}/validate`), runtime enable/disable (`POST /api/providers/{id}/enable|disable`). Secrets are write-only and never returned in API responses.
 - **Execution & Records:** Streaming responses (`POST /v1/responses`) using OpenAI Responses SSE protocol with deterministic routing (E08). Audit trail via content-free execution records (`GET /v1/records/executions` and `/executions/{id}`).
 - **Resource Management (E09):** Daily quota policies (`/api/resource-policies`), concurrency limits (`/api/concurrency-policies`), real-time usage meters (`/api/resource-usage`, `/api/concurrency-usage`), and comprehensive analytics series (`/api/resource-analytics/*`).

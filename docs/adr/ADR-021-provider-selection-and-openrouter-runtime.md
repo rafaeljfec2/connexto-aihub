@@ -13,11 +13,13 @@ lifecycle contracts.
 
 ## Decision
 
-1. `X-AIHub-Provider` selects the provider for `POST /v1/responses` and
-   `GET /v1/models`. If absent, the gateway selects `opencode-go` for backward
-   compatibility. An invalid or unknown selector is rejected; a known provider
-   that is disabled, lacks a credential, or lacks the required runtime
-   capability is unavailable.
+1. `X-AIHub-Provider` selects the provider for `POST /v1/responses`. If absent,
+   the gateway selects `opencode-go` for backward compatibility. For
+   `GET /v1/models`, if absent, the gateway merges model entries from every
+   enabled bound provider that supports model listing; with an explicit selector,
+   the native upstream list is passed through unchanged. An invalid or unknown
+   selector is rejected; a known provider that is disabled, lacks a credential,
+   or lacks the required runtime capability is unavailable.
 2. The selector is execution metadata. The JSON `model` value and request body
    are forwarded unchanged. `model_id` retains ADR-009's provider-scoped
    identity `(provider_id, model_id)` and preserves the upstream model ID.
@@ -41,8 +43,10 @@ state.
 
 ## Consequences
 
-- Existing clients continue to use OpenCode Go without changes.
-- Clients can select OpenRouter independently for execution and model listing.
+- Existing Responses clients continue to use OpenCode Go without changes when
+  they omit `X-AIHub-Provider`.
+- Model pickers can call `GET /v1/models` once to see every enabled provider's
+  models; per-provider native lists remain available with `X-AIHub-Provider`.
 - Catalog identity remains provider-scoped; equal model IDs from different
   providers remain distinct.
 - Provider-level availability and model-level feature support remain separate.

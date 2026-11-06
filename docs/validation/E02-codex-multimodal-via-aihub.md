@@ -99,6 +99,10 @@ tests use the **flat** shape — the hub adapter covers the flat case for
 5. Smoke POST via hub with flat multimodal body; expect **200** and a descriptive
    assistant message.
 
+6. **`GET /v1/models`** (no header) should list models from every enabled provider
+   (OpenCode, Cursor via proxy, OpenRouter, etc.). Use `X-AIHub-Provider: cursor`
+   only when you need the proxy's native list body unchanged.
+
 ## Cursor / Connexto Proxy path (backlog)
 
 If `model_provider` targets **cursor** via the Connexto Proxy (`9090`), catalog

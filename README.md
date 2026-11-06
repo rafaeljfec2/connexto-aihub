@@ -89,6 +89,11 @@ curl -i http://127.0.0.1:8080/readyz
 
 curl -i -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
   http://127.0.0.1:8080/v1/models
+
+# Single provider (native upstream body, byte-for-byte when upstream succeeds):
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  -H "X-AIHub-Provider: cursor" \
+  http://127.0.0.1:8080/v1/models
 ```
 
 ## Endpoints
@@ -98,7 +103,7 @@ curl -i -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
 | GET    | `/healthz`              | Liveness. Process is running; no dependency is evaluated.                  |
 | GET    | `/readyz`               | Readiness. Runs registered checks; `503` when any fails.                   |
 | POST   | `/v1/responses`         | Responses pass-through to OpenCode Go (E02; `503` when provider disabled). |
-| GET    | `/v1/models`            | Provider model catalog pass-through (E02).                                 |
+| GET    | `/v1/models`            | Aggregated OpenAI-style model list from every enabled bound provider; optional `X-AIHub-Provider` scopes to one upstream passthrough. |
 | GET    | `/diagnostics/providers`| Provider configuration and availability state, no secrets (E02).           |
 | GET    | `/v1/catalog/models`    | Normalized catalog with filtered presence, listing state and capability (E03). |
 | GET    | `/v1/catalog/models/{provider}/{model...}` | One model with provenance metadata and capabilities (E03).  |
@@ -255,7 +260,11 @@ curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
 Connexto Proxy operators should send `modalities.input` for text-only models so
 the hub does not apply cursor default vision modalities (see SPEC §5.4).
 
-`GET /v1/models` remains the E02 byte-for-byte provider pass-through.
+`GET /v1/models` without `X-AIHub-Provider` merges each enabled provider's native
+`data[]` entries into one OpenAI-style list (`object: list`). Upstream failures
+for one provider are skipped so other providers still appear. With an explicit
+selector, the handler passthroughs that provider's native response unchanged.
+For normalized capability metadata, use `GET /v1/catalog/models` (E03).
 
 ### Execution records (E06)
 

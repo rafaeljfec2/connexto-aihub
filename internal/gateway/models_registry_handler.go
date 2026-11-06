@@ -8,13 +8,15 @@ import (
 	"aihub/internal/providers"
 )
 
-// NewRegistryModelsHandler selects the native model-list endpoint by provider ID.
+// NewRegistryModelsHandler lists models from every enabled bound provider when
+// X-AIHub-Provider is absent. With an explicit selector, it passthroughs that
+// provider's native model-list response unchanged.
 func NewRegistryModelsHandler(registry *providers.Registry, logger *slog.Logger) http.Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		providerID, err := requestedProviderID(request)
+		explicit, err := explicitProviderFromRequest(request)
 		if err != nil {
 			writeJSONError(writer, http.StatusBadRequest, "invalid_request", "the provider selector is invalid")
 			return
@@ -23,33 +25,47 @@ func NewRegistryModelsHandler(registry *providers.Registry, logger *slog.Logger)
 			writeJSONError(writer, http.StatusNotFound, responseProviderNotFoundType, responseProviderNotFoundMsg)
 			return
 		}
-		adapter, ok := registry.Resolve(providerID)
-		if !ok {
-			writeJSONError(writer, http.StatusNotFound, responseProviderNotFoundType, responseProviderNotFoundMsg)
+		if explicit == "" {
+			writeAggregatedRegistryModels(writer, request, registry, logger)
 			return
 		}
-		models, ok := adapter.(providers.ModelListAdapter)
-		if !ok {
-			writeJSONError(writer, http.StatusNotFound, responseProviderNotFoundType, responseProviderNotFoundMsg)
-			return
-		}
-		if !adapter.Enabled() {
-			writeJSONError(writer, http.StatusServiceUnavailable, providerUnavailableType, responseProviderUnavailable)
-			return
-		}
-		response, err := models.ListModels(request.Context())
-		if err != nil || response == nil {
-			logger.ErrorContext(request.Context(), "provider model list failed", "provider", providerID, "error", err)
-			writeJSONError(writer, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
-			return
-		}
-		defer func() { _ = response.Body.Close() }()
-		if contentType := response.Header.Get("Content-Type"); contentType != "" {
-			writer.Header().Set("Content-Type", contentType)
-		}
-		writer.WriteHeader(response.StatusCode)
-		if _, err := io.Copy(writer, response.Body); err != nil {
-			logger.WarnContext(request.Context(), "provider model list response copy failed", "provider", providerID)
-		}
+		writePassthroughRegistryModels(writer, request, registry, logger, explicit)
 	})
+}
+
+func writePassthroughRegistryModels(
+	writer http.ResponseWriter,
+	request *http.Request,
+	registry *providers.Registry,
+	logger *slog.Logger,
+	providerID string,
+) {
+	adapter, ok := registry.Resolve(providerID)
+	if !ok {
+		writeJSONError(writer, http.StatusNotFound, responseProviderNotFoundType, responseProviderNotFoundMsg)
+		return
+	}
+	models, ok := adapter.(providers.ModelListAdapter)
+	if !ok {
+		writeJSONError(writer, http.StatusNotFound, responseProviderNotFoundType, responseProviderNotFoundMsg)
+		return
+	}
+	if !adapter.Enabled() {
+		writeJSONError(writer, http.StatusServiceUnavailable, providerUnavailableType, responseProviderUnavailable)
+		return
+	}
+	response, err := models.ListModels(request.Context())
+	if err != nil || response == nil {
+		logger.ErrorContext(request.Context(), "provider model list failed", "provider", providerID, "error", err)
+		writeJSONError(writer, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
+		return
+	}
+	defer func() { _ = response.Body.Close() }()
+	if contentType := response.Header.Get("Content-Type"); contentType != "" {
+		writer.Header().Set("Content-Type", contentType)
+	}
+	writer.WriteHeader(response.StatusCode)
+	if _, err := io.Copy(writer, response.Body); err != nil {
+		logger.WarnContext(request.Context(), "provider model list response copy failed", "provider", providerID)
+	}
 }

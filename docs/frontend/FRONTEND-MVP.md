@@ -91,7 +91,7 @@ linked handler/specification.
 
 | Method and path | Authentication | Request and response | Relevant status |
 | --- | --- | --- | --- |
-| GET /v1/models | Gateway key | Optional provider selection with X-AIHub-Provider. Forwards that provider's native model-list response. | 200/upstream status; 400 invalid selector; 404 unknown or unsupported provider; 503 disabled provider; 502 upstream failure |
+| GET /v1/models | Gateway key | Without `X-AIHub-Provider`, merges enabled providers' native `data[]` models. With the header, forwards that provider's native model-list response. | 200 merged or upstream status; 400 invalid selector; 404 unknown or unsupported provider; 503 no listable provider; 502 all upstream lists failed |
 | GET /v1/catalog/models | Gateway key | Optional provider, capability, presence, and listing_state filters. Returns normalized catalog data and meta; entries include capabilities and their provenance, presence, freshness, runtime state, and execution-verification state. | 200; 400 invalid filter |
 | GET /v1/catalog/models/{provider}/{model...} | Gateway key | No body. Returns one normalized model with provider metadata. | 200; 404 provider/model missing |
 | GET /v1/catalog/providers | Gateway key | No body. Returns provider catalog sync state, freshness, and model counts. | 200 |
