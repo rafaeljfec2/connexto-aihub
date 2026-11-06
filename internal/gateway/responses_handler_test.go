@@ -200,6 +200,11 @@ func TestResponsesHandlerPassesRequestAndStreamVerbatim(t *testing.T) {
 		t.Fatalf("content type = %q, want %q", got, want)
 	}
 
+	wantBody, err := gateway.OpenCodeResponsesPayloadForUpstream([]byte(codexStylePayload))
+	if err != nil {
+		t.Fatalf("OpenCodeResponsesPayloadForUpstream: %v", err)
+	}
+
 	assertions := []struct {
 		name, got, want string
 	}{
@@ -207,7 +212,7 @@ func TestResponsesHandlerPassesRequestAndStreamVerbatim(t *testing.T) {
 		{"path", capture.Path, "/openai/v1/responses"},
 		{"authorization", capture.Authorization, "Bearer " + providerCredential},
 		{"content type", capture.ContentType, "application/json"},
-		{"body", capture.Body, codexStylePayload},
+		{"body", capture.Body, string(wantBody)},
 	}
 	for _, item := range assertions {
 		if item.got != item.want {

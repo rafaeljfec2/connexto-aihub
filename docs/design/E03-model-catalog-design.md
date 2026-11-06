@@ -1,8 +1,9 @@
 # E03 — Model Catalog — Technical Design
 
 Status: approved by the developer (2026-10-30); amendment A1 approved and
-reflected in SPEC rev 5. Companion to
-`docs/specs/E03-model-catalog.md` (rev 5). Decisions: ADR-009 and ADR-010.
+reflected in SPEC rev 5; amendment A2 (modality ingest normalization) in SPEC
+rev 6. Companion to
+`docs/specs/E03-model-catalog.md` (rev 6). Decisions: ADR-009 and ADR-010.
 
 This document defines components, responsibilities, contracts, flows, failure
 handling, test seams and the implementation plan. It contains signatures and
@@ -150,6 +151,12 @@ Parsing rules:
 8. Empty `data` is a valid decode: it returns an empty slice, and the catalog
    applies the empty-payload safety rule.
 
+**Amendment A2 (SPEC rev 6):** before returning descriptors, adapters apply
+`NormalizeInputModalitiesForCatalog` where upstream lists modalities (OpenRouter,
+OpenCode Go, Connexto Proxy). Connexto Proxy additionally applies
+`DefaultVisionAgentInputModalities()` for `cursor` sync when `modalities.input`
+is absent. See `internal/providers/input_modalities.go` and SPEC §5.4.
+
 ```go
 type UpstreamHTTPError struct{ StatusCode int }
 type DecodeError struct{ Err error }
@@ -212,8 +219,8 @@ shape:
 | `function_tools` | `tools.supported` pointer | true supported/explicit, false unsupported/explicit, nil unknown/none |
 | `custom_tools` | no declaration | unknown/none |
 | `reasoning` | `reasoning.supported` pointer | same boolean rule |
-| `image_input` | any `image/*` in `input` | supported/derived, else unknown/none |
-| `audio_input` | any `audio/*` in `input` | supported/derived, else unknown/none |
+| `image_input` | any `image/*` or bare `image` in `input` (after provider ingest per SPEC §5.4) | supported/derived, else unknown/none |
+| `audio_input` | any `audio/*` or bare `audio` in `input` | supported/derived, else unknown/none |
 | `audio_output` | any `audio/*` in `output` | supported/derived, else unknown/none |
 | `structured_output` | pointer | same boolean rule |
 

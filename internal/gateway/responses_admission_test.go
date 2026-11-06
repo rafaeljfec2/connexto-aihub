@@ -81,7 +81,11 @@ func TestResponsesAdmissionPreservesE02Contract(t *testing.T) {
 		t.Fatalf("status = %d, want 200", response.StatusCode)
 	}
 
-	if capture.Body != codexStylePayload {
+	wantBody, err := gateway.OpenCodeResponsesPayloadForUpstream([]byte(codexStylePayload))
+	if err != nil {
+		t.Fatalf("OpenCodeResponsesPayloadForUpstream: %v", err)
+	}
+	if capture.Body != string(wantBody) {
 		t.Fatalf("upstream body changed in transit")
 	}
 

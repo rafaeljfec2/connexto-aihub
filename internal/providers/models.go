@@ -176,7 +176,7 @@ func descriptorFromRaw(model rawModel, raw json.RawMessage) ModelDescriptor {
 
 	if model.Modalities != nil {
 		if model.Modalities.Input != nil {
-			descriptor.InputModalities = *model.Modalities.Input
+			descriptor.InputModalities = NormalizeInputModalitiesForCatalog(*model.Modalities.Input)
 			descriptor.InputModalitiesPresent = true
 		}
 

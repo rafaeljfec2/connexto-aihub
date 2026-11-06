@@ -17,6 +17,15 @@ import (
 	"aihub/internal/providers"
 )
 
+func expectedOpenCodeUpstreamBody(t *testing.T, body string) string {
+	t.Helper()
+	out, err := gateway.OpenCodeResponsesPayloadForUpstream([]byte(body))
+	if err != nil {
+		t.Fatalf("OpenCodeResponsesPayloadForUpstream: %v", err)
+	}
+	return string(out)
+}
+
 func gatewayTestDescriptor(id string) providers.ModelDescriptor {
 	tools := true
 	reasoning := true
@@ -132,6 +141,35 @@ func newOpenCodeRoutingHandlerWithResources(
 		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
 		StaleAfter: 24 * time.Hour,
 	}, resourceAdmission, nil, nil)
+}
+
+func newOpenCodeRoutingHandlerWithCatalog(
+	t *testing.T,
+	baseURL string,
+	logger *slog.Logger,
+	inactivity time.Duration,
+	catalogManager *catalog.Manager,
+	modelIDs ...string,
+) http.Handler {
+	t.Helper()
+
+	client := newEnabledClient(t, baseURL)
+	registry := providers.NewRegistry()
+	registry.Bind(providers.OpenCodeGoID, client)
+
+	manager := execution.NewMultiProviderManager(logger,
+		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			return registry.OpenTargetResponses(ctx, providers.ResponsesTarget{
+				ProviderID: target.ProviderID,
+				ModelID:    target.ModelID,
+			}, payload, contentType, sessionID)
+		}, inactivity)
+
+	return gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, inactivity, &gateway.ResponsesRouting{
+		Catalog:    catalogManager,
+		Statuses:   func() []providers.Status { return []providers.Status{{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy}} },
+		StaleAfter: 24 * time.Hour,
+	}, nil, nil, nil)
 }
 
 func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoint string) (http.Handler, *providers.Client, *providers.OpenRouterClient) {

@@ -186,6 +186,9 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 		Name         string `json:"name"`
 		Object       string `json:"object"`
 		OwnedBy      string `json:"owned_by"`
+		Modalities   *struct {
+			Input *[]string `json:"input"`
+		} `json:"modalities"`
 		Capabilities struct {
 			Tools     *rawSupported `json:"tools"`
 			Reasoning *rawSupported `json:"reasoning"`
@@ -213,10 +216,21 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 		reasoningSupported = *model.Capabilities.Reasoning.Supported
 	}
 
+	inputModalities := connextoProxyDefaultInputModalities()
+	inputModalitiesPresent := true
+	// SPEC E03 §5.4 A2: cursor sync uses vision defaults when upstream omits modalities.input.
+	// Proxy MUST send modalities.input for text-only models (e.g. ["text"]).
+	if model.Modalities != nil && model.Modalities.Input != nil {
+		inputModalities = NormalizeInputModalitiesForCatalog(*model.Modalities.Input)
+		inputModalitiesPresent = true
+	}
+
 	descriptor := ModelDescriptor{
 		ID:                      model.ID,
 		Name:                    name,
 		Type:                    model.Object,
+		InputModalities:         inputModalities,
+		InputModalitiesPresent:  inputModalitiesPresent,
 		OutputModalities:        []string{"text"},
 		OutputModalitiesPresent: true,
 		ToolsSupported:          boolPtr(toolsSupported),
@@ -224,6 +238,10 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 		Raw:                     bytes.Clone(raw),
 	}
 	return descriptor, nil
+}
+
+func connextoProxyDefaultInputModalities() []string {
+	return DefaultVisionAgentInputModalities()
 }
 
 func connextoProxyLogicalProvider(providerID string) bool {

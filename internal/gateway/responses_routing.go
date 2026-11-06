@@ -104,6 +104,15 @@ func routeResponses(
 		}
 	}
 
+	prepared, err = adaptResponsesPayloadForProvider(decision.Selected.ProviderID, prepared)
+	if err != nil {
+		return routing.Target{}, nil, decision, routingHTTPError{
+			status:  http.StatusBadRequest,
+			typ:     invalidRequestType,
+			message: "the request body is invalid",
+		}
+	}
+
 	return *decision.Selected, prepared, decision, nil
 }
 

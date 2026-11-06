@@ -140,6 +140,11 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !h.requireProvider(providerID, w) {
 			return
 		}
+		executionPayload, err = adaptResponsesPayloadForProvider(providerID, executionPayload)
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "invalid_request", "the request body is invalid")
+			return
+		}
 	}
 
 	notifyIntegrationRoutingSelected(providerID, modelID)

@@ -161,27 +161,27 @@ func TestNormalizeEntryModalityCapabilities(t *testing.T) {
 			wantAudioOut:  testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
 		},
 		{
-			// Near miss: "image" without a MIME subtype must not match "image/".
-			name:          "image without subtype is unknown",
+			// OpenRouter and peers declare bare "image" for vision-capable models.
+			name:          "bare image token is supported",
 			input:         []string{"text", "image"},
 			inputPresent:  true,
 			output:        []string{"text"},
 			outputPresent: true,
 			wantText:      testClaim(catalog.CapabilitySupported, catalog.ConfidenceDerived),
-			wantImage:     testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
+			wantImage:     testClaim(catalog.CapabilitySupported, catalog.ConfidenceDerived),
 			wantAudioIn:   testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
 			wantAudioOut:  testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
 		},
 		{
-			// Near miss: "audio" without a MIME subtype must not match "audio/".
-			name:          "audio without subtype is unknown",
+			// Bare "audio" matches audio_input the same way as bare "image".
+			name:          "bare audio token is supported",
 			input:         []string{"text", "audio"},
 			inputPresent:  true,
 			output:        []string{"text"},
 			outputPresent: true,
 			wantText:      testClaim(catalog.CapabilitySupported, catalog.ConfidenceDerived),
 			wantImage:     testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
-			wantAudioIn:   testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
+			wantAudioIn:   testClaim(catalog.CapabilitySupported, catalog.ConfidenceDerived),
 			wantAudioOut:  testClaim(catalog.CapabilityUnknown, catalog.ConfidenceNone),
 		},
 		{

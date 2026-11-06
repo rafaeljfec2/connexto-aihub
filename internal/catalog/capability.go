@@ -93,12 +93,27 @@ func modalityPrefixClaim(modalities []string, present bool, prefix string) Capab
 	}
 
 	for _, modality := range modalities {
-		if strings.HasPrefix(modality, prefix) {
+		if modalityMatchesInputPrefix(modality, prefix) {
 			return supportedClaim(ConfidenceDerived)
 		}
 	}
 
 	return unknownClaim()
+}
+
+func modalityMatchesInputPrefix(modality, prefix string) bool {
+	if strings.HasPrefix(modality, prefix) {
+		return true
+	}
+	// Bare tokens (OpenRouter-style) — SPEC E03 §5.2 / amendment A2.
+	switch prefix {
+	case "image/":
+		return modality == "image"
+	case "audio/":
+		return modality == "audio"
+	default:
+		return false
+	}
 }
 
 func textGenerationClaim(modalities []string, present bool) CapabilityClaim {

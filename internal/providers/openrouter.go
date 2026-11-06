@@ -188,7 +188,7 @@ func openRouterDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 	}
 	descriptor := ModelDescriptor{ID: model.ID, Name: model.Name, LimitContext: model.ContextLength, Raw: bytes.Clone(raw)}
 	if model.Architecture.InputModalities != nil {
-		descriptor.InputModalities = *model.Architecture.InputModalities
+		descriptor.InputModalities = NormalizeInputModalitiesForCatalog(*model.Architecture.InputModalities)
 		descriptor.InputModalitiesPresent = true
 	}
 	if model.Architecture.OutputModalities != nil {

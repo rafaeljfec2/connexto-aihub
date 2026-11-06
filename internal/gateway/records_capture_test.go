@@ -58,7 +58,7 @@ func TestResponsesStreamStaysVerbatimWithRecordsObserver(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.StatusCode)
 	}
-	if capture.Body != codexStylePayload {
+	if capture.Body != expectedOpenCodeUpstreamBody(t, codexStylePayload) {
 		t.Error("provider body differs from the original request")
 	}
 	if body != strings.Join(events, "") {
@@ -143,7 +143,11 @@ func TestResponsesHandlerContinuesWhenModelMetadataCannotBeExtracted(t *testing.
 			if response.StatusCode != http.StatusOK {
 				t.Fatalf("status = %d, want 200", response.StatusCode)
 			}
-			if capture.Body != test.payload {
+			wantBody := test.payload
+			if parsed, err := gateway.OpenCodeResponsesPayloadForUpstream([]byte(test.payload)); err == nil {
+				wantBody = string(parsed)
+			}
+			if capture.Body != wantBody {
 				t.Error("provider body differs from the original request")
 			}
 			target, observed := observer.target()

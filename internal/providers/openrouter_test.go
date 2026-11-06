@@ -84,6 +84,21 @@ func TestOpenRouterFetchModelDescriptorsPreservesProviderModelIDs(t *testing.T) 
 	if descriptors[0].ToolsSupported != nil || descriptors[0].ReasoningSupported != nil {
 		t.Fatalf("unreported capabilities were asserted: %+v", descriptors[0])
 	}
+	if !descriptors[0].InputModalitiesPresent {
+		t.Fatal("InputModalitiesPresent = false")
+	}
+	if !containsModality(descriptors[0].InputModalities, "image") || !containsModality(descriptors[0].InputModalities, "image/png") {
+		t.Fatalf("InputModalities = %v, want bare image and expanded image/png", descriptors[0].InputModalities)
+	}
+}
+
+func containsModality(modalities []string, want string) bool {
+	for _, modality := range modalities {
+		if modality == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestOpenRouterFetchModelDescriptorsRejectsInvalidPayload(t *testing.T) {

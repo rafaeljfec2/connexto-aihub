@@ -94,6 +94,22 @@ func TestConnextoProxyFetchModelDescriptorsPreservesOriginalIDs(t *testing.T) {
 	if descriptors[0].ReasoningSupported == nil || !*descriptors[0].ReasoningSupported {
 		t.Fatalf("ReasoningSupported = %v, want explicit true", descriptors[0].ReasoningSupported)
 	}
+	if !descriptors[0].InputModalitiesPresent {
+		t.Fatalf("InputModalitiesPresent = false, want true for E08 image_input routing")
+	}
+	if len(descriptors[0].InputModalities) == 0 || descriptors[0].InputModalities[0] != "text" {
+		t.Fatalf("InputModalities = %v, want text and image/* defaults", descriptors[0].InputModalities)
+	}
+	foundImage := false
+	for _, modality := range descriptors[0].InputModalities {
+		if strings.HasPrefix(modality, "image/") {
+			foundImage = true
+			break
+		}
+	}
+	if !foundImage {
+		t.Fatalf("InputModalities = %v, want at least one image/* entry", descriptors[0].InputModalities)
+	}
 }
 
 func TestConnextoProxyFetchModelDescriptorsHonorsUpstreamCapabilityFlags(t *testing.T) {
@@ -120,6 +136,33 @@ func TestConnextoProxyFetchModelDescriptorsHonorsUpstreamCapabilityFlags(t *test
 	}
 	if descriptors[0].ReasoningSupported == nil || !*descriptors[0].ReasoningSupported {
 		t.Fatalf("ReasoningSupported = %v, want explicit true from upstream", descriptors[0].ReasoningSupported)
+	}
+}
+
+func TestConnextoProxyFetchModelDescriptorsHonorsUpstreamInputModalities(t *testing.T) {
+	mockCatalog := `{"object":"list","data":[{"id":"text-only","object":"model","modalities":{"input":["text"]}}]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, mockCatalog)
+	}))
+	defer server.Close()
+
+	client := newConnextoProxyTestClient(t, server.URL+"/v1", server.Client(), connextoProxyTestCursorKey)
+	descriptors, err := client.FetchModelDescriptors(context.Background())
+	if err != nil {
+		t.Fatalf("FetchModelDescriptors() error = %v", err)
+	}
+	if len(descriptors) != 1 {
+		t.Fatalf("descriptors count = %d, want 1", len(descriptors))
+	}
+	if !descriptors[0].InputModalitiesPresent {
+		t.Fatal("InputModalitiesPresent = false")
+	}
+	if len(descriptors[0].InputModalities) != 1 || descriptors[0].InputModalities[0] != "text" {
+		t.Fatalf("InputModalities = %v, want upstream [text] only", descriptors[0].InputModalities)
 	}
 }
 

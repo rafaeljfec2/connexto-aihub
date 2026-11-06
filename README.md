@@ -221,7 +221,8 @@ replay — see `docs/research/opencode-go-protocol-spike.md`).
 The catalog stores a provider-scoped entry per model (`provider_id` +
 `model_id`) with the closed nine-capability vocabulary, provenance/confidence
 and the full upstream metadata. Capabilities are conservative: a modality is
-`supported` only when the provider declares it, and absence is `unknown`, never
+`supported` only when the provider declares it (including bare `image`/`audio`
+tokens and SPEC A2 ingest rules in §5.4), and absence is `unknown`, never
 `unsupported`. Listing state combines presence, freshness and provider health;
 it never implies that a model executed successfully (`execution_verification`
 is `unverified`).
@@ -241,6 +242,18 @@ curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
 curl -s -X POST -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
   http://127.0.0.1:8080/v1/catalog/sync
 ```
+
+After a hub upgrade that changes modality normalization (SPEC E03 amendment A2),
+re-sync catalog providers that feed routing (`cursor`, `openrouter`,
+`opencode-go`) and spot-check vision models, for example:
+
+```bash
+curl -s -H "Authorization: Bearer $AIHUB_GATEWAY_API_KEY" \
+  "http://127.0.0.1:8080/v1/catalog/models/cursor/composer-2.5" | jq '.capabilities.image_input'
+```
+
+Connexto Proxy operators should send `modalities.input` for text-only models so
+the hub does not apply cursor default vision modalities (see SPEC §5.4).
 
 `GET /v1/models` remains the E02 byte-for-byte provider pass-through.
 

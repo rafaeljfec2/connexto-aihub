@@ -1,7 +1,7 @@
 # SPEC E03 — Model Catalog
 
 Status: approved — revision 4 plus approved amendment A1 (2026-10-30),
-revision 5.
+revision 5; revision 6 records approved amendment A2 (2026-11-06).
 Workflow: SDD. Evidence base: `docs/research/opencode-go-protocol-spike.md`,
 `docs/validation/E02-codex-opencode-go-e2e.md`, live catalog sample (28 models,
 2026-10-30), and the upstream documentation consulted for modality semantics
@@ -18,7 +18,10 @@ distinguished from crash durability, and the `close` failure path is explicit.
 Revision 5 records approved amendment A1: `persistence` joins
 `SyncErrorClass`, and a snapshot write failure updates only operational attempt
 metadata while leaving accepted catalog state untouched. No other behavior
-changed.
+changed. Revision 6 records approved amendment A2: provider-side modality
+normalization before `NormalizeEntry`, bare `image`/`audio` tokens in capability
+derivation, and controlled default input modalities for `cursor` synced through
+Connexto Proxy when upstream omits `modalities.input`.
 
 ## 1. Objective
 
@@ -175,8 +178,8 @@ Every claim has `provenance=provider_catalog` and `verification=unverified`.
 | `function_tools` | `capabilities.tools.supported` (bool) | `true` → `supported`; `false` → `unsupported` | key absent → `unknown` | `explicit`; `none` when absent |
 | `custom_tools` | none | always `unknown` | no declaration exists (`api.*.capabilities.tools.choice` describes function-tool choice modes, not freeform tools) | `none` |
 | `reasoning` | `capabilities.reasoning.supported` (bool) | `true` → `supported`; `false` → `unsupported` | key absent → `unknown` | `explicit`; `none` when absent |
-| `image_input` | `modalities.input` | any `image/*` entry → `supported` | no `image/*` **never** implies `unsupported`; list present without image → `unknown`; field absent → `unknown` | `derived` when supported; `none` otherwise |
-| `audio_input` | `modalities.input` | any `audio/*` entry → `supported` | same conservative rule → `unknown` | `derived` / `none` |
+| `image_input` | `modalities.input` | any `image/*` entry **or** bare token `image` → `supported` | no vision signal **never** implies `unsupported`; list present without `image/*` or `image` → `unknown`; field absent → `unknown` (see §5.4 for `cursor` enrichment) | `derived` when supported; `none` otherwise |
+| `audio_input` | `modalities.input` | any `audio/*` entry **or** bare token `audio` → `supported` | same conservative rule → `unknown` | `derived` / `none` |
 | `audio_output` | `modalities.output` | any `audio/*` entry → `supported` | same conservative rule → `unknown` | `derived` / `none` |
 | `structured_output` | `capabilities.structured_output` (bool) | `true` → `supported`; `false` → `unsupported` | key absent → `unknown` (9/28 models in the sample) | `explicit`; `none` when absent |
 
@@ -212,6 +215,39 @@ explicit boolean `false`; no enumeration-based mapping can produce it.
 4. Observed distribution: `text` in 28/28; `image/*` in 20/28; `audio/*` in
    5/28; `video/*` in 15/28; `application/pdf` in 7/28. `modalities.output` is
    `["text"]` in 28/28.
+
+### 5.4 Provider ingest normalization (amendment A2, 2026-11-06)
+
+Before `NormalizeEntry`, each provider adapter maps upstream catalog JSON into
+`providers.ModelDescriptor`. Amendment A2 allows **deterministic, documented**
+enrichment on that path only (not implicit promotion from arbitrary
+`provider_metadata`):
+
+1. **Bare modality tokens.** Some catalogs (notably OpenRouter
+   `architecture.input_modalities`) use `"image"` or `"audio"` without a MIME
+   subtype. Capability derivation treats bare `image` like a vision input signal
+   and bare `audio` like an audio input signal (§5.2). Adapters may also append
+   a representative MIME entry (for example `image/png`) when bare `image` is
+   present and no `image/*` is listed, so stored `modalities.input` stays
+   aligned with OpenCode-style MIME lists.
+
+2. **`cursor` via Connexto Proxy.** The proxy often returns OpenAI-minimal model
+   objects without `modalities.input`. For catalog sync on provider `cursor`
+   only, when `modalities.input` is **absent**, the hub applies default input
+   modalities `text` plus common image MIME types (`image/jpeg`, `image/png`,
+   `image/gif`, `image/webp`) so E08 routing can require `image_input` for
+   multimodal agent requests. When the proxy **does** send `modalities.input`,
+   that array is authoritative—including `["text"]` for text-only models.
+
+**Operational contract:** operators and the proxy SHOULD declare
+`modalities.input` for any model that does not accept images; otherwise enriched
+defaults may route `input_image` to the upstream, which may reject the request
+instead of the hub returning `503 routing_unavailable`.
+
+After a hub upgrade that changes enrichment or derivation, run
+`POST /v1/catalog/sync` (or wait for startup sync) for affected providers
+(`cursor`, `openrouter`, `opencode-go`) and verify
+`capabilities.image_input.state` on models that should accept vision.
 
 **Conclusion:** the upstream contract does **not** guarantee that
 `modalities.input`/`output` are exhaustive. Absence of a modality is therefore
@@ -809,16 +845,19 @@ never counts as real integration success.
 - Unwritable data directory → warn, in-memory operation, no crash.
 - Shutdown during startup sync → cancelled and joined.
 - Model id containing `/` → detail route uses a `{model...}` wildcard.
-- `modalities.input` present without `image/*` → `image_input=unknown`, never
-  `unsupported`.
+- `modalities.input` present without `image/*` or bare `image` → `image_input=unknown`, never
+  `unsupported` (after §5.4 ingest normalization).
 - Explicit `capabilities.tools.supported=false` → `function_tools=unsupported`.
 
 ## 14. Acceptance criteria
 
 1. After a real sync, `GET /v1/catalog/models` returns 28 models with
    provider-scoped identity, mapped capabilities, provenance and confidence.
-2. A model whose `modalities.input` has no `image/*` (or no `modalities` at all)
-   reports `image_input=unknown`, **never** `unsupported`.
+2. A model whose normalized `modalities.input` has no vision signal (`image/*`
+   or bare `image`) reports `image_input=unknown`, **never** `unsupported`.
+   Exception (A2): provider `cursor` entries may receive default vision input
+   modalities when upstream omits `modalities.input`; explicit upstream
+   `modalities.input` (including text-only) overrides defaults.
 3. No capability derived from a modality enumeration is ever `unsupported`;
    `unsupported` appears only for an explicit boolean `false`.
 4. `streaming` and `custom_tools` report `unknown` with
@@ -893,6 +932,7 @@ cross-provider merging.
 | Q3 | `listing_state` defined as catalog condition; `current` is not an execution guarantee | **resolved in rev 3** |
 | Q5 | Snapshot preservation: P1 (previous valid) vs P2 (quarantine), durability vs visibility, `close` failure path | **resolved in rev 3; clarified in rev 4** |
 | A1 | `persistence` added to `SyncErrorClass`; snapshot failure updates operational attempt metadata only and leaves accepted state unchanged | **approved (rev 5)** |
+| A2 | Provider ingest normalization: bare `image`/`audio`, OpenRouter MIME expansion, `cursor` default vision modalities when upstream omits `modalities.input` | **approved (rev 6)** |
 
 ## 17. Refinement log
 
@@ -903,3 +943,4 @@ cross-provider merging.
 | rev 3 | Q1 conservative modality inference + documented contract limitation; Q3 explicit `listing_state` semantics and examples; Q5 snapshot preservation tests and invariant; precise `missing` counter semantics; `confidence` added to `CapabilityClaim`. |
 | rev 4 | Q5 clarified: P1 (previous valid snapshot) separated from P2 (quarantined corrupt snapshot); atomic visibility distinguished from crash durability; directory `fsync` failure documented as a durability limitation; explicit `close` failure path and test; failure matrix and acceptance criteria aligned. |
 | rev 5 | Approved amendment A1: `persistence` added to `SyncErrorClass`; §7.4 defines that a snapshot write failure leaves accepted entries/counters/`last_success_at` unchanged while updating in-memory operational attempt metadata (not durable); manual sync returns 500; durability-uncertain writes are not persistence failures. API, tests, acceptance criteria and decision register updated. No other behavior changed. |
+| rev 6 | Approved amendment A2: §5.4 provider ingest normalization (bare modality tokens, OpenRouter-style expansion, `cursor`/Connexto default vision modalities when `modalities.input` is absent); §5.2 mapping and §14 AC updated; implementation in `internal/providers` and `internal/catalog`. |

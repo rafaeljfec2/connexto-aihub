@@ -242,6 +242,90 @@ func TestCursorIntelligentRoutingCodexLikePayload(t *testing.T) {
 	}
 }
 
+func TestCursorIntelligentRoutingImageInputPayload(t *testing.T) {
+	mockCatalog := `{"object":"list","data":[{"id":"composer-2.5","object":"model","owned_by":"cursor"}]}`
+	var responsesHit bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, mockCatalog)
+		case "/v1/responses":
+			responsesHit = true
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, `{"id":"resp-multimodal"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	proxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:       server.URL + "/v1",
+		APIKey:        connextoProxyTestKey,
+		ManagementKey: connextoProxyTestKey,
+		Enabled:       true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() error = %v", err)
+	}
+
+	registry := providers.NewRegistry()
+	registry.Bind(providers.CursorID, proxyClient)
+
+	catalogManager := gatewayTestCatalog(t, time.Now(), map[string]catalog.SourceFunc{
+		providers.CursorID: proxyClient.FetchModelDescriptors,
+	})
+
+	manager := execution.NewMultiProviderManager(logger,
+		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			return registry.OpenTargetResponses(ctx, providers.ResponsesTarget{ProviderID: target.ProviderID, ModelID: target.ModelID}, payload, contentType, sessionID)
+		}, time.Minute)
+
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, &gateway.ResponsesRouting{
+		Catalog: catalogManager,
+		Statuses: func() []providers.Status {
+			return []providers.Status{
+				{ID: providers.CursorID, Enabled: true, State: providers.StateHealthy},
+			}
+		},
+		StaleAfter: 24 * time.Hour,
+	}, nil, nil, nil)
+
+	gatewayServer := httptest.NewServer(handler)
+	defer gatewayServer.Close()
+
+	png := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+	body := strings.Join([]string{
+		`{"model":"composer-2.5","input":[`,
+		`{"type":"input_text","text":"describe"},`,
+		`{"type":"input_image","image_url":"data:image/png;base64,`, png, `"}`,
+		`],"tools":[{"type":"function","name":"noop","parameters":{"type":"object","properties":{}}}],`,
+		`"reasoning":{"effort":"medium"}}`,
+	}, "")
+	request, err := http.NewRequest(http.MethodPost, gatewayServer.URL+"/v1/responses", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := gatewayServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("gateway request error = %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(response.Body)
+		t.Fatalf("status = %d body = %s, want 200 (image_input must not block routing)", response.StatusCode, string(raw))
+	}
+	if !responsesHit {
+		t.Fatal("upstream /v1/responses was not called")
+	}
+}
+
 func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Handler {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
