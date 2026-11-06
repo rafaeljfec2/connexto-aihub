@@ -108,7 +108,11 @@ func TestCatalogModelsHandlerListsNormalizedModels(t *testing.T) {
 			ListingState          string `json:"listing_state"`
 			ExecutionVerification string `json:"execution_verification"`
 			ProviderMetadata      string `json:"provider_metadata"`
-			Capabilities          map[string]struct {
+			Pricing               *struct {
+				Input    *float64 `json:"input"`
+				Complete bool     `json:"complete"`
+			} `json:"pricing"`
+			Capabilities map[string]struct {
 				State string `json:"state"`
 			} `json:"capabilities"`
 		} `json:"data"`
@@ -143,6 +147,62 @@ func TestCatalogModelsHandlerListsNormalizedModels(t *testing.T) {
 
 	if body.Data[0].ProviderMetadata != "" {
 		t.Fatal("list response included provider_metadata")
+	}
+
+	if body.Data[0].Pricing != nil {
+		t.Fatalf("list response included pricing without provider cost metadata: %+v", body.Data[0].Pricing)
+	}
+}
+
+func TestCatalogModelsHandlerListsProjectedPricing(t *testing.T) {
+	raw := json.RawMessage(`{
+		"id":"deepseek-v4.1-flash",
+		"cost":{"text":{"input":{"price":0.15,"cache":{"read":0.003}},"output":{"price":0.6}}}
+	}`)
+	descriptor := gatewayDescriptor("deepseek-v4.1-flash", false, true)
+	descriptor.Raw = raw
+
+	manager := newGatewayCatalogManager(t, func(context.Context) ([]providers.ModelDescriptor, error) {
+		return []providers.ModelDescriptor{descriptor}, nil
+	}, providers.StateHealthy)
+
+	if _, err := manager.Sync(context.Background(), providers.OpenCodeGoID); err != nil {
+		t.Fatalf("seed Sync() error = %v", err)
+	}
+
+	recorder := serveCatalog(
+		gateway.NewCatalogModelsHandler(manager),
+		httptest.NewRequest(http.MethodGet, "/v1/catalog/models", nil),
+	)
+
+	var body struct {
+		Data []struct {
+			Pricing *struct {
+				Input      *float64 `json:"input"`
+				Output     *float64 `json:"output"`
+				CacheRead  *float64 `json:"cache_read"`
+				Unit       string   `json:"unit"`
+				Complete   bool     `json:"complete"`
+			} `json:"pricing"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Data) != 1 || body.Data[0].Pricing == nil {
+		t.Fatalf("pricing missing: %+v", body.Data)
+	}
+	if body.Data[0].Pricing.Input == nil || *body.Data[0].Pricing.Input != 0.15 {
+		t.Fatalf("input = %v", body.Data[0].Pricing.Input)
+	}
+	if body.Data[0].Pricing.Output == nil || *body.Data[0].Pricing.Output != 0.6 {
+		t.Fatalf("output = %v", body.Data[0].Pricing.Output)
+	}
+	if body.Data[0].Pricing.CacheRead == nil || *body.Data[0].Pricing.CacheRead != 0.003 {
+		t.Fatalf("cache_read = %v", body.Data[0].Pricing.CacheRead)
+	}
+	if body.Data[0].Pricing.Unit != "per_1m_tokens" || !body.Data[0].Pricing.Complete {
+		t.Fatalf("pricing meta = %+v", body.Data[0].Pricing)
 	}
 }
 

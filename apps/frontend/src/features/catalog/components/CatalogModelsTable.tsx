@@ -1,6 +1,7 @@
 import { type RefObject, useCallback, useRef } from 'react'
 import { Brain } from 'lucide-react'
 import { CopyTextButton } from '../../../shared/ui'
+import { formatPricingCell } from '../lib/formatCatalogPricing'
 import type { CatalogColumnFilters } from '../lib/catalogColumnFilters'
 import type { CatalogModel } from '../types'
 
@@ -29,11 +30,15 @@ function listingLabel(model: CatalogModel): string {
 function CatalogTableColGroup({ withCompare }: { withCompare: boolean }) {
   return (
     <colgroup>
-      <col style={{ width: withCompare ? '34%' : '36%' }} />
-      <col style={{ width: '14%' }} />
-      <col style={{ width: withCompare ? '26%' : '28%' }} />
-      <col style={{ width: '14%' }} />
-      {withCompare ? <col style={{ width: '12%' }} /> : null}
+      <col className="catalog-col-model" />
+      <col className="catalog-col-provider" />
+      <col className="catalog-col-id" />
+      <col className="catalog-col-price" />
+      <col className="catalog-col-price" />
+      <col className="catalog-col-price" />
+      <col className="catalog-col-price" />
+      <col className="catalog-col-listing" />
+      {withCompare ? <col className="catalog-col-compare" /> : null}
     </colgroup>
   )
 }
@@ -88,14 +93,38 @@ export function CatalogModelsTable({
   const tableHead = (
     <thead>
       <tr>
-        <th scope="col">Modelo</th>
-        <th scope="col">Provedor</th>
-        <th scope="col">Identificador</th>
-        <th scope="col">Catálogo</th>
-        {withCompare ? <th scope="col">Comparar</th> : null}
+        <th scope="col" className="catalog-col-model">
+          Modelo
+        </th>
+        <th scope="col" className="catalog-col-provider">
+          Provedor
+        </th>
+        <th scope="col" className="catalog-col-id">
+          Identificador
+        </th>
+        <th scope="col" className="catalog-col-price">
+          Entrada
+        </th>
+        <th scope="col" className="catalog-col-price">
+          Saída
+        </th>
+        <th scope="col" className="catalog-col-price">
+          Cache leitura
+        </th>
+        <th scope="col" className="catalog-col-price">
+          Cache escrita
+        </th>
+        <th scope="col" className="catalog-col-listing">
+          Catálogo
+        </th>
+        {withCompare ? (
+          <th scope="col" className="catalog-col-compare">
+            Comparar
+          </th>
+        ) : null}
       </tr>
       <tr className="catalog-column-filters">
-        <th scope="col">
+        <th scope="col" className="catalog-col-model">
           <input
             ref={modelFilterInputRef}
             type="search"
@@ -107,7 +136,7 @@ export function CatalogModelsTable({
             onClick={(event) => event.stopPropagation()}
           />
         </th>
-        <th scope="col">
+        <th scope="col" className="catalog-col-provider">
           <select
             value={columnFilters.provider}
             onChange={(event) => onColumnFilterChange({ provider: event.target.value })}
@@ -123,7 +152,7 @@ export function CatalogModelsTable({
             ))}
           </select>
         </th>
-        <th scope="col">
+        <th scope="col" className="catalog-col-id">
           <input
             type="search"
             value={columnFilters.modelId}
@@ -134,7 +163,11 @@ export function CatalogModelsTable({
             onClick={(event) => event.stopPropagation()}
           />
         </th>
-        <th scope="col">
+        <th scope="col" className="catalog-col-price" aria-hidden />
+        <th scope="col" className="catalog-col-price" aria-hidden />
+        <th scope="col" className="catalog-col-price" aria-hidden />
+        <th scope="col" className="catalog-col-price" aria-hidden />
+        <th scope="col" className="catalog-col-listing">
           <select
             value={columnFilters.listing}
             onChange={(event) => onColumnFilterChange({ listing: event.target.value })}
@@ -150,7 +183,7 @@ export function CatalogModelsTable({
             ))}
           </select>
         </th>
-        {withCompare ? <th scope="col" aria-hidden /> : null}
+        {withCompare ? <th scope="col" className="catalog-col-compare" aria-hidden /> : null}
       </tr>
     </thead>
   )
@@ -159,10 +192,10 @@ export function CatalogModelsTable({
     <div className="catalog-table-shell">
       <div
         ref={headScrollRef}
-        className="catalog-table-head"
+        className="catalog-table-head scrollbar-slim"
         onScroll={() => syncHorizontalScroll('head')}
       >
-        <table className="catalog-modeltable catalog-modeltable-fixed">
+        <table className="catalog-modeltable">
           <CatalogTableColGroup withCompare={withCompare} />
           {tableHead}
         </table>
@@ -172,12 +205,12 @@ export function CatalogModelsTable({
         className="catalog-table-body grid-table-scroll scrollbar-slim"
         onScroll={() => syncHorizontalScroll('body')}
       >
-        <table className="catalog-modeltable catalog-modeltable-fixed">
+        <table className="catalog-modeltable">
           <CatalogTableColGroup withCompare={withCompare} />
           <tbody>
             {showEmptyBody ? (
               <tr>
-                <td colSpan={withCompare ? 5 : 4} className="py-8 text-center text-xs text-muted">
+                <td colSpan={withCompare ? 9 : 8} className="py-8 text-center text-xs text-muted">
                   Nenhum modelo corresponde aos filtros das colunas.
                 </td>
               </tr>
@@ -193,7 +226,7 @@ export function CatalogModelsTable({
                     onClick={() => onSelectModel?.(model)}
                     className={isSelected ? 'catalog-row-selected' : undefined}
                   >
-                    <td>
+                    <td className="catalog-col-model">
                       <div className="catalog-modelcell">
                         <span className="catalog-modelglyph">
                           <Brain className="size-[15px]" aria-hidden />
@@ -210,16 +243,33 @@ export function CatalogModelsTable({
                         </div>
                       </div>
                     </td>
-                    <td className="catalog-providerlabel">{model.provider}</td>
-                    <td className="catalog-modelid">{model.model_id}</td>
-                    <td>
+                    <td className="catalog-col-provider catalog-providerlabel">{model.provider}</td>
+                    <td
+                      className="catalog-col-id catalog-col-id-cell catalog-modelid"
+                      title={model.model_id}
+                    >
+                      {model.model_id}
+                    </td>
+                    <td className="catalog-col-price catalog-pricing-cell">
+                      {formatPricingCell(model.pricing, 'input')}
+                    </td>
+                    <td className="catalog-col-price catalog-pricing-cell">
+                      {formatPricingCell(model.pricing, 'output')}
+                    </td>
+                    <td className="catalog-col-price catalog-pricing-cell">
+                      {formatPricingCell(model.pricing, 'cache_read')}
+                    </td>
+                    <td className="catalog-col-price catalog-pricing-cell">
+                      {formatPricingCell(model.pricing, 'cache_write')}
+                    </td>
+                    <td className="catalog-col-listing">
                       <span className="catalog-state">
                         <i aria-hidden />
                         {listingLabel(model)}
                       </span>
                     </td>
                     {withCompare ? (
-                      <td onClick={(event) => event.stopPropagation()}>
+                      <td className="catalog-col-compare" onClick={(event) => event.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isChecked}

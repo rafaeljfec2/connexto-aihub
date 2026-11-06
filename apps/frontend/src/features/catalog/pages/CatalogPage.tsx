@@ -199,6 +199,9 @@ export function CatalogPage() {
         )}
 
         <div className="catalog-toolbar">
+          <p className="catalog-pricing-note">
+            Preços por 1M tokens quando informados pelo catálogo oficial do provedor (sem estimativa do Hub).
+          </p>
           <div className="catalog-toolbar-row">
             <span className="catalog-result-count">
               {filteredAndSortedModels.length.toLocaleString('pt-BR')} REGISTROS VISÍVEIS

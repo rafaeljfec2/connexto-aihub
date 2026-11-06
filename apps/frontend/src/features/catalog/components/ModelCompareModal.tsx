@@ -1,4 +1,5 @@
 import { Dialog } from '../../../shared/ui'
+import { formatCatalogContextLimit, formatPricingCell } from '../lib/formatCatalogPricing'
 import type { CatalogModel } from '../types'
 
 type ModelCompareModalProps = {
@@ -30,6 +31,10 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
               <th>Modelo</th>
               <th>Provedor</th>
               <th>Contexto</th>
+              <th>Entrada</th>
+              <th>Saída</th>
+              <th>Cache leitura</th>
+              <th>Cache escrita</th>
               <th>Capacidades</th>
               <th>Presença</th>
               <th>Verificação</th>
@@ -45,7 +50,17 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
                     <div className="font-mono text-[9px] text-[#8190A5]">{model.model_id}</div>
                   </td>
                   <td>{model.provider}</td>
-                  <td className="font-mono text-[#8290A5]">Não informada</td>
+                  <td className="font-mono text-[#8290A5]">
+                    {formatCatalogContextLimit(model.limits?.context ?? undefined)}
+                  </td>
+                  <td className="font-mono text-[#8290A5]">{formatPricingCell(model.pricing, 'input')}</td>
+                  <td className="font-mono text-[#8290A5]">{formatPricingCell(model.pricing, 'output')}</td>
+                  <td className="font-mono text-[#8290A5]">
+                    {formatPricingCell(model.pricing, 'cache_read')}
+                  </td>
+                  <td className="font-mono text-[#8290A5]">
+                    {formatPricingCell(model.pricing, 'cache_write')}
+                  </td>
                   <td>
                     {caps.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -72,8 +87,8 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
       </div>
 
       <p className="catalog-compare-footnote">
-        Campos não retornados pelo catálogo oficial do provedor aparecem como &quot;Não informado&quot;.
-        A comparação não estima preços ou limites.
+        Campos não retornados pelo catálogo oficial do provedor aparecem como &quot;Não informado&quot; ou
+        &quot;—&quot;. Preços são por 1M tokens reportados pelo provedor, não custo de execução do Hub.
       </p>
     </Dialog>
   )

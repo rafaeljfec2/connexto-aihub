@@ -34,6 +34,17 @@ type catalogLimitsDTO struct {
 	Output  *int64 `json:"output"`
 }
 
+type catalogPricingDTO struct {
+	Currency   string   `json:"currency"`
+	Unit       string   `json:"unit"`
+	Input      *float64 `json:"input,omitempty"`
+	Output     *float64 `json:"output,omitempty"`
+	CacheRead  *float64 `json:"cache_read,omitempty"`
+	CacheWrite *float64 `json:"cache_write,omitempty"`
+	Source     string   `json:"source"`
+	Complete   bool     `json:"complete"`
+}
+
 type catalogModelDTO struct {
 	Provider              string                          `json:"provider"`
 	ModelID               string                          `json:"model_id"`
@@ -43,6 +54,7 @@ type catalogModelDTO struct {
 	Family                string                          `json:"family,omitempty"`
 	Modalities            *catalogModalitiesDTO           `json:"modalities,omitempty"`
 	Limits                catalogLimitsDTO                `json:"limits"`
+	Pricing               *catalogPricingDTO              `json:"pricing,omitempty"`
 	Capabilities          map[string]catalogCapabilityDTO `json:"capabilities"`
 	Presence              string                          `json:"presence"`
 	Freshness             string                          `json:"freshness"`
@@ -326,12 +338,29 @@ func catalogModelView(view catalog.View, includeMetadata bool) catalogModelDTO {
 		}
 	}
 
+	if pricing, ok := catalog.ExtractProviderReportedPricing(view.Entry.ProviderID, view.Entry.ProviderMetadata); ok {
+		dto.Pricing = catalogPricingView(pricing)
+	}
+
 	if includeMetadata {
 		dto.MissingSince = view.Entry.MissingSince
 		dto.ProviderMetadata = view.Entry.ProviderMetadata
 	}
 
 	return dto
+}
+
+func catalogPricingView(pricing catalog.ProviderReportedPricing) *catalogPricingDTO {
+	return &catalogPricingDTO{
+		Currency:   pricing.Currency,
+		Unit:       pricing.Unit,
+		Input:      pricing.Input,
+		Output:     pricing.Output,
+		CacheRead:  pricing.CacheRead,
+		CacheWrite: pricing.CacheWrite,
+		Source:     pricing.Source,
+		Complete:   pricing.Complete,
+	}
 }
 
 func catalogProviderView(view catalog.ProviderView) catalogProviderDTO {

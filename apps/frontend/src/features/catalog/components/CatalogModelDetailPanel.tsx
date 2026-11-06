@@ -1,6 +1,7 @@
 import { Brain } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CopyTextButton } from '../../../shared/ui'
+import { formatCatalogContextLimit, formatPricingCell } from '../lib/formatCatalogPricing'
 import type { CatalogModel } from '../types'
 
 type CatalogModelDetailPanelProps = {
@@ -72,7 +73,7 @@ export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps)
           <div className="catalog-metadata-grid">
             <div>
               <small>Janela de contexto</small>
-              <strong>Não informada</strong>
+              <strong>{formatCatalogContextLimit(model.limits?.context ?? undefined)}</strong>
             </div>
             <div>
               <small>Capacidades</small>
@@ -80,11 +81,19 @@ export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps)
             </div>
             <div>
               <small>Preço de entrada</small>
-              <strong>Não informado</strong>
+              <strong>{formatPricingCell(model.pricing, 'input')}</strong>
             </div>
             <div>
               <small>Preço de saída</small>
-              <strong>Não informado</strong>
+              <strong>{formatPricingCell(model.pricing, 'output')}</strong>
+            </div>
+            <div>
+              <small>Cache leitura</small>
+              <strong>{formatPricingCell(model.pricing, 'cache_read')}</strong>
+            </div>
+            <div>
+              <small>Cache escrita</small>
+              <strong>{formatPricingCell(model.pricing, 'cache_write')}</strong>
             </div>
           </div>
         </div>
@@ -96,8 +105,8 @@ export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps)
         </Link>
 
         <p className="catalog-detail-foot">
-          Contexto, modalidades e preços serão apresentados quando esses metadados estiverem
-          disponíveis no catálogo.
+          Preços refletem o catálogo oficial do provedor (por 1M tokens). Não representam custo de execução
+          registrado pelo Hub.
         </p>
       </div>
     </aside>

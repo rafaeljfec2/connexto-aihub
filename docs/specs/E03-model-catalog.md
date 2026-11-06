@@ -628,6 +628,26 @@ from middleware. No response contains `enabled`.
 `listing_state=current` asserts only what §6.2 defines. It is not an execution
 guarantee.
 
+**Amendment (2026-11-06):** The list and detail read APIs may include an optional
+`pricing` object projected from `provider_metadata` (provider-reported catalog
+list prices, typically USD per 1M tokens). This projection is for catalog
+inspection only; it is not execution cost, Hub billing, or a normalized billing
+model. `provider_metadata` remains omitted from the list response.
+
+Example `pricing` fragment:
+
+```json
+"pricing": {
+  "currency": "USD",
+  "unit": "per_1m_tokens",
+  "input": 0.15,
+  "output": 0.6,
+  "cache_read": 0.003,
+  "source": "provider_catalog",
+  "complete": true
+}
+```
+
 ### 9.2 Detail
 
 Same item plus `missing_since` and `provider_metadata`. `404 model_not_found` /

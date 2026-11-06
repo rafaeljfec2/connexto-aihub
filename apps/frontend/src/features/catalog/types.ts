@@ -5,12 +5,31 @@ export type CatalogCapability = {
   verification: string
 }
 
+export type CatalogModelLimits = {
+  context?: number | null
+  input?: number | null
+  output?: number | null
+}
+
+export type CatalogModelPricing = {
+  currency: string
+  unit: string
+  input?: number | null
+  output?: number | null
+  cache_read?: number | null
+  cache_write?: number | null
+  source: string
+  complete: boolean
+}
+
 export type CatalogModel = {
   provider: string
   model_id: string
   canonical_id?: string
   name: string
   type?: string
+  limits?: CatalogModelLimits
+  pricing?: CatalogModelPricing | null
   capabilities: Record<string, CatalogCapability>
   presence: string
   freshness: string

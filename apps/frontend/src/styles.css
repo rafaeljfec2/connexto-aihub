@@ -954,7 +954,15 @@
   }
 
   .catalog-toolbar {
-    @apply shrink-0;
+    @apply shrink-0 space-y-2;
+  }
+
+  .catalog-pricing-note {
+    @apply text-[10px] text-[#8D9AAF];
+  }
+
+  .catalog-pricing-cell {
+    @apply whitespace-nowrap font-mono text-[9px] text-[#A7B3C3];
   }
 
   .catalog-toolbar-row {
@@ -1054,7 +1062,7 @@
   }
 
   .catalog-list-panel {
-    @apply flex h-full min-h-0 flex-col;
+    @apply flex h-full min-h-0 min-w-0 flex-col;
   }
 
   .catalog-list-panel .grid-panel-body {
@@ -1062,23 +1070,56 @@
   }
 
   .catalog-table-shell {
-    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
   }
 
   .catalog-table-head {
-    @apply shrink-0 overflow-x-auto border-b border-line bg-surface;
+    @apply shrink-0 overflow-x-auto overflow-y-hidden border-b border-line bg-surface;
   }
 
   .catalog-table-body {
-    @apply min-h-0 flex-1 overflow-auto;
-  }
-
-  .catalog-modeltable-fixed {
-    @apply table-fixed;
+    @apply min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto;
   }
 
   .catalog-modeltable {
-    @apply w-full border-collapse;
+    @apply w-full min-w-[1060px] table-fixed border-collapse;
+  }
+
+  .catalog-modeltable col.catalog-col-model {
+    width: 240px;
+  }
+
+  .catalog-modeltable col.catalog-col-provider {
+    width: 96px;
+  }
+
+  .catalog-modeltable col.catalog-col-id {
+    width: 200px;
+  }
+
+  .catalog-modeltable col.catalog-col-price {
+    width: 82px;
+  }
+
+  .catalog-modeltable col.catalog-col-listing {
+    width: 88px;
+  }
+
+  .catalog-modeltable col.catalog-col-compare {
+    width: 52px;
+  }
+
+  .catalog-modeltable th.catalog-col-price,
+  .catalog-modeltable td.catalog-col-price {
+    @apply text-right;
+  }
+
+  .catalog-modeltable td.catalog-col-provider {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .catalog-col-id-cell {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
   }
 
   .catalog-modeltable th {
@@ -1106,7 +1147,7 @@
   }
 
   .catalog-modelname {
-    @apply text-[11px] font-semibold whitespace-nowrap text-[#E4EAF4];
+    @apply truncate text-[11px] font-semibold text-[#E4EAF4];
   }
 
   .catalog-modelid {
