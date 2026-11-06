@@ -98,16 +98,18 @@ func (c *ConnextoProxyClient) Reconfigure(settings Settings) error {
 	return nil
 }
 
-// Enabled is false when disabled. Cursor requires an inference API key; Antigravity
-// uses gateway authentication only (stored management key and/or AIHUB_CONNEXTO_PROXY_GATEWAY_KEY).
+// Enabled is false when disabled. For Cursor, a non-empty inference API key is required.
+// For Antigravity, the same proxy credential works as for Cursor: a non-empty API key
+// enables the adapter. Alternatively (or in addition), gateway auth uses the stored
+// management key or AIHUB_CONNEXTO_PROXY_GATEWAY_KEY.
 func (c *ConnextoProxyClient) Enabled() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if !c.enabled {
 		return false
 	}
-	if c.inferenceOptional {
-		return c.logicalProviderID == AntigravityID && antigravityGatewayConfigured(c.gatewayKey)
+	if c.logicalProviderID == AntigravityID {
+		return strings.TrimSpace(c.apiKey) != "" || antigravityGatewayConfigured(c.gatewayKey)
 	}
 	return c.apiKey != ""
 }

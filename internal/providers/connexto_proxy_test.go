@@ -294,6 +294,23 @@ func TestConnextoProxyProbeEndpoint(t *testing.T) {
 	}
 }
 
+func TestConnextoProxyAntigravityEnabledWithAPIKeyLikeCursor(t *testing.T) {
+	adapter, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            "http://127.0.0.1:9090/v1",
+		APIKey:             connextoProxyTestCursorKey,
+		ManagementKey:      "",
+		Enabled:            true,
+		LogicalProviderID:  providers.AntigravityID,
+		InferenceOptional:  true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() error = %v", err)
+	}
+	if !adapter.Enabled() {
+		t.Fatal("Antigravity should be enabled when API key is set (same as Cursor pattern)")
+	}
+}
+
 func TestConnextoProxyReconfigureAndEnabled(t *testing.T) {
 	client := newConnextoProxyTestClient(t, "http://127.0.0.1:9090/v1", nil, connextoProxyTestCursorKey)
 	if !client.Enabled() {
