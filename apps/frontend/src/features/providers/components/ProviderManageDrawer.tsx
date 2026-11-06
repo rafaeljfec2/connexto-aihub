@@ -39,10 +39,10 @@ export function ProviderManageDrawer({
       title={`Gerenciar provedor: ${provider.name}`}
       description={`Identificador técnico: ${provider.id}`}
       contentClassName="w-[min(100%,28rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[min(92vh,42rem)]"
-      bodyScroll={false}
+      bodyScroll
     >
-      <div className="space-y-2 pt-0">
-        <div className="rounded-md border border-line bg-raised p-2">
+      <div className="min-w-0 space-y-2 pt-0">
+        <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised p-2">
           <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
             Ações operacionais
           </h3>
@@ -64,7 +64,7 @@ export function ProviderManageDrawer({
           ) : null}
         </div>
 
-        <div className="rounded-md border border-line bg-raised p-2">
+        <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised p-2">
           <h3 className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
             Credenciais e configuração
           </h3>

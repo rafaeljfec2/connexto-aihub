@@ -207,7 +207,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
 
   return (
     <form
-      className="provider-patch-form space-y-2"
+      className="provider-patch-form min-w-0 max-w-full space-y-2"
       onSubmit={handleSubmit(async (values) => {
         setTestResult(null)
         const cred = values.credential && values.credential.trim().length > 0 ? values.credential.trim() : undefined
@@ -447,7 +447,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
 
       {testResult ? (
         <div
-          className={`flex min-w-0 items-start gap-1.5 rounded-md border px-1.5 py-1 text-[10px] leading-snug ${
+          className={`flex min-w-0 max-w-full items-start gap-1.5 overflow-hidden rounded-md border px-1.5 py-1 text-[10px] leading-snug ${
             testResult.success
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
               : 'border-red-500/30 bg-red-500/10 text-red-200'
@@ -458,16 +458,19 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
           ) : (
             <AlertCircle className="size-3.5 shrink-0 text-red-400 mt-px" />
           )}
-          <p className="min-w-0 flex-1 break-words line-clamp-4" title={testResult.message}>
+          <p
+            className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words"
+            title={testResult.message}
+          >
             {testResult.message}
           </p>
         </div>
       ) : null}
 
       {errorMessage ? (
-        <div className="flex items-start gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-1.5 py-1 text-[10px] leading-snug text-red-200">
+        <div className="flex min-w-0 max-w-full items-start gap-1.5 overflow-hidden rounded-md border border-red-500/30 bg-red-500/10 px-1.5 py-1 text-[10px] leading-snug text-red-200">
           <AlertCircle className="size-3.5 shrink-0 text-red-400 mt-px" />
-          <p className="line-clamp-3 break-words" title={errorMessage}>
+          <p className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words" title={errorMessage}>
             {errorMessage}
           </p>
         </div>
