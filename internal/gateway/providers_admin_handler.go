@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"aihub/internal/catalog"
@@ -32,6 +34,8 @@ const (
 	adminInternalMsg        = "the provider administration request failed"
 	proxySessionClearFailedType   = "proxy_session_clear_failed"
 	proxySessionClearFailedMsg    = "the connexto proxy rejected clearing runtime sessions"
+	proxyAntigravityAuthFailedType = "proxy_antigravity_auth_failed"
+	proxyAntigravityAuthFailedMsg  = "the connexto proxy rejected the Antigravity OAuth request"
 )
 
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
@@ -272,6 +276,90 @@ func (a *ProviderAdmin) ClearAntigravityProxyRuntimeSessions() http.Handler {
 	})
 }
 
+// AntigravityProxyAuthStatus handles GET /api/providers/{id}/proxy/antigravity/auth/status.
+// It forwards to the configured proxy base URL + /providers/antigravity/auth/status (base typically ends with /v1).
+func (a *ProviderAdmin) AntigravityProxyAuthStatus() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		payload, err := a.service.GetAntigravityProxyAuthStatus(r.Context(), id)
+		if err != nil {
+			switch {
+			case errors.Is(err, providers.ErrNotFound):
+				a.writeError(w, err)
+			case errors.Is(err, providers.ErrInvalid):
+				writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+			case errors.Is(err, providers.ErrNoGatewayKey):
+				writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+			case errors.Is(err, providers.ErrProxyAntigravityAuthFailed):
+				a.logger.Warn("proxy antigravity auth status failed", "provider", id, "error", err)
+				writeJSONError(w, http.StatusBadGateway, proxyAntigravityAuthFailedType, proxyAntigravityAuthFailureMessage(err))
+			default:
+				a.logger.Error("proxy antigravity auth status", "provider", id, "error", err.Error())
+				writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, payload)
+	})
+}
+
+// AntigravityProxyAuthStart handles POST /api/providers/{id}/proxy/antigravity/auth/start.
+// It forwards to the configured proxy base URL + /providers/antigravity/auth/start (base typically ends with /v1).
+func (a *ProviderAdmin) AntigravityProxyAuthStart() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		var body antigravityProxyAuthStartRequest
+		rawBody, readErr := io.ReadAll(http.MaxBytesReader(w, r.Body, providerRequestMaxBytes))
+		if readErr != nil {
+			writeJSONError(w, http.StatusBadRequest, invalidRequestType, invalidRequestMsg)
+			return
+		}
+		if len(bytes.TrimSpace(rawBody)) > 0 {
+			if err := json.Unmarshal(rawBody, &body); err != nil {
+				writeJSONError(w, http.StatusBadRequest, invalidRequestType, invalidRequestMsg)
+				return
+			}
+		}
+		var proxyBody *providers.AntigravityProxyAuthStartBody
+		if body.RedirectURI != nil {
+			proxyBody = &providers.AntigravityProxyAuthStartBody{RedirectURI: body.RedirectURI}
+		}
+		payload, err := a.service.StartAntigravityProxyAuth(r.Context(), id, proxyBody)
+		if err != nil {
+			switch {
+			case errors.Is(err, providers.ErrNotFound):
+				a.writeError(w, err)
+			case errors.Is(err, providers.ErrInvalid):
+				writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+			case errors.Is(err, providers.ErrNoGatewayKey):
+				writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+			case errors.Is(err, providers.ErrProxyAntigravityAuthFailed):
+				a.logger.Warn("proxy antigravity auth start failed", "provider", id, "error", err)
+				writeJSONError(w, http.StatusBadGateway, proxyAntigravityAuthFailedType, proxyAntigravityAuthFailureMessage(err))
+			default:
+				a.logger.Error("proxy antigravity auth start", "provider", id, "error", err.Error())
+				writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"operation_id": payload.OperationID,
+			"status":       payload.Status,
+			"auth_url":     payload.AuthURL,
+			"state":        payload.State,
+			"expires_at":   payload.ExpiresAt,
+		})
+	})
+}
+
 // SyncModels handles POST /api/providers/{id}/sync-models.
 func (a *ProviderAdmin) SyncModels() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -398,6 +486,14 @@ func decodeHasTrailingData(decoder *json.Decoder) bool {
 	_, err := decoder.Token()
 
 	return !errors.Is(err, io.EOF)
+}
+
+func proxyAntigravityAuthFailureMessage(err error) string {
+	var authErr *providers.ProxyAntigravityAuthFailedError
+	if errors.As(err, &authErr) && strings.TrimSpace(authErr.Detail) != "" {
+		return fmt.Sprintf("%s (%s)", proxyAntigravityAuthFailedMsg, strings.TrimSpace(authErr.Detail))
+	}
+	return proxyAntigravityAuthFailedMsg
 }
 
 func (a *ProviderAdmin) writeError(w http.ResponseWriter, err error) {

@@ -41,6 +41,10 @@ type updateProviderRequest struct {
 	ManagementCredential *string `json:"management_credential"`
 }
 
+type antigravityProxyAuthStartRequest struct {
+	RedirectURI *string `json:"redirect_uri"`
+}
+
 func toProviderResponse(record providers.Record) providerResponse {
 	return providerResponse{
 		ID:                             record.ID,

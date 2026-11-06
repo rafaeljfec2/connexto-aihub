@@ -38,12 +38,12 @@ export function ProviderManageDrawer({
       }}
       title={`Gerenciar provedor: ${provider.name}`}
       description={`Identificador técnico: ${provider.id}`}
-      contentClassName="w-[min(100%,26rem)] p-4"
-      bodyClassName="mt-2.5"
+      contentClassName="w-[min(100%,28rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[min(92vh,42rem)]"
+      bodyScroll={false}
     >
-      <div className="space-y-2.5 pt-0.5">
-        <div className="rounded-md border border-line bg-raised p-2.5">
-          <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+      <div className="space-y-2 pt-0">
+        <div className="rounded-md border border-line bg-raised p-2">
+          <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
             Ações operacionais
           </h3>
           <ProviderActions
@@ -58,17 +58,17 @@ export function ProviderManageDrawer({
           />
 
           {actionError ? (
-            <p className="mt-1.5 text-[11px] text-failure" role="alert">
+            <p className="mt-1 text-[10px] text-failure" role="alert">
               {actionError}
             </p>
           ) : null}
         </div>
 
-        <div className="rounded-md border border-line bg-raised p-2.5">
-          <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+        <div className="rounded-md border border-line bg-raised p-2">
+          <h3 className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
             Credenciais e configuração
           </h3>
-          <p className="mb-2 text-[10px] text-muted leading-snug">
+          <p className="mb-1.5 text-[10px] text-muted leading-snug">
             Os segredos salvos nunca são exibidos novamente pela interface. Preencha apenas
             quando desejar atualizar a credencial.
           </p>

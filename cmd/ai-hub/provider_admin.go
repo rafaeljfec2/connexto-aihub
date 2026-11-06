@@ -78,6 +78,8 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 		{Method: http.MethodPatch, Pattern: "/api/providers/{id}", Handler: admin.Update()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/validate", Handler: admin.Validate()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/runtime/sessions/clear", Handler: admin.ClearAntigravityProxyRuntimeSessions()},
+		{Method: http.MethodGet, Pattern: "/api/providers/{id}/proxy/antigravity/auth/status", Handler: admin.AntigravityProxyAuthStatus()},
+		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/antigravity/auth/start", Handler: admin.AntigravityProxyAuthStart()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/sync-models", Handler: admin.SyncModels()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}/status", Handler: admin.Status()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/enable", Handler: admin.Enable()},

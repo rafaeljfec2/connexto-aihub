@@ -139,6 +139,8 @@ func adminServer(t *testing.T) *httptest.Server {
 	mux.Handle("GET /api/providers/{id}", admin.Get())
 	mux.Handle("PATCH /api/providers/{id}", admin.Update())
 	mux.Handle("POST /api/providers/{id}/validate", admin.Validate())
+	mux.Handle("GET /api/providers/{id}/proxy/antigravity/auth/status", admin.AntigravityProxyAuthStatus())
+	mux.Handle("POST /api/providers/{id}/proxy/antigravity/auth/start", admin.AntigravityProxyAuthStart())
 	mux.Handle("POST /api/providers/{id}/sync-models", admin.SyncModels())
 	mux.Handle("GET /api/providers/{id}/status", admin.Status())
 	mux.Handle("POST /api/providers/{id}/enable", admin.Enable())

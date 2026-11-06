@@ -3,6 +3,10 @@ export type ApiErrorBody = {
   message: string
 }
 
+type gatewayErrorEnvelope = {
+  error: ApiErrorBody
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly type: string
@@ -22,7 +26,12 @@ export async function fetchJson<T>(input: string, init?: RequestInit): Promise<T
   if (!response.ok) {
     let body: ApiErrorBody = { type: 'request_failed', message: response.statusText }
     try {
-      body = (await response.json()) as ApiErrorBody
+      const raw = (await response.json()) as ApiErrorBody | gatewayErrorEnvelope
+      if ('error' in raw && raw.error !== undefined && typeof raw.error.type === 'string') {
+        body = raw.error
+      } else if ('type' in raw && typeof raw.type === 'string') {
+        body = raw as ApiErrorBody
+      }
     } catch {
       // keep default body
     }

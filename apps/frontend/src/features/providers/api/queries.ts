@@ -77,6 +77,52 @@ export async function clearAntigravityProxyRuntimeSessions(
   )
 }
 
+export type AntigravityProxyAuthStatusResponse = {
+  authenticated: boolean
+  account?: string | null
+  lastCheckedAt: string
+  viabilityGate: string
+  limitations: string[]
+  activeOperation?: {
+    operationId?: string
+    status?: string
+    createdAt?: string
+    expiresAt?: string
+    account?: string | null
+    error?: string | null
+  }
+}
+
+export async function getAntigravityProxyAuthStatus(
+  id: string,
+): Promise<AntigravityProxyAuthStatusResponse> {
+  return fetchJson<AntigravityProxyAuthStatusResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/antigravity/auth/status`,
+  )
+}
+
+export type AntigravityProxyAuthStartResponse = {
+  operation_id: string
+  status: string
+  auth_url: string
+  state: string
+  expires_at: string
+}
+
+export async function startAntigravityProxyAuth(
+  id: string,
+  body?: { redirect_uri?: string },
+): Promise<AntigravityProxyAuthStartResponse> {
+  return fetchJson<AntigravityProxyAuthStartResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/antigravity/auth/start`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+  )
+}
+
 export async function syncProviderModels(id: string): Promise<SyncModelsResponse> {
   return fetchJson<SyncModelsResponse>(`/api/providers/${encodeURIComponent(id)}/sync-models`, {
     method: 'POST',

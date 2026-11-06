@@ -3,7 +3,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertCircle, CheckCircle2, Lock, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { clearAntigravityProxyRuntimeSessions, validateProvider } from '../api/queries'
+import {
+  clearAntigravityProxyRuntimeSessions,
+  getAntigravityProxyAuthStatus,
+  startAntigravityProxyAuth,
+  validateProvider,
+} from '../api/queries'
 import type { AdminProvider } from '../types'
 
 const patchSchema = z.object({
@@ -11,6 +16,10 @@ const patchSchema = z.object({
   endpoint: z.string().url('Endpoint must be a valid URL'),
   credential: z.string().optional(),
   management_credential: z.string().optional(),
+  oauth_redirect_uri: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url('OAuth redirect URI must be a valid URL').optional(),
+  ),
 })
 
 type PatchFormValues = z.infer<typeof patchSchema>
@@ -25,6 +34,8 @@ type ProviderPatchFormProps = {
 export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit }: ProviderPatchFormProps) {
   const [testingConnection, setTestingConnection] = useState(false)
   const [clearingProxySessions, setClearingProxySessions] = useState(false)
+  const [loadingAuthStatus, setLoadingAuthStatus] = useState(false)
+  const [startingOAuth, setStartingOAuth] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   async function handleClearAntigravitySessions() {
@@ -52,7 +63,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
           : ''
       setTestResult({
         success: true,
-        message: `${detail}Persistência e cache do gateway foram limpos. OAuth em ~/.gemini não é apagado.${warnBlock}`,
+        message: `${detail}Sessões ACP e cache do gateway foram limpos. «Ver status OAuth» pode continuar «autenticado» enquanto o host do proxy tiver tokens Google em disco (ex.: ~/.gemini) — use revogação/remoção no servidor do proxy para encerrar o OAuth de verdade.${warnBlock}`,
       })
     } catch (err) {
       setTestResult({
@@ -79,12 +90,80 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
       endpoint: provider.endpoint,
       credential: '',
       management_credential: '',
+      oauth_redirect_uri: '',
     },
   })
 
   const credentialValue = watch('credential')
   const managementValue = watch('management_credential')
+  const oauthRedirectValue = watch('oauth_redirect_uri')
   const isAntigravity = provider.type === 'antigravity'
+
+  async function handleAntigravityAuthStatus() {
+    setLoadingAuthStatus(true)
+    setTestResult(null)
+    try {
+      const s = await getAntigravityProxyAuthStatus(provider.id)
+      const account = s.account != null && s.account !== '' ? ` Conta: ${s.account}.` : ''
+      const gate = s.viabilityGate ? ` Viabilidade: ${s.viabilityGate}.` : ''
+      const op = s.activeOperation?.status
+        ? ` Operação pendente: ${s.activeOperation.status}${s.activeOperation.operationId ? ` (${s.activeOperation.operationId})` : ''}.`
+        : ''
+      setTestResult({
+        success: true,
+        message: `OAuth no proxy: ${s.authenticated ? 'autenticado' : 'não autenticado'}.${account}${gate}${op} Última checagem: ${s.lastCheckedAt}.`,
+      })
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Falha ao consultar status OAuth no proxy. Verifique endpoint e Gateway API Key.',
+      })
+    } finally {
+      setLoadingAuthStatus(false)
+    }
+  }
+
+  async function handleAntigravityAuthStart() {
+    setStartingOAuth(true)
+    setTestResult(null)
+    try {
+      const redirect =
+        oauthRedirectValue && oauthRedirectValue.trim().length > 0
+          ? oauthRedirectValue.trim()
+          : undefined
+      const res = await startAntigravityProxyAuth(
+        provider.id,
+        redirect ? { redirect_uri: redirect } : undefined,
+      )
+      const opened = window.open(res.auth_url, '_blank', 'noopener,noreferrer')
+      if (!opened) {
+        setTestResult({
+          success: true,
+          message:
+            'Fluxo OAuth iniciado. O navegador bloqueou nova aba; copie e abra o link: ' + res.auth_url,
+        })
+        return
+      }
+      setTestResult({
+        success: true,
+        message:
+          'Fluxo OAuth aberto em nova aba. Após concluir no Google, use "Ver status OAuth" para confirmar.',
+      })
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Falha ao iniciar OAuth no proxy. Verifique endpoint e Gateway API Key.',
+      })
+    } finally {
+      setStartingOAuth(false)
+    }
+  }
 
   async function handleTestConnection() {
     setTestingConnection(true)
@@ -123,11 +202,12 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
     }
   }
 
-  const isBusy = isPending || testingConnection || clearingProxySessions
+  const isBusy =
+    isPending || testingConnection || clearingProxySessions || loadingAuthStatus || startingOAuth
 
   return (
     <form
-      className="provider-patch-form space-y-2.5"
+      className="provider-patch-form space-y-2"
       onSubmit={handleSubmit(async (values) => {
         setTestResult(null)
         const cred = values.credential && values.credential.trim().length > 0 ? values.credential.trim() : undefined
@@ -176,8 +256,8 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
       })}
     >
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <label htmlFor="provider-name-input" className="text-xs font-medium text-secondary">
+        <div className="flex items-center justify-between mb-0.5">
+          <label htmlFor="provider-name-input" className="text-[11px] font-medium text-secondary">
             Name
           </label>
           <span className="flex items-center gap-1 rounded bg-[#0D121B] px-1.5 py-0.5 text-[10px] text-muted border border-line/60">
@@ -191,14 +271,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
           readOnly
           disabled
           aria-readonly="true"
-          className="w-full rounded-md border border-line/40 bg-[#0D121B]/80 px-2.5 py-1.5 text-xs text-muted cursor-not-allowed outline-none select-none"
+          className="w-full rounded-md border border-line/40 bg-[#0D121B]/80 px-2 py-1 text-[11px] text-muted cursor-not-allowed outline-none select-none"
           {...register('name')}
         />
       </div>
 
       {provider.type === 'openrouter' || isAntigravity ? (
         <div>
-          <label htmlFor="provider-management-cred" className="block text-xs font-medium text-secondary mb-1">
+          <label htmlFor="provider-management-cred" className="mb-0.5 block text-[11px] font-medium text-secondary">
             {isAntigravity ? 'Gateway API Key (write-only)' : 'Management API Key (write-only)'}
           </label>
           <input
@@ -214,7 +294,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
                   ? 'Configured — enter to replace'
                   : 'Not configured'
             }
-            className="w-full rounded-md border border-line bg-[#09090b] px-2.5 py-1.5 text-xs text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20"
+            className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20"
             {...register('management_credential')}
           />
           {errors.management_credential ? (
@@ -224,8 +304,8 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
       ) : null}
 
       <div>
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-          <label htmlFor="provider-endpoint-input" className="text-xs font-medium text-secondary">
+        <div className="mb-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+          <label htmlFor="provider-endpoint-input" className="text-[11px] font-medium text-secondary">
             Endpoint
           </label>
           {isAntigravity ? (
@@ -245,40 +325,99 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
           type="url"
           autoComplete="off"
           disabled={isBusy}
-          className="w-full rounded-md border border-line bg-[#09090b] px-2.5 py-1.5 text-xs text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
+          className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
           {...register('endpoint')}
         />
         {errors.endpoint ? <span className="mt-1 block text-xs text-failure">{errors.endpoint.message}</span> : null}
         {isAntigravity ? (
+          <div className="mt-1.5">
+            <label htmlFor="antigravity-oauth-redirect" className="mb-0.5 block text-[11px] font-medium text-secondary">
+              OAuth redirect URI (opcional)
+            </label>
+            <input
+              id="antigravity-oauth-redirect"
+              type="url"
+              autoComplete="off"
+              disabled={isBusy}
+              placeholder="https://seu-proxy.example/v1/providers/antigravity/auth/callback"
+              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
+              {...register('oauth_redirect_uri')}
+            />
+            {errors.oauth_redirect_uri ? (
+              <span className="mt-1 block text-xs text-failure">{errors.oauth_redirect_uri.message}</span>
+            ) : null}
+          </div>
+        ) : null}
+        {isAntigravity ? (
           <>
-            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+            <div className="mt-1.5 grid min-w-0 grid-cols-3 gap-1">
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleAntigravityAuthStatus()}
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
+              >
+                {loadingAuthStatus ? (
+                  <>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Consultando…</span>
+                  </>
+                ) : (
+                  <span>Status OAuth</span>
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleAntigravityAuthStart()}
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[9px] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
+              >
+                {startingOAuth ? (
+                  <>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Iniciando…</span>
+                  </>
+                ) : (
+                  <span>Login OAuth</span>
+                )}
+              </button>
               <button
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleClearAntigravitySessions()}
-                className="inline-flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-500/15 transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/50 bg-[#141a24] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-amber-200/90 shadow-sm transition-colors [text-wrap:balance] hover:border-amber-500/25 hover:bg-amber-500/5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
               >
                 {clearingProxySessions ? (
                   <>
-                    <RefreshCw className="size-3 animate-spin" />
-                    <span>Limpando sessão…</span>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Limpando…</span>
                   </>
                 ) : (
                   <>
-                    <Trash2 className="size-3" />
-                    <span>Encerrar sessão no proxy</span>
+                    <Trash2 className="size-3 shrink-0 text-amber-300/80" />
+                    <span>Encerrar sessão</span>
                   </>
                 )}
               </button>
             </div>
+            <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[10px] text-muted">
+              <summary className="cursor-pointer list-none font-medium text-secondary marker:content-none [&::-webkit-details-marker]:hidden">
+                Sobre «Encerrar sessão» e OAuth
+              </summary>
+              <ul className="mt-1 list-disc space-y-0.5 pl-3.5 leading-snug marker:text-muted">
+                <li>Limpa ACP/cache no gateway neste fluxo.</li>
+                <li>Não apaga tokens OAuth em disco no host do proxy (~/.gemini).</li>
+                <li>«Ver status OAuth» pode seguir autenticado até revogar ou remover tokens lá.</li>
+              </ul>
+            </details>
           </>
         ) : null}
       </div>
 
       {!isAntigravity ? (
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label htmlFor="provider-credential-patch" className="text-xs font-medium text-secondary">
+          <div className="mb-0.5 flex items-center justify-between">
+            <label htmlFor="provider-credential-patch" className="text-[11px] font-medium text-secondary">
               Credential (write-only)
             </label>
             <button
@@ -297,7 +436,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
             autoComplete="new-password"
             disabled={isBusy}
             placeholder={provider.credential_configured ? 'Configured — enter to replace' : 'Not configured'}
-            className="w-full rounded-md border border-line bg-[#09090b] px-2.5 py-1.5 text-xs text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
             {...register('credential')}
           />
           {errors.credential ? (
@@ -308,34 +447,38 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
 
       {testResult ? (
         <div
-          className={`flex items-start gap-2 rounded-md border p-2 text-xs ${
+          className={`flex min-w-0 items-start gap-1.5 rounded-md border px-1.5 py-1 text-[10px] leading-snug ${
             testResult.success
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
               : 'border-red-500/30 bg-red-500/10 text-red-200'
           }`}
         >
           {testResult.success ? (
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-400 mt-0.5" />
+            <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400 mt-px" />
           ) : (
-            <AlertCircle className="size-4 shrink-0 text-red-400 mt-0.5" />
+            <AlertCircle className="size-3.5 shrink-0 text-red-400 mt-px" />
           )}
-          <p className="leading-relaxed">{testResult.message}</p>
+          <p className="min-w-0 flex-1 break-words line-clamp-4" title={testResult.message}>
+            {testResult.message}
+          </p>
         </div>
       ) : null}
 
       {errorMessage ? (
-        <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-200">
-          <AlertCircle className="size-4 shrink-0 text-red-400 mt-0.5" />
-          <p className="leading-relaxed">{errorMessage}</p>
+        <div className="flex items-start gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-1.5 py-1 text-[10px] leading-snug text-red-200">
+          <AlertCircle className="size-3.5 shrink-0 text-red-400 mt-px" />
+          <p className="line-clamp-3 break-words" title={errorMessage}>
+            {errorMessage}
+          </p>
         </div>
       ) : null}
 
-      <div className="border-t border-line pt-2">
+      <div className="border-t border-line pt-1.5">
         <button
           type="submit"
           disabled={isBusy}
           aria-label="Save changes"
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-cobalt/40 bg-accent-deep px-3 py-2 text-xs font-semibold text-[#E4EBFC] shadow-sm hover:bg-[#314A78] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-cobalt/40 bg-accent-deep px-3 text-[11px] font-semibold text-[#E4EBFC] shadow-sm hover:bg-[#314A78] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isBusy ? (
             <>

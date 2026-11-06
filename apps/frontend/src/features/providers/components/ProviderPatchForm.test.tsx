@@ -10,6 +10,7 @@ vi.mock('../api/queries', async () => {
     ...actual,
     validateProvider: vi.fn(),
     clearAntigravityProxyRuntimeSessions: vi.fn(),
+    startAntigravityProxyAuth: vi.fn(),
   }
 })
 
@@ -41,6 +42,13 @@ describe('ProviderPatchForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(queries.validateProvider).mockResolvedValue({ status: 'reachable' })
+    vi.mocked(queries.startAntigravityProxyAuth).mockResolvedValue({
+      operation_id: 'op-1',
+      status: 'pending',
+      auth_url: 'https://oauth.example/authorize',
+      state: 'st',
+      expires_at: '2099-01-01T00:00:00Z',
+    })
   })
 
   it('keeps name field locked and disabled so the user cannot change provider identity', () => {
@@ -109,6 +117,25 @@ describe('ProviderPatchForm', () => {
       expect(queries.validateProvider).toHaveBeenCalledWith('antigravity', undefined)
       expect(screen.getByText(/Gateway alcançável e operacional/i)).toBeDefined()
     })
+  })
+
+  it('for Antigravity, passes optional OAuth redirect URI to startAntigravityProxyAuth', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    render(<ProviderPatchForm provider={antigravityProvider} isPending={false} onSubmit={vi.fn()} />)
+
+    const redirectInput = screen.getByLabelText(/OAuth redirect URI/i)
+    fireEvent.change(redirectInput, { target: { value: 'https://proxy.example/v1/providers/antigravity/auth/callback' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Login OAuth/i }))
+
+    await waitFor(() => {
+      expect(queries.startAntigravityProxyAuth).toHaveBeenCalledWith('antigravity', {
+        redirect_uri: 'https://proxy.example/v1/providers/antigravity/auth/callback',
+      })
+    })
+
+    openSpy.mockRestore()
   })
 
   it('blocks saving and shows error message if connection test fails', async () => {
