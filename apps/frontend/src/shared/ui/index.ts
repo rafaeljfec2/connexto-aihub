@@ -1,6 +1,7 @@
 export { Badge } from './badge'
 export { Banner } from './banner'
 export { Button } from './button'
+export { CopyTextButton, type CopyTextButtonProps } from './copy-text-button'
 export { Card, StatCard } from './card'
 export { cn } from './cn'
 export { Dialog } from './dialog'

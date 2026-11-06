@@ -1,3 +1,4 @@
+import { hubProviderIconSlug } from '../../../shared/branding'
 import type { AdminProvider } from '../types'
 
 export type ProviderSituation = 'ok' | 'warn' | 'na' | 'off'
@@ -7,6 +8,11 @@ export function providerInitials(provider: AdminProvider): string {
     return provider.name.slice(0, 2).toUpperCase()
   }
   return provider.id.slice(0, 2).toUpperCase()
+}
+
+/** Resolves the ai-icons slug for a configured admin provider. */
+export function providerIconSlug(provider: Pick<AdminProvider, 'id' | 'type'>): string {
+  return hubProviderIconSlug(provider.id) || hubProviderIconSlug(provider.type)
 }
 
 export function providerConnectionSubtitle(provider: AdminProvider): string {

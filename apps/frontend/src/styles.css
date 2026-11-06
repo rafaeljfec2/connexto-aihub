@@ -603,7 +603,15 @@
   }
 
   .overview-provider-icon {
-    @apply grid size-7 place-items-center rounded-lg border border-[rgb(191_211_195_/_0.09)] bg-[#263144] font-mono text-[10px] font-semibold text-[#C5D2EC];
+    @apply grid size-7 shrink-0 place-items-center rounded-lg border border-[rgb(191_211_195_/_0.09)] bg-[#263144] p-1 font-mono text-[10px] font-semibold text-[#C5D2EC];
+  }
+
+  .overview-provider-icon img {
+    @apply size-full object-contain;
+  }
+
+  .overview-provider-icon.ai-brand-icon--fallback {
+    @apply bg-[#263144] p-0;
   }
 
   .overview-table th {
@@ -708,7 +716,15 @@
   }
 
   .providers-provider-icon {
-    @apply grid size-7 place-items-center rounded-lg border border-[rgb(191_211_195_/_0.09)] bg-[#263144] font-mono text-[10px] font-semibold text-[#C5D2EC];
+    @apply grid size-7 shrink-0 place-items-center rounded-lg border border-[rgb(191_211_195_/_0.09)] bg-[#263144] p-1 font-mono text-[10px] font-semibold text-[#C5D2EC];
+  }
+
+  .providers-provider-icon img {
+    @apply size-full object-contain;
+  }
+
+  .providers-provider-icon.ai-brand-icon--fallback {
+    @apply bg-[#263144] p-0;
   }
 
   .providers-quota-title {
@@ -1097,6 +1113,22 @@
     @apply mt-1 font-mono text-[9px] whitespace-nowrap text-[#8190A5];
   }
 
+  .catalog-modelid-row {
+    @apply mt-1 flex min-w-0 items-center gap-1;
+  }
+
+  .catalog-modelid-row .catalog-modelid {
+    @apply mt-0 min-w-0 truncate;
+  }
+
+  .copy-text-button {
+    @apply inline-grid size-[18px] shrink-0 place-items-center rounded border border-[rgb(180_194_218_/_0.14)] bg-[#1A2333] text-[#8D9AAF] transition-colors hover:border-[rgb(120_150_232_/_0.35)] hover:bg-[#243044] hover:text-[#D5DFF0];
+  }
+
+  .copy-text-button.is-copied {
+    @apply border-healthy/30 bg-healthy/10 text-[#93C49D];
+  }
+
   .catalog-providerlabel {
     @apply text-[10px] text-[#C3CDDD];
   }
@@ -1146,7 +1178,19 @@
   }
 
   .catalog-detail-hero p {
-    @apply mt-[5px] font-mono text-[9px] text-[#8C9AAF];
+    @apply font-mono text-[9px] text-[#8C9AAF];
+  }
+
+  .catalog-detail-idrow {
+    @apply mt-[5px] flex min-w-0 items-center gap-1.5;
+  }
+
+  .catalog-detail-idrow p {
+    @apply min-w-0 truncate;
+  }
+
+  .catalog-detail-idrow .copy-text-button {
+    @apply size-5;
   }
 
   .catalog-metarow {

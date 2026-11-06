@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useRef } from 'react'
 import { Brain } from 'lucide-react'
+import { CopyTextButton } from '../../../shared/ui'
 import type { CatalogColumnFilters } from '../lib/catalogColumnFilters'
 import type { CatalogModel } from '../types'
 
@@ -199,7 +200,13 @@ export function CatalogModelsTable({
                         </span>
                         <div className="min-w-0">
                           <div className="catalog-modelname">{model.name}</div>
-                          <div className="catalog-modelid">{model.model_id}</div>
+                          <div className="catalog-modelid-row">
+                            <div className="catalog-modelid">{model.model_id}</div>
+                            <CopyTextButton
+                              text={model.model_id}
+                              label={`Copiar identificador ${model.model_id}`}
+                            />
+                          </div>
                         </div>
                       </div>
                     </td>

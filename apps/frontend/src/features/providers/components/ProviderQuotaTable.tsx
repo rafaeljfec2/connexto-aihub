@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Edit2 } from 'lucide-react'
+import { AiBrandIcon } from '../../../shared/branding'
 import { GridPagination, Panel, PanelHeader, ProgressBar } from '../../../shared/ui'
 import { useGridPagination } from '../../../shared/hooks/useGridPagination'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
   providerConnectionSubtitle,
-  providerInitials,
+  providerIconSlug,
 } from '../lib/providerPresentation'
 import {
   availableBalanceDisplay,
@@ -105,7 +106,12 @@ export function ProviderQuotaTable({
                   >
                     <td>
                       <div className="providers-provider-name">
-                        <span className="providers-provider-icon">{providerInitials(provider)}</span>
+                        <AiBrandIcon
+                          slug={providerIconSlug(provider)}
+                          label={provider.name}
+                          size={28}
+                          className="providers-provider-icon"
+                        />
                         <div>
                           <strong className="block text-[11px] font-semibold text-[#E1E8F3]">
                             {provider.name}

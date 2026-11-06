@@ -1,3 +1,4 @@
+import { AiBrandIcon, hubProviderIconSlug } from '../../../shared/branding'
 import {
   goPlusChipPercent,
   goPlusMetersFromSnapshot,
@@ -28,12 +29,6 @@ export function accountName(snapshots: readonly ProviderQuotaSnapshot[]): string
       (name) => name.trim().length > 0,
     ) ?? primary.account_id
   return product ? `${base} (${product})` : base
-}
-
-function initials(label: string): string {
-  const parts = label.trim().replace(/[^a-zA-Z0-9]/g, ' ').split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-  return label.slice(0, 2).toUpperCase()
 }
 
 function scopeLabel(scope: DataScope): string {
@@ -197,7 +192,12 @@ export function ProviderQuotaAccountRow({
       }
     >
       <header className="flex items-center gap-2">
-        <span className="overview-provider-icon">{initials(name)}</span>
+        <AiBrandIcon
+          slug={hubProviderIconSlug(firstSnapshot.provider_id)}
+          label={name}
+          size={28}
+          className="overview-provider-icon"
+        />
         <div className="min-w-0 flex-1">
           <span className="block truncate text-[11px] font-semibold text-[#E1E8F3]">{name}</span>
           {isGoAccount ? (

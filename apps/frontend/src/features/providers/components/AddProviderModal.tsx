@@ -11,9 +11,9 @@ import {
   Layers,
   Lock,
   RefreshCw,
-  Server,
   ShieldCheck,
 } from 'lucide-react'
+import { AiBrandIcon, hubProviderIconSlug } from '../../../shared/branding'
 import { Dialog } from '../../../shared/ui'
 import {
   createProvider,
@@ -230,15 +230,12 @@ export function AddProviderModal({
                       onClick={() => handleSelectProvider(provider)}
                       className="group flex items-start gap-3 rounded-lg border border-line bg-surface p-3.5 text-left transition-all hover:border-cobalt/60 hover:bg-[#1E2638] cursor-pointer"
                     >
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-line bg-[#0D121B] font-semibold text-xs text-primary">
-                        {provider.logo === 'cursor' ? (
-                          <span className="font-bold tracking-tight text-cobalt">CU</span>
-                        ) : provider.logo === 'openrouter' ? (
-                          <span className="font-bold tracking-tight text-amber-400">OR</span>
-                        ) : (
-                          <Server className="size-5 text-secondary" />
-                        )}
-                      </div>
+                      <AiBrandIcon
+                        slug={hubProviderIconSlug(provider.logo || provider.id)}
+                        label={provider.name}
+                        size={40}
+                        className="providers-provider-icon size-10 rounded-md border border-line bg-[#0D121B]"
+                      />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">

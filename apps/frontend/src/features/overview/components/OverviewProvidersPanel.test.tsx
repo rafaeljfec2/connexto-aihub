@@ -58,7 +58,7 @@ describe('OverviewProvidersPanel', () => {
     expect(screen.getByText('OpenRouter Principal')).toBeTruthy()
     expect(screen.getByText(/Usado US\$\s*25,50/)).toBeTruthy()
     expect(screen.getByText(/Restante US\$\s*74,50/)).toBeTruthy()
-    expect(screen.getByText('OP')).toBeTruthy() // Initials in badge
+    expect(document.querySelector('img[data-ai-icon-slug="openrouter"]')).not.toBeNull()
 
     // Must NOT contain an artificial percent string
     expect(screen.queryByText(/%\s*disponível/)).toBeNull()

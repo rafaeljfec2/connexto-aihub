@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AdminProvider } from '../types'
-import { providerSituation } from './providerPresentation'
+import { providerIconSlug, providerSituation } from './providerPresentation'
 
 const base: AdminProvider = {
   id: 'openrouter',
@@ -12,6 +12,14 @@ const base: AdminProvider = {
   created_at: '',
   updated_at: '',
 }
+
+describe('providerIconSlug', () => {
+  it('maps configured provider ids to ai-icons slugs', () => {
+    expect(providerIconSlug(base)).toBe('openrouter')
+    expect(providerIconSlug({ ...base, id: 'opencode-go', type: 'opencode-go' })).toBe('opencode')
+    expect(providerIconSlug({ ...base, id: 'cursor', type: 'cursor' })).toBe('cursor')
+  })
+})
 
 describe('providerSituation', () => {
   it('marks enabled providers without considering quota as sem leitura', () => {

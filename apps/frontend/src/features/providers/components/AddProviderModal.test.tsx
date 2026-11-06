@@ -92,6 +92,13 @@ describe('AddProviderModal', () => {
     expect(screen.getByText('OpenRouter')).toBeDefined()
     expect(screen.getByText('Configurado · Editar')).toBeDefined()
     expect(screen.getByText('Disponível')).toBeDefined()
+
+    const cursorIcon = document.querySelector('img[data-ai-icon-slug="cursor"]')
+    const openrouterIcon = document.querySelector('img[data-ai-icon-slug="openrouter"]')
+    expect(cursorIcon).not.toBeNull()
+    expect(openrouterIcon).not.toBeNull()
+    expect(cursorIcon?.getAttribute('src')).toBeTruthy()
+    expect(openrouterIcon?.getAttribute('src')).toBeTruthy()
   })
 
   it('advances to credential form when clicking an available provider', async () => {

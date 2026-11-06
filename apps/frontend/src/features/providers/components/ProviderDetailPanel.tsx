@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import { Edit2 } from 'lucide-react'
+import { AiBrandIcon } from '../../../shared/branding'
 import { Panel } from '../../../shared/ui'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
   providerConnectionSubtitle,
-  providerInitials,
+  providerIconSlug,
 } from '../lib/providerPresentation'
 import {
   availableBalanceDisplay,
@@ -63,7 +64,12 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
 
       <div className="providers-detail-body">
         <div className="providers-provider-name mt-2 border-b border-line/70 pb-2">
-          <span className="providers-provider-icon size-8 text-[10px]">{providerInitials(provider)}</span>
+          <AiBrandIcon
+            slug={providerIconSlug(provider)}
+            label={provider.name}
+            size={32}
+            className="providers-provider-icon size-8"
+          />
           <div>
             <strong className="block text-xs font-semibold text-[#E7ECF5]">{provider.name}</strong>
             <small className="mt-0.5 block text-[9px] text-muted">

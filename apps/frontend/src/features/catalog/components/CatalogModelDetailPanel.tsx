@@ -1,5 +1,6 @@
 import { Brain } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { CopyTextButton } from '../../../shared/ui'
 import type { CatalogModel } from '../types'
 
 type CatalogModelDetailPanelProps = {
@@ -40,7 +41,13 @@ export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps)
             <Brain className="size-[18px]" aria-hidden />
           </div>
           <h2>{model.name}</h2>
-          <p>{model.model_id}</p>
+          <div className="catalog-detail-idrow">
+            <p>{model.model_id}</p>
+            <CopyTextButton
+              text={model.model_id}
+              label={`Copiar identificador ${model.model_id}`}
+            />
+          </div>
         </div>
 
         <div>

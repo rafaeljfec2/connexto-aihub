@@ -1,5 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
+import { AiBrandIcon, hubProviderIconSlug } from '../../../shared/branding'
 import {
   consoleBudgetsFromSnapshot,
   goPlusMetersFromSnapshot,
@@ -51,16 +52,26 @@ export function ProviderQuotaDetailDrawer({
           onInteractOutside={(event) => event.preventDefault()}
         >
           <header className="provider-quota-drawer-head">
-            <div className="min-w-0">
-              <p className="provider-quota-drawer-eyebrow">FRANQUIA DO PROVEDOR</p>
-              <DialogPrimitive.Title className="provider-quota-drawer-title">
-                {accountLabel}
-              </DialogPrimitive.Title>
-              <DialogPrimitive.Description className="provider-quota-drawer-description">
-                {primary
-                  ? `${primary.scope} · ${status} · Consultado em ${formatQuotaFetchedAt(primary.source.fetched_at)}`
-                  : 'Selecione um provedor para inspecionar a franquia oficial.'}
-              </DialogPrimitive.Description>
+            <div className="flex min-w-0 items-start gap-2.5">
+              {primary ? (
+                <AiBrandIcon
+                  slug={hubProviderIconSlug(primary.provider_id)}
+                  label={accountLabel}
+                  size={32}
+                  className="overview-provider-icon size-8 shrink-0"
+                />
+              ) : null}
+              <div className="min-w-0">
+                <p className="provider-quota-drawer-eyebrow">FRANQUIA DO PROVEDOR</p>
+                <DialogPrimitive.Title className="provider-quota-drawer-title">
+                  {accountLabel}
+                </DialogPrimitive.Title>
+                <DialogPrimitive.Description className="provider-quota-drawer-description">
+                  {primary
+                    ? `${primary.scope} · ${status} · Consultado em ${formatQuotaFetchedAt(primary.source.fetched_at)}`
+                    : 'Selecione um provedor para inspecionar a franquia oficial.'}
+                </DialogPrimitive.Description>
+              </div>
             </div>
             <DialogPrimitive.Close className="provider-quota-close" aria-label="Fechar detalhe da franquia">
               <X aria-hidden="true" className="size-4" />
