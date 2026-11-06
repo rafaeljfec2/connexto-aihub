@@ -155,10 +155,13 @@ export function CatalogPage() {
     <div className={appPageClassName('catalog-page')}>
       <div className="catalog-page-top">
         <div className="catalog-pagehead">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="catalog-page-eyebrow">{meta.eyebrow}</p>
             <h1 className="catalog-page-title">{meta.title}</h1>
             {meta.lead ? <p className="catalog-page-lead">{meta.lead}</p> : null}
+            <p className="catalog-pricing-note">
+              Preços por 1M tokens quando informados pelo catálogo oficial do provedor (sem estimativa do Hub).
+            </p>
           </div>
           <div className="catalog-headright">
             <span className="overview-backend-tag">{originTag}</span>
@@ -198,35 +201,30 @@ export function CatalogPage() {
           </div>
         )}
 
-        <div className="catalog-toolbar">
-          <p className="catalog-pricing-note">
-            Preços por 1M tokens quando informados pelo catálogo oficial do provedor (sem estimativa do Hub).
-          </p>
-          <div className="catalog-toolbar-row">
-            <span className="catalog-result-count">
-              {filteredAndSortedModels.length.toLocaleString('pt-BR')} REGISTROS VISÍVEIS
-            </span>
-            <div className="catalog-actions">
-              <label className="catalog-sort-label">
-                ORDENAR
-                <select
-                  value={sortBy}
-                  onChange={(event) => setSortBy(event.target.value as 'name' | 'provider')}
-                  className="catalog-sort"
-                >
-                  <option value="name">Nome A–Z</option>
-                  <option value="provider">Provedor A–Z</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className="catalog-compare-open"
-                disabled={compareSet.size < 2}
-                onClick={() => setCompareModalOpen(true)}
+        <div className="catalog-toolbar-bar">
+          <span className="catalog-result-count">
+            {filteredAndSortedModels.length.toLocaleString('pt-BR')} REGISTROS VISÍVEIS
+          </span>
+          <div className="catalog-actions">
+            <label className="catalog-sort-label">
+              ORDENAR
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as 'name' | 'provider')}
+                className="catalog-sort"
               >
-                Comparar modelos <b className="ml-1 font-mono">{compareSet.size}/3</b>
-              </button>
-            </div>
+                <option value="name">Nome A–Z</option>
+                <option value="provider">Provedor A–Z</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="catalog-compare-open"
+              disabled={compareSet.size < 2}
+              onClick={() => setCompareModalOpen(true)}
+            >
+              Comparar modelos <b className="ml-1 font-mono">{compareSet.size}/3</b>
+            </button>
           </div>
         </div>
       </div>

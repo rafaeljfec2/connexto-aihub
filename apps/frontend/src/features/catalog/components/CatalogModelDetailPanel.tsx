@@ -2,6 +2,7 @@ import { Brain } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CopyTextButton } from '../../../shared/ui'
 import { formatCatalogContextLimit, formatPricingCell } from '../lib/formatCatalogPricing'
+import { catalogProviderLabel } from '../lib/catalogProviderLabel'
 import type { CatalogModel } from '../types'
 
 type CatalogModelDetailPanelProps = {
@@ -9,7 +10,8 @@ type CatalogModelDetailPanelProps = {
 }
 
 function connectorDescription(model: CatalogModel): string {
-  return `Modelo listado pelo conector ${model.provider}. Consulte o provedor para os metadados completos.`
+  const provider = catalogProviderLabel(model.provider)
+  return `Modelo listado pelo provedor ${provider}. Consulte o provedor para os metadados completos.`
 }
 
 export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps) {
@@ -54,7 +56,7 @@ export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps)
         <div>
           <div className="catalog-metarow">
             <span>Provedor</span>
-            <strong>{model.provider}</strong>
+            <strong>{catalogProviderLabel(model.provider)}</strong>
           </div>
           <div className="catalog-metarow">
             <span>Origem</span>

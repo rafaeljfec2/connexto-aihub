@@ -228,10 +228,6 @@
     @apply rounded-md border border-line bg-[#171E29] px-3 py-2 text-sm text-primary outline-none focus:border-cobalt focus:ring-2 focus:ring-cobalt/15;
   }
 
-  .catalog-toolbar {
-    @apply mb-4 flex flex-wrap items-center gap-3;
-  }
-
   .table-scroll {
     @apply overflow-x-auto rounded-[10px] border border-line bg-surface;
   }
@@ -953,20 +949,16 @@
     @apply mb-0 py-2 text-xs;
   }
 
-  .catalog-toolbar {
-    @apply shrink-0 space-y-2;
+  .catalog-toolbar-bar {
+    @apply flex flex-col gap-2.5 rounded-[10px] border border-[rgb(180_194_218_/_0.12)] bg-[rgb(23_30_41_/_0.55)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .catalog-pricing-note {
-    @apply text-[10px] text-[#8D9AAF];
+    @apply mt-2 max-w-3xl text-[10px] leading-relaxed text-[#8D9AAF];
   }
 
   .catalog-pricing-cell {
     @apply whitespace-nowrap font-mono text-[9px] text-[#A7B3C3];
-  }
-
-  .catalog-toolbar-row {
-    @apply flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .catalog-result-count {
@@ -974,7 +966,7 @@
   }
 
   .catalog-pagehead {
-    @apply flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between;
+    @apply flex shrink-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between;
   }
 
   .catalog-page-eyebrow {
@@ -990,7 +982,7 @@
   }
 
   .catalog-headright {
-    @apply flex shrink-0 flex-wrap items-center gap-3;
+    @apply flex shrink-0 flex-wrap items-center justify-end gap-2 lg:pt-1;
   }
 
   .catalog-sync-btn {

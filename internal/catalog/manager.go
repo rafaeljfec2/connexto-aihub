@@ -118,6 +118,9 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.entries = make(map[ModelKey]ModelEntry)
 
 	for providerID, provider := range snapshot.Providers {
+		if providers.ExcludedFromCatalog(providerID) {
+			continue
+		}
 		m.syncStates[providerID] = provider.Sync
 
 		for _, entry := range provider.Models {
@@ -126,9 +129,23 @@ func (m *Manager) Start(ctx context.Context) error {
 		}
 	}
 
+	removedLegacy := m.dropExcludedCatalogEntriesLocked()
 	m.closed = false
 	m.ctx, m.cancel = context.WithCancel(ctx)
 	m.mu.Unlock()
+
+	if removedLegacy > 0 {
+		m.logger.Info("dropped legacy transport-only catalog entries", "removed_models", removedLegacy)
+		persistCtx, cancelPersist := context.WithTimeout(ctx, m.syncTimeout)
+		defer cancelPersist()
+		m.mu.RLock()
+		entries := copyEntries(m.entries)
+		states := copySyncStates(m.syncStates)
+		m.mu.RUnlock()
+		if _, err := m.store.Save(persistCtx, buildSnapshot(entries, states, m.now().UTC())); err != nil {
+			m.logger.Warn("could not persist catalog after dropping legacy transport provider", "error", err)
+		}
+	}
 
 	// Load already logs quarantine and writes-disabled diagnostics; the
 	// manager only needs the resulting state.
@@ -394,4 +411,34 @@ func copyEntries(entries map[ModelKey]ModelEntry) map[ModelKey]ModelEntry {
 	}
 
 	return copied
+}
+
+func copySyncStates(states map[string]ProviderSyncState) map[string]ProviderSyncState {
+	copied := make(map[string]ProviderSyncState, len(states))
+
+	for id, state := range states {
+		copied[id] = state
+	}
+
+	return copied
+}
+
+// dropExcludedCatalogEntriesLocked removes transport-only provider rows. Caller must hold m.mu.
+func (m *Manager) dropExcludedCatalogEntriesLocked() int {
+	removed := 0
+
+	for key := range m.entries {
+		if providers.ExcludedFromCatalog(key.ProviderID) {
+			delete(m.entries, key)
+			removed++
+		}
+	}
+
+	for id := range m.syncStates {
+		if providers.ExcludedFromCatalog(id) {
+			delete(m.syncStates, id)
+		}
+	}
+
+	return removed
 }

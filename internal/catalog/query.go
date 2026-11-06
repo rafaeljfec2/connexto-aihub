@@ -35,6 +35,10 @@ func (m *Manager) List(filter Filter) []View {
 	views := make([]View, 0, len(entries))
 
 	for _, entry := range entries {
+		if providers.ExcludedFromCatalog(entry.ProviderID) {
+			continue
+		}
+
 		if filter.ProviderID != "" && entry.ProviderID != filter.ProviderID {
 			continue
 		}
@@ -115,6 +119,10 @@ func (m *Manager) Providers() []ProviderView {
 
 	counts := make(map[string][3]int, len(m.syncStates))
 	for _, entry := range m.entries {
+		if providers.ExcludedFromCatalog(entry.ProviderID) {
+			continue
+		}
+
 		current := counts[entry.ProviderID]
 		current[0]++
 
@@ -131,6 +139,10 @@ func (m *Manager) Providers() []ProviderView {
 	views := make([]ProviderView, 0, len(states))
 
 	for providerID, state := range states {
+		if providers.ExcludedFromCatalog(providerID) {
+			continue
+		}
+
 		providerState, ok := statuses[providerID]
 		if !ok {
 			providerState = providers.StateUnknown

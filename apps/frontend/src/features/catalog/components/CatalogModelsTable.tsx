@@ -2,6 +2,7 @@ import { type RefObject, useCallback, useRef } from 'react'
 import { Brain } from 'lucide-react'
 import { CopyTextButton } from '../../../shared/ui'
 import { formatPricingCell } from '../lib/formatCatalogPricing'
+import { catalogProviderLabel } from '../lib/catalogProviderLabel'
 import type { CatalogColumnFilters } from '../lib/catalogColumnFilters'
 import type { CatalogModel } from '../types'
 
@@ -243,7 +244,9 @@ export function CatalogModelsTable({
                         </div>
                       </div>
                     </td>
-                    <td className="catalog-col-provider catalog-providerlabel">{model.provider}</td>
+                    <td className="catalog-col-provider catalog-providerlabel">
+                      {catalogProviderLabel(model.provider)}
+                    </td>
                     <td
                       className="catalog-col-id catalog-col-id-cell catalog-modelid"
                       title={model.model_id}

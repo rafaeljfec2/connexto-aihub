@@ -878,3 +878,62 @@ func TestManagerQueryMissingSinceIsIsolated(t *testing.T) {
 		t.Fatalf("missing_since pointer was shared with the caller: %v", again.Entry.MissingSince)
 	}
 }
+
+func TestManagerStartDropsLegacyTransportCatalogProvider(t *testing.T) {
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	store := storeTestStore(t.TempDir(), osOps{})
+
+	legacyEntry := NormalizeEntry(providers.ConnextoProxyID, providers.ModelDescriptor{
+		ID:   "composer-2.5",
+		Name: "composer-2.5",
+	}, now)
+	cursorEntry := NormalizeEntry(providers.CursorID, providers.ModelDescriptor{
+		ID:   "composer-2.5",
+		Name: "composer-2.5",
+	}, now)
+
+	snapshot := Snapshot{
+		Version: SnapshotVersion,
+		SavedAt: now,
+		Providers: map[string]ProviderSnapshot{
+			providers.ConnextoProxyID: {
+				Sync:   ProviderSyncState{Outcome: SyncOutcomeSuccess, LastSuccessAt: &now},
+				Models: []ModelEntry{legacyEntry},
+			},
+			providers.CursorID: {
+				Sync:   ProviderSyncState{Outcome: SyncOutcomeSuccess, LastSuccessAt: &now},
+				Models: []ModelEntry{cursorEntry},
+			},
+		},
+	}
+	if _, err := store.Save(ctx, snapshot); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	manager := NewManager(storeTestLogger(), func() []providers.Status {
+		return []providers.Status{
+			{ID: providers.CursorID, Enabled: true, State: providers.StateHealthy},
+		}
+	}, map[string]SourceFunc{
+		providers.CursorID: func(context.Context) ([]providers.ModelDescriptor, error) {
+			return nil, errors.New("not called in this test")
+		},
+	}, store, managerOptions(now))
+	t.Cleanup(func() { _ = manager.Stop(context.Background()) })
+
+	if err := manager.Start(ctx); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	for _, view := range manager.List(Filter{}) {
+		if providers.ExcludedFromCatalog(view.Entry.ProviderID) {
+			t.Fatalf("List() still returned transport-only provider %q", view.Entry.ProviderID)
+		}
+	}
+
+	reloaded, _ := store.Load(ctx)
+	if _, ok := reloaded.Providers[providers.ConnextoProxyID]; ok {
+		t.Fatal("persisted snapshot still contains legacy transport provider")
+	}
+}

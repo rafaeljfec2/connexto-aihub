@@ -95,10 +95,9 @@ func run() error {
 		gateway.PublishProviderStatus(eventHub, providerModule.Statuses)
 	})
 	catalogSources := map[string]catalog.SourceFunc{
-		providers.OpenCodeGoID:    providerClient.FetchModelDescriptors,
-		providers.OpenRouterID:    openRouterClient.FetchModelDescriptors,
-		providers.CursorID:        connextoProxyClient.FetchModelDescriptors,
-		providers.ConnextoProxyID: connextoProxyClient.FetchModelDescriptors,
+		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
+		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
+		providers.CursorID:     connextoProxyClient.FetchModelDescriptors,
 	}
 	recordsModule := records.New(records.Options{
 		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),
