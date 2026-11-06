@@ -73,6 +73,11 @@ type Settings struct {
 	APIKey        string
 	ManagementKey string
 	Enabled       bool
+	// LogicalProviderID is the registry id for Connexto Proxy adapters (cursor, antigravity).
+	LogicalProviderID string
+	// InferenceOptional is true when upstream execution does not require a separate inference API key
+	// (gateway authentication only); the adapter stays enabled while disabled=false.
+	InferenceOptional bool
 }
 
 // NewClient builds the provider client. A nil httpClient selects the package

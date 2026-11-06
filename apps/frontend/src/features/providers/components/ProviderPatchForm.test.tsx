@@ -9,6 +9,7 @@ vi.mock('../api/queries', async () => {
   return {
     ...actual,
     validateProvider: vi.fn(),
+    clearAntigravityProxyRuntimeSessions: vi.fn(),
   }
 })
 
@@ -59,7 +60,9 @@ describe('ProviderPatchForm', () => {
     fireEvent.submit(form)
 
     await waitFor(() => {
-      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', 'inference-key-fixture')
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', {
+        credential: 'inference-key-fixture',
+      })
       expect(onSubmit).toHaveBeenCalledWith({
         management_credential: 'management-key-fixture',
         credential: 'inference-key-fixture',
@@ -77,7 +80,9 @@ describe('ProviderPatchForm', () => {
     fireEvent.click(testBtn)
 
     await waitFor(() => {
-      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', 'test-key-probe')
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', {
+        credential: 'test-key-probe',
+      })
       expect(screen.getByText(/Conexão testada com sucesso!/i)).toBeDefined()
     })
   })
@@ -95,7 +100,9 @@ describe('ProviderPatchForm', () => {
     fireEvent.submit(form)
 
     await waitFor(() => {
-      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', 'invalid-secret')
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter-primary', {
+        credential: 'invalid-secret',
+      })
       expect(onSubmit).not.toHaveBeenCalled()
       expect(screen.getByText(/Falha no teste de conexão: Credencial inválida no upstream/i)).toBeDefined()
     })
@@ -112,4 +119,5 @@ describe('ProviderPatchForm', () => {
 
     expect(screen.queryByLabelText('Management API Key (write-only)')).toBeNull()
   })
+
 })

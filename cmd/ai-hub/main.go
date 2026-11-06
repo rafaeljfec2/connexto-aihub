@@ -77,17 +77,32 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("build OpenRouter provider: %w", err)
 	}
-	connextoProxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:       cfg.Provider.ConnextoProxy.BaseURL,
-		ManagementKey: cfg.Provider.ConnextoProxy.GatewayKey,
-	}, nil)
+	connextoProxyTransport := providers.NewConnextoProxyHTTPClient()
+	cursorProxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            cfg.Provider.ConnextoProxy.BaseURL,
+		ManagementKey:      cfg.Provider.ConnextoProxy.GatewayKey,
+		LogicalProviderID:  providers.CursorID,
+		InferenceOptional:  false,
+		Enabled:            true,
+	}, connextoProxyTransport)
 	if err != nil {
-		return fmt.Errorf("build Connexto Proxy provider: %w", err)
+		return fmt.Errorf("build Connexto Proxy provider (cursor): %w", err)
+	}
+	antigravityProxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            cfg.Provider.ConnextoProxy.BaseURL,
+		ManagementKey:      cfg.Provider.ConnextoProxy.GatewayKey,
+		LogicalProviderID:  providers.AntigravityID,
+		InferenceOptional:  true,
+		Enabled:            true,
+	}, connextoProxyTransport)
+	if err != nil {
+		return fmt.Errorf("build Connexto Proxy provider (antigravity): %w", err)
 	}
 	providerRegistry := providers.NewRegistry()
 	providerRegistry.Bind(providers.OpenCodeGoID, providerClient)
 	providerRegistry.Bind(providers.OpenRouterID, openRouterClient)
-	providerRegistry.Bind(providers.CursorID, connextoProxyClient)
+	providerRegistry.Bind(providers.CursorID, cursorProxyClient)
+	providerRegistry.Bind(providers.AntigravityID, antigravityProxyClient)
 	providerModule := providers.NewRegistryManager(logger, providerRegistry)
 	eventHub := operational.NewHub(logger)
 	providerModule.SetStateChangeNotifier(func() {
@@ -96,7 +111,8 @@ func run() error {
 	catalogSources := map[string]catalog.SourceFunc{
 		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
 		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
-		providers.CursorID:     connextoProxyClient.FetchModelDescriptors,
+		providers.CursorID:     cursorProxyClient.FetchModelDescriptors,
+		providers.AntigravityID: antigravityProxyClient.FetchModelDescriptors,
 	}
 	recordsModule := records.New(records.Options{
 		Dir:               filepath.Join(cfg.Catalog.DataDir, "records"),
@@ -129,6 +145,7 @@ func run() error {
 	}
 
 	router, err := buildGatewayRouterWithGenerations(cfg, logger, providerRegistry, providerModule,
+		runtime.providerService,
 		runtime.executionManager, catalogModule, recordsModule, runtime.generationService,
 		readiness, runtime.providerAdmin, runtime.resourceAdmin, runtime.concurrencyAdmin,
 		runtime.analyticsAdmin, runtime.resourceAdmission, runtime.concurrencyGate,

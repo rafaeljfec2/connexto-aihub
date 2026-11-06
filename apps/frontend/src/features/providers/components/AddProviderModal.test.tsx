@@ -191,7 +191,9 @@ describe('AddProviderModal', () => {
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
-      expect(queries.validateProvider).toHaveBeenCalledWith('cursor', 'cur_secret_token_123')
+      expect(queries.validateProvider).toHaveBeenCalledWith('cursor', {
+        credential: 'cur_secret_token_123',
+      })
       expect(queries.createProvider).toHaveBeenCalledWith({
         id: 'cursor',
         name: 'Cursor',
@@ -259,7 +261,9 @@ describe('AddProviderModal', () => {
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
-      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter', 'sk-or-v1-new-secret')
+      expect(queries.validateProvider).toHaveBeenCalledWith('openrouter', {
+        credential: 'sk-or-v1-new-secret',
+      })
       expect(queries.updateProvider).toHaveBeenCalledWith('openrouter', {
         credential: 'sk-or-v1-new-secret',
       })

@@ -45,7 +45,9 @@ export function AddProviderModal({
 
   const [selectedProvider, setSelectedProvider] = useState<AvailableProvider | null>(null)
   const [credential, setCredential] = useState('')
+  const [managementCredential, setManagementCredential] = useState('')
   const [showSecret, setShowSecret] = useState(false)
+  const [showMgmtSecret, setShowMgmtSecret] = useState(false)
   const [phase, setPhase] = useState<ModalPhase>('select')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [probeSuccessMessage, setProbeSuccessMessage] = useState<string | null>(null)
@@ -66,7 +68,9 @@ export function AddProviderModal({
   function handleReset() {
     setSelectedProvider(null)
     setCredential('')
+    setManagementCredential('')
     setShowSecret(false)
+    setShowMgmtSecret(false)
     setPhase('select')
     setErrorMessage(null)
     setProbeSuccessMessage(null)
@@ -88,13 +92,27 @@ export function AddProviderModal({
     setProbeSuccessMessage(null)
   }
 
+  const isGatewayOnlyProvider =
+    selectedProvider?.credential_type === 'none' && !!selectedProvider?.management_credential_label
+
   async function handleQuickTestConnection() {
-    if (!selectedProvider || !credential.trim()) return
+    if (!selectedProvider) return
+    if (isGatewayOnlyProvider) {
+      if (!managementCredential.trim()) return
+    } else if (!credential.trim()) {
+      return
+    }
     setTestingProbe(true)
     setErrorMessage(null)
     setProbeSuccessMessage(null)
     try {
-      await validateProvider(selectedProvider.id, credential.trim())
+      if (isGatewayOnlyProvider) {
+        await validateProvider(selectedProvider.id, {
+          management_credential: managementCredential.trim(),
+        })
+      } else {
+        await validateProvider(selectedProvider.id, { credential: credential.trim() })
+      }
       setProbeSuccessMessage('Conexão testada com sucesso! O provedor está acessível e a credencial respondeu.')
     } catch (err) {
       setErrorMessage(
@@ -108,21 +126,34 @@ export function AddProviderModal({
   }
 
   async function handleValidateAndSave() {
-    if (!selectedProvider || !credential.trim()) return
+    if (!selectedProvider) return
+    if (isGatewayOnlyProvider) {
+      if (!managementCredential.trim()) return
+    } else if (!credential.trim()) {
+      return
+    }
 
     setErrorMessage(null)
     setPhase('validating')
 
     try {
       // 1. Validate the credential with the provider upstream probe
-      await validateProvider(selectedProvider.id, credential.trim())
+      if (isGatewayOnlyProvider) {
+        await validateProvider(selectedProvider.id, {
+          management_credential: managementCredential.trim(),
+        })
+      } else {
+        await validateProvider(selectedProvider.id, { credential: credential.trim() })
+      }
 
       // 2. Persist the connection with the encrypted credential
       setPhase('saving')
       let savedProvider: AdminProvider
       if (isEditing) {
         savedProvider = await updateProvider(selectedProvider.id, {
-          credential: credential.trim(),
+          ...(isGatewayOnlyProvider
+            ? { management_credential: managementCredential.trim() }
+            : { credential: credential.trim() }),
         })
       } else {
         savedProvider = await createProvider({
@@ -130,7 +161,9 @@ export function AddProviderModal({
           name: selectedProvider.name,
           type: selectedProvider.connection_type,
           endpoint: selectedProvider.default_endpoint,
-          credential: credential.trim(),
+          ...(isGatewayOnlyProvider
+            ? { management_credential: managementCredential.trim() }
+            : { credential: credential.trim() }),
           enabled: true,
         })
       }
@@ -204,8 +237,12 @@ export function AddProviderModal({
         phase === 'select'
           ? 'Selecione um dos provedores de IA suportados para conectar ou atualizar a credencial no Connexto AI-HUB.'
           : isEditing
-            ? 'Informe sua nova chave de API ou token do provedor para substituir a credencial salva.'
-            : 'Informe sua chave de API ou token de autenticação oficial do provedor.'
+            ? isGatewayOnlyProvider
+              ? 'Informe a nova Gateway API Key (chave do proxy) para substituir a credencial de gateway salva.'
+              : 'Informe sua nova chave de API ou token do provedor para substituir a credencial salva.'
+            : isGatewayOnlyProvider
+              ? 'Informe a Gateway API Key do Connexto Proxy (X-Gateway-API-Key). A autenticação do Antigravity permanece no runtime do proxy.'
+              : 'Informe sua chave de API ou token de autenticação oficial do provedor.'
       }
     >
       <div className="space-y-4 pt-1">
@@ -256,7 +293,9 @@ export function AddProviderModal({
                         </p>
                         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                           <span className="rounded bg-[#0D121B] px-2 py-0.5 text-[10px] text-muted border border-line/60">
-                            {provider.credential_label}
+                            {provider.credential_type === 'none' && provider.management_credential_label
+                              ? provider.management_credential_label
+                              : provider.credential_label}
                           </span>
                           {provider.capabilities?.map((cap) => (
                             <span
@@ -314,14 +353,22 @@ export function AddProviderModal({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label
-                  htmlFor="provider-credential-input"
+                  htmlFor={
+                    isGatewayOnlyProvider ? 'provider-mgmt-credential-input' : 'provider-credential-input'
+                  }
                   className="block text-xs font-medium text-secondary"
                 >
-                  {selectedProvider?.credential_label ?? 'API Key / Token'}
+                  {isGatewayOnlyProvider
+                    ? (selectedProvider?.management_credential_label ?? 'Gateway API Key')
+                    : (selectedProvider?.credential_label ?? 'API Key / Token')}
                 </label>
                 <button
                   type="button"
-                  disabled={isBusy || testingProbe || !credential.trim()}
+                  disabled={
+                    isBusy ||
+                    testingProbe ||
+                    (isGatewayOnlyProvider ? !managementCredential.trim() : !credential.trim())
+                  }
                   onClick={() => void handleQuickTestConnection()}
                   className="inline-flex items-center gap-1 text-[11px] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                 >
@@ -339,27 +386,56 @@ export function AddProviderModal({
                 </button>
               </div>
               <div className="relative">
-                <input
-                  id="provider-credential-input"
-                  type={showSecret ? 'text' : 'password'}
-                  autoComplete="off"
-                  disabled={isBusy}
-                  value={credential}
-                  onChange={(e) => setCredential(e.target.value)}
-                  placeholder={
-                    selectedProvider?.credential_placeholder ?? 'Cole sua chave de autenticação'
-                  }
-                  className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
-                />
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => setShowSecret((prev) => !prev)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
-                  aria-label={showSecret ? 'Ocultar segredo' : 'Exibir segredo'}
-                >
-                  {showSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
+                {isGatewayOnlyProvider ? (
+                  <>
+                    <input
+                      id="provider-mgmt-credential-input"
+                      type={showMgmtSecret ? 'text' : 'password'}
+                      autoComplete="off"
+                      disabled={isBusy}
+                      value={managementCredential}
+                      onChange={(e) => setManagementCredential(e.target.value)}
+                      placeholder={
+                        selectedProvider?.management_credential_placeholder ??
+                        'Gateway API Key do Connexto Proxy'
+                      }
+                      className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => setShowMgmtSecret((prev) => !prev)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
+                      aria-label={showMgmtSecret ? 'Ocultar segredo' : 'Exibir segredo'}
+                    >
+                      {showMgmtSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      id="provider-credential-input"
+                      type={showSecret ? 'text' : 'password'}
+                      autoComplete="off"
+                      disabled={isBusy}
+                      value={credential}
+                      onChange={(e) => setCredential(e.target.value)}
+                      placeholder={
+                        selectedProvider?.credential_placeholder ?? 'Cole sua chave de autenticação'
+                      }
+                      className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => setShowSecret((prev) => !prev)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
+                      aria-label={showSecret ? 'Ocultar segredo' : 'Exibir segredo'}
+                    >
+                      {showSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -382,7 +458,10 @@ export function AddProviderModal({
               </button>
               <button
                 type="button"
-                disabled={isBusy || !credential.trim()}
+                disabled={
+                  isBusy ||
+                  (isGatewayOnlyProvider ? !managementCredential.trim() : !credential.trim())
+                }
                 onClick={() => void handleValidateAndSave()}
                 className="inline-flex items-center gap-1.5 rounded-md border border-cobalt/40 bg-accent-deep px-4 py-1.5 text-xs font-semibold text-[#E4EBFC] hover:bg-[#314A78] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >

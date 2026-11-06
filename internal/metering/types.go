@@ -26,6 +26,7 @@ const (
 	SourceOpenCodeGo     Source = "provider_opencode_go"
 	SourceOpenRouter     Source = "provider_openrouter"
 	SourceCursor         Source = "provider_cursor"
+	SourceAntigravity    Source = "provider_antigravity"
 	SourceConnextoProxy  Source = "provider_connexto_proxy"
 	SourceUnknown        Source = "provider_unknown"
 )

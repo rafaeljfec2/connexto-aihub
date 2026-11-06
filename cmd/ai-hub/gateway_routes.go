@@ -21,18 +21,20 @@ import (
 )
 
 func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
+	providerService *providers.Service,
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
 	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
 	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
 	eventHub *operational.Hub, operatorGate ui.Gate) (http.Handler, error) {
-	return buildGatewayRouterWithGenerations(cfg, logger, registry, providerManager, executionManager,
+	return buildGatewayRouterWithGenerations(cfg, logger, registry, providerManager, providerService, executionManager,
 		catalogModule, recordsModule, generations.NewService(recordsModule, nil, logger), readiness,
 		providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission,
 		concurrencyGate, usageMetering, eventHub, operatorGate)
 }
 
 func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
+	providerService *providers.Service,
 	executionManager *execution.Manager, catalogModule *catalog.Manager, recordsModule *records.Service,
 	generationService *generations.Service, readiness *health.Registry, providerAdmin *gateway.ProviderAdmin,
 	resourceAdmin *gateway.ResourceAdmin, concurrencyAdmin *gateway.ConcurrencyAdmin,
@@ -52,9 +54,10 @@ func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, r
 		{Method: http.MethodPost, Pattern: "/v1/responses",
 			Handler: gateway.NewResponsesHandlerWithRegistryAndGenerations(registry, executionManager, logger, gateway.StreamInactivityTimeout,
 				&gateway.ResponsesRouting{
-					Catalog:    catalogModule,
-					Statuses:   providerManager.Statuses,
-					StaleAfter: cfg.Catalog.StaleAfter,
+					Catalog:         catalogModule,
+					Statuses:        providerManager.Statuses,
+					ProviderService: providerService,
+					StaleAfter:      cfg.Catalog.StaleAfter,
 				}, resourceAdmission, concurrencyGate, usageMetering, generationService),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},

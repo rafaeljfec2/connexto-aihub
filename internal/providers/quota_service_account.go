@@ -11,6 +11,10 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 		return []ProviderQuotaSnapshot{unavailableSnapshot(record, ScopeUnknown, record.Type, QuotaStatusUnsupported,
 			"account_disabled", "Conta desabilitada nas configurações")}
 	}
+	if record.Type == TypeAntigravity {
+		return []ProviderQuotaSnapshot{unavailableSnapshot(record, ScopeUnknown, record.Type, QuotaStatusUnsupported,
+			"quota_not_applicable", "Antigravity não expõe leitura oficial de franquia neste hub (apenas uso via proxy)")}
+	}
 	adapter, supported := s.adapters[record.Type]
 	if !supported {
 		if !record.HasCredential {

@@ -8,7 +8,7 @@ import {
 } from '../../overview/lib/goPlusMeters'
 import type { ProviderQuotaSnapshot, ProviderQuotaStatus } from '../../overview/types/quota'
 import type { AdminProvider } from '../types'
-import type { ProviderSituation } from './providerPresentation'
+import { providerCredentialConfigured, type ProviderSituation } from './providerPresentation'
 
 /** Account USD summary uses 2 fraction digits (Overview account row fidelity). */
 function formatAccountUsd(value: number): string {
@@ -96,11 +96,14 @@ export function providerQuotaSituation(
   if (!provider.enabled) {
     return { state: 'off', label: 'Desabilitado' }
   }
-  if (!provider.credential_configured) {
+  if (!providerCredentialConfigured(provider)) {
     return { state: 'warn', label: 'Pendente' }
   }
   if (!snapshot) {
     return { state: 'na', label: 'Sem leitura' }
+  }
+  if (provider.type === 'antigravity' && snapshot.status === 'unsupported') {
+    return { state: 'na', label: 'Sem leitura de franquia' }
   }
   return {
     state: snapshotSituationState(snapshot.status),
@@ -155,6 +158,12 @@ function hasDisplayableReading(snapshot: ProviderQuotaSnapshot | undefined): boo
 
 export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): FranchiseSummary {
   if (!snapshot || snapshot.status !== 'available') {
+    if (snapshot?.status === 'unsupported' && snapshot.error?.code === 'quota_not_applicable') {
+      return {
+        title: 'Franquia não integrada',
+        value: 'Este provedor não expõe leitura oficial de cota no hub (uso via proxy).',
+      }
+    }
     return {
       title: 'Não monitorada',
       value: snapshot?.error?.message ?? 'Sem fonte de quota configurada',
@@ -326,6 +335,13 @@ export function countGovernanceMetrics(
 
   for (const provider of providers) {
     const snapshot = primaryQuotaSnapshot(provider.id, snapshots)
+    if (
+      provider.type === 'antigravity' &&
+      providerCredentialConfigured(provider) &&
+      snapshot?.status === 'unsupported'
+    ) {
+      continue
+    }
     if (!hasDisplayableReading(snapshot)) {
       withoutReading += 1
       continue

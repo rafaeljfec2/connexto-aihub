@@ -102,7 +102,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var prepared []byte
 		var routeErr error
 		routingStartedAt := time.Now()
-		target, prepared, routingDecision, routeErr = routeResponses(h.routing, h.registry, requestID, explicitProvider, payload)
+		target, prepared, routingDecision, routeErr = routeResponses(r.Context(), h.routing, h.registry, requestID, explicitProvider, payload)
 		logRoutingDecision := func(reachedExecution bool) {
 			routing.LogDecision(r.Context(), h.logger, routing.DecisionLogInput{
 				Decision:            routingDecision,

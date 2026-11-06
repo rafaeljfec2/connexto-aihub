@@ -90,9 +90,67 @@ describe('providerQuotaSituation', () => {
       label: 'Sem leitura',
     })
   })
+
+  it('treats Antigravity gateway-only as configured and maps quota unsupported to neutral label', () => {
+    const agProvider: AdminProvider = {
+      id: 'antigravity',
+      name: 'Antigravity',
+      type: 'antigravity',
+      endpoint: 'http://127.0.0.1:9090/v1',
+      enabled: true,
+      credential_configured: false,
+      management_credential_configured: true,
+      created_at: '',
+      updated_at: '',
+    }
+    const unsupportedAg: ProviderQuotaSnapshot = {
+      account_id: 'antigravity',
+      account_label: 'Antigravity',
+      provider_id: 'antigravity',
+      provider_name: 'Antigravity',
+      status: 'unsupported',
+      scope: 'unknown',
+      quotas: [],
+      source: {
+        type: 'provider_api',
+        name: 'antigravity',
+        scope: 'unknown',
+        fetched_at: '2026-11-06T12:00:00Z',
+      },
+      error: { code: 'quota_not_applicable', message: 'N/A' },
+    }
+    expect(providerQuotaSituation(agProvider, unsupportedAg)).toEqual({
+      state: 'na',
+      label: 'Sem leitura de franquia',
+    })
+  })
 })
 
 describe('franchiseSummary and consumptionCell', () => {
+  it('labels Antigravity quota-not-applicable without misleading credential copy', () => {
+    const snap: ProviderQuotaSnapshot = {
+      account_id: 'antigravity',
+      account_label: 'Antigravity',
+      provider_id: 'antigravity',
+      provider_name: 'Antigravity',
+      status: 'unsupported',
+      scope: 'unknown',
+      quotas: [],
+      source: {
+        type: 'provider_api',
+        name: 'antigravity',
+        scope: 'unknown',
+        fetched_at: '2026-11-06T12:00:00Z',
+      },
+      error: {
+        code: 'quota_not_applicable',
+        message: 'Antigravity não expõe leitura oficial de franquia neste hub (apenas uso via proxy)',
+      },
+    }
+    expect(franchiseSummary(snap).title).toBe('Franquia não integrada')
+    expect(franchiseSummary(snap).value).toContain('proxy')
+  })
+
   it('prefers Go weekly percent to match Console chip (not rolling)', () => {
     const go = snapshot('subscription', [
       {

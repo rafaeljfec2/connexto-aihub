@@ -130,6 +130,7 @@ func TestConnextoProxyUnavailableWhenDisabled(t *testing.T) {
 		BaseURL: upstream.URL + "/v1",
 		APIKey:  connextoProxyTestKey,
 		Enabled: false, // disabled
+		LogicalProviderID: providers.CursorID,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -186,10 +187,11 @@ func TestCursorIntelligentRoutingCodexLikePayload(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	proxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:       server.URL + "/v1",
-		APIKey:        connextoProxyTestKey,
-		ManagementKey: connextoProxyTestKey,
-		Enabled:       true,
+		BaseURL:            server.URL + "/v1",
+		APIKey:             connextoProxyTestKey,
+		ManagementKey:      connextoProxyTestKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.CursorID,
 	}, nil)
 	if err != nil {
 		t.Fatalf("NewConnextoProxyClient() error = %v", err)
@@ -263,10 +265,11 @@ func TestCursorIntelligentRoutingImageInputPayload(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	proxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:       server.URL + "/v1",
-		APIKey:        connextoProxyTestKey,
-		ManagementKey: connextoProxyTestKey,
-		Enabled:       true,
+		BaseURL:            server.URL + "/v1",
+		APIKey:             connextoProxyTestKey,
+		ManagementKey:      connextoProxyTestKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.CursorID,
 	}, nil)
 	if err != nil {
 		t.Fatalf("NewConnextoProxyClient() error = %v", err)
@@ -326,6 +329,107 @@ func TestCursorIntelligentRoutingImageInputPayload(t *testing.T) {
 	}
 }
 
+func TestAntigravityExplicitProviderRouting(t *testing.T) {
+	var sawAntigravity bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"object":"list","data":[`+
+				`{"id":"composer-2.5","owned_by":"cursor"},`+
+				`{"id":"antigravity:gemini-3.8-flash","owned_by":"antigravity"}`+
+				`]}`)
+		case "/v1/responses":
+			sawAntigravity = true
+			if r.Header.Get("Authorization") != "" || r.Header.Get("x-api-key") != "" {
+				t.Error("Antigravity upstream must not receive Cursor API key headers")
+			}
+			if got := r.Header.Get("X-Gateway-API-Key"); got != connextoProxyTestKey {
+				t.Errorf("X-Gateway-API-Key = %q, want %q", got, connextoProxyTestKey)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, `{"id":"resp-antigravity"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	transport := providers.NewConnextoProxyHTTPClient()
+	cursorClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            server.URL + "/v1",
+		APIKey:             connextoProxyTestKey,
+		ManagementKey:      connextoProxyTestKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.CursorID,
+	}, transport)
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() cursor error = %v", err)
+	}
+	agClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            server.URL + "/v1",
+		ManagementKey:      connextoProxyTestKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.AntigravityID,
+		InferenceOptional:  true,
+	}, transport)
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() antigravity error = %v", err)
+	}
+
+	registry := providers.NewRegistry()
+	registry.Bind(providers.CursorID, cursorClient)
+	registry.Bind(providers.AntigravityID, agClient)
+
+	now := time.Now()
+	catalogManager := gatewayTestCatalog(t, now, map[string]catalog.SourceFunc{
+		providers.CursorID:     cursorClient.FetchModelDescriptors,
+		providers.AntigravityID: agClient.FetchModelDescriptors,
+	})
+
+	manager := execution.NewMultiProviderManager(logger,
+		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			return registry.OpenTargetResponses(ctx, providers.ResponsesTarget{ProviderID: target.ProviderID, ModelID: target.ModelID}, payload, contentType, sessionID)
+		}, time.Minute)
+
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, &gateway.ResponsesRouting{
+		Catalog: catalogManager,
+		Statuses: func() []providers.Status {
+			return []providers.Status{
+				{ID: providers.CursorID, Enabled: true, State: providers.StateHealthy},
+				{ID: providers.AntigravityID, Enabled: true, State: providers.StateHealthy},
+			}
+		},
+		StaleAfter: 24 * time.Hour,
+	}, nil, nil, nil)
+
+	gatewayServer := httptest.NewServer(handler)
+	defer gatewayServer.Close()
+
+	body := `{"model":"antigravity:gemini-3.8-flash","input":"hello"}`
+	request, err := http.NewRequest(http.MethodPost, gatewayServer.URL+"/v1/responses", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(gateway.ProviderHeader, providers.AntigravityID)
+
+	response, err := gatewayServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("gateway request error = %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(response.Body)
+		t.Fatalf("status = %d body = %s", response.StatusCode, string(raw))
+	}
+	if !sawAntigravity {
+		t.Fatal("upstream /v1/responses was not invoked for Antigravity")
+	}
+}
+
 func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Handler {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -335,10 +439,11 @@ func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Hand
 		t.Fatalf("NewClient() error = %v", err)
 	}
 	proxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:       proxyEndpoint + "/v1",
-		APIKey:        connextoProxyTestKey,
-		ManagementKey: connextoProxyTestKey,
-		Enabled:       true,
+		BaseURL:            proxyEndpoint + "/v1",
+		APIKey:             connextoProxyTestKey,
+		ManagementKey:      connextoProxyTestKey,
+		Enabled:            true,
+		LogicalProviderID: providers.CursorID,
 	}, nil)
 	if err != nil {
 		t.Fatalf("NewConnextoProxyClient() error = %v", err)

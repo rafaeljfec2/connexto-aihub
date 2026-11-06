@@ -302,9 +302,10 @@ func TestConnextoProxyReconfigureAndEnabled(t *testing.T) {
 
 	// Reconfigure with empty credential
 	if err := client.Reconfigure(providers.Settings{
-		BaseURL: "http://127.0.0.1:9090/v1",
-		APIKey:  "",
-		Enabled: true,
+		BaseURL:           "http://127.0.0.1:9090/v1",
+		APIKey:            "",
+		Enabled:           true,
+		LogicalProviderID: providers.CursorID,
 	}); err != nil {
 		t.Fatalf("Reconfigure() error = %v", err)
 	}
@@ -314,9 +315,10 @@ func TestConnextoProxyReconfigureAndEnabled(t *testing.T) {
 
 	// Reconfigure disabled
 	if err := client.Reconfigure(providers.Settings{
-		BaseURL: "http://127.0.0.1:9090/v1",
-		APIKey:  connextoProxyTestCursorKey,
-		Enabled: false,
+		BaseURL:           "http://127.0.0.1:9090/v1",
+		APIKey:            connextoProxyTestCursorKey,
+		Enabled:           false,
+		LogicalProviderID: providers.CursorID,
 	}); err != nil {
 		t.Fatalf("Reconfigure() error = %v", err)
 	}
@@ -328,14 +330,105 @@ func TestConnextoProxyReconfigureAndEnabled(t *testing.T) {
 func newConnextoProxyTestClient(t *testing.T, endpoint string, client *http.Client, credential string) *providers.ConnextoProxyClient {
 	t.Helper()
 	adapter, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:       endpoint,
-		APIKey:        credential,
-		ManagementKey: connextoProxyTestGatewayKey,
-		Enabled:       true,
+		BaseURL:            endpoint,
+		APIKey:             credential,
+		ManagementKey:      connextoProxyTestGatewayKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.CursorID,
+		InferenceOptional:  false,
 	}, client)
 	if err != nil {
 		t.Fatalf("NewConnextoProxyClient() error = %v", err)
 	}
 	return adapter
+}
+
+func TestConnextoProxyFetchModelDescriptorsCursorExcludesAntigravity(t *testing.T) {
+	mockCatalog := `{"object":"list","data":[` +
+		`{"id":"composer-2.5","owned_by":"cursor"},` +
+		`{"id":"antigravity:gemini-3.8-flash","owned_by":"antigravity"}` +
+		`]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, mockCatalog)
+	}))
+	defer server.Close()
+
+	client := newConnextoProxyTestClient(t, server.URL+"/v1", server.Client(), connextoProxyTestCursorKey)
+	descriptors, err := client.FetchModelDescriptors(context.Background())
+	if err != nil {
+		t.Fatalf("FetchModelDescriptors() error = %v", err)
+	}
+	if len(descriptors) != 1 || descriptors[0].ID != "composer-2.5" {
+		t.Fatalf("got %+v, want only composer-2.5", descriptors)
+	}
+}
+
+func TestConnextoProxyFetchModelDescriptorsAntigravityOnlyNamespace(t *testing.T) {
+	mockCatalog := `{"object":"list","data":[` +
+		`{"id":"composer-2.5","owned_by":"cursor"},` +
+		`{"id":"antigravity:gemini-3.8-flash","owned_by":"antigravity","name":"Antigravity Gemini"}` +
+		`]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, mockCatalog)
+	}))
+	defer server.Close()
+
+	adapter, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            server.URL + "/v1",
+		ManagementKey:      connextoProxyTestGatewayKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.AntigravityID,
+		InferenceOptional:  true,
+	}, server.Client())
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() error = %v", err)
+	}
+	descriptors, err := adapter.FetchModelDescriptors(context.Background())
+	if err != nil {
+		t.Fatalf("FetchModelDescriptors() error = %v", err)
+	}
+	if len(descriptors) != 1 || descriptors[0].ID != "antigravity:gemini-3.8-flash" {
+		t.Fatalf("got %+v, want only antigravity model", descriptors)
+	}
+	if descriptors[0].ToolsSupported != nil && *descriptors[0].ToolsSupported {
+		t.Fatal("Antigravity without capability flags should not claim tools")
+	}
+}
+
+func TestConnextoProxyAntigravityResponsesOmitsCursorHeaders(t *testing.T) {
+	payload := `{"model":"antigravity:gemini-3.8-flash","input":"hello"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" || r.Header.Get("x-api-key") != "" {
+			t.Error("Antigravity request must not send Cursor API key headers")
+		}
+		if got := r.Header.Get("X-Gateway-API-Key"); got != connextoProxyTestGatewayKey {
+			t.Errorf("X-Gateway-API-Key = %q", got)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	defer server.Close()
+
+	adapter, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:            server.URL + "/v1",
+		APIKey:             "",
+		ManagementKey:      connextoProxyTestGatewayKey,
+		Enabled:            true,
+		LogicalProviderID:  providers.AntigravityID,
+		InferenceOptional:  true,
+	}, server.Client())
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() error = %v", err)
+	}
+	resp, err := adapter.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
+		ProviderID: providers.AntigravityID,
+		ModelID:    "antigravity:gemini-3.8-flash",
+	}, []byte(payload), "application/json", "")
+	if err != nil {
+		t.Fatalf("OpenTargetResponses() error = %v", err)
+	}
+	_ = resp.Body.Close()
 }
 

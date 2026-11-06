@@ -15,12 +15,20 @@ export function providerIconSlug(provider: Pick<AdminProvider, 'id' | 'type'>): 
   return hubProviderIconSlug(provider.id) || hubProviderIconSlug(provider.type)
 }
 
+/** Credential required for connection/UI gating (gateway for Antigravity, API key for others). */
+export function providerCredentialConfigured(provider: AdminProvider): boolean {
+  if (provider.type === 'antigravity') {
+    return provider.management_credential_configured === true
+  }
+  return provider.credential_configured
+}
+
 export function providerConnectionSubtitle(provider: AdminProvider): string {
   const typeLabel = provider.type ? `${provider.type} · ` : ''
   if (!provider.enabled) {
     return `${typeLabel}desabilitado`
   }
-  if (!provider.credential_configured) {
+  if (!providerCredentialConfigured(provider)) {
     return `${typeLabel}credencial pendente`
   }
   return `${typeLabel}conectado`
@@ -34,7 +42,7 @@ export function providerSituation(provider: AdminProvider): {
   if (!provider.enabled) {
     return { state: 'off', label: 'Desabilitado' }
   }
-  if (!provider.credential_configured) {
+  if (!providerCredentialConfigured(provider)) {
     return { state: 'warn', label: 'Pendente' }
   }
   return { state: 'na', label: 'Sem leitura' }

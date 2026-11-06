@@ -19,6 +19,7 @@ const (
 	providerNotFoundType    = "provider_not_found"
 	providerConflictType    = "provider_conflict"
 	credentialMissingType   = "credential_missing"
+	gatewayCredentialMissingType = "gateway_credential_missing"
 	providerUnreachableType = "provider_unreachable"
 
 	providerRequestMaxBytes = 16 << 10
@@ -26,8 +27,11 @@ const (
 	providerConflictMsg     = "provider configuration already exists"
 	invalidRequestMsg       = "request body is not a valid provider payload"
 	credentialMissingMsg    = "provider has no credential configured"
+	gatewayCredentialMissingMsg = "provider has no gateway API key configured"
 	providerUnreachableMsg  = "the provider rejected the connectivity check or is unreachable"
 	adminInternalMsg        = "the provider administration request failed"
+	proxySessionClearFailedType   = "proxy_session_clear_failed"
+	proxySessionClearFailedMsg    = "the connexto proxy rejected clearing runtime sessions"
 )
 
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
@@ -182,8 +186,15 @@ func (a *ProviderAdmin) Validate() http.Handler {
 		var validateReq validateProviderRequest
 		bodyBytes, readErr := io.ReadAll(http.MaxBytesReader(w, r.Body, providerRequestMaxBytes))
 		if readErr == nil && len(bytes.TrimSpace(bodyBytes)) > 0 {
-			if decErr := json.Unmarshal(bodyBytes, &validateReq); decErr == nil && validateReq.Credential != "" {
-				err = a.service.ValidateCredential(r.Context(), id, validateReq.Credential)
+			if decErr := json.Unmarshal(bodyBytes, &validateReq); decErr == nil {
+				switch {
+				case validateReq.ManagementCredential != "":
+					err = a.service.ValidateManagementCredential(r.Context(), id, validateReq.ManagementCredential)
+				case validateReq.Credential != "":
+					err = a.service.ValidateCredential(r.Context(), id, validateReq.Credential)
+				default:
+					err = a.service.Validate(r.Context(), id)
+				}
 			} else {
 				err = a.service.Validate(r.Context(), id)
 			}
@@ -201,11 +212,44 @@ func (a *ProviderAdmin) Validate() http.Handler {
 		switch {
 		case errors.Is(err, providers.ErrNoCredential):
 			writeJSONError(w, http.StatusConflict, credentialMissingType, credentialMissingMsg)
+		case errors.Is(err, providers.ErrNoGatewayKey):
+			writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
 		case errors.Is(err, providers.ErrNotFound), errors.Is(err, providers.ErrCredentialUnreadable):
 			a.writeError(w, err)
 		default:
 			a.logger.Warn("provider validation failed", "provider", id)
 			writeJSONError(w, http.StatusBadGateway, providerUnreachableType, providerUnreachableMsg)
+		}
+	})
+}
+
+// ClearAntigravityProxyRuntimeSessions handles POST /api/providers/{id}/proxy/runtime/sessions/clear.
+// It forwards to the Connexto Proxy POST /v1/runtime/sessions/clear with namespace antigravity.
+func (a *ProviderAdmin) ClearAntigravityProxyRuntimeSessions() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		err := a.service.ClearAntigravityProxyRuntimeSessions(r.Context(), id)
+		if err == nil {
+			writeJSON(w, http.StatusOK, map[string]any{"cleared": true, "namespace": "antigravity"})
+			return
+		}
+		switch {
+		case errors.Is(err, providers.ErrNotFound):
+			a.writeError(w, err)
+		case errors.Is(err, providers.ErrInvalid):
+			writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+		case errors.Is(err, providers.ErrNoGatewayKey):
+			writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+		case errors.Is(err, providers.ErrProxySessionClearFailed):
+			a.logger.Warn("proxy runtime session clear failed", "provider", id, "error", err)
+			writeJSONError(w, http.StatusBadGateway, proxySessionClearFailedType, proxySessionClearFailedMsg)
+		default:
+			a.logger.Error("proxy runtime session clear", "provider", id, "error", err.Error())
+			writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
 		}
 	})
 }
@@ -348,6 +392,8 @@ func (a *ProviderAdmin) writeError(w http.ResponseWriter, err error) {
 		writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
 	case errors.Is(err, providers.ErrNoCredential):
 		writeJSONError(w, http.StatusConflict, credentialMissingType, credentialMissingMsg)
+	case errors.Is(err, providers.ErrNoGatewayKey):
+		writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
 	default:
 		a.logger.Error("provider administration failed", "error", err.Error())
 		writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)

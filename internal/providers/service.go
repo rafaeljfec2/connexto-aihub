@@ -70,6 +70,10 @@ func (s *Service) AvailableProviders() []AvailableProvider {
 	if ep, ok := s.defaultEndpoints[OpenRouterID]; ok && ep != "" {
 		openRouterEndpoint = ep
 	}
+	antigravityEndpoint := DefaultConnextoProxyEndpoint
+	if ep, ok := s.defaultEndpoints[AntigravityID]; ok && ep != "" {
+		antigravityEndpoint = ep
+	}
 
 	return []AvailableProvider{
 		{
@@ -83,6 +87,22 @@ func (s *Service) AvailableProviders() []AvailableProvider {
 			Capabilities:          []string{"models", "responses", "streaming"},
 			ConnectionType:        TypeCursor,
 			DefaultEndpoint:       cursorEndpoint,
+			Enabled:               true,
+		},
+		{
+			ID:                    AntigravityID,
+			Name:                  "Antigravity",
+			Description:           "Modelos Antigravity via Connexto Proxy (OAuth local no runtime do proxy)",
+			Logo:                  "google",
+			CredentialType:        "none",
+			CredentialLabel:       "",
+			CredentialPlaceholder:   "",
+			ManagementCredentialType:        "api_key",
+			ManagementCredentialLabel:       "Gateway API Key",
+			ManagementCredentialPlaceholder: "Chave do gateway do Connexto Proxy (X-Gateway-API-Key)",
+			Capabilities:          []string{"models", "responses", "streaming"},
+			ConnectionType:        TypeAntigravity,
+			DefaultEndpoint:       antigravityEndpoint,
 			Enabled:               true,
 		},
 		{
@@ -143,7 +163,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
 		return Record{}, err
 	}
-	if input.ManagementCredential != "" && input.Type != TypeOpenRouter && input.Type != TypeConnextoProxy && input.Type != TypeCursor {
+	if input.ManagementCredential != "" && input.Type != TypeOpenRouter && input.Type != TypeConnextoProxy && input.Type != TypeCursor && input.Type != TypeAntigravity {
 		return Record{}, ErrInvalid
 	}
 
@@ -195,7 +215,7 @@ func (s *Service) Update(ctx context.Context, id string, input UpdateInput) (Rec
 		if err != nil {
 			return Record{}, err
 		}
-		if record.Type != TypeOpenRouter && record.Type != TypeConnextoProxy && record.Type != TypeCursor {
+		if record.Type != TypeOpenRouter && record.Type != TypeConnextoProxy && record.Type != TypeCursor && record.Type != TypeAntigravity {
 			return Record{}, ErrInvalid
 		}
 	}
@@ -236,30 +256,45 @@ func (s *Service) Validate(ctx context.Context, id string) error {
 		return err
 	}
 
-	credential, err := s.credentialOf(ctx, record)
-	if err != nil {
-		s.registry.reportHealthCheck(id, version, err)
-		return err
-	}
-
-	if credential == "" {
-		err = ErrNoCredential
-		s.registry.reportHealthCheck(id, version, err)
-		return err
-	}
-
 	probe, ok := s.probes[record.Type]
 	if !ok || probe == nil {
-		err = ErrProbeUnavailable
+		err := ErrProbeUnavailable
 		s.registry.reportHealthCheck(id, version, err)
 		return err
 	}
 
 	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
-	err = probe(probeContext, record.Endpoint, credential)
-	s.registry.reportHealthCheck(id, version, err)
-	return err
+
+	switch record.Type {
+	case TypeAntigravity:
+		gatewayKey, credErr := s.managementCredentialOf(ctx, record)
+		if credErr != nil {
+			s.registry.reportHealthCheck(id, version, credErr)
+			return credErr
+		}
+		resolved, ok := EffectiveGatewayKeyForAntigravityValidation(gatewayKey)
+		if !ok {
+			s.registry.reportHealthCheck(id, version, ErrNoGatewayKey)
+			return ErrNoGatewayKey
+		}
+		probeErr := probe(probeContext, record.Endpoint, resolved)
+		s.registry.reportHealthCheck(id, version, probeErr)
+		return probeErr
+	default:
+		credential, credErr := s.credentialOf(ctx, record)
+		if credErr != nil {
+			s.registry.reportHealthCheck(id, version, credErr)
+			return credErr
+		}
+		if credential == "" {
+			s.registry.reportHealthCheck(id, version, ErrNoCredential)
+			return ErrNoCredential
+		}
+		probeErr := probe(probeContext, record.Endpoint, credential)
+		s.registry.reportHealthCheck(id, version, probeErr)
+		return probeErr
+	}
 }
 
 // ValidateCredential checks a specific credential against the provider's endpoint.
@@ -287,6 +322,33 @@ func (s *Service) ValidateCredential(ctx context.Context, id, credential string)
 	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 	return probe(probeContext, endpoint, credential)
+}
+
+// ValidateManagementCredential checks a gateway or management key against the provider endpoint.
+func (s *Service) ValidateManagementCredential(ctx context.Context, id, managementCredential string) error {
+	if strings.TrimSpace(managementCredential) == "" {
+		return ErrNoGatewayKey
+	}
+	endpoint := ""
+	providerType := ""
+	if record, err := s.repo.Get(ctx, id); err == nil {
+		endpoint = record.Endpoint
+		providerType = record.Type
+	} else if avail, ok := s.AvailableProvider(id); ok {
+		endpoint = avail.DefaultEndpoint
+		providerType = avail.ConnectionType
+	} else {
+		return ErrNotFound
+	}
+
+	probe, ok := s.probes[providerType]
+	if !ok || probe == nil {
+		return ErrProbeUnavailable
+	}
+
+	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	return probe(probeContext, endpoint, managementCredential)
 }
 
 func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) (Record, error) {
@@ -356,12 +418,20 @@ func (s *Service) apply(ctx context.Context, record Record) error {
 		return err
 	}
 
-	if err := s.registry.Reconfigure(record.ID, Settings{
-		BaseURL:       record.Endpoint,
-		APIKey:        credential,
-		ManagementKey: managementKey,
-		Enabled:       record.Enabled,
-	}); err != nil {
+	settings := Settings{
+		BaseURL:         record.Endpoint,
+		APIKey:          credential,
+		ManagementKey:   managementKey,
+		Enabled:         record.Enabled,
+		LogicalProviderID: record.ID,
+	}
+	switch record.Type {
+	case TypeAntigravity:
+		settings.InferenceOptional = true
+	default:
+		settings.InferenceOptional = false
+	}
+	if err := s.registry.Reconfigure(record.ID, settings); err != nil {
 		return fmt.Errorf("apply provider %s configuration: %w", record.ID, err)
 	}
 

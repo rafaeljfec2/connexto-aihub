@@ -27,6 +27,15 @@ func (s *Service) managementCredentialOf(ctx context.Context, record Record) (st
 	return s.cipher.OpenManagement(record.ID, sealed)
 }
 
+// ManagementCredentialPresent reports whether a management (gateway) credential is stored for the provider.
+func (s *Service) ManagementCredentialPresent(ctx context.Context, id string) (bool, error) {
+	record, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	return record.HasManagementCredential, nil
+}
+
 func (s *Service) sealOptional(id, credential string) ([]byte, error) {
 	if credential == "" {
 		return nil, nil

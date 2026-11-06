@@ -30,7 +30,8 @@ type createProviderRequest struct {
 }
 
 type validateProviderRequest struct {
-	Credential string `json:"credential"`
+	Credential           string `json:"credential"`
+	ManagementCredential string `json:"management_credential"`
 }
 
 type updateProviderRequest struct {

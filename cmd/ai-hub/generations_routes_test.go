@@ -149,7 +149,7 @@ func newGenerationsTestRouter(t *testing.T) (http.Handler, string) {
 	providerManager := providers.NewRegistryManager(logger, registry)
 	readiness := health.NewRegistry()
 	eventHub := operational.NewHub(logger)
-	router, err := buildGatewayRouter(cfg, logger, registry, providerManager, nil, nil, recordsModule,
+	router, err := buildGatewayRouter(cfg, logger, registry, providerManager, nil, nil, nil, recordsModule,
 		readiness, nil, nil, nil, nil, nil, nil, nil, eventHub, operatorGate)
 	if err != nil {
 		t.Fatalf("build gateway router: %v", err)

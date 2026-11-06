@@ -28,50 +28,100 @@ const (
 // ConnextoProxyClient implements the OpenAI Responses API through Connexto Proxy CLI LLMs.
 // Requests remain opaque so provider-specific model IDs and fields are kept intact.
 type ConnextoProxyClient struct {
-	mu         sync.RWMutex
-	baseURL    string
-	apiKey     string
-	gatewayKey string
-	enabled    bool
-	httpClient *http.Client
+	mu                sync.RWMutex
+	baseURL           string
+	apiKey            string
+	gatewayKey        string
+	enabled           bool
+	logicalProviderID string
+	inferenceOptional bool
+	httpClient        *http.Client
+}
+
+func logicalProviderLabel(id string) string {
+	if id != "" {
+		return id
+	}
+	return CursorID
 }
 
 // NewConnextoProxyClient builds an adapter with a bounded shared provider transport.
 func NewConnextoProxyClient(settings Settings, httpClient *http.Client) (*ConnextoProxyClient, error) {
 	if err := config.ValidateBaseURL(settings.BaseURL); err != nil {
-		return nil, fmt.Errorf("provider %s: %w", ConnextoProxyID, err)
+		return nil, fmt.Errorf("provider %s: %w", logicalProviderLabel(settings.LogicalProviderID), err)
 	}
 	if httpClient == nil {
-		httpClient = &http.Client{Transport: newTransport()}
+		httpClient = NewConnextoProxyHTTPClient()
+	}
+	logicalID := settings.LogicalProviderID
+	if logicalID == "" {
+		logicalID = CursorID
+	}
+	inferenceOptional := settings.InferenceOptional
+	if logicalID == AntigravityID {
+		inferenceOptional = true
 	}
 	return &ConnextoProxyClient{
-		baseURL:    strings.TrimRight(settings.BaseURL, "/"),
-		apiKey:     settings.APIKey,
-		gatewayKey: settings.ManagementKey,
-		enabled:    settings.Enabled,
-		httpClient: httpClient,
+		baseURL:           strings.TrimRight(settings.BaseURL, "/"),
+		apiKey:            settings.APIKey,
+		gatewayKey:        settings.ManagementKey,
+		enabled:           settings.Enabled,
+		logicalProviderID: logicalID,
+		inferenceOptional: inferenceOptional,
+		httpClient:        httpClient,
 	}, nil
 }
 
 // Reconfigure atomically changes endpoint, credential, and enabled state.
 func (c *ConnextoProxyClient) Reconfigure(settings Settings) error {
 	if err := config.ValidateBaseURL(settings.BaseURL); err != nil {
-		return fmt.Errorf("provider %s: %w", ConnextoProxyID, err)
+		return fmt.Errorf("provider %s: %w", logicalProviderLabel(settings.LogicalProviderID), err)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	logicalID := settings.LogicalProviderID
+	if logicalID == "" {
+		logicalID = CursorID
+	}
 	c.baseURL = strings.TrimRight(settings.BaseURL, "/")
 	c.apiKey = settings.APIKey
 	c.gatewayKey = settings.ManagementKey
 	c.enabled = settings.Enabled
+	if settings.LogicalProviderID != "" {
+		c.logicalProviderID = settings.LogicalProviderID
+	}
+	if settings.LogicalProviderID == AntigravityID {
+		c.inferenceOptional = true
+	} else {
+		c.inferenceOptional = settings.InferenceOptional
+	}
 	return nil
 }
 
-// Enabled is false when disabled or when no protected credential was loaded.
+// Enabled is false when disabled. Cursor requires an inference API key; Antigravity
+// uses gateway authentication only (stored management key and/or AIHUB_CONNEXTO_PROXY_GATEWAY_KEY).
 func (c *ConnextoProxyClient) Enabled() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.enabled && c.apiKey != ""
+	if !c.enabled {
+		return false
+	}
+	if c.inferenceOptional {
+		return c.logicalProviderID == AntigravityID && antigravityGatewayConfigured(c.gatewayKey)
+	}
+	return c.apiKey != ""
+}
+
+func antigravityGatewayConfigured(storedGateway string) bool {
+	if strings.TrimSpace(storedGateway) != "" {
+		return true
+	}
+	return AntigravityGatewayKeyFromEnvironment()
+}
+
+// AntigravityGatewayKeyFromEnvironment reports whether AIHUB_CONNEXTO_PROXY_GATEWAY_KEY is set.
+func AntigravityGatewayKeyFromEnvironment() bool {
+	return strings.TrimSpace(os.Getenv("AIHUB_CONNEXTO_PROXY_GATEWAY_KEY")) != ""
 }
 
 // ListModels retrieves Connexto Proxy's model list.
@@ -81,13 +131,19 @@ func (c *ConnextoProxyClient) ListModels(ctx context.Context) (*http.Response, e
 		return nil, err
 	}
 	sanitizeConnextoProxyErrorResponse(response)
-	return response, nil
+	return c.filterModelsListResponse(response)
 }
 
 // OpenTargetResponses forwards a stateless Responses request without rewriting it.
 func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target ResponsesTarget, payload []byte, contentType, _ string) (*http.Response, error) {
-	if !connextoProxyLogicalProvider(target.ProviderID) {
-		return nil, errors.New("provider target does not match a Connexto Proxy logical provider")
+	c.mu.RLock()
+	logicalID := c.logicalProviderID
+	c.mu.RUnlock()
+	if logicalID == "" {
+		logicalID = CursorID
+	}
+	if target.ProviderID != logicalID {
+		return nil, errors.New("provider target does not match this Connexto Proxy adapter")
 	}
 	if target.ModelID != "" && strings.TrimSpace(target.ModelID) == "" {
 		return nil, errors.New("provider model identity must not be empty")
@@ -166,10 +222,27 @@ func (c *ConnextoProxyClient) FetchModelDescriptors(ctx context.Context) ([]Mode
 
 	descriptors := make([]ModelDescriptor, 0, len(envelope.Data))
 	seen := make(map[string]struct{}, len(envelope.Data))
+	c.mu.RLock()
+	logicalID := c.logicalProviderID
+	c.mu.RUnlock()
+	if logicalID == "" {
+		logicalID = CursorID
+	}
+
 	for _, raw := range envelope.Data {
 		descriptor, err := connextoProxyDescriptor(raw)
 		if err != nil {
 			return nil, &DecodeError{StatusCode: response.StatusCode, Err: err}
+		}
+		switch logicalID {
+		case AntigravityID:
+			if !connextoProxyModelBelongsToAntigravity(descriptor.ID, raw) {
+				continue
+			}
+		default:
+			if connextoProxyModelBelongsToAntigravity(descriptor.ID, raw) {
+				continue
+			}
 		}
 		if _, duplicate := seen[descriptor.ID]; duplicate {
 			return nil, &DecodeError{StatusCode: response.StatusCode, Err: errors.New("catalog contains duplicate model IDs")}
@@ -178,6 +251,18 @@ func (c *ConnextoProxyClient) FetchModelDescriptors(ctx context.Context) ([]Mode
 		descriptors = append(descriptors, descriptor)
 	}
 	return descriptors, nil
+}
+
+func rawJSONOwnedBy(raw json.RawMessage) string {
+	var probe struct {
+		OwnedBy string `json:"owned_by"`
+	}
+	_ = json.Unmarshal(raw, &probe)
+	return probe.OwnedBy
+}
+
+func connextoProxyModelBelongsToAntigravity(modelID string, raw json.RawMessage) bool {
+	return IsAntigravityCatalogModel(rawJSONOwnedBy(raw), modelID)
 }
 
 func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
@@ -205,24 +290,38 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 		name = model.ID
 	}
 
-	// OpenAI-minimal proxy catalogs omit capabilities; agent models listed here support tools and reasoning.
-	// If the proxy lists non-agent models, upstream should send capabilities.tools/reasoning explicitly.
-	toolsSupported := true
-	reasoningSupported := true
-	if model.Capabilities.Tools != nil && model.Capabilities.Tools.Supported != nil {
-		toolsSupported = *model.Capabilities.Tools.Supported
-	}
-	if model.Capabilities.Reasoning != nil && model.Capabilities.Reasoning.Supported != nil {
-		reasoningSupported = *model.Capabilities.Reasoning.Supported
+	antigravity := IsAntigravityCatalogModel(model.OwnedBy, model.ID)
+
+	var toolsSupported, reasoningSupported bool
+	if antigravity {
+		toolsSupported = model.Capabilities.Tools != nil && model.Capabilities.Tools.Supported != nil && *model.Capabilities.Tools.Supported
+		reasoningSupported = model.Capabilities.Reasoning != nil && model.Capabilities.Reasoning.Supported != nil && *model.Capabilities.Reasoning.Supported
+	} else {
+		// OpenAI-minimal proxy catalogs omit capabilities; Cursor agent models support tools and reasoning.
+		toolsSupported = true
+		reasoningSupported = true
+		if model.Capabilities.Tools != nil && model.Capabilities.Tools.Supported != nil {
+			toolsSupported = *model.Capabilities.Tools.Supported
+		}
+		if model.Capabilities.Reasoning != nil && model.Capabilities.Reasoning.Supported != nil {
+			reasoningSupported = *model.Capabilities.Reasoning.Supported
+		}
 	}
 
 	inputModalities := connextoProxyDefaultInputModalities()
 	inputModalitiesPresent := true
-	// SPEC E03 §5.4 A2: cursor sync uses vision defaults when upstream omits modalities.input.
-	// Proxy MUST send modalities.input for text-only models (e.g. ["text"]).
-	if model.Modalities != nil && model.Modalities.Input != nil {
-		inputModalities = NormalizeInputModalitiesForCatalog(*model.Modalities.Input)
+	if antigravity {
+		inputModalities = []string{"text"}
 		inputModalitiesPresent = true
+		if model.Modalities != nil && model.Modalities.Input != nil {
+			inputModalities = NormalizeInputModalitiesForCatalog(*model.Modalities.Input)
+		}
+	} else {
+		// SPEC E03 §5.4 A2: cursor sync uses vision defaults when upstream omits modalities.input.
+		if model.Modalities != nil && model.Modalities.Input != nil {
+			inputModalities = NormalizeInputModalitiesForCatalog(*model.Modalities.Input)
+			inputModalitiesPresent = true
+		}
 	}
 
 	descriptor := ModelDescriptor{
@@ -244,13 +343,76 @@ func connextoProxyDefaultInputModalities() []string {
 	return DefaultVisionAgentInputModalities()
 }
 
-func connextoProxyLogicalProvider(providerID string) bool {
-	switch providerID {
-	case CursorID:
-		return true
-	default:
-		return false
+func (c *ConnextoProxyClient) filterModelsListResponse(response *http.Response) (*http.Response, error) {
+	if response == nil || response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return response, nil
 	}
+	c.mu.RLock()
+	logicalID := c.logicalProviderID
+	c.mu.RUnlock()
+	if logicalID == "" {
+		logicalID = CursorID
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxModelsResponseBytes+1))
+	if response.Body != nil {
+		_ = response.Body.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read model list: %w", err)
+	}
+	if len(body) > maxModelsResponseBytes {
+		return nil, errors.New("catalog payload exceeds 8 MiB")
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		response.Body = io.NopCloser(strings.NewReader(string(body)))
+		response.ContentLength = int64(len(body))
+		return response, nil
+	}
+	rawData, ok := envelope["data"]
+	if !ok {
+		response.Body = io.NopCloser(strings.NewReader(string(body)))
+		response.ContentLength = int64(len(body))
+		return response, nil
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(rawData, &items); err != nil {
+		response.Body = io.NopCloser(strings.NewReader(string(body)))
+		response.ContentLength = int64(len(body))
+		return response, nil
+	}
+	filtered := make([]json.RawMessage, 0, len(items))
+	for _, raw := range items {
+		var idProbe struct {
+			ID      string `json:"id"`
+			OwnedBy string `json:"owned_by"`
+		}
+		_ = json.Unmarshal(raw, &idProbe)
+		isAnt := IsAntigravityCatalogModel(idProbe.OwnedBy, idProbe.ID)
+		switch logicalID {
+		case AntigravityID:
+			if isAnt {
+				filtered = append(filtered, raw)
+			}
+		default:
+			if !isAnt {
+				filtered = append(filtered, raw)
+			}
+		}
+	}
+	dataBytes, err := json.Marshal(filtered)
+	if err != nil {
+		return nil, err
+	}
+	envelope["data"] = dataBytes
+	out, err := json.Marshal(envelope)
+	if err != nil {
+		return nil, err
+	}
+	response.Body = io.NopCloser(bytes.NewReader(out))
+	response.ContentLength = int64(len(out))
+	response.Header.Set("Content-Type", "application/json")
+	return response, nil
 }
 
 func boolPtr(value bool) *bool {
@@ -261,15 +423,50 @@ func (c *ConnextoProxyClient) CloseIdle() {
 	c.httpClient.CloseIdleConnections()
 }
 
+// NewConnextoProxyHTTPClient returns the shared transport used by Connexto Proxy logical adapters.
+func NewConnextoProxyHTTPClient() *http.Client {
+	return &http.Client{Transport: newTransport()}
+}
+
 // ProbeCursorEndpoint verifies Cursor provider availability via the internal transport adapter.
 func ProbeCursorEndpoint(ctx context.Context, endpoint, credential string) error {
 	return ProbeConnextoProxyEndpoint(ctx, endpoint, credential)
 }
 
+// ProbeAntigravityEndpoint verifies Antigravity reachability using gateway authentication only.
+func ProbeAntigravityEndpoint(ctx context.Context, endpoint, gatewayKey string) error {
+	resolved, ok := EffectiveGatewayKeyForAntigravityValidation(gatewayKey)
+	if !ok {
+		return ErrNoGatewayKey
+	}
+	client, err := NewConnextoProxyClient(Settings{
+		BaseURL:               endpoint,
+		ManagementKey:         resolved,
+		Enabled:               true,
+		LogicalProviderID:     AntigravityID,
+		InferenceOptional:     true,
+	}, nil)
+	if err != nil {
+		return err
+	}
+	defer client.CloseIdle()
+	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	response, err := client.ListModels(probeContext)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("connectivity check returned status %d", response.StatusCode)
+	}
+	return nil
+}
+
 // ProbeConnextoProxyEndpoint verifies service availability without consuming model generation.
 // It checks health and/or model listing at the configured endpoint.
 func ProbeConnextoProxyEndpoint(ctx context.Context, endpoint, credential string) error {
-	client, err := NewConnextoProxyClient(Settings{BaseURL: endpoint, APIKey: credential, Enabled: true}, nil)
+	client, err := NewConnextoProxyClient(Settings{BaseURL: endpoint, APIKey: credential, Enabled: true, LogicalProviderID: CursorID}, nil)
 	if err != nil {
 		return err
 	}
@@ -289,13 +486,31 @@ func ProbeConnextoProxyEndpoint(ctx context.Context, endpoint, credential string
 }
 
 func (c *ConnextoProxyClient) resolveGatewayKey() string {
-	if c.gatewayKey != "" {
-		return c.gatewayKey
+	return resolveConnextoProxyGatewayKeyForTransport(c.gatewayKey)
+}
+
+// resolveConnextoProxyGatewayKeyForTransport mirrors proxy local defaults: stored management
+// key, then AIHUB_CONNEXTO_PROXY_GATEWAY_KEY, then the docker dev default.
+func resolveConnextoProxyGatewayKeyForTransport(stored string) string {
+	if strings.TrimSpace(stored) != "" {
+		return strings.TrimSpace(stored)
 	}
-	if envKey := os.Getenv("AIHUB_CONNEXTO_PROXY_GATEWAY_KEY"); envKey != "" {
-		return envKey
+	if envKey := os.Getenv("AIHUB_CONNEXTO_PROXY_GATEWAY_KEY"); strings.TrimSpace(envKey) != "" {
+		return strings.TrimSpace(envKey)
 	}
 	return "docker-local-gateway-dev"
+}
+
+// EffectiveGatewayKeyForAntigravityValidation returns a non-empty gateway key for probes when
+// either the stored management credential or AIHUB_CONNEXTO_PROXY_GATEWAY_KEY is set.
+func EffectiveGatewayKeyForAntigravityValidation(storedManagement string) (string, bool) {
+	if strings.TrimSpace(storedManagement) != "" {
+		return strings.TrimSpace(storedManagement), true
+	}
+	if envKey := os.Getenv("AIHUB_CONNEXTO_PROXY_GATEWAY_KEY"); strings.TrimSpace(envKey) != "" {
+		return strings.TrimSpace(envKey), true
+	}
+	return "", false
 }
 
 func (c *ConnextoProxyClient) do(ctx context.Context, method, path string, body io.Reader, contentType string) (*http.Response, error) {

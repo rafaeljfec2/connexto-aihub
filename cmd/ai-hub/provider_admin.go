@@ -33,10 +33,12 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 		providers.TypeOpenRouter:    providers.ProbeOpenRouterEndpoint,
 		providers.TypeCursor:        providers.ProbeCursorEndpoint,
 		providers.TypeConnextoProxy: providers.ProbeConnextoProxyEndpoint,
+		providers.TypeAntigravity:   providers.ProbeAntigravityEndpoint,
 	},
 		cfg.Provider.AllowedEndpointHosts)
 
 	service.SetDefaultEndpoint(providers.CursorID, cfg.Provider.ConnextoProxy.BaseURL)
+	service.SetDefaultEndpoint(providers.AntigravityID, cfg.Provider.ConnextoProxy.BaseURL)
 	service.SetDefaultEndpoint(providers.OpenCodeGoID, cfg.Provider.OpenCodeGo.BaseURL)
 	service.SetDefaultEndpoint(providers.OpenRouterID, providers.OpenRouterEndpoint)
 
@@ -49,6 +51,12 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 		{
 			ID: providers.OpenRouterID, Name: "OpenRouter", Type: providers.TypeOpenRouter,
 			Endpoint: providers.OpenRouterEndpoint, Enabled: true,
+		},
+		{
+			ID: providers.AntigravityID, Name: "Antigravity", Type: providers.TypeAntigravity,
+			Endpoint:             cfg.Provider.ConnextoProxy.BaseURL,
+			ManagementCredential: cfg.Provider.ConnextoProxy.GatewayKey,
+			Enabled:              true, WarnIgnoredEnvironment: true,
 		},
 	}, logger)
 
@@ -69,6 +77,7 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}", Handler: admin.Get()},
 		{Method: http.MethodPatch, Pattern: "/api/providers/{id}", Handler: admin.Update()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/validate", Handler: admin.Validate()},
+		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/runtime/sessions/clear", Handler: admin.ClearAntigravityProxyRuntimeSessions()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/sync-models", Handler: admin.SyncModels()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}/status", Handler: admin.Status()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/enable", Handler: admin.Enable()},

@@ -3,6 +3,7 @@ package providers
 import (
 	"errors"
 	"regexp"
+	"strings"
 )
 
 // TypeOpenCodeGo is the adapter type of the OpenCode Go integration.
@@ -13,6 +14,15 @@ const (
 	CursorID   = "cursor"
 	TypeCursor = "cursor"
 )
+
+// Antigravity runs through the same Connexto Proxy HTTP service as Cursor, with a
+// distinct logical provider identity and catalog namespace.
+const (
+	AntigravityID   = "antigravity"
+	TypeAntigravity = "antigravity"
+)
+
+const antigravityModelIDPrefix = "antigravity:"
 
 // Connexto Proxy service identifiers. The proxy is a shared HTTP transport service,
 // not a logical provider. Logical providers (cursor today; more later) bind to the
@@ -39,6 +49,15 @@ func NormalizeLogicalProviderID(providerID string) string {
 	return providerID
 }
 
+// IsAntigravityCatalogModel reports proxy catalog entries that belong to the
+// Antigravity logical namespace (see connexto-proxy /v1/models).
+func IsAntigravityCatalogModel(ownedBy, modelID string) bool {
+	if strings.EqualFold(strings.TrimSpace(ownedBy), AntigravityID) {
+		return true
+	}
+	return strings.HasPrefix(modelID, antigravityModelIDPrefix)
+}
+
 // IsLegacyTransportServiceID reports ids that must not appear as registry providers.
 func IsLegacyTransportServiceID(providerID string) bool {
 	return providerID == LegacyTransportServiceID
@@ -53,6 +72,9 @@ type AvailableProvider struct {
 	CredentialType        string   `json:"credential_type"`
 	CredentialLabel       string   `json:"credential_label"`
 	CredentialPlaceholder string   `json:"credential_placeholder"`
+	ManagementCredentialType        string `json:"management_credential_type,omitempty"`
+	ManagementCredentialLabel       string `json:"management_credential_label,omitempty"`
+	ManagementCredentialPlaceholder string `json:"management_credential_placeholder,omitempty"`
 	Capabilities          []string `json:"capabilities"`
 	ConnectionType        string   `json:"connection_type"`
 	DefaultEndpoint       string   `json:"default_endpoint"`
@@ -62,6 +84,7 @@ type AvailableProvider struct {
 var (
 	ErrInvalid          = errors.New("invalid provider configuration")
 	ErrNoCredential     = errors.New("provider has no credential configured")
+	ErrNoGatewayKey     = errors.New("provider has no gateway API key configured")
 	ErrProbeUnavailable = errors.New("provider connectivity validation is not supported")
 	idPattern           = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 )

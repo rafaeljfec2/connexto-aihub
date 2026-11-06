@@ -29,6 +29,8 @@ func NormalizeExecutionUsage(providerID string, capture capture.Result) Record {
 		return normalizeOpenRouterUsage(rawUsage, source)
 	case providers.CursorID, providers.LegacyTransportServiceID:
 		return normalizeConnextoProxyUsage(rawUsage, source)
+	case providers.AntigravityID:
+		return normalizeConnextoProxyUsage(rawUsage, source)
 	default:
 		return unavailableRecord(source)
 	}
@@ -42,6 +44,8 @@ func meteringSource(providerID string) Source {
 		return SourceOpenRouter
 	case providers.CursorID, providers.LegacyTransportServiceID:
 		return SourceCursor
+	case providers.AntigravityID:
+		return SourceAntigravity
 	default:
 		return SourceUnknown
 	}

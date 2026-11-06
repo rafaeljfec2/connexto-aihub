@@ -30,6 +30,7 @@ type persistenceRuntime struct {
 	catalogStore      catalog.SnapshotStore
 	databaseModule    app.Module
 	configModule      app.Module
+	providerService   *providers.Service
 	providerAdmin     *gateway.ProviderAdmin
 	resourceAdmin     *gateway.ResourceAdmin
 	concurrencyAdmin  *gateway.ConcurrencyAdmin
@@ -70,6 +71,7 @@ func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *p
 		return persistenceRuntime{}, err
 	}
 	runtime.configModule = providerConfig.module
+	runtime.providerService = providerConfig.service
 	runtime.providerAdmin = gateway.NewProviderAdmin(providerConfig.service, logger)
 	runtime.providerAdmin.BindOperationalEvents(eventHub, providerModule.Statuses)
 	openRouterQuotaAdapter := providers.NewOpenRouterQuotaAdapter(nil, cfg.Provider.AllowedEndpointHosts)

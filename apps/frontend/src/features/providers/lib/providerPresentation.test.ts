@@ -39,4 +39,19 @@ describe('providerSituation', () => {
       label: 'Pendente',
     })
   })
+
+  it('uses gateway (management) credential for Antigravity', () => {
+    const ag: AdminProvider = {
+      ...base,
+      id: 'antigravity',
+      type: 'antigravity',
+      credential_configured: false,
+      management_credential_configured: true,
+    }
+    expect(providerSituation(ag)).toEqual({ state: 'na', label: 'Sem leitura' })
+    expect(providerSituation({ ...ag, management_credential_configured: false })).toEqual({
+      state: 'warn',
+      label: 'Pendente',
+    })
+  })
 })

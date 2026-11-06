@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +15,10 @@ import (
 
 // ResponsesRouting wires the E08 pipeline into Responses admission.
 type ResponsesRouting struct {
-	Catalog    *catalog.Manager
-	Statuses   func() []providers.Status
-	StaleAfter time.Duration
+	Catalog         *catalog.Manager
+	Statuses        func() []providers.Status
+	ProviderService *providers.Service
+	StaleAfter      time.Duration
 }
 
 type routingHTTPError struct {
@@ -30,6 +32,7 @@ func (e routingHTTPError) Error() string {
 }
 
 func routeResponses(
+	reqCtx context.Context,
 	deps *ResponsesRouting,
 	registry *providers.Registry,
 	requestID string,
@@ -73,20 +76,20 @@ func routeResponses(
 	snapshot := routing.CaptureSnapshot(routing.SnapshotInput{
 		Now:        time.Now().UTC(),
 		StaleAfter: staleAfter,
-		Admin:      adminFactsFromRegistry(registry),
+		Admin:      buildAdminFactsForRouting(reqCtx, registry, deps.ProviderService),
 		Status:     statuses(),
 		Registry:   registry,
 		Catalog:    deps.Catalog,
 	})
 
-	ctx := routing.RoutingContext{
+	routeCtx := routing.RoutingContext{
 		RequestID:        requestID,
 		ExplicitProvider: explicitProvider,
 		Structural:       structural,
 	}
 
-	eligibility := routing.EvaluateEligibility(ctx, snapshot, requirements)
-	decision = routing.SelectDeterministic(ctx, snapshot, eligibility)
+	eligibility := routing.EvaluateEligibility(routeCtx, snapshot, requirements)
+	decision = routing.SelectDeterministic(routeCtx, snapshot, eligibility)
 	if decision.Rejection != "" {
 		return routing.Target{}, nil, decision, mapRoutingRejection(decision.Rejection, explicitProvider, eligibility)
 	}
@@ -135,7 +138,7 @@ func prepareResponsesPayload(original []byte, structural routing.StructuralReque
 	return json.Marshal(topLevel)
 }
 
-func adminFactsFromRegistry(registry *providers.Registry) []routing.AdminProviderFacts {
+func buildAdminFactsForRouting(ctx context.Context, registry *providers.Registry, service *providers.Service) []routing.AdminProviderFacts {
 	if registry == nil {
 		return nil
 	}
@@ -152,7 +155,19 @@ func adminFactsFromRegistry(registry *providers.Registry) []routing.AdminProvide
 
 		fact.Known = true
 		fact.Enabled = true
-		fact.HasCredential = adapter.Enabled()
+		hasCred := adapter.Enabled()
+		if service != nil {
+			if record, err := service.Get(ctx, id); err == nil {
+				switch record.Type {
+				case providers.TypeAntigravity:
+					mgmt, _ := service.ManagementCredentialPresent(ctx, record.ID)
+					hasCred = mgmt || providers.AntigravityGatewayKeyFromEnvironment() || adapter.Enabled()
+				default:
+					hasCred = record.HasCredential
+				}
+			}
+		}
+		fact.HasCredential = hasCred
 		facts = append(facts, fact)
 	}
 

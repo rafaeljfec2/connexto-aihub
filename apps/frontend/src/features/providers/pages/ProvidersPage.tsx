@@ -35,6 +35,12 @@ export function ProvidersPage() {
   const [manageTarget, setManageTarget] = useState<AdminProvider | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
+  /** Drawer must follow the latest row from the list after React Query refetch (not the snapshot from click time). */
+  const manageProvider = useMemo(() => {
+    if (manageTarget === null) return null
+    return providers.find((p) => p.id === manageTarget.id) ?? manageTarget
+  }, [manageTarget, providers])
+
   const activeSelected =
     selectedProvider !== null
       ? providers.find((provider) => provider.id === selectedProvider.id) ?? providers[0] ?? null
@@ -115,7 +121,7 @@ export function ProvidersPage() {
       </div>
 
       <ProviderManageDrawer
-        provider={manageTarget}
+        provider={manageProvider}
         open={manageTarget !== null}
         onClose={() => setManageTarget(null)}
       />

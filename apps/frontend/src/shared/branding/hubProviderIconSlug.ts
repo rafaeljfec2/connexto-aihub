@@ -10,6 +10,8 @@ const HUB_TO_ICON_SLUG: Readonly<Record<string, string>> = {
   openrouter: 'openrouter',
   'opencode-go': 'opencode',
   opencode: 'opencode',
+  antigravity: 'google',
+  google: 'google',
 }
 
 /**

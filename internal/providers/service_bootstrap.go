@@ -14,6 +14,7 @@ type BootstrapInput struct {
 	Type                   string
 	Endpoint               string
 	Credential             string
+	ManagementCredential   string
 	Enabled                bool
 	WarnIgnoredEnvironment bool
 }
@@ -35,10 +36,15 @@ func (s *Service) Bootstrap(ctx context.Context, input BootstrapInput) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
+	sealedManagement, err := s.sealManagementOptional(input.ID, input.ManagementCredential)
+	if err != nil {
+		return Record{}, err
+	}
 	record, err := s.repo.EnsureConfigured(ctx, NewRecord{
 		ID: input.ID, Name: strings.TrimSpace(input.Name), Type: input.Type,
 		Endpoint: strings.TrimSpace(input.Endpoint), Enabled: input.Enabled,
-		Credential: sealed,
+		Credential:           sealed,
+		ManagementCredential: sealedManagement,
 	})
 	if err != nil {
 		return Record{}, err

@@ -148,3 +148,14 @@ func TestNormalizeCursorUsageReported(t *testing.T) {
 		t.Fatalf("total = %v, want 350", record.TotalTokens)
 	}
 }
+
+func TestNormalizeAntigravityUsageReported(t *testing.T) {
+	event := []byte(`{"type":"response.completed","response":{"usage":{"input_tokens":5,"output_tokens":7,"total_tokens":12}}}`)
+	record := metering.NormalizeExecutionUsage(providers.AntigravityID, capture.Result{FinalEventData: event})
+	if record.Status != metering.StatusReported {
+		t.Fatalf("status = %s", record.Status)
+	}
+	if record.Source != metering.SourceAntigravity {
+		t.Fatalf("source = %s, want %s", record.Source, metering.SourceAntigravity)
+	}
+}

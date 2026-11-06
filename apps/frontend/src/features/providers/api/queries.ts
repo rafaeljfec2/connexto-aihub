@@ -42,12 +42,29 @@ export async function getProvider(id: string): Promise<AdminProvider> {
   return fetchJson<AdminProvider>(`/api/providers/${encodeURIComponent(id)}`)
 }
 
-export async function validateProvider(id: string, credential?: string): Promise<{ status: string }> {
+export type ValidateProviderBody = {
+  credential?: string
+  management_credential?: string
+}
+
+export async function validateProvider(
+  id: string,
+  body?: ValidateProviderBody,
+): Promise<{ status: string }> {
   return fetchJson<{ status: string }>(`/api/providers/${encodeURIComponent(id)}/validate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: credential ? JSON.stringify({ credential }) : undefined,
+    body: body && Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
   })
+}
+
+export async function clearAntigravityProxyRuntimeSessions(
+  id: string,
+): Promise<{ cleared: boolean; namespace: string }> {
+  return fetchJson<{ cleared: boolean; namespace: string }>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/runtime/sessions/clear`,
+    { method: 'POST' },
+  )
 }
 
 export async function syncProviderModels(id: string): Promise<SyncModelsResponse> {

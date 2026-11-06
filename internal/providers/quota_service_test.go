@@ -217,3 +217,41 @@ func TestQuotaService_QueryAllAccounts(t *testing.T) {
 		t.Errorf("disabled account expected unsupported, got %s", disabled.Status)
 	}
 }
+
+func TestQuotaService_QueryAntigravityReturnsUnsupportedNotUnconfigured(t *testing.T) {
+	cipher, err := NewCredentialCipher([]byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatalf("cipher init error: %v", err)
+	}
+	sealedGw, _ := cipher.Seal("antigravity", "gw-key")
+	repo := &fakeQuotaRepo{
+		records: []Record{
+			{
+				ID:                      "antigravity",
+				Name:                    "Antigravity",
+				Type:                    TypeAntigravity,
+				Endpoint:                "http://127.0.0.1:9090/v1",
+				Enabled:                 true,
+				HasCredential:           false,
+				HasManagementCredential: true,
+			},
+		},
+		managementCreds: map[string][]byte{"antigravity": sealedGw},
+	}
+	admin := NewServiceWithProbes(repo, cipher, NewRegistry(), nil, []string{"127.0.0.1"})
+	svc := NewQuotaService(admin, map[string]QuotaAdapter{}, nil)
+	res, err := svc.QueryAllAccounts(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Snapshots) != 1 {
+		t.Fatalf("expected 1 snapshot, got %d", len(res.Snapshots))
+	}
+	got := res.Snapshots[0]
+	if got.Status != QuotaStatusUnsupported {
+		t.Fatalf("status = %s, want unsupported", got.Status)
+	}
+	if got.Error == nil || got.Error.Code != "quota_not_applicable" {
+		t.Fatalf("error = %#v, want quota_not_applicable", got.Error)
+	}
+}

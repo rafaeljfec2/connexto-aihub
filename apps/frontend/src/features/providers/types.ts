@@ -29,6 +29,9 @@ export type AvailableProvider = {
   credential_type: string
   credential_label: string
   credential_placeholder: string
+  management_credential_type?: string
+  management_credential_label?: string
+  management_credential_placeholder?: string
   capabilities: string[]
   connection_type: string
   default_endpoint: string

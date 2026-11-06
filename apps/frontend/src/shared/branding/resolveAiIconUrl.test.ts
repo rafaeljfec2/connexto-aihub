@@ -9,6 +9,8 @@ describe('hubProviderIconSlug', () => {
     expect(hubProviderIconSlug('openrouter')).toBe('openrouter')
     expect(hubProviderIconSlug('opencode-go')).toBe('opencode')
     expect(hubProviderIconSlug('opencode')).toBe('opencode')
+    expect(hubProviderIconSlug('antigravity')).toBe('google')
+    expect(hubProviderIconSlug('google')).toBe('google')
   })
 })
 
@@ -17,6 +19,7 @@ describe('resolveAiIconUrl', () => {
     expect(resolveAiIconUrl(hubProviderIconSlug('cursor'))).toBeTruthy()
     expect(resolveAiIconUrl(hubProviderIconSlug('openrouter'))).toBeTruthy()
     expect(resolveAiIconUrl(hubProviderIconSlug('opencode-go'))).toBeTruthy()
+    expect(resolveAiIconUrl(hubProviderIconSlug('antigravity'))).toBeTruthy()
   })
 
   it('returns undefined for unknown slugs', () => {
