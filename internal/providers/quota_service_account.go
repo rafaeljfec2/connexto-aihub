@@ -12,8 +12,12 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 			"account_disabled", "Conta desabilitada nas configurações")}
 	}
 	if record.Type == TypeAntigravity {
-		return []ProviderQuotaSnapshot{unavailableSnapshot(record, ScopeUnknown, record.Type, QuotaStatusUnsupported,
-			"quota_not_applicable", "Antigravity não expõe leitura oficial de franquia neste hub (apenas uso via proxy)")}
+		adapter, supported := s.adapters[record.Type]
+		if !supported {
+			return []ProviderQuotaSnapshot{unavailableSnapshot(record, ScopeUnknown, record.Type, QuotaStatusUnsupported,
+				"quota_not_applicable", "Antigravity não expõe leitura oficial de franquia neste hub (apenas uso via proxy)")}
+		}
+		return []ProviderQuotaSnapshot{s.queryAntigravityAccount(ctx, record, adapter)}
 	}
 	adapter, supported := s.adapters[record.Type]
 	if !supported {
@@ -34,6 +38,21 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 		snapshots = append(snapshots, s.queryAccountScope(ctx, record, accountAdapter))
 	}
 	return snapshots
+}
+
+func (s *QuotaService) queryAntigravityAccount(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {
+	managementKey, err := s.adminService.managementCredentialOf(ctx, record)
+	if err != nil {
+		s.logCredentialFailure(record, "management", err)
+		return unavailableSnapshot(record, ScopeAccount, antigravityQuotaSourceName, QuotaStatusError,
+			"credential_decrypt_failed", "Falha ao recuperar a Gateway API Key")
+	}
+	gatewayKey, ok := EffectiveGatewayKeyForAntigravityValidation(managementKey)
+	if !ok {
+		return unavailableSnapshot(record, ScopeAccount, antigravityQuotaSourceName, QuotaStatusUnconfiguredCredential,
+			"unconfigured_credential", "Gateway API Key não configurada para comunicação com o proxy")
+	}
+	return s.queryWithCredential(ctx, record, adapter.FetchQuota, gatewayKey, ScopeAccount, antigravityQuotaSourceName)
 }
 
 func (s *QuotaService) queryOpenCodeSubscription(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {
@@ -80,9 +99,13 @@ func (s *QuotaService) queryWithCredential(ctx context.Context, record Record, f
 			"adapter_error", "Falha ao consultar a leitura oficial do provedor")
 	}
 	snapshot.AccountID = record.ID
-	snapshot.AccountLabel = record.Name
+	if snapshot.AccountLabel == "" {
+		snapshot.AccountLabel = record.Name
+	}
 	snapshot.ProviderID = record.Type
-	snapshot.ProviderName = record.Name
+	if snapshot.ProviderName == "" {
+		snapshot.ProviderName = record.Name
+	}
 	snapshot.Scope = scope
 	snapshot.Source.Scope = scope
 	snapshot.Source.Name = source

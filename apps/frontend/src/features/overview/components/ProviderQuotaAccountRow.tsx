@@ -67,6 +67,13 @@ function isSummaryMetric(scope: DataScope, metric: string): boolean {
   return false
 }
 
+function summaryMetrics(snapshot: ProviderQuotaSnapshot): readonly ProviderQuotaMetric[] {
+  if (snapshot.provider_id === 'antigravity') {
+    return snapshot.quotas
+  }
+  return snapshot.quotas.filter((metric) => isSummaryMetric(snapshot.scope, metric.metric))
+}
+
 function visibleSnapshots(snapshots: readonly ProviderQuotaSnapshot[]): readonly ProviderQuotaSnapshot[] {
   const hasAccountSnapshot = snapshots.some((snapshot) => snapshot.scope === 'account')
   if (!hasAccountSnapshot) return snapshots
@@ -107,7 +114,7 @@ function goSummaryLine(snapshots: readonly ProviderQuotaSnapshot[]): string | un
 }
 
 function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }>) {
-  const metrics = snapshot.quotas.filter((metric) => isSummaryMetric(snapshot.scope, metric.metric))
+  const metrics = summaryMetrics(snapshot)
   const balance = availableBalance(snapshot)
 
   return (

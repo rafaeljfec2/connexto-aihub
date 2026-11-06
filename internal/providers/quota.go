@@ -53,8 +53,9 @@ type ProviderQuotaMetric struct {
 	Used             *float64     `json:"used,omitempty"`
 	Limit            *float64     `json:"limit,omitempty"`
 	Remaining        *float64     `json:"remaining,omitempty"`
-	ConsumedPercent  *float64     `json:"consumed_percent,omitempty"`
-	RemainingPercent *float64     `json:"remaining_percent,omitempty"`
+	ConsumedPercent   *float64     `json:"consumed_percent,omitempty"`
+	RemainingPercent  *float64     `json:"remaining_percent,omitempty"`
+	RemainingFraction *float64     `json:"remaining_fraction,omitempty"`
 	Unit             *string      `json:"unit,omitempty"`
 	Period           *string      `json:"period,omitempty"`
 	StartsAt         *string      `json:"starts_at,omitempty"`

@@ -32,6 +32,7 @@ export interface ProviderQuotaMetric {
 
   consumed_percent?: number
   remaining_percent?: number
+  remaining_fraction?: number
 
   unit?: string
   period?: string

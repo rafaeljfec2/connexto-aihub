@@ -151,6 +151,60 @@ describe('franchiseSummary and consumptionCell', () => {
     expect(franchiseSummary(snap).value).toContain('proxy')
   })
 
+  it('formats Antigravity available quotas properly', () => {
+    const agProvider: AdminProvider = {
+      id: 'antigravity',
+      name: 'Antigravity',
+      type: 'antigravity',
+      endpoint: 'http://127.0.0.1:9090/v1',
+      enabled: true,
+      credential_configured: false,
+      management_credential_configured: true,
+      created_at: '',
+      updated_at: '',
+    }
+    const availableAg: ProviderQuotaSnapshot = {
+      account_id: 'antigravity',
+      account_label: 'engineer@connexto.ai',
+      provider_id: 'antigravity',
+      provider_name: 'Antigravity',
+      status: 'available',
+      scope: 'account',
+      workspace_name: 'Google One AI Premium',
+      quotas: [
+        {
+          metric: 'gemini-2.5-pro',
+          label: 'Gemini 2.5 Pro',
+          nature: 'rate_limit',
+          remaining_fraction: 0.85,
+          remaining_percent: 85,
+          consumed_percent: 15,
+          resets_at: '2026-11-06T20:00:00Z',
+        },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'antigravity_proxy_usage_api',
+        scope: 'account',
+        fetched_at: '2026-11-06T19:30:00Z',
+      },
+    }
+    expect(providerQuotaSituation(agProvider, availableAg)).toEqual({
+      state: 'ok',
+      label: 'Disponível',
+    })
+    expect(franchiseSummary(availableAg)).toEqual({
+      title: 'Antigravity (Google One AI Premium)',
+      value: '1 modelo(s) reportado(s)',
+    })
+    expect(consumptionCell(availableAg)).toEqual({
+      kind: 'usage',
+      label: 'Cotas por modelo',
+      primary: '1 modelos',
+      secondary: 'Taxa restante por modelo',
+    })
+  })
+
   it('prefers Go weekly percent to match Console chip (not rolling)', () => {
     const go = snapshot('subscription', [
       {

@@ -180,6 +180,14 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     }
   }
 
+  if (snapshot.provider_id === 'antigravity') {
+    const tier = snapshot.workspace_name ? ` (${snapshot.workspace_name})` : ''
+    return {
+      title: `Antigravity${tier}`,
+      value: `${snapshot.quotas.length} modelo(s) reportado(s)`,
+    }
+  }
+
   const { usage, credits } = accountUsageMetrics(snapshot)
   if (usage != null || credits != null) {
     const parts: string[] = []
@@ -214,6 +222,15 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
       percent: goMeter.percent,
       barValue: goMeter.percent,
       barMax: 100,
+    }
+  }
+
+  if (snapshot.provider_id === 'antigravity') {
+    return {
+      kind: 'usage',
+      label: 'Cotas por modelo',
+      primary: `${snapshot.quotas.length} modelos`,
+      secondary: 'Taxa restante por modelo',
     }
   }
 

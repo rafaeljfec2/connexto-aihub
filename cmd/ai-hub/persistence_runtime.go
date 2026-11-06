@@ -76,9 +76,11 @@ func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *p
 	runtime.providerAdmin.BindOperationalEvents(eventHub, providerModule.Statuses)
 	openRouterQuotaAdapter := providers.NewOpenRouterQuotaAdapter(nil, cfg.Provider.AllowedEndpointHosts)
 	openCodeQuotaAdapter := providers.NewOpenCodeQuotaAdapter(nil, cfg.Provider.AllowedEndpointHosts)
+	antigravityQuotaAdapter := providers.NewAntigravityQuotaAdapter(nil, cfg.Provider.AllowedEndpointHosts)
 	quotaService := providers.NewQuotaService(providerConfig.service, map[string]providers.QuotaAdapter{
-		providers.TypeOpenRouter: openRouterQuotaAdapter,
-		providers.TypeOpenCodeGo: openCodeQuotaAdapter,
+		providers.TypeOpenRouter:  openRouterQuotaAdapter,
+		providers.TypeOpenCodeGo:  openCodeQuotaAdapter,
+		providers.TypeAntigravity: antigravityQuotaAdapter,
 	}, logger)
 	runtime.providerAdmin.BindQuotaService(quotaService)
 	resourceService := resources.NewService(resourcespg.New(pool))

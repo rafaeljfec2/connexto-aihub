@@ -1,5 +1,6 @@
 import type { ProviderQuotaMetric, DataScope } from '../types/quota'
 import { formatQuotaValue } from '../lib/formatQuotaValue'
+import { formatResetsIn } from '../lib/formatResetsIn'
 
 type OverviewQuotaMetricRowProps = Readonly<{
   accountId: string
@@ -14,7 +15,7 @@ function metricLabel(scope: DataScope, metric: ProviderQuotaMetric): string {
   if (metric.metric === 'go_rolling') return 'Franquia rolling'
   if (metric.metric === 'go_weekly') return 'Franquia semanal'
   if (metric.metric === 'go_monthly') return 'Franquia mensal'
-  return metric.label
+  return metric.label || metric.metric
 }
 
 function formatMetricValue(scope: DataScope, metric: ProviderQuotaMetric, value: number): string {
@@ -31,7 +32,9 @@ function formatMetricValue(scope: DataScope, metric: ProviderQuotaMetric, value:
 
 function rawValues(scope: DataScope, metric: ProviderQuotaMetric): string[] {
   const values: string[] = []
-  if (metric.consumed_percent != null) {
+  if (metric.remaining_percent != null) {
+    values.push(`${metric.remaining_percent.toLocaleString('pt-BR')}% restante`)
+  } else if (metric.consumed_percent != null) {
     values.push(`${metric.consumed_percent.toLocaleString('pt-BR')}%`)
   }
   if (metric.used != null) {
@@ -48,6 +51,10 @@ function rawValues(scope: DataScope, metric: ProviderQuotaMetric): string[] {
     }
   }
   if (metric.remaining != null) values.push(`Restante ${formatQuotaValue(metric.remaining, metric.unit)}`)
+  if (metric.resets_at != null) {
+    const resetLabel = formatResetsIn(metric.resets_at)
+    if (resetLabel) values.push(resetLabel)
+  }
   return values
 }
 

@@ -7,6 +7,7 @@ import {
   productUsageTitle,
 } from '../lib/goPlusMeters'
 import { formatQuotaFetchedAt } from '../lib/formatQuotaDate'
+import { formatResetsIn } from '../lib/formatResetsIn'
 import type { ProviderQuotaSnapshot } from '../types/quota'
 import { ConsoleBudgetsPanel } from './ConsoleBudgetsPanel'
 import { GoPlusUsagePanel } from './GoPlusUsagePanel'
@@ -79,7 +80,43 @@ export function ProviderQuotaDetailDrawer({
           </header>
 
           <div className="provider-quota-drawer-scroll">
-            {goMeters.length > 0 && primary ? (
+            {primary?.provider_id === 'antigravity' && primary.status === 'available' ? (
+              <div className="space-y-3" data-testid="antigravity-drawer-quotas">
+                <div className="flex items-baseline justify-between">
+                  <h4 className="text-xs font-semibold text-primary">Cotas por Modelo</h4>
+                  <span className="text-[10px] text-muted">
+                    {primary.quotas.length} modelo(s) reportado(s)
+                  </span>
+                </div>
+                <div className="space-y-1.5 rounded-md border border-line bg-raised p-2.5">
+                  {primary.quotas.map((q) => (
+                    <div
+                      key={q.metric}
+                      className="flex items-center justify-between text-xs py-1 border-b border-line/40 last:border-b-0"
+                    >
+                      <div>
+                        <span className="font-medium text-[#E1E8F3]">{q.label || q.metric}</span>
+                        {q.metric !== q.label ? (
+                          <span className="ml-1.5 text-[10px] text-muted">{q.metric}</span>
+                        ) : null}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[11px] font-semibold text-[#CBD5E2]">
+                          {q.remaining_percent != null
+                            ? `${q.remaining_percent.toLocaleString('pt-BR')}% restante`
+                            : '—'}
+                        </span>
+                        {q.resets_at ? (
+                          <span className="ml-2 text-[10px] text-muted">
+                            {formatResetsIn(q.resets_at) ?? ''}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : goMeters.length > 0 && primary ? (
               <GoPlusUsagePanel
                 meters={goMeters}
                 workspaceName={primary.workspace_name}
@@ -87,7 +124,10 @@ export function ProviderQuotaDetailDrawer({
               />
             ) : (
               <p className="text-xs text-muted" role="status">
-                {primary?.error?.message ?? 'Sem leitura oficial de franquia Go para esta conta.'}
+                {primary?.error?.message ??
+                  (primary?.provider_id === 'antigravity'
+                    ? 'Sem leitura oficial de cotas Antigravity.'
+                    : 'Sem leitura oficial de franquia Go para esta conta.')}
               </p>
             )}
             {primary?.usage_chart && primary.usage_chart.points.length > 0 ? (

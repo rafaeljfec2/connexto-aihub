@@ -223,7 +223,7 @@ func TestQuotaService_QueryAntigravityReturnsUnsupportedNotUnconfigured(t *testi
 	if err != nil {
 		t.Fatalf("cipher init error: %v", err)
 	}
-	sealedGw, _ := cipher.Seal("antigravity", "gw-key")
+	sealedGw, _ := cipher.SealManagement("antigravity", "gw-key")
 	repo := &fakeQuotaRepo{
 		records: []Record{
 			{
@@ -253,5 +253,157 @@ func TestQuotaService_QueryAntigravityReturnsUnsupportedNotUnconfigured(t *testi
 	}
 	if got.Error == nil || got.Error.Code != "quota_not_applicable" {
 		t.Fatalf("error = %#v, want quota_not_applicable", got.Error)
+	}
+}
+
+type fakeAntigravityQuotaAdapter struct {
+	snapshot ProviderQuotaSnapshot
+	err      error
+}
+
+func (f *fakeAntigravityQuotaAdapter) FetchQuota(ctx context.Context, endpoint, credential string) (ProviderQuotaSnapshot, error) {
+	if f.err != nil {
+		return ProviderQuotaSnapshot{}, f.err
+	}
+	return f.snapshot, nil
+}
+
+func TestQuotaService_QueryAntigravitySuccessWithAdapter(t *testing.T) {
+	cipher, err := NewCredentialCipher([]byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatalf("cipher init error: %v", err)
+	}
+	sealedGw, _ := cipher.SealManagement("antigravity", "gw-key")
+	repo := &fakeQuotaRepo{
+		records: []Record{
+			{
+				ID:                      "antigravity",
+				Name:                    "Antigravity",
+				Type:                    TypeAntigravity,
+				Endpoint:                "http://127.0.0.1:9090/v1",
+				Enabled:                 true,
+				HasCredential:           false,
+				HasManagementCredential: true,
+			},
+		},
+		managementCreds: map[string][]byte{"antigravity": sealedGw},
+	}
+	admin := NewServiceWithProbes(repo, cipher, NewRegistry(), nil, []string{"127.0.0.1"})
+
+	remFrac := 0.75
+	fakeAdapter := &fakeAntigravityQuotaAdapter{
+		snapshot: ProviderQuotaSnapshot{
+			Status:       QuotaStatusAvailable,
+			AccountLabel: "engineer@connexto.ai",
+			Quotas: []ProviderQuotaMetric{
+				{
+					Metric:            "gemini-2.5-pro",
+					Label:             "Gemini 2.5 Pro",
+					Nature:            NatureRateLimit,
+					RemainingFraction: &remFrac,
+				},
+			},
+		},
+	}
+
+	svc := NewQuotaService(admin, map[string]QuotaAdapter{TypeAntigravity: fakeAdapter}, nil)
+	res, err := svc.QueryAllAccounts(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Snapshots) != 1 {
+		t.Fatalf("expected 1 snapshot, got %d", len(res.Snapshots))
+	}
+	got := res.Snapshots[0]
+	if got.Status != QuotaStatusAvailable {
+		t.Fatalf("status = %s, want available", got.Status)
+	}
+	if got.AccountLabel != "engineer@connexto.ai" {
+		t.Fatalf("account label = %s, want engineer@connexto.ai", got.AccountLabel)
+	}
+	if len(got.Quotas) != 1 || got.Quotas[0].Metric != "gemini-2.5-pro" {
+		t.Fatalf("unexpected quotas: %+v", got.Quotas)
+	}
+}
+
+func TestQuotaService_IsolationBetweenProviders(t *testing.T) {
+	cipher, err := NewCredentialCipher([]byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatalf("cipher init error: %v", err)
+	}
+	sealedGw, _ := cipher.SealManagement("antigravity", "gw-key")
+	sealedOR, _ := cipher.Seal("openrouter", "sk-or-test")
+	repo := &fakeQuotaRepo{
+		records: []Record{
+			{
+				ID:                      "antigravity",
+				Name:                    "Antigravity",
+				Type:                    TypeAntigravity,
+				Endpoint:                "http://127.0.0.1:9090/v1",
+				Enabled:                 true,
+				HasCredential:           false,
+				HasManagementCredential: true,
+			},
+			{
+				ID:            "openrouter",
+				Name:          "OpenRouter",
+				Type:          TypeOpenRouter,
+				Endpoint:      "https://openrouter.ai/api/v1",
+				Enabled:       true,
+				HasCredential: true,
+			},
+		},
+		creds:           map[string][]byte{"openrouter": sealedOR},
+		managementCreds: map[string][]byte{"antigravity": sealedGw},
+	}
+	admin := NewServiceWithProbes(repo, cipher, NewRegistry(), nil, []string{"127.0.0.1", "openrouter.ai"})
+
+	failingAntigravity := &fakeAntigravityQuotaAdapter{
+		snapshot: ProviderQuotaSnapshot{
+			Status: QuotaStatusError,
+			Error:  &ProviderQuotaError{Code: "upstream_error", Message: "Proxy down"},
+		},
+	}
+	workingOpenRouter := &fakeMockAdapter{
+		fn: func(ctx context.Context, endpoint, credential string) (ProviderQuotaSnapshot, error) {
+			return ProviderQuotaSnapshot{
+				Status: QuotaStatusAvailable,
+				Quotas: []ProviderQuotaMetric{
+					{Metric: "usage", Label: "Uso"},
+				},
+			}, nil
+		},
+	}
+
+	svc := NewQuotaService(admin, map[string]QuotaAdapter{
+		TypeAntigravity: failingAntigravity,
+		TypeOpenRouter:  workingOpenRouter,
+	}, nil)
+
+	res, err := svc.QueryAllAccounts(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.Snapshots) != 2 {
+		t.Fatalf("expected 2 snapshots, got %d", len(res.Snapshots))
+	}
+
+	var agSnapshot, orSnapshot ProviderQuotaSnapshot
+	for _, snap := range res.Snapshots {
+		if snap.ProviderID == TypeAntigravity {
+			agSnapshot = snap
+		} else if snap.ProviderID == TypeOpenRouter {
+			orSnapshot = snap
+		}
+	}
+
+	if agSnapshot.Status != QuotaStatusError {
+		t.Errorf("antigravity status = %s, want error", agSnapshot.Status)
+	}
+	if orSnapshot.Status != QuotaStatusAvailable {
+		t.Errorf("openrouter status = %s, want available", orSnapshot.Status)
+	}
+	if len(orSnapshot.Quotas) != 1 {
+		t.Errorf("expected OpenRouter to have 1 quota metric unaffected by Antigravity failure")
 	}
 }
