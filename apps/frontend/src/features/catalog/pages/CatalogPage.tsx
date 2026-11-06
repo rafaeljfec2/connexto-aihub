@@ -17,20 +17,8 @@ import {
   type CatalogColumnFilters,
 } from '../lib/catalogColumnFilters'
 import { formatCatalogSyncFeedback } from '../lib/syncFeedback'
+import { formatDataOriginTag } from '../../../shared/lib/formatDataOriginTag'
 import type { CatalogModel } from '../types'
-
-function formatOriginTag(dataOrigin?: string): string {
-  if (dataOrigin === 'demonstrative') {
-    return 'DADOS ILUSTRATIVOS'
-  }
-  if (dataOrigin === 'partial') {
-    return 'DADOS PARCIAIS'
-  }
-  if (dataOrigin === 'unavailable') {
-    return 'CATÁLOGO INDISPONÍVEL'
-  }
-  return 'DADOS OPERACIONAIS'
-}
 
 function listingLabel(model: CatalogModel): string {
   return model.listing_state || 'Listado'
@@ -143,7 +131,7 @@ export function CatalogPage() {
     return rawModels.filter((model) => compareSet.has(`${model.provider}:${model.model_id}`))
   }, [rawModels, compareSet])
 
-  const originTag = formatOriginTag(runtimeMeta.data?.data_origin)
+  const originTag = formatDataOriginTag(runtimeMeta.data?.data_origin, 'catalog')
   const versionLabel = runtimeMeta.data?.version ?? 'PREVIEW 03'
   const visibleCountLabel = `${String(filteredAndSortedModels.length).padStart(2, '0')} REGISTROS`
 

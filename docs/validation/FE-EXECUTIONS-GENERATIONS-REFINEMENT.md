@@ -1,8 +1,8 @@
 # Generations Experience Refinement Validation
 
-**Date:** 2026-11-04
+**Date:** 2026-11-04 (follow-up UI refinement: 2026-11-05)
 **Specification:** [Generations Experience Refinement](../specs/FE-EXECUTIONS-GENERATIONS-REFINEMENT.md)
-**Status:** Phase 7 complete; final independent review approved.
+**Status:** Phase 7 complete; final independent review approved. Filter-bar and header refinement re-verified 2026-11-05.
 
 ## Scope
 
@@ -23,7 +23,7 @@ This validation covers the `/executions` Generations experience, its authenticat
 | `rtk go test ./... -count=1 -race` | PASS — 941 tests across 39 packages |
 | `rtk go vet ./...` | PASS |
 | `rtk go build ./...` | PASS |
-| `rtk pnpm --filter @connexto/frontend check` | PASS — TypeScript and 88 tests across 37 files |
+| `rtk pnpm --filter @connexto/frontend check` | PASS — TypeScript and 88 tests across 37 files (2026-11-04 baseline) |
 | `rtk pnpm --filter @connexto/frontend build` | PASS |
 | `rtk env AIHUB_E2E_EXTERNAL=1 pnpm --dir e2e exec playwright test --project=loopback-chromium tests/smoke.spec.ts -g 'navigates core operator routes'` | PASS — navigation to `/executions` and `/resources`; the server used `/dev/null` as its environment file and file persistence under `/tmp` |
 | `rtk proxy env AIHUB_TEST_DATABASE_URL='postgres://dev:dev@127.0.0.1:5432/ai_hub' go test ./internal/generations/... -run Integration -count=1 -v` | PASS — the test helper created and dropped a disposable database on the documented local PostgreSQL server |
@@ -32,7 +32,7 @@ The frontend build reports a 1,026.56 kB minified JavaScript chunk and vendor an
 
 ## Visual and responsive evidence
 
-The supplied HTML guided the page hierarchy, compact filters, dense fixed-width table, horizontal scrolling, selected-row treatment, and right overlay drawer. The illustrative chart, sample values, app identity, session rows, API-key column, and unsupported telemetry were omitted as required by the SPEC.
+The supplied HTML guided the page hierarchy, compact filters, dense fixed-width table, horizontal scrolling, selected-row treatment, and right overlay drawer. Table/list fields tied to unsupported telemetry remain explicit unknown states. The 2026-11-05 refinement adds a decorative activity panel (static bars, non-operational label) aligned with the emended SPEC; it is not backed by an aggregate API.
 
 The live route rendered with a browser-only API fixture at all required viewports. The document stayed within the viewport; horizontal overflow remained inside the table scroller.
 
@@ -58,6 +58,23 @@ The drawer was also opened at 375 px and 1280 px. At mobile width it filled the 
 ## Independent review
 
 - Round 1 returned `APPROVED_WITH_NOTES`; Round 2 confirmed the provider-filter MINOR finding resolved. After the user approved the scope extension, the invalid `/intelligence` and `/settings` links were removed, the valid `/playground` link was restored, and E2E locators were updated for English and Portuguese labels. Round 3 returned `APPROVED`; no CRITICAL or IMPORTANT findings remain.
+
+## Follow-up — Executions header and filter bar (2026-11-05)
+
+Product Lead accepted the refined `/executions` screen (Portuguese page chrome, compact filter bar, decorative `GenerationsActivityPanel`, preset periods). The SPEC was emended to record decorative-panel rules (Section 13 decision 8), custom-period model/date filters, and UTC API date boundaries.
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @connexto/frontend check` | PASS — 54 test files, **159** tests (includes shared `formatDataOriginTag` variants) |
+
+Verified behavior (aligned with emended SPEC):
+
+- Header uses `pageMeta` Portuguese title/lead, runtime data-origin tag, and explicit **Atualizar** refresh.
+- Single **Generations** tab plus **GenerationsActivityPanel** with static bars and “VISUALIZAÇÃO ILUSTRATIVA · 30 DIAS” (no aggregate API).
+- Filter bar: client search on loaded rows; outcome chips and provider/period presets commit immediately; **Personalizado** exposes model id and date pickers; apply control (and Enter on model) commits custom filters.
+- List and drawer continue to use `/v1/generations` persisted data (AC-GEN-06 operational vs decorative split).
+
+Independent review ledger: [executions-generations-ui-refinement-review-2026-11-05.md](../../reports/frontend/executions-generations-ui-refinement-review-2026-11-05.md) — Round 2 **APPROVED** after SPEC emendation and product acceptance.
 
 ## Remaining evidence limitations and risks
 

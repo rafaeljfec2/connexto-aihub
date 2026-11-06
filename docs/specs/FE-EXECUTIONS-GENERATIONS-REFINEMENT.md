@@ -1,9 +1,9 @@
 # SPEC — Generations Experience Refinement
 
-**Status:** Approved — Product Lead approval received in conversation (2026-11-03)
-**Date:** 2026-11-03
+**Status:** Approved — Product Lead approval received in conversation (2026-11-03); UI header and filter-bar refinement accepted in conversation (2026-11-05)
+**Date:** 2026-11-03 (last UI refinement: 2026-11-05)
 **Classification:** Frontend behavior and visual refinement with backend telemetry/API evolution
-**Implementation status:** Phase 7 complete — implementation and verification complete; independent review approved.
+**Implementation status:** Phase 7 complete — implementation and verification complete; independent review approved. Post-delivery UI refinement (Portuguese page chrome, compact filter bar, period presets) verified 2026-11-05.
 
 ## 1. Intent
 
@@ -26,7 +26,7 @@ The current E06 execution-record contract remains a stable source for lifecycle 
 - Prompt or response content, gateway credentials, provider secrets, or raw upstream headers/bodies.
 - Automatic polling, automatic provider retry, provider fallback, or new routing policy.
 - Editing the source Doop frame. The approved on-demand drawer interaction is recorded here as a product decision.
-- A chart or aggregate KPI based on illustrative values. A real generation-volume aggregate is not currently available.
+- API-backed generation-volume aggregates or KPI cards. A real time-series endpoint is not in this delivery. A **static, labelled decorative activity panel** (`GenerationsActivityPanel`) is allowed when it uses fixed illustrative bar heights, carries an explicit “VISUALIZAÇÃO ILUSTRATIVA” marker, and is not wired to `/v1/generations` or any aggregate API (Product Lead acceptance 2026-11-05).
 - Column-preference persistence. It would add a new preference-storage requirement; the initial design uses a compact fixed column set with horizontal scrolling.
 
 ## 3. Reference evidence and limits
@@ -49,7 +49,7 @@ The three OpenRouter screenshots named in the product brief were not present amo
 ### 4.1 Doop reference facts
 
 - The artboard is 1280 × 800. It has a 224 px left navigation, a 62 px top bar, and a content area with roughly 25 px horizontal padding.
-- The content hierarchy is an `OBSERVABILITY / GENERATIONS` eyebrow, editorial page title, short description, sample-data marker, one `Generations` tab, a compact activity chart, filters, a dense table, and a small API/source footnote.
+- The content hierarchy is an `OBSERVABILITY / GENERATIONS` eyebrow, editorial page title, short description, runtime data-origin marker, one `Generations` tab, an optional compact **decorative** activity panel, filters, a dense table, and a small API/source footnote. The reference frame’s chart uses fixed illustrative bar heights; production may render the same decorative treatment under the rules in **AC-GEN-06** and Section 13 decision 8.
 - The table uses aligned, compact columns for date, model, provider, app, input/output, cost, usage type, speed, routing overhead, time to first token, finish reason, and API-key label. Its 1290 px minimum width is wider than the content region; horizontal scrolling is intentional.
 - Hover and selected rows use restrained cobalt. Status semantics use text and muted semantic colors. The drawer is positioned over the right side and includes summary metrics, Overview, Request, Provider responses, and a footer action.
 - The drawer is closed initially in the HTML. Row selection opens it, the close button/backdrop and Escape close it, and selecting another row updates the detail. The prototype clears row selection on close and does not implement dialog focus management; the product requirement takes precedence for production behavior.
@@ -82,13 +82,13 @@ Use Newsreader for the page title, DM Sans for interface text, and IBM Plex Mono
 | Page identity | “Execuções” lifecycle page | One Generations view, without sibling tabs |
 | Summary area | Four cards calculated from the currently loaded page | No misleading page-local global KPIs; show only metrics backed by a defined aggregate source |
 | Table | Time, model/provider, operation, status, duration | Compact generation fields with explicit unknown states and horizontal scrolling |
-| Filters | Loaded-row search; outcome and provider API filters; model filter component exists but is not wired on this page | Search plus outcome, provider, model, and period controls; manual refresh; no polling |
+| Filters | Loaded-row search; outcome and provider API filters; model filter component exists but is not wired on this page | Loaded-row search; outcome, provider, and period presets in the primary bar (outcome, provider, and non-custom presets commit immediately). **Personalizado** exposes model id and date pickers; model and custom dates commit via Enter on the model field or the apply control. API dates use UTC day boundaries (`…T00:00:00.000Z` / `…T23:59:59.999Z`); preset ranges resolve in UTC. |
 | Pagination | API requests 50 records, then local page slicing; `next_cursor` is ignored | Use the E06 opaque cursor to load subsequent records; do not imply `count` is a global total |
 | Selection | First record is selected automatically and detail is always visible in a 300 px master/detail column | No selection and no drawer on first render; drawer opens only after explicit row selection and overlays the table |
 | Detail | E06 fields and a sanitized summary JSON block | Organized generation summary, Overview, Request, and actual observed provider events |
 | Empty / error | Table and detail states exist | Preserve explicit list/detail loading, empty, error, degraded, and partial-telemetry states |
 
-The existing `ExecutionsMetrics` totals and average duration cover only the loaded page, not the selected period. Remove or replace these cards unless a separately defined aggregate API supplies truthful totals. The reference's 30-day bars are illustrative; omit them until an authoritative all-generation time-series endpoint is approved and available.
+The existing `ExecutionsMetrics` totals and average duration cover only the loaded page, not the selected period. Remove or replace these cards unless a separately defined aggregate API supplies truthful totals. The reference's 30-day bars are illustrative; production may show a **static labelled decorative panel** (Section 13 decision 8) but must not imply API-backed volume until an authoritative time-series endpoint exists.
 
 ## 5. Functional requirements
 
@@ -97,11 +97,13 @@ The existing `ExecutionsMetrics` totals and average duration cover only the load
 3. Selecting a row opens the right drawer and identifies that row visually. Selecting another row updates the same drawer. Closing it with the close control or Escape preserves the selected row highlight until the selection is changed or filtered out.
 4. On desktop, the drawer overlays the page and does not shrink the table. On small screens, it becomes a full-width or near-full-width overlay; the table remains horizontally scrollable behind it and is not forced into unreadable columns.
 5. Search operates on loaded rows and covers execution ID, request ID, model, provider, and available cause/outcome text. Its scope is labelled as loaded results unless a server-side search contract is separately approved.
-6. Outcome filters cover `completed`, `failed`, `canceled`, and `timed_out`; provider, model, and period filters map only to supported API query parameters. Date controls send RFC3339 `started_after` and `started_before` values.
+6. Outcome filters cover `completed`, `failed`, `canceled`, and `timed_out`; provider and period filters map to supported API query parameters. When the period preset is **Personalizado**, model id and date pickers appear and commit via Enter (model) or the apply control together with the custom range. Preset periods (`last 30 days`, `last 7 days`, `all time`) derive calendar bounds in UTC and commit immediately when selected. Date query values use RFC3339 `started_after` and `started_before` with an explicit UTC day boundary (`T00:00:00.000Z` / `T23:59:59.999Z`).
 7. Manual refresh is explicit. React Query polling remains disabled (`refetchInterval: false`). Pagination follows the returned `next_cursor`; page-local count is not presented as a global total.
 8. Detail sections are Generation summary, Overview, Request, and Provider responses. Each absent field has a neutral unavailable/not-reported state; null is never rendered as zero.
 9. The Provider responses timeline contains only events actually observed and durably recorded. The UI must not infer route, provider response, fallback, or finish events from the final status alone.
 10. The table can horizontally scroll with stable column alignment, status text, hover and selected feedback. A column chooser is deferred.
+11. Page chrome for `/executions` uses Portuguese copy for the operator-facing title, lead, refresh control, and filter labels while retaining the English `Generations` tab label from the reference. Runtime data-origin tags use `formatDataOriginTag` from `apps/frontend/src/shared/lib/formatDataOriginTag.ts` with the `executions` variant; catalog uses the `catalog` variant for route-specific demonstrative/unavailable copy.
+12. The optional `GenerationsActivityPanel` renders only static illustrative bars with a visible non-operational label. It must not call an aggregate API or imply that bar heights reflect loaded or historical generation counts.
 
 ## 6. Backend field audit
 
@@ -204,6 +206,11 @@ Proposed feature responsibilities:
 
 - `api/` and `types.ts`: generation list/detail DTOs and exact query parameter mapping.
 - `hooks/`: list/detail queries, cursor accumulation, manual refresh, and filter state. Detail queries are disabled until the user selects a row; polling stays off.
+- `lib/generationPeriodPresets.ts`: UTC calendar bounds for preset periods and inference when custom dates match a preset.
+- `lib/validateGenerationFilters.ts`: client-side validation before committing custom date ranges.
+- `lib/formatDataOriginTag.ts`: re-exports the shared runtime data-origin formatter (executions variant).
+- `components/GenerationsActivityPanel.tsx`: optional decorative activity bars (illustrative only; see AC-GEN-06).
+- `components/GenerationsFilters.tsx`: compact primary filter bar plus custom-period advanced row (model + dates).
 - `components/GenerationsTable.tsx` and focused cell components: semantic table, aligned widths, selected row, status, compact values, and horizontal scrolling.
 - `components/GenerationDetailsDrawer.tsx` with summary, Overview, Request, and Provider responses sections; explicit loading, error, and missing-data states.
 - `pages/ExecutionsPage.tsx`: compose the existing AppShell and feature components; no business logic or transport parsing in table cells.
@@ -227,8 +234,8 @@ Use the existing cursor API for subsequent records. Reset the cursor and detail 
 - **AC-GEN-02:** Initial state has no selected row and no open drawer; the table uses the available width.
 - **AC-GEN-03:** Selecting and switching rows updates the right drawer; close button and Escape close it; the selected row remains identifiable and focus returns to it.
 - **AC-GEN-04:** Desktop drawer overlays without narrowing the table; mobile drawer adapts without making the table unreadable or obscuring navigation state.
-- **AC-GEN-05:** Search, all four outcomes, provider/model/date filters, manual refresh, and cursor pagination map to the documented API behavior. No polling occurs.
-- **AC-GEN-06:** List and detail use actual persisted data. The UI does not ship the Doop's illustrative chart, sample rows, costs, app names, session IDs, or provider timeline as operational data.
+- **AC-GEN-05:** Search, all four outcomes, provider/period filters, manual refresh, and cursor pagination map to the documented API behavior. Outcome, provider, and preset period changes commit immediately. Model id and custom dates commit when the period is **Personalizado**, via Enter on the model field or the apply control. No polling occurs.
+- **AC-GEN-06:** List and detail use actual persisted data from `/v1/generations`. Table rows, drawer fields, tokens, and costs are not populated from Doop sample fixtures. The UI does not present illustrative table rows, sample costs, app names, session IDs, or provider timelines as operational data. A **decorative** activity panel is permitted only when bar data is static, labelled non-operational (for example “VISUALIZAÇÃO ILUSTRATIVA”), and not backed by an aggregate API.
 - **AC-GEN-07:** Tokens and cost appear only from a matching E09.5 per-execution record; cost includes provider provenance and currency. Null and zero remain distinct.
 - **AC-GEN-08:** Speed, routing overhead, first-token time, finish reason, streaming, and provider-response events appear only after their specified instrumentation is captured; absent values remain unavailable.
 - **AC-GEN-09:** No API key or secret is exposed. App, session ID, canonical ID, and data policy follow the explicit availability and approval rules in Sections 6–7.
@@ -269,7 +276,7 @@ The Product Lead approved this SPEC in conversation on 2026-11-03. Repository go
 1. **Backend persistence and observation:** add migration, telemetry types/store, bounded retention, execution timing observations, and batched usage enrichment access. Validate the new behavior at package and PostgreSQL integration boundaries.
 2. **Backend API:** add the generation application service, authenticated list/detail routes, filters/cursors, safe DTO mapping, degraded states, and handler tests. Keep existing E06 handlers and schemas untouched.
 3. **Frontend data layer:** add generation DTOs/API, list and selected-detail queries, cursor accumulation, filters, loaded-results search, and explicit manual refresh. Disable polling and clear pagination/selection when API filters change.
-4. **HTML-led experience:** replace the page-local metrics and always-visible master/detail layout with the approved HTML hierarchy, a single Generations view, dense horizontally scrollable table, and initially closed right overlay drawer. Keep the chart omitted because its HTML values are explicitly illustrative. Use existing design tokens, AppShell, shared primitives, and Radix Dialog focus behavior.
+4. **HTML-led experience:** replace the page-local metrics and always-visible master/detail layout with the approved HTML hierarchy, a single Generations view, optional decorative activity panel, dense horizontally scrollable table, and initially closed right overlay drawer. Use existing design tokens, AppShell, shared primitives, and Radix Dialog focus behavior. The 2026-11-05 refinement adds Portuguese page chrome (`pageMeta`) and the compact filter bar described in Section 8.
 5. **Converge:** run Go and frontend claim-scoped tests, package checks, full required quality gates, visual checks at the five specified viewports, security review, author review, and the mandatory Phase 7 readonly independent review. Do not commit, push, or create a PR.
 
 **Delivery boundary gate (DEEPWORK=yes)**
@@ -283,14 +290,15 @@ The change crosses execution capture, persistence, authenticated API, and fronte
 3. **Session ID:** persist the already validated `X-Opencode-Session` value with generation telemetry, return it only from the authenticated detail endpoint, never log it, and delete it using the configured E06 record age/retention interval. This includes both supplied and generated IDs.
 4. **Application identity:** add no client header or heuristic. Render “Not reported” until a separate trusted identity contract exists.
 5. **Throughput:** calculate output tokens divided by the measured interval from first observed output event to terminal event, only when both values exist and the interval is positive. Otherwise return null.
-6. **Chart:** omit the illustrative chart and page-local summary cards. No generation aggregate endpoint is in this delivery.
+6. **Chart:** omit API-backed aggregate charts and page-local summary cards. No generation aggregate endpoint is in this delivery.
 7. **API key identity:** omit the API-key column. The static gateway credential has no per-client alias and must never be displayed.
+8. **Decorative activity panel:** Product Lead accepted (2026-11-05) a static `GenerationsActivityPanel` that mirrors the Doop layout with fixed bar heights and an explicit illustrative label. It is not a substitute for a future aggregate API and must not be wired to generation counts.
 
 ## 14. Evidence
 
 - **Claim:** This SPEC maps every requested generation field to a verified source or an explicit backend gap and defines observable UI/API acceptance criteria without weakening privacy or existing E06/E08 contracts.
 - **Success type:** `manual`.
-- **Evidence path:** Review this document against the approved product brief and supplied HTML attachment, Doop frame and style guide, `internal/records/`, `internal/execution/`, `internal/gateway/`, `internal/metering/`, the database migrations, related E06/E08/E09 specifications, and the current `apps/frontend/src/features/executions/` implementation. See [the implementation validation report](../validation/FE-EXECUTIONS-GENERATIONS-REFINEMENT.md) for test, visual, security, and independent-review evidence.
+- **Evidence path:** Review this document against the approved product brief and supplied HTML attachment, Doop frame and style guide, `internal/records/`, `internal/execution/`, `internal/gateway/`, `internal/metering/`, the database migrations, related E06/E08/E09 specifications, and the current `apps/frontend/src/features/executions/` implementation. See [the implementation validation report](../validation/FE-EXECUTIONS-GENERATIONS-REFINEMENT.md) for test, visual, security, and independent-review evidence. Post-delivery UI refinement review: [executions-generations-ui-refinement-review-2026-11-05.md](../../reports/frontend/executions-generations-ui-refinement-review-2026-11-05.md).
 - **Budget:** One source audit for each field in Section 6; one review of the supplied HTML and Doop visual/interaction requirements in Sections 3–5; one completeness review of API, architecture, acceptance, privacy, tests, and decisions in Sections 7–13.
 - **Affordance:** The generation projection and PostgreSQL content-free per-execution telemetry/event store are approved affordances. File-only records retain E06 fields and expose enrichment as unavailable.
 

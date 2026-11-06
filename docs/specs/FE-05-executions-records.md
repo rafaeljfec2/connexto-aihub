@@ -6,6 +6,8 @@
 
 **Scope:** MVP roadmap Setor 7 part 1 — `features/executions` read-only audit trail
 
+**Superseded UI:** The live `/executions` route implements [Generations Experience Refinement](./FE-EXECUTIONS-GENERATIONS-REFINEMENT.md) (generation projection, overlay drawer, `/v1/generations`). Section 3.2 below describes the original FE-05 master/detail layout and remains historical context for E06-only behavior.
+
 **Design reference:** Doop canvas `Qactw8snfC`, frame `PgFh4Y5Uka`
 
 ## 1. Intent

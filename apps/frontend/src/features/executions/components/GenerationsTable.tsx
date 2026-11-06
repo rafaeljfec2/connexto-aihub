@@ -96,7 +96,7 @@ export function GenerationsTable({
                   key={generation.execution_id}
                   tabIndex={0}
                   aria-selected={selected}
-                  aria-label={`${generation.model_id ?? 'Model not reported'}, ${generation.provider_id}, ${generation.outcome}`}
+                  aria-label={`${generation.model_id ?? 'Model not reported'}, ${catalogProviderLabel(generation.provider_id)}, ${generation.outcome}`}
                   className={selected ? 'generation-row generation-row-selected' : 'generation-row'}
                   onFocus={(event) => onFocusRow(event.currentTarget)}
                   onClick={(event) => {
