@@ -88,7 +88,6 @@ func run() error {
 	providerRegistry.Bind(providers.OpenCodeGoID, providerClient)
 	providerRegistry.Bind(providers.OpenRouterID, openRouterClient)
 	providerRegistry.Bind(providers.CursorID, connextoProxyClient)
-	providerRegistry.Bind(providers.ConnextoProxyID, connextoProxyClient)
 	providerModule := providers.NewRegistryManager(logger, providerRegistry)
 	eventHub := operational.NewHub(logger)
 	providerModule.SetStateChangeNotifier(func() {

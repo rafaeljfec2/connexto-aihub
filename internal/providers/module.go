@@ -54,6 +54,11 @@ func (m *ConfigModule) Start(ctx context.Context) error {
 		return err
 	}
 	for _, record := range records {
+		if IsLegacyTransportServiceID(record.ID) {
+			m.logger.Info("skipping legacy transport service provider record; configure logical providers such as cursor instead",
+				"provider", record.ID)
+			continue
+		}
 		if _, ok := bootstrapped[record.ID]; ok {
 			continue
 		}

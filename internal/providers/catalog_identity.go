@@ -1,8 +1,9 @@
 package providers
 
 // ExcludedFromCatalog reports provider IDs that must not appear as separate catalog
-// providers. The Connexto Proxy CLI adapter is transport-only; models discovered
-// through it belong to the logical Cursor provider (cursor).
+// providers. Legacy transport service ids and any future transport-only aliases
+// belong here; models discovered through the Connexto Proxy belong to logical
+// providers such as cursor.
 func ExcludedFromCatalog(providerID string) bool {
-	return providerID == ConnextoProxyID
+	return IsLegacyTransportServiceID(providerID)
 }

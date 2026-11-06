@@ -1,0 +1,1 @@
+-- 0009_remove_legacy_transport_provider (rollback) — no automatic restore.

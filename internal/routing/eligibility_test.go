@@ -246,6 +246,23 @@ func TestCoverageIncompleteWhenProviderEligibleButCatalogStale(t *testing.T) {
 	}
 }
 
+func TestCoverageIgnoresTransportOnlyProviderWithoutCatalog(t *testing.T) {
+	now := time.Now().UTC()
+	success := now.Add(-time.Hour)
+	snapshot := baseSnapshot(now, success)
+	snapshot.Admin[providers.ConnextoProxyID] = routing.AdminProviderFacts{
+		ID: providers.ConnextoProxyID, Known: true, Enabled: true, HasCredential: true,
+	}
+	snapshot.Runtime[providers.ConnextoProxyID] = routing.RuntimeProviderFacts{
+		Bound: true, ResponsesSupported: true, RuntimeEnabled: true, Health: providers.StateHealthy,
+	}
+
+	result := routing.EvaluateEligibility(routing.RoutingContext{RequestID: "req"}, snapshot, routing.RequirementStatus{})
+	if !result.Coverage.CompleteFreshCoverageForEligible {
+		t.Fatal("transport-only catalog provider must not require fresh catalog sync for coverage")
+	}
+}
+
 func baseSnapshot(now, success time.Time) routing.Snapshot {
 	return routing.Snapshot{
 		CapturedAt: now,

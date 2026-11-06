@@ -51,7 +51,7 @@ func TestConnextoProxyResponsesPreservesBodyAndHeaders(t *testing.T) {
 
 	client := newConnextoProxyTestClient(t, server.URL+"/v1", server.Client(), connextoProxyTestCursorKey)
 	response, err := client.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
-		ProviderID: providers.ConnextoProxyID,
+		ProviderID: providers.CursorID,
 		ModelID:    "composer-2.5",
 	}, []byte(payload), "application/json", "session-1")
 	if err != nil {
@@ -88,6 +88,39 @@ func TestConnextoProxyFetchModelDescriptorsPreservesOriginalIDs(t *testing.T) {
 	if descriptors[0].Name != "composer-2.5" {
 		t.Fatalf("model name mismatch: %s", descriptors[0].Name)
 	}
+	if descriptors[0].ToolsSupported == nil || !*descriptors[0].ToolsSupported {
+		t.Fatalf("ToolsSupported = %v, want explicit true", descriptors[0].ToolsSupported)
+	}
+	if descriptors[0].ReasoningSupported == nil || !*descriptors[0].ReasoningSupported {
+		t.Fatalf("ReasoningSupported = %v, want explicit true", descriptors[0].ReasoningSupported)
+	}
+}
+
+func TestConnextoProxyFetchModelDescriptorsHonorsUpstreamCapabilityFlags(t *testing.T) {
+	mockCatalog := `{"object":"list","data":[{"id":"legacy-model","object":"model","capabilities":{"tools":{"supported":false},"reasoning":{"supported":true}}}]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, mockCatalog)
+	}))
+	defer server.Close()
+
+	client := newConnextoProxyTestClient(t, server.URL+"/v1", server.Client(), connextoProxyTestCursorKey)
+	descriptors, err := client.FetchModelDescriptors(context.Background())
+	if err != nil {
+		t.Fatalf("FetchModelDescriptors() error = %v", err)
+	}
+	if len(descriptors) != 1 {
+		t.Fatalf("descriptors count = %d, want 1", len(descriptors))
+	}
+	if descriptors[0].ToolsSupported == nil || *descriptors[0].ToolsSupported {
+		t.Fatalf("ToolsSupported = %v, want explicit false from upstream", descriptors[0].ToolsSupported)
+	}
+	if descriptors[0].ReasoningSupported == nil || !*descriptors[0].ReasoningSupported {
+		t.Fatalf("ReasoningSupported = %v, want explicit true from upstream", descriptors[0].ReasoningSupported)
+	}
 }
 
 func TestConnextoProxyFetchModelDescriptorsRejectsInvalidPayload(t *testing.T) {
@@ -123,7 +156,7 @@ func TestConnextoProxyResponsesPreservesUpstreamHTTPErrorAndSanitizes(t *testing
 
 	client := newConnextoProxyTestClient(t, server.URL+"/v1", server.Client(), connextoProxyTestCursorKey)
 	response, err := client.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
-		ProviderID: providers.ConnextoProxyID,
+		ProviderID: providers.CursorID,
 		ModelID:    "composer-2.5",
 	}, []byte(`{"model":"composer-2.5","input":"hello"}`), "application/json", "")
 	if err != nil {
@@ -142,6 +175,35 @@ func TestConnextoProxyResponsesPreservesUpstreamHTTPErrorAndSanitizes(t *testing
 	}
 }
 
+func TestConnextoProxyResponsesSanitizesPayloadTooLargeWithHint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		_, _ = io.WriteString(w, `{"error":{"message":"Request body is too large."}}`)
+	}))
+	defer server.Close()
+
+	client := newConnextoProxyTestClient(t, server.URL+"/v1", server.Client(), connextoProxyTestCursorKey)
+	response, err := client.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
+		ProviderID: providers.CursorID,
+		ModelID:    "composer-2.5",
+	}, []byte(`{"model":"composer-2.5","input":"hello"}`), "application/json", "")
+	if err != nil {
+		t.Fatalf("OpenTargetResponses() error = %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413", response.StatusCode)
+	}
+	body, _ := io.ReadAll(response.Body)
+	text := string(body)
+	if !strings.Contains(text, "GATEWAY_JSON_BODY_LIMIT_BYTES") {
+		t.Fatalf("expected payload-too-large hint, got: %s", text)
+	}
+	if strings.Contains(text, "Request body is too large") {
+		t.Fatalf("upstream 413 body leaked: %s", text)
+	}
+}
+
 func TestConnextoProxyResponsesMapsHeaderTimeoutWithoutCredential(t *testing.T) {
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
@@ -153,7 +215,7 @@ func TestConnextoProxyResponsesMapsHeaderTimeoutWithoutCredential(t *testing.T) 
 	transport := &http.Transport{ResponseHeaderTimeout: 20 * time.Millisecond}
 	client := newConnextoProxyTestClient(t, server.URL+"/v1", &http.Client{Transport: transport}, connextoProxyTestCursorKey)
 	_, err := client.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
-		ProviderID: providers.ConnextoProxyID,
+		ProviderID: providers.CursorID,
 	}, []byte(`{"model":"composer-2.5","input":"hello"}`), "application/json", "")
 	var timeout providers.ResponseHeaderTimeoutError
 	if !errors.As(err, &timeout) {

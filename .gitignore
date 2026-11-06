@@ -9,6 +9,9 @@ internal/static/dist/
 node_modules/
 .turbo/
 
+# Connexto development workflow runs (local checkpoint)
+.connexto/
+
 # Local configuration and secrets
 .env
 .env.*

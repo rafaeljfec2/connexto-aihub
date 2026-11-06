@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"aihub/internal/catalog"
+	"aihub/internal/providers"
 )
 
 // EvaluateEligibility applies the E08 routing contract to a snapshot and request context.
@@ -142,14 +143,23 @@ func buildCoverage(snapshot Snapshot) CoverageEvidence {
 	providerIDs := make(map[string]struct{})
 
 	for id := range snapshot.Admin {
+		if providers.ExcludedFromCatalog(id) {
+			continue
+		}
 		providerIDs[id] = struct{}{}
 	}
 
 	for id := range snapshot.Runtime {
+		if providers.ExcludedFromCatalog(id) {
+			continue
+		}
 		providerIDs[id] = struct{}{}
 	}
 
 	for id := range snapshot.Sync {
+		if providers.ExcludedFromCatalog(id) {
+			continue
+		}
 		providerIDs[id] = struct{}{}
 	}
 

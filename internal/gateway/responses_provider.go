@@ -36,7 +36,7 @@ func explicitProviderFromRequest(request *http.Request) (string, error) {
 	if len(values) != 1 || len(values[0]) > 128 {
 		return "", errInvalidProviderSelector
 	}
-	return values[0], nil
+	return providers.NormalizeLogicalProviderID(values[0]), nil
 }
 
 func (h *responsesHandler) requireProvider(providerID string, writer http.ResponseWriter) bool {

@@ -111,12 +111,12 @@ func TestNormalizeOpenRouterCachedTokensAndMissingCurrency(t *testing.T) {
 
 func TestNormalizeConnextoProxyUsageReported(t *testing.T) {
 	event := []byte(`{"type":"response.completed","response":{"usage":{"input_tokens":42,"output_tokens":88,"total_tokens":130}}}`)
-	record := metering.NormalizeExecutionUsage(providers.ConnextoProxyID, capture.Result{FinalEventData: event})
+	record := metering.NormalizeExecutionUsage(providers.LegacyTransportServiceID, capture.Result{FinalEventData: event})
 	if record.Status != metering.StatusReported {
 		t.Fatalf("status = %s", record.Status)
 	}
-	if record.Source != metering.SourceConnextoProxy {
-		t.Fatalf("source = %s, want %s", record.Source, metering.SourceConnextoProxy)
+	if record.Source != metering.SourceCursor {
+		t.Fatalf("source = %s, want %s", record.Source, metering.SourceCursor)
 	}
 	if record.InputTokens == nil || *record.InputTokens != 42 {
 		t.Fatalf("input = %v, want 42", record.InputTokens)

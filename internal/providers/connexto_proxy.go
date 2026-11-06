@@ -86,8 +86,8 @@ func (c *ConnextoProxyClient) ListModels(ctx context.Context) (*http.Response, e
 
 // OpenTargetResponses forwards a stateless Responses request without rewriting it.
 func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target ResponsesTarget, payload []byte, contentType, _ string) (*http.Response, error) {
-	if target.ProviderID != CursorID && target.ProviderID != ConnextoProxyID {
-		return nil, errors.New("provider target does not match Cursor provider")
+	if !connextoProxyLogicalProvider(target.ProviderID) {
+		return nil, errors.New("provider target does not match a Connexto Proxy logical provider")
 	}
 	if target.ModelID != "" && strings.TrimSpace(target.ModelID) == "" {
 		return nil, errors.New("provider model identity must not be empty")
@@ -119,12 +119,20 @@ func sanitizeConnextoProxyErrorResponse(response *http.Response) {
 	if response == nil || response.StatusCode < http.StatusMultipleChoices {
 		return
 	}
+	body := connextoProxyErrorBodyForStatus(response.StatusCode)
 	if response.Body != nil {
 		_ = response.Body.Close()
 	}
-	response.Body = io.NopCloser(strings.NewReader(connextoProxyErrorBody))
-	response.ContentLength = int64(len(connextoProxyErrorBody))
+	response.Body = io.NopCloser(strings.NewReader(body))
+	response.ContentLength = int64(len(body))
 	response.Header.Set("Content-Type", "application/json")
+}
+
+func connextoProxyErrorBodyForStatus(statusCode int) string {
+	if statusCode == http.StatusRequestEntityTooLarge {
+		return `{"error":{"type":"upstream_error","message":"Connexto Proxy rejected the request body (payload too large). Rebuild the proxy with GATEWAY_JSON_BODY_LIMIT_BYTES (default 32 MiB) or increase the limit."}}`
+	}
+	return connextoProxyErrorBody
 }
 
 // FetchModelDescriptors parses claims from Connexto Proxy's catalog.
@@ -174,10 +182,14 @@ func (c *ConnextoProxyClient) FetchModelDescriptors(ctx context.Context) ([]Mode
 
 func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 	var model struct {
-		ID          string `json:"id"`
-		Name        string `json:"name"`
-		Object      string `json:"object"`
-		OwnedBy     string `json:"owned_by"`
+		ID           string `json:"id"`
+		Name         string `json:"name"`
+		Object       string `json:"object"`
+		OwnedBy      string `json:"owned_by"`
+		Capabilities struct {
+			Tools     *rawSupported `json:"tools"`
+			Reasoning *rawSupported `json:"reasoning"`
+		} `json:"capabilities"`
 	}
 	if err := json.Unmarshal(raw, &model); err != nil {
 		return ModelDescriptor{}, err
@@ -189,15 +201,42 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 	if name == "" {
 		name = model.ID
 	}
+
+	// OpenAI-minimal proxy catalogs omit capabilities; agent models listed here support tools and reasoning.
+	// If the proxy lists non-agent models, upstream should send capabilities.tools/reasoning explicitly.
+	toolsSupported := true
+	reasoningSupported := true
+	if model.Capabilities.Tools != nil && model.Capabilities.Tools.Supported != nil {
+		toolsSupported = *model.Capabilities.Tools.Supported
+	}
+	if model.Capabilities.Reasoning != nil && model.Capabilities.Reasoning.Supported != nil {
+		reasoningSupported = *model.Capabilities.Reasoning.Supported
+	}
+
 	descriptor := ModelDescriptor{
 		ID:                      model.ID,
 		Name:                    name,
 		Type:                    model.Object,
 		OutputModalities:        []string{"text"},
 		OutputModalitiesPresent: true,
+		ToolsSupported:          boolPtr(toolsSupported),
+		ReasoningSupported:      boolPtr(reasoningSupported),
 		Raw:                     bytes.Clone(raw),
 	}
 	return descriptor, nil
+}
+
+func connextoProxyLogicalProvider(providerID string) bool {
+	switch providerID {
+	case CursorID:
+		return true
+	default:
+		return false
+	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func (c *ConnextoProxyClient) CloseIdle() {

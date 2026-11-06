@@ -135,7 +135,7 @@ func TestConnextoProxyUnavailableWhenDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	registry := providers.NewRegistry()
-	registry.Bind(providers.ConnextoProxyID, client)
+	registry.Bind(providers.CursorID, client)
 
 	manager := execution.NewMultiProviderManager(logger,
 		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
@@ -152,7 +152,7 @@ func TestConnextoProxyUnavailableWhenDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set(gateway.ProviderHeader, providers.ConnextoProxyID)
+	request.Header.Set(gateway.ProviderHeader, providers.CursorID)
 
 	response, err := gatewayServer.Client().Do(request)
 	if err != nil {
@@ -162,6 +162,83 @@ func TestConnextoProxyUnavailableWhenDisabled(t *testing.T) {
 
 	if response.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want 503", response.StatusCode)
+	}
+}
+
+func TestCursorIntelligentRoutingCodexLikePayload(t *testing.T) {
+	mockCatalog := `{"object":"list","data":[{"id":"composer-2.5","object":"model","owned_by":"cursor"}]}`
+	var responsesHit bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, mockCatalog)
+		case "/v1/responses":
+			responsesHit = true
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, `{"id":"resp-routed"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	proxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:       server.URL + "/v1",
+		APIKey:        connextoProxyTestKey,
+		ManagementKey: connextoProxyTestKey,
+		Enabled:       true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() error = %v", err)
+	}
+
+	registry := providers.NewRegistry()
+	registry.Bind(providers.CursorID, proxyClient)
+
+	catalogManager := gatewayTestCatalog(t, time.Now(), map[string]catalog.SourceFunc{
+		providers.CursorID: proxyClient.FetchModelDescriptors,
+	})
+
+	manager := execution.NewMultiProviderManager(logger,
+		func(ctx context.Context, target execution.Target, payload []byte, contentType, sessionID string) (*http.Response, error) {
+			return registry.OpenTargetResponses(ctx, providers.ResponsesTarget{ProviderID: target.ProviderID, ModelID: target.ModelID}, payload, contentType, sessionID)
+		}, time.Minute)
+
+	handler := gateway.NewResponsesHandlerWithRegistry(registry, manager, logger, time.Minute, &gateway.ResponsesRouting{
+		Catalog: catalogManager,
+		Statuses: func() []providers.Status {
+			return []providers.Status{
+				{ID: providers.CursorID, Enabled: true, State: providers.StateHealthy},
+			}
+		},
+		StaleAfter: 24 * time.Hour,
+	}, nil, nil, nil)
+
+	gatewayServer := httptest.NewServer(handler)
+	defer gatewayServer.Close()
+
+	codexLikeBody := `{"model":"composer-2.5","input":"hello","tools":[{"type":"function","name":"noop","parameters":{"type":"object","properties":{}}}],"reasoning":{"effort":"medium"}}`
+	request, err := http.NewRequest(http.MethodPost, gatewayServer.URL+"/v1/responses", strings.NewReader(codexLikeBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := gatewayServer.Client().Do(request)
+	if err != nil {
+		t.Fatalf("gateway request error = %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("status = %d body = %s, want 200 (routing should reach execution)", response.StatusCode, string(body))
+	}
+	if !responsesHit {
+		t.Fatal("upstream /v1/responses was not called")
 	}
 }
 
@@ -186,13 +263,9 @@ func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Hand
 	registry := providers.NewRegistry()
 	registry.Bind(providers.OpenCodeGoID, openCode)
 	registry.Bind(providers.CursorID, proxyClient)
-	registry.Bind(providers.ConnextoProxyID, proxyClient)
 
 	catalogManager := gatewayTestCatalog(t, time.Now(), map[string]catalog.SourceFunc{
 		providers.CursorID: func(context.Context) ([]providers.ModelDescriptor, error) {
-			return []providers.ModelDescriptor{gatewayTestDescriptor("composer-2.5")}, nil
-		},
-		providers.ConnextoProxyID: func(context.Context) ([]providers.ModelDescriptor, error) {
 			return []providers.ModelDescriptor{gatewayTestDescriptor("composer-2.5")}, nil
 		},
 	})
@@ -208,7 +281,6 @@ func newConnextoProxyRoutedHandler(t *testing.T, proxyEndpoint string) http.Hand
 			return []providers.Status{
 				{ID: providers.OpenCodeGoID, Enabled: true, State: providers.StateHealthy},
 				{ID: providers.CursorID, Enabled: true, State: providers.StateHealthy},
-				{ID: providers.ConnextoProxyID, Enabled: true, State: providers.StateHealthy},
 			}
 		},
 		StaleAfter: 24 * time.Hour,

@@ -14,12 +14,35 @@ const (
 	TypeCursor = "cursor"
 )
 
-// Connexto Proxy integration identifiers and defaults (internal adapter for Cursor).
+// Connexto Proxy service identifiers. The proxy is a shared HTTP transport service,
+// not a logical provider. Logical providers (cursor today; more later) bind to the
+// same ConnextoProxyClient in the registry.
 const (
-	ConnextoProxyID              = "connexto-proxy-cli-llms"
+	// LegacyTransportServiceID is the retired registry/catalog id for the proxy
+	// service itself. Requests or persisted rows using this id should map to cursor
+	// or be removed; do not bind this id in the provider registry.
+	LegacyTransportServiceID = "connexto-proxy-cli-llms"
+
+	// ConnextoProxyID is deprecated; use LegacyTransportServiceID.
+	ConnextoProxyID = LegacyTransportServiceID
+
 	TypeConnextoProxy            = "connexto-proxy"
 	DefaultConnextoProxyEndpoint = "http://127.0.0.1:9090/v1"
 )
+
+// NormalizeLogicalProviderID maps retired transport ids to logical provider ids.
+func NormalizeLogicalProviderID(providerID string) string {
+	if providerID == LegacyTransportServiceID {
+		return CursorID
+	}
+
+	return providerID
+}
+
+// IsLegacyTransportServiceID reports ids that must not appear as registry providers.
+func IsLegacyTransportServiceID(providerID string) bool {
+	return providerID == LegacyTransportServiceID
+}
 
 // AvailableProvider describes a supported provider that can be configured by users.
 type AvailableProvider struct {

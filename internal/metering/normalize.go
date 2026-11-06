@@ -27,7 +27,7 @@ func NormalizeExecutionUsage(providerID string, capture capture.Result) Record {
 		return normalizeOpenCodeUsage(rawUsage, source)
 	case providers.OpenRouterID:
 		return normalizeOpenRouterUsage(rawUsage, source)
-	case providers.CursorID, providers.ConnextoProxyID:
+	case providers.CursorID, providers.LegacyTransportServiceID:
 		return normalizeConnextoProxyUsage(rawUsage, source)
 	default:
 		return unavailableRecord(source)
@@ -40,10 +40,8 @@ func meteringSource(providerID string) Source {
 		return SourceOpenCodeGo
 	case providers.OpenRouterID:
 		return SourceOpenRouter
-	case providers.CursorID:
+	case providers.CursorID, providers.LegacyTransportServiceID:
 		return SourceCursor
-	case providers.ConnextoProxyID:
-		return SourceConnextoProxy
 	default:
 		return SourceUnknown
 	}
