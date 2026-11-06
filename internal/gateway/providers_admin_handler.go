@@ -232,9 +232,27 @@ func (a *ProviderAdmin) ClearAntigravityProxyRuntimeSessions() http.Handler {
 			return
 		}
 		id := r.PathValue("id")
-		err := a.service.ClearAntigravityProxyRuntimeSessions(r.Context(), id)
+		result, err := a.service.ClearAntigravityProxyRuntimeSessions(r.Context(), id)
 		if err == nil {
-			writeJSON(w, http.StatusOK, map[string]any{"cleared": true, "namespace": "antigravity"})
+			payload := map[string]any{"cleared": true, "namespace": "antigravity"}
+			if result != nil {
+				if result.MappedAcpIDsCount != nil {
+					payload["mapped_acp_ids_count"] = *result.MappedAcpIDsCount
+				}
+				if result.ListedAcpSessionsCount != nil {
+					payload["listed_acp_sessions_count"] = *result.ListedAcpSessionsCount
+				}
+				if result.AcpSessionsClosed != nil {
+					payload["acp_sessions_closed"] = *result.AcpSessionsClosed
+				}
+				if result.AcpCloseFailures != nil {
+					payload["acp_close_failures"] = *result.AcpCloseFailures
+				}
+				if len(result.Warnings) > 0 {
+					payload["warnings"] = result.Warnings
+				}
+			}
+			writeJSON(w, http.StatusOK, payload)
 			return
 		}
 		switch {

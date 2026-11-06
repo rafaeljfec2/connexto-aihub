@@ -25,6 +25,18 @@ const openRouterProvider: AdminProvider = {
   updated_at: '2026-11-04T00:00:00Z',
 }
 
+const antigravityProvider: AdminProvider = {
+  id: 'antigravity',
+  name: 'Antigravity',
+  type: 'antigravity',
+  endpoint: 'http://127.0.0.1:9090/v1',
+  enabled: true,
+  credential_configured: false,
+  management_credential_configured: true,
+  created_at: '2026-11-04T00:00:00Z',
+  updated_at: '2026-11-04T00:00:00Z',
+}
+
 describe('ProviderPatchForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -84,6 +96,18 @@ describe('ProviderPatchForm', () => {
         credential: 'test-key-probe',
       })
       expect(screen.getByText(/Conexão testada com sucesso!/i)).toBeDefined()
+    })
+  })
+
+  it('for Antigravity, Testar conexão clarifies probe vs ACP context', async () => {
+    render(<ProviderPatchForm provider={antigravityProvider} isPending={false} onSubmit={vi.fn()} />)
+
+    const testBtn = screen.getByRole('button', { name: /Testar conexão/i })
+    fireEvent.click(testBtn)
+
+    await waitFor(() => {
+      expect(queries.validateProvider).toHaveBeenCalledWith('antigravity', undefined)
+      expect(screen.getByText(/Gateway alcançável e operacional/i)).toBeDefined()
     })
   })
 

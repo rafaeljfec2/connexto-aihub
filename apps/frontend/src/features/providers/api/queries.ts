@@ -58,10 +58,20 @@ export async function validateProvider(
   })
 }
 
+export type AntigravityProxyRuntimeSessionClearResponse = {
+  cleared: boolean
+  namespace: string
+  mapped_acp_ids_count?: number
+  listed_acp_sessions_count?: number
+  acp_sessions_closed?: number
+  acp_close_failures?: number
+  warnings?: string[]
+}
+
 export async function clearAntigravityProxyRuntimeSessions(
   id: string,
-): Promise<{ cleared: boolean; namespace: string }> {
-  return fetchJson<{ cleared: boolean; namespace: string }>(
+): Promise<AntigravityProxyRuntimeSessionClearResponse> {
+  return fetchJson<AntigravityProxyRuntimeSessionClearResponse>(
     `/api/providers/${encodeURIComponent(id)}/proxy/runtime/sessions/clear`,
     { method: 'POST' },
   )

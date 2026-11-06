@@ -21,7 +21,7 @@ func TestClearAntigravityProxyRuntimeSessions_OK(t *testing.T) {
 		b, _ := io.ReadAll(r.Body)
 		bodyCh <- string(b)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"cleared":true,"namespace":"antigravity"}`))
+		_, _ = w.Write([]byte(`{"cleared":true,"namespace":"antigravity","mapped_acp_ids_count":0,"listed_acp_sessions_count":2,"acp_sessions_closed":2,"acp_close_failures":0,"warnings":[]}`))
 	}))
 	t.Cleanup(server.Close)
 
@@ -44,9 +44,15 @@ func TestClearAntigravityProxyRuntimeSessions_OK(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	err = service.ClearAntigravityProxyRuntimeSessions(context.Background(), providers.AntigravityID)
+	res, err := service.ClearAntigravityProxyRuntimeSessions(context.Background(), providers.AntigravityID)
 	if err != nil {
 		t.Fatalf("ClearAntigravityProxyRuntimeSessions = %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if res.ListedAcpSessionsCount == nil || *res.ListedAcpSessionsCount != 2 {
+		t.Fatalf("listed count = %v", res.ListedAcpSessionsCount)
 	}
 	if sawMethod != http.MethodPost {
 		t.Fatalf("method = %q, want POST", sawMethod)
@@ -82,7 +88,7 @@ func TestClearAntigravityProxyRuntimeSessions_RejectsNonAntigravity(t *testing.T
 		t.Fatalf("Create: %v", err)
 	}
 
-	err = service.ClearAntigravityProxyRuntimeSessions(context.Background(), "cursor")
+	_, err = service.ClearAntigravityProxyRuntimeSessions(context.Background(), "cursor")
 	if err == nil || !strings.Contains(err.Error(), "session clearing applies only to antigravity") {
 		t.Fatalf("error = %v, want invalid type", err)
 	}

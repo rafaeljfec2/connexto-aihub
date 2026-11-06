@@ -31,11 +31,28 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
     setClearingProxySessions(true)
     setTestResult(null)
     try {
-      await clearAntigravityProxyRuntimeSessions(provider.id)
+      const summary = await clearAntigravityProxyRuntimeSessions(provider.id)
+      const parts: string[] = []
+      if (summary.mapped_acp_ids_count !== undefined) {
+        parts.push(`Mapeados no gateway: ${summary.mapped_acp_ids_count}`)
+      }
+      if (summary.listed_acp_sessions_count !== undefined) {
+        parts.push(`Listados no ACP: ${summary.listed_acp_sessions_count}`)
+      }
+      if (summary.acp_sessions_closed !== undefined) {
+        parts.push(`Fechados (session/close): ${summary.acp_sessions_closed}`)
+      }
+      if (summary.acp_close_failures !== undefined && summary.acp_close_failures > 0) {
+        parts.push(`Falhas ao fechar: ${summary.acp_close_failures}`)
+      }
+      const detail = parts.length > 0 ? `${parts.join('. ')}. ` : ''
+      const warnBlock =
+        summary.warnings && summary.warnings.length > 0
+          ? ` Avisos: ${summary.warnings.slice(0, 5).join(' | ')}${summary.warnings.length > 5 ? '…' : ''}`
+          : ''
       setTestResult({
         success: true,
-        message:
-          'Sessões persistidas do Antigravity foram removidas no proxy (armazenamento de sessão do gateway). OAuth em ~/.gemini não é apagado por esta ação.',
+        message: `${detail}Persistência e cache do gateway foram limpos. OAuth em ~/.gemini não é apagado.${warnBlock}`,
       })
     } catch (err) {
       setTestResult({
@@ -89,7 +106,9 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
       }
       setTestResult({
         success: true,
-        message: 'Conexão testada com sucesso! O provedor está acessível e operacional.',
+        message: isAntigravity
+          ? 'Gateway alcançável e operacional (teste de listagem de modelos). Isso não verifica se o contexto Antigravity/ACP foi encerrado.'
+          : 'Conexão testada com sucesso! O provedor está acessível e operacional.',
       })
     } catch (err) {
       setTestResult({
