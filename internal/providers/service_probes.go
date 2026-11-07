@@ -21,3 +21,12 @@ func NewServiceWithProbes(repo Repository, cipher *CredentialCipher, registry *R
 		defaultEndpoints: make(map[string]string),
 	}
 }
+
+// AllowedEndpointHosts returns the lowercased host allowlist for outbound provider calls.
+func (s *Service) AllowedEndpointHosts() []string {
+	out := make([]string, 0, len(s.allowedHosts))
+	for host := range s.allowedHosts {
+		out = append(out, host)
+	}
+	return out
+}

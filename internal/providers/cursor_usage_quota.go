@@ -1,0 +1,212 @@
+package providers
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+)
+
+const (
+	cursorUsageQuotaSourceName = "cursor_proxy_usage_collect"
+	cursorUsageCollectRoute    = "/providers/cursor/usage/collect"
+	defaultCursorUsageTimeout  = 120 * time.Second
+)
+
+// CursorUsageQuotaAdapter queries Cursor usage via Connexto Proxy browser collect.
+type CursorUsageQuotaAdapter struct {
+	httpClient   *http.Client
+	allowedHosts map[string]struct{}
+	accountID    string
+}
+
+// NewCursorUsageQuotaAdapter creates an adapter bound to a hub provider account id.
+func NewCursorUsageQuotaAdapter(httpClient *http.Client, allowedHosts []string, accountID string) *CursorUsageQuotaAdapter {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: defaultCursorUsageTimeout}
+	}
+	allowedMap := make(map[string]struct{}, len(allowedHosts))
+	for _, host := range allowedHosts {
+		if host = strings.ToLower(strings.TrimSpace(host)); host != "" {
+			allowedMap[host] = struct{}{}
+		}
+	}
+	return &CursorUsageQuotaAdapter{
+		httpClient:   httpClient,
+		allowedHosts: allowedMap,
+		accountID:    strings.TrimSpace(accountID),
+	}
+}
+
+type cursorCollectRequest struct {
+	AccountID string `json:"accountId"`
+}
+
+type cursorCollectResponse struct {
+	Status    string                 `json:"status"`
+	Usage     map[string]interface{} `json:"usage"`
+	AccountID string                 `json:"accountId"`
+}
+
+func newCursorUsageSnapshot(scope DataScope) ProviderQuotaSnapshot {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return ProviderQuotaSnapshot{
+		ProviderID:   TypeCursor,
+		ProviderName: "Cursor",
+		Scope:        scope,
+		Status:       QuotaStatusError,
+		Quotas:       []ProviderQuotaMetric{},
+		Source: ProviderQuotaSource{
+			Type:      "provider_api",
+			Name:      cursorUsageQuotaSourceName,
+			Scope:     scope,
+			FetchedAt: now,
+		},
+	}
+}
+
+// FetchQuota posts to the proxy collect endpoint using the gateway management key.
+func (a *CursorUsageQuotaAdapter) FetchQuota(ctx context.Context, endpoint, credential string) (ProviderQuotaSnapshot, error) {
+	snapshot := newCursorUsageSnapshot(ScopeAccount)
+
+	if strings.TrimSpace(credential) == "" {
+		snapshot.Status = QuotaStatusUnconfiguredCredential
+		snapshot.Error = &ProviderQuotaError{
+			Code:    "unconfigured_credential",
+			Message: "Gateway API Key não configurada para comunicação com o proxy",
+		}
+		return snapshot, nil
+	}
+	if a.accountID == "" {
+		snapshot.Error = &ProviderQuotaError{Code: "invalid_account", Message: "Conta inválida para coleta Cursor"}
+		return snapshot, nil
+	}
+
+	target, err := a.target(endpoint, cursorUsageCollectRoute)
+	if err != nil {
+		snapshot.Error = &ProviderQuotaError{Code: "invalid_endpoint", Message: err.Error()}
+		return snapshot, nil
+	}
+
+	payload, err := json.Marshal(cursorCollectRequest{AccountID: a.accountID})
+	if err != nil {
+		return snapshot, fmt.Errorf("marshal collect body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(payload))
+	if err != nil {
+		return snapshot, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Gateway-API-Key", credential)
+	req.Header.Set("X-Hub-Account-Id", a.accountID)
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		if os.IsTimeout(err) {
+			snapshot.Status = QuotaStatusError
+			snapshot.Error = &ProviderQuotaError{Code: "timeout", Message: "Tempo esgotado ao coletar uso Cursor"}
+			return snapshot, nil
+		}
+		return snapshot, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 512<<10))
+	if err != nil {
+		return snapshot, err
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		snapshot.Status = QuotaStatusUnauthorized
+		snapshot.Error = &ProviderQuotaError{
+			Code:    "authentication_required",
+			Message: "Sessão Cursor no proxy requer autenticação assistida",
+		}
+		return snapshot, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		snapshot.Error = &ProviderQuotaError{
+			Code:    "upstream_error",
+			Message: fmt.Sprintf("Proxy retornou HTTP %d", resp.StatusCode),
+		}
+		return snapshot, nil
+	}
+
+	var parsed cursorCollectResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return snapshot, fmt.Errorf("decode collect response: %w", err)
+	}
+
+	switch parsed.Status {
+	case "available":
+		snapshot.Status = QuotaStatusAvailable
+		snapshot.Quotas = mapCursorUsageMetrics(parsed.Usage)
+		return snapshot, nil
+	case "authentication_required", "session_expired":
+		snapshot.Status = QuotaStatusUnauthorized
+		snapshot.Error = &ProviderQuotaError{
+			Code:    parsed.Status,
+			Message: "Autentique a conta Cursor no proxy para coletar uso",
+		}
+		return snapshot, nil
+	default:
+		snapshot.Error = &ProviderQuotaError{
+			Code:    parsed.Status,
+			Message: "Coleta Cursor não disponível",
+		}
+		return snapshot, nil
+	}
+}
+
+func (a *CursorUsageQuotaAdapter) target(endpoint, path string) (string, error) {
+	base := strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	if base == "" {
+		base = "http://127.0.0.1:9090/v1"
+	}
+	parsed, err := url.Parse(base + path)
+	if err != nil {
+		return "", err
+	}
+	if len(a.allowedHosts) > 0 {
+		host := strings.ToLower(parsed.Hostname())
+		if _, ok := a.allowedHosts[host]; !ok {
+			return "", fmt.Errorf("host %q not allowed for cursor usage collect", host)
+		}
+	}
+	return parsed.String(), nil
+}
+
+func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
+	if usage == nil {
+		return []ProviderQuotaMetric{}
+	}
+	metrics := make([]ProviderQuotaMetric, 0, len(usage))
+	for key, value := range usage {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric: key,
+			Label:  key,
+			Nature: NatureUsage,
+			Used:   numericPointer(value),
+		})
+	}
+	return metrics
+}
+
+func numericPointer(value interface{}) *float64 {
+	switch typed := value.(type) {
+	case float64:
+		return &typed
+	case json.Number:
+		if f, err := typed.Float64(); err == nil {
+			return &f
+		}
+	}
+	return nil
+}

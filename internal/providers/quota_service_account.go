@@ -19,6 +19,10 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 		}
 		return []ProviderQuotaSnapshot{s.queryAntigravityAccount(ctx, record, adapter)}
 	}
+	if record.Type == TypeCursor {
+		adapter := NewCursorUsageQuotaAdapter(nil, s.adminService.AllowedEndpointHosts(), record.ID)
+		return []ProviderQuotaSnapshot{s.queryCursorProxyAccount(ctx, record, adapter)}
+	}
 	adapter, supported := s.adapters[record.Type]
 	if !supported {
 		if !record.HasCredential {
@@ -38,6 +42,21 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 		snapshots = append(snapshots, s.queryAccountScope(ctx, record, accountAdapter))
 	}
 	return snapshots
+}
+
+func (s *QuotaService) queryCursorProxyAccount(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {
+	managementKey, err := s.adminService.managementCredentialOf(ctx, record)
+	if err != nil {
+		s.logCredentialFailure(record, "management", err)
+		return unavailableSnapshot(record, ScopeAccount, cursorUsageQuotaSourceName, QuotaStatusError,
+			"credential_decrypt_failed", "Falha ao recuperar a Gateway API Key")
+	}
+	gatewayKey, ok := EffectiveGatewayKeyForAntigravityValidation(managementKey)
+	if !ok {
+		return unavailableSnapshot(record, ScopeAccount, cursorUsageQuotaSourceName, QuotaStatusUnconfiguredCredential,
+			"unconfigured_credential", "Gateway API Key não configurada para comunicação com o proxy")
+	}
+	return s.queryWithCredential(ctx, record, adapter.FetchQuota, gatewayKey, ScopeAccount, cursorUsageQuotaSourceName)
 }
 
 func (s *QuotaService) queryAntigravityAccount(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {

@@ -36,6 +36,8 @@ const (
 	proxySessionClearFailedMsg    = "the connexto proxy rejected clearing runtime sessions"
 	proxyAntigravityAuthFailedType = "proxy_antigravity_auth_failed"
 	proxyAntigravityAuthFailedMsg  = "the connexto proxy rejected the Antigravity OAuth request"
+	proxyCursorAuthFailedType      = "proxy_cursor_auth_failed"
+	proxyCursorAuthFailedMsg       = "the connexto proxy rejected the Cursor usage auth request"
 )
 
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
@@ -276,6 +278,101 @@ func (a *ProviderAdmin) ClearAntigravityProxyRuntimeSessions() http.Handler {
 	})
 }
 
+// ClearCursorUsageProxyRuntimeSessions handles POST /api/providers/{id}/proxy/cursor/runtime/sessions/clear.
+func (a *ProviderAdmin) ClearCursorUsageProxyRuntimeSessions() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		result, err := a.service.ClearCursorUsageProxyRuntimeSessions(r.Context(), id)
+		if err == nil {
+			payload := map[string]any{"cleared": true, "namespace": "cursor-usage"}
+			if result != nil && result.Namespace != "" {
+				payload["namespace"] = result.Namespace
+			}
+			writeJSON(w, http.StatusOK, payload)
+			return
+		}
+		switch {
+		case errors.Is(err, providers.ErrNotFound):
+			a.writeError(w, err)
+		case errors.Is(err, providers.ErrInvalid):
+			writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+		case errors.Is(err, providers.ErrNoGatewayKey):
+			writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+		case errors.Is(err, providers.ErrProxySessionClearFailed):
+			a.logger.Warn("proxy cursor-usage session clear failed", "provider", id, "error", err)
+			writeJSONError(w, http.StatusBadGateway, proxySessionClearFailedType, proxySessionClearFailedMsg)
+		default:
+			a.logger.Error("proxy cursor-usage session clear", "provider", id, "error", err.Error())
+			writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
+		}
+	})
+}
+
+// CursorProxyAuthStatus handles GET /api/providers/{id}/proxy/cursor/auth/{sessionId}.
+func (a *ProviderAdmin) CursorProxyAuthStatus() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		sessionID := r.PathValue("sessionId")
+		payload, err := a.service.GetCursorProxyAuthStatus(r.Context(), id, sessionID)
+		if err != nil {
+			switch {
+			case errors.Is(err, providers.ErrNotFound):
+				a.writeError(w, err)
+			case errors.Is(err, providers.ErrInvalid):
+				writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+			case errors.Is(err, providers.ErrNoGatewayKey):
+				writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+			case errors.Is(err, providers.ErrProxyCursorUsageFailed):
+				a.logger.Warn("proxy cursor auth status failed", "provider", id, "error", err)
+				writeJSONError(w, http.StatusBadGateway, proxyCursorAuthFailedType, proxyCursorAuthFailureMessage(err))
+			default:
+				a.logger.Error("proxy cursor auth status", "provider", id, "error", err.Error())
+				writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, payload)
+	})
+}
+
+// CursorProxyAuthStart handles POST /api/providers/{id}/proxy/cursor/auth/start.
+func (a *ProviderAdmin) CursorProxyAuthStart() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		payload, err := a.service.StartCursorProxyAuth(r.Context(), id)
+		if err != nil {
+			switch {
+			case errors.Is(err, providers.ErrNotFound):
+				a.writeError(w, err)
+			case errors.Is(err, providers.ErrInvalid):
+				writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+			case errors.Is(err, providers.ErrNoGatewayKey):
+				writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+			case errors.Is(err, providers.ErrProxyCursorUsageFailed):
+				a.logger.Warn("proxy cursor auth start failed", "provider", id, "error", err)
+				writeJSONError(w, http.StatusBadGateway, proxyCursorAuthFailedType, proxyCursorAuthFailureMessage(err))
+			default:
+				a.logger.Error("proxy cursor auth start", "provider", id, "error", err.Error())
+				writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, payload)
+	})
+}
+
 // AntigravityProxyAuthStatus handles GET /api/providers/{id}/proxy/antigravity/auth/status.
 // It forwards to the configured proxy base URL + /providers/antigravity/auth/status (base typically ends with /v1).
 func (a *ProviderAdmin) AntigravityProxyAuthStatus() http.Handler {
@@ -486,6 +583,10 @@ func decodeHasTrailingData(decoder *json.Decoder) bool {
 	_, err := decoder.Token()
 
 	return !errors.Is(err, io.EOF)
+}
+
+func proxyCursorAuthFailureMessage(err error) string {
+	return proxyAntigravityAuthFailureMessage(err)
 }
 
 func proxyAntigravityAuthFailureMessage(err error) string {
