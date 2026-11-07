@@ -67,7 +67,7 @@ export function messageForCursorCollectReadiness(
     return {
       success: false,
       message:
-        'Cloudflare/x.ai bloqueia o Chrome que o Playwright abre — até cliques manuais, se aparecer «--no-sandbox» no topo. Saídas: (1) reinicie o proxy (headed não usa --no-sandbox por padrão); (2) login GitHub/e-mail, não Google; (3) defina CHROMIUM_CDP_ENDPOINT no proxy e faça login no Chrome real do Windows com depuração remota (:9222), depois abra https://grok.com/dashboard nessa janela.',
+        'Login ou coleta bloqueados no navegador do proxy (Google/x.ai ou deteção de automação). Use GitHub ou e-mail no login, termine em cursor.com/dashboard ou Agents, e evite Google. Se persistir, feche a janela do login e clique «Ver status» de novo.',
     }
   }
   if (collect.status === 'session_expired') {
