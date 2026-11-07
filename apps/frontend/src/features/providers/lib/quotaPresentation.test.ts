@@ -369,3 +369,30 @@ describe('countGovernanceMetrics', () => {
     expect(countGovernanceMetrics([goProvider], [limited]).atLimit).toBe(1)
   })
 })
+
+describe('franchiseSummary — Cursor', () => {
+  it('shows weekly USD franchise when metrics exist', () => {
+    const cursorSnapshot: ProviderQuotaSnapshot = {
+      account_id: 'cursor-1',
+      account_label: 'Cursor',
+      provider_id: 'cursor',
+      provider_name: 'Cursor',
+      status: 'available',
+      scope: 'account',
+      quotas: [
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 41.68, unit: 'USD' },
+        { metric: 'total_credits', label: 'Weekly included budget', nature: 'quota', limit: 46.15, unit: 'USD' },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'cursor_proxy_usage_collect',
+        scope: 'account',
+        fetched_at: '2026-11-06T20:00:00Z',
+      },
+    }
+    expect(franchiseSummary(cursorSnapshot)).toEqual({
+      title: 'Franquia semanal Cursor',
+      value: 'US$ 41,68 consumido · Limite US$ 46,15',
+    })
+  })
+})

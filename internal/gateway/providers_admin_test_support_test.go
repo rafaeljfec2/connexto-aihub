@@ -142,6 +142,7 @@ func adminServer(t *testing.T) *httptest.Server {
 	mux.Handle("GET /api/providers/{id}/proxy/antigravity/auth/status", admin.AntigravityProxyAuthStatus())
 	mux.Handle("POST /api/providers/{id}/proxy/antigravity/auth/start", admin.AntigravityProxyAuthStart())
 	mux.Handle("POST /api/providers/{id}/proxy/cursor/auth/start", admin.CursorProxyAuthStart())
+	mux.Handle("GET /api/providers/{id}/proxy/cursor/usage/session", admin.CursorProxyUsageSession())
 	mux.Handle("GET /api/providers/{id}/proxy/cursor/auth/{sessionId}", admin.CursorProxyAuthStatus())
 	mux.Handle("POST /api/providers/{id}/sync-models", admin.SyncModels())
 	mux.Handle("GET /api/providers/{id}/status", admin.Status())

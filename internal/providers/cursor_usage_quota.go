@@ -17,6 +17,7 @@ const (
 	cursorUsageQuotaSourceName = "cursor_proxy_usage_collect"
 	cursorUsageCollectRoute    = "/providers/cursor/usage/collect"
 	defaultCursorUsageTimeout  = 120 * time.Second
+	cursorAccountQueryTimeout  = 130 * time.Second
 )
 
 // CursorUsageQuotaAdapter queries Cursor usage via Connexto Proxy browser collect.
@@ -187,16 +188,65 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 	if usage == nil {
 		return []ProviderQuotaMetric{}
 	}
-	metrics := make([]ProviderQuotaMetric, 0, len(usage))
-	for key, value := range usage {
+	metrics := make([]ProviderQuotaMetric, 0, 8)
+	unit := "USD"
+
+	if used, ok := cursorUsageFloat(usage, "total_usage"); ok {
 		metrics = append(metrics, ProviderQuotaMetric{
-			Metric: key,
-			Label:  key,
+			Metric: "total_usage",
+			Label:  "Total account usage",
+			Nature: NatureCost,
+			Used:   &used,
+			Unit:   &unit,
+		})
+	}
+	if limit, ok := cursorUsageFloat(usage, "total_credits"); ok {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric: "total_credits",
+			Label:  "Weekly included budget",
+			Nature: NatureQuota,
+			Limit:  &limit,
+			Unit:   &unit,
+		})
+	}
+	if resetsAt, ok := cursorUsageString(usage, "weekly_resets_at"); ok {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric:   "weekly_resets_at",
+			Label:    "Weekly reset",
+			Nature:   NatureUsage,
+			ResetsAt: &resetsAt,
+		})
+	}
+	if agentTotal, ok := cursorUsageFloat(usage, "analytics_agent_requests_total"); ok {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric: "analytics_agent_requests_total",
+			Label:  "Agent requests (period)",
 			Nature: NatureUsage,
-			Used:   numericPointer(value),
+			Used:   &agentTotal,
 		})
 	}
 	return metrics
+}
+
+func cursorUsageFloat(usage map[string]interface{}, key string) (float64, bool) {
+	value, ok := usage[key]
+	if !ok {
+		return 0, false
+	}
+	pointer := numericPointer(value)
+	if pointer == nil {
+		return 0, false
+	}
+	return *pointer, true
+}
+
+func cursorUsageString(usage map[string]interface{}, key string) (string, bool) {
+	value, ok := usage[key]
+	if !ok {
+		return "", false
+	}
+	text, ok := value.(string)
+	return text, ok && strings.TrimSpace(text) != ""
 }
 
 func numericPointer(value interface{}) *float64 {

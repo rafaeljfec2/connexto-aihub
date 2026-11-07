@@ -9,12 +9,14 @@ import {
   clearCursorUsageProxyRuntimeSessions,
   getAntigravityProxyAuthStatus,
   getCursorProxyAuthStatus,
+  getCursorProxyUsageSession,
   providersQueryKeys,
   startAntigravityProxyAuth,
   startCursorProxyAuth,
   updateProvider,
   validateProvider,
 } from '../api/queries'
+import { cursorAuthStartSuccessMessage } from '../lib/cursorAuthStartMessage'
 import { cursorProxyAuthErrorMessage } from '../lib/mutationErrors'
 import type { AdminProvider } from '../types'
 
@@ -128,9 +130,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         const s = await getCursorProxyAuthStatus(provider.id, sessionId)
         if (s.status === 'authenticated') {
           cursorPollStopRef.current = true
+          const persisted = await getCursorProxyUsageSession(provider.id)
+          void queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
           setTestResult({
-            success: true,
-            message: `Login web no proxy: autenticado. Sessão ${s.sessionId}. Expira em ${s.expiresAt}.`,
+            success: persisted.status === 'authenticated',
+            message:
+              persisted.status === 'authenticated'
+                ? `Login concluído e sessão persistida para coleta (conta ${persisted.accountId}). Atualize Franquias. Último toque: ${persisted.touchedAt ?? '—'}.`
+                : `Login web concluído, mas a sessão para coleta ainda não foi gravada no proxy. Mantenha o Chromium aberto até esta mensagem confirmar persistência, ou repita o login no mesmo proxy (Docker vs pnpm dev). Sessão ${s.sessionId}.`,
           })
           return
         }
@@ -178,23 +185,33 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
   }
 
   async function handleCursorAuthStatus() {
-    if (!activeCursorSessionId) {
-      setTestResult({
-        success: false,
-        message: 'Nenhuma sessão ativa. Use «Login web» para iniciar.',
-      })
-      return
-    }
     setLoadingCursorAuthStatus(true)
     setTestResult(null)
     try {
+      const persisted = await getCursorProxyUsageSession(provider.id)
+      if (persisted.status === 'authenticated') {
+        setTestResult({
+          success: true,
+          message: `Coleta: sessão persistida no proxy (conta ${persisted.accountId}). Último toque: ${persisted.touchedAt ?? '—'}. Use Atualizar em Franquias.`,
+        })
+        return
+      }
+      if (!activeCursorSessionId) {
+        setTestResult({
+          success: false,
+          message:
+            'Nenhuma sessão de login ativa neste modal e nada persistido no proxy para coleta. Use «Login web» (mesmo proxy do endpoint, ex. Docker ou pnpm dev).',
+        })
+        return
+      }
       const s = await getCursorProxyAuthStatus(provider.id, activeCursorSessionId)
       setTestResult({
         success: s.status === 'authenticated',
-        message: `Login web: ${s.status}. Conta proxy: ${s.accountId || '—'}. Expira em ${s.expiresAt}.`,
+        message: `Login web (operação): ${s.status}. Conta proxy: ${s.accountId || '—'}. Expira em ${s.expiresAt}.`,
       })
       if (s.status === 'authenticated') {
         cursorPollStopRef.current = true
+        void queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
       }
     } catch (err) {
       setTestResult({
@@ -242,11 +259,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
       cursorPollStopRef.current = false
       setTestResult({
         success: true,
-        message:
-          'Login iniciado. Use a janela «Sign in — Google Chrome» que o proxy abriu (e-mail/senha ou Google/GitHub). ' +
-          'Não use outra aba do navegador — o status atualiza aqui automaticamente. ' +
-          'Instruções: ' +
-          res.interactionUrl,
+        message: cursorAuthStartSuccessMessage(res),
       })
     } catch (err) {
       setTestResult({

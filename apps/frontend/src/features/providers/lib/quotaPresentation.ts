@@ -197,6 +197,23 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     }
   }
 
+  if (snapshot.provider_id === 'cursor') {
+    const { usage, credits } = accountUsageMetrics(snapshot)
+    if (usage != null || credits != null) {
+      const parts: string[] = []
+      if (usage != null) {
+        parts.push(`${formatMetricAmount(usage.used, usage.unit)} consumido`)
+      }
+      if (credits != null) {
+        parts.push(`Limite ${formatMetricAmount(credits.limit, credits.unit)}`)
+      }
+      return {
+        title: 'Franquia semanal Cursor',
+        value: parts.join(' · '),
+      }
+    }
+  }
+
   if (snapshot.provider_id === 'antigravity') {
     const tier = snapshot.workspace_name ? ` (${snapshot.workspace_name})` : ''
     const families = categorizeAntigravityQuotas(snapshot.quotas)
@@ -294,12 +311,17 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
   }
 
   const { usage, credits } = accountUsageMetrics(snapshot)
+  const usageLabel =
+    snapshot.provider_id === 'cursor' ? 'Franquia semanal' : 'Leitura oficial'
   if (usage != null && credits != null) {
     return {
       kind: 'usage',
-      label: 'Leitura oficial',
+      label: usageLabel,
       primary: `${formatMetricAmount(usage.used, usage.unit)} / ${formatMetricAmount(credits.limit, credits.unit)}`,
-      secondary: 'Uso / limite oficiais',
+      secondary:
+        snapshot.provider_id === 'cursor'
+          ? 'Uso semanal / limite incluído'
+          : 'Uso / limite oficiais',
       barValue: usage.used,
       barMax: credits.limit,
     }

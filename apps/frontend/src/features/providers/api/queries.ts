@@ -142,6 +142,7 @@ export type CursorProxyAuthStartResponse = {
   sessionId: string
   expiresAt: string
   interactionUrl: string
+  browserMode?: 'headed' | 'headless'
 }
 
 export async function startCursorProxyAuth(id: string): Promise<CursorProxyAuthStartResponse> {
@@ -160,6 +161,20 @@ export type CursorProxyAuthStatusResponse = {
   accountId: string
   status: string
   expiresAt: string
+}
+
+export type CursorProxyUsageSessionResponse = {
+  status: 'authenticated' | 'authentication_required'
+  accountId: string
+  touchedAt?: string
+}
+
+export async function getCursorProxyUsageSession(
+  id: string,
+): Promise<CursorProxyUsageSessionResponse> {
+  return fetchJson<CursorProxyUsageSessionResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/cursor/usage/session`,
+  )
 }
 
 export async function getCursorProxyAuthStatus(

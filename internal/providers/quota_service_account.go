@@ -56,7 +56,27 @@ func (s *QuotaService) queryCursorProxyAccount(ctx context.Context, record Recor
 		return unavailableSnapshot(record, ScopeAccount, cursorUsageQuotaSourceName, QuotaStatusUnconfiguredCredential,
 			"unconfigured_credential", "Gateway API Key não configurada para comunicação com o proxy")
 	}
-	return s.queryWithCredential(ctx, record, adapter.FetchQuota, gatewayKey, ScopeAccount, cursorUsageQuotaSourceName)
+	subCtx, cancel := context.WithTimeout(ctx, cursorAccountQueryTimeout)
+	defer cancel()
+	snapshot, fetchErr := adapter.FetchQuota(subCtx, record.Endpoint, gatewayKey)
+	if fetchErr != nil {
+		s.logger.Error("provider quota query failed", slog.String("account_id", record.ID),
+			slog.String("provider_type", record.Type), slog.String("scope", string(ScopeAccount)))
+		return unavailableSnapshot(record, ScopeAccount, cursorUsageQuotaSourceName, QuotaStatusError,
+			"adapter_error", "Falha ao consultar a leitura oficial do provedor")
+	}
+	snapshot.AccountID = record.ID
+	if snapshot.AccountLabel == "" {
+		snapshot.AccountLabel = record.Name
+	}
+	snapshot.ProviderID = record.Type
+	if snapshot.ProviderName == "" {
+		snapshot.ProviderName = record.Name
+	}
+	snapshot.Scope = ScopeAccount
+	snapshot.Source.Scope = ScopeAccount
+	snapshot.Source.Name = cursorUsageQuotaSourceName
+	return snapshot
 }
 
 func (s *QuotaService) queryAntigravityAccount(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {

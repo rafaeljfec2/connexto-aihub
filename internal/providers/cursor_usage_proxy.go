@@ -42,6 +42,7 @@ type CursorProxyAuthStartResponse struct {
 	SessionID      string `json:"sessionId"`
 	ExpiresAt      string `json:"expiresAt"`
 	InteractionURL string `json:"interactionUrl"`
+	BrowserMode    string `json:"browserMode"`
 }
 
 type CursorProxyAuthStatusResponse struct {
@@ -49,6 +50,12 @@ type CursorProxyAuthStatusResponse struct {
 	AccountID string `json:"accountId"`
 	Status    string `json:"status"`
 	ExpiresAt string `json:"expiresAt"`
+}
+
+type CursorProxyUsageSessionResponse struct {
+	Status    string `json:"status"`
+	AccountID string `json:"accountId"`
+	TouchedAt string `json:"touchedAt,omitempty"`
 }
 
 func (s *Service) PostCursorProxyUsageCollect(ctx context.Context, providerID string) (*CursorProxyUsageCollectResponse, error) {
@@ -155,6 +162,54 @@ func (s *Service) StartCursorProxyAuth(ctx context.Context, providerID string) (
 	}
 
 	var out CursorProxyAuthStartResponse
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("%w: decode: %w", ErrProxyCursorUsageFailed, err)
+	}
+	return &out, nil
+}
+
+func (s *Service) GetCursorProxyUsageSession(ctx context.Context, providerID string) (*CursorProxyUsageSessionResponse, error) {
+	record, err := s.repo.Get(ctx, providerID)
+	if err != nil {
+		return nil, err
+	}
+	if record.Type != TypeCursor {
+		return nil, fmt.Errorf("%w: cursor usage session applies only to cursor provider", ErrInvalid)
+	}
+	gatewayKey, err := s.managementCredentialOf(ctx, record)
+	if err != nil {
+		return nil, err
+	}
+	resolved, ok := EffectiveGatewayKeyForAntigravityValidation(gatewayKey)
+	if !ok {
+		return nil, ErrNoGatewayKey
+	}
+	base := strings.TrimRight(strings.TrimSpace(record.Endpoint), "/")
+	target := fmt.Sprintf("%s/providers/cursor/usage/session?accountId=%s", base, providerID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrProxyCursorUsageFailed, err)
+	}
+	req.Header.Set("X-Gateway-API-Key", resolved)
+	req.Header.Set("X-Hub-Account-Id", providerID)
+
+	client := &http.Client{Timeout: proxyCursorAuthStatusTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrProxyCursorUsageFailed, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return nil, fmt.Errorf("%w: read body: %w", ErrProxyCursorUsageFailed, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, newProxyCursorUsageFailed(resp.StatusCode, body)
+	}
+
+	var out CursorProxyUsageSessionResponse
 	if err := json.Unmarshal(body, &out); err != nil {
 		return nil, fmt.Errorf("%w: decode: %w", ErrProxyCursorUsageFailed, err)
 	}
