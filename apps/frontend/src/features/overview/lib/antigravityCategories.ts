@@ -131,7 +131,13 @@ export function categorizeAntigravityQuotas(
     const isGroupMetric = metric.scope === 'group' || metric.metric.startsWith('group:')
     const familyId = detectFamily(metric.metric, metric.label || metric.metric)
     const windowType = detectWindowType(metric, nowMs)
-    const key = `${windowType}_${metric.resets_at ?? ''}`
+    const isGenerativePool = familyId === 'gemini_models' || familyId === 'claude_gpt_models'
+    const bucketWindowType = isGenerativePool
+      ? (windowType === 'weekly' ? 'weekly' : '5h')
+      : windowType
+    const key = isGenerativePool
+      ? bucketWindowType
+      : `${windowType}_${metric.resets_at ?? ''}`
 
     if (!familyMap.has(familyId)) {
       familyMap.set(familyId, new Map())
@@ -147,7 +153,7 @@ export function categorizeAntigravityQuotas(
 
     if (!windowMap.has(key)) {
       windowMap.set(key, {
-        windowType,
+        windowType: bucketWindowType,
         remainingPercent: metric.remaining_percent ?? 100,
         consumedPercent: metric.consumed_percent,
         resetsAt: metric.resets_at,
@@ -158,8 +164,15 @@ export function categorizeAntigravityQuotas(
       if (!isGroupMetric) {
         bucket.models.push(member)
       }
-      // If any metric in the shared pool reports a remaining percent, keep the lowest (safest)
-      if (metric.remaining_percent != null) {
+      if (isGroupMetric) {
+        if (metric.remaining_percent != null) {
+          bucket.remainingPercent = metric.remaining_percent
+        }
+        if (metric.resets_at) {
+          bucket.resetsAt = metric.resets_at
+        }
+      } else if (metric.remaining_percent != null) {
+        // If no group metric has set an authoritative percentage yet, take lowest
         bucket.remainingPercent = Math.min(bucket.remainingPercent, metric.remaining_percent)
       }
     }
