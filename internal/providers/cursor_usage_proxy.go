@@ -103,13 +103,22 @@ func (s *Service) PostCursorProxyUsageCollect(ctx context.Context, providerID st
 	if err != nil {
 		return nil, fmt.Errorf("%w: read body: %w", ErrProxyCursorUsageFailed, err)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, newProxyCursorUsageFailed(resp.StatusCode, body)
-	}
-
 	var out CursorProxyUsageCollectResponse
 	if err := json.Unmarshal(body, &out); err != nil {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, newProxyCursorUsageFailed(resp.StatusCode, body)
+		}
 		return nil, fmt.Errorf("%w: decode: %w", ErrProxyCursorUsageFailed, err)
+	}
+	if out.Status != "" {
+		switch resp.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict,
+			http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return &out, nil
+		}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, newProxyCursorUsageFailed(resp.StatusCode, body)
 	}
 	return &out, nil
 }

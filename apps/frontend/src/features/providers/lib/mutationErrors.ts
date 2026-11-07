@@ -22,11 +22,11 @@ function suggestsChromiumIssue(message: string, type: string): boolean {
 
 export function cursorProxyAuthErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.type === PROXY_CURSOR_AUTH_FAILED && error.message.trim() !== '') {
+      return error.message
+    }
     if (suggestsChromiumIssue(error.message, error.type)) {
       return cursorAuthChromiumUnavailablePt
-    }
-    if (error.type === PROXY_CURSOR_AUTH_FAILED && error.message.trim() !== '') {
-      return `${cursorAuthGenericFailurePt} ${error.message}`
     }
   }
   if (error instanceof Error) {

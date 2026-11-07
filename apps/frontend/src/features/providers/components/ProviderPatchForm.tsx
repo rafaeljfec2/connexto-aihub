@@ -131,26 +131,6 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
   }
 
   useEffect(() => {
-    if (!isCursor || !provider.management_credential_configured) {
-      return undefined
-    }
-    let cancelled = false
-    void (async () => {
-      try {
-        const result = await evaluateCursorSessionForCollect()
-        if (!cancelled) {
-          setTestResult(result)
-        }
-      } catch {
-        // User can use «Ver status» manually.
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [isCursor, provider.id, provider.management_credential_configured])
-
-  useEffect(() => {
     if (!isCursor || activeCursorSessionId === null) {
       return undefined
     }

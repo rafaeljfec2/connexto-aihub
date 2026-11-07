@@ -25,4 +25,17 @@ describe('cursorCollectReadiness', () => {
     expect(msg.success).toBe(false)
     expect(msg.message).toMatch(/authentication_required/)
   })
+
+  it('does not show green when session is authenticated but collect is session_expired', () => {
+    const msg = messageForCursorCollectReadiness(
+      { status: 'authenticated', accountId: 'cursor', touchedAt: '2026-01-01' },
+      { status: 'session_expired', accountId: 'cursor' },
+    )
+    expect(msg.success).toBe(false)
+    expect(cursorCollectReady(
+      { status: 'authenticated', accountId: 'cursor' },
+      { status: 'session_expired', accountId: 'cursor' },
+    )).toBe(false)
+    expect(msg.message).toMatch(/session_expired/)
+  })
 })

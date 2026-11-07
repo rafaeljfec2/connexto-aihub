@@ -38,7 +38,7 @@ const (
 	proxyAntigravityAuthFailedMsg  = "the connexto proxy rejected the Antigravity OAuth request"
 	proxyCursorAuthFailedType      = "proxy_cursor_auth_failed"
 	proxyCursorAuthFailedMsg       = "the connexto proxy rejected the Cursor usage auth request"
-	proxyCursorAuthBrowserUnavailableMsg = "Cursor usage auth requires Chromium on the Connexto Proxy (configure CHROMIUM_EXECUTABLE_PATH and restart the proxy)."
+	proxyCursorAuthBrowserUnavailableMsg = "Não foi possível abrir o Chromium no proxy. Confira CHROMIUM_EXECUTABLE_PATH, DISPLAY=:0 (WSL) no .env do proxy e reinicie pnpm dev; feche janelas Chrome do login anteriores."
 )
 
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
@@ -650,6 +650,9 @@ func proxyCursorAuthFailureMessage(err error) string {
 	var usageErr *providers.ProxyCursorUsageFailedError
 	if errors.As(err, &usageErr) {
 		if usageErr.Code == "browser_unavailable" {
+			if strings.TrimSpace(usageErr.Detail) != "" {
+				return fmt.Sprintf("%s Detalhe do proxy: %s", proxyCursorAuthBrowserUnavailableMsg, strings.TrimSpace(usageErr.Detail))
+			}
 			return proxyCursorAuthBrowserUnavailableMsg
 		}
 		if strings.TrimSpace(usageErr.Detail) != "" {

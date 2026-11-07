@@ -3,22 +3,21 @@ import { ApiError } from '../../../shared/api/client'
 import { cursorProxyAuthErrorMessage } from './mutationErrors'
 
 describe('cursorProxyAuthErrorMessage', () => {
-  it('maps proxy_cursor_auth_failed Chromium hints to PT-BR', () => {
+  it('surfaces Hub message for proxy_cursor_auth_failed', () => {
     const err = new ApiError(502, {
       type: 'proxy_cursor_auth_failed',
       message:
-        'Cursor usage auth requires Chromium on the Connexto Proxy (configure CHROMIUM_EXECUTABLE_PATH and restart the proxy).',
+        'Não foi possível abrir o Chromium no proxy. Detalhe do proxy: profile appears to be in use',
     })
-    expect(cursorProxyAuthErrorMessage(err)).toMatch(/Chromium indisponível no proxy/)
+    expect(cursorProxyAuthErrorMessage(err)).toContain('Detalhe do proxy')
     expect(cursorProxyAuthErrorMessage(err)).not.toMatch(/Antigravity/i)
   })
 
-  it('maps generic proxy_cursor_auth_failed with detail', () => {
+  it('passes through legacy upstream detail strings', () => {
     const err = new ApiError(502, {
       type: 'proxy_cursor_auth_failed',
       message: 'the connexto proxy rejected the Cursor usage auth request (upstream busy)',
     })
-    expect(cursorProxyAuthErrorMessage(err)).toContain('Falha ao iniciar login web do Cursor no proxy.')
     expect(cursorProxyAuthErrorMessage(err)).toContain('upstream busy')
   })
 })
