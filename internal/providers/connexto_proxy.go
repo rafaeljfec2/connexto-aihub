@@ -151,6 +151,14 @@ func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target Re
 		return nil, errors.New("provider model identity must not be empty")
 	}
 
+	c.mu.RLock()
+	inferenceKey := strings.TrimSpace(c.apiKey)
+	inferenceOptional := c.inferenceOptional
+	c.mu.RUnlock()
+	if logicalID != AntigravityID && !inferenceOptional && inferenceKey == "" {
+		return nil, ErrNoCredential
+	}
+
 	var requestWritten atomic.Bool
 	trace := &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
 		if info.Err == nil {

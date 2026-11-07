@@ -221,9 +221,12 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     if (active.length > 0) {
       const summaryParts = active.map((f) => {
         // Pick the bottleneck (lowest remaining percentage) limit for this family
-        const primaryLimit = f.limits.reduce((prev, curr) =>
-          curr.remainingPercent < prev.remainingPercent ? curr : prev,
-        )
+        const primaryLimit =
+          f.limits.length > 0
+            ? f.limits.reduce((prev, curr) =>
+                curr.remainingPercent < prev.remainingPercent ? curr : prev,
+              )
+            : undefined
         const shortTitle =
           f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
         return `${shortTitle} ${primaryLimit ? `${primaryLimit.remainingPercent.toLocaleString('pt-BR')}%` : ''}`

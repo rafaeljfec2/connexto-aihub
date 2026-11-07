@@ -269,6 +269,26 @@ func TestConnextoProxyResponsesMapsHeaderTimeoutWithoutCredential(t *testing.T) 
 	}
 }
 
+func TestConnextoProxyResponsesRejectsMissingCursorCredential(t *testing.T) {
+	client, err := providers.NewConnextoProxyClient(providers.Settings{
+		BaseURL:           "http://127.0.0.1:9090/v1",
+		ManagementKey:     connextoProxyTestGatewayKey,
+		Enabled:           true,
+		LogicalProviderID: providers.CursorID,
+		InferenceOptional: false,
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewConnextoProxyClient() error = %v", err)
+	}
+	_, err = client.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
+		ProviderID: providers.CursorID,
+		ModelID:    "composer-2.5",
+	}, []byte(`{"model":"composer-2.5","input":"hello"}`), "application/json", "")
+	if !errors.Is(err, providers.ErrNoCredential) {
+		t.Fatalf("OpenTargetResponses() error = %v, want ErrNoCredential", err)
+	}
+}
+
 func TestConnextoProxyProbeEndpoint(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/models" {
