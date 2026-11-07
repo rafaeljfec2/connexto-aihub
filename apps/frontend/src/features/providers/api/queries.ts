@@ -123,6 +123,54 @@ export async function startAntigravityProxyAuth(
   )
 }
 
+export type CursorProxyRuntimeSessionClearResponse = {
+  cleared: boolean
+  namespace: string
+}
+
+export async function clearCursorUsageProxyRuntimeSessions(
+  id: string,
+): Promise<CursorProxyRuntimeSessionClearResponse> {
+  return fetchJson<CursorProxyRuntimeSessionClearResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/cursor/runtime/sessions/clear`,
+    { method: 'POST' },
+  )
+}
+
+export type CursorProxyAuthStartResponse = {
+  status: string
+  sessionId: string
+  expiresAt: string
+  interactionUrl: string
+}
+
+export async function startCursorProxyAuth(id: string): Promise<CursorProxyAuthStartResponse> {
+  return fetchJson<CursorProxyAuthStartResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/cursor/auth/start`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    },
+  )
+}
+
+export type CursorProxyAuthStatusResponse = {
+  sessionId: string
+  accountId: string
+  status: string
+  expiresAt: string
+}
+
+export async function getCursorProxyAuthStatus(
+  id: string,
+  sessionId: string,
+): Promise<CursorProxyAuthStatusResponse> {
+  return fetchJson<CursorProxyAuthStatusResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/cursor/auth/${encodeURIComponent(sessionId)}`,
+  )
+}
+
 export async function syncProviderModels(id: string): Promise<SyncModelsResponse> {
   return fetchJson<SyncModelsResponse>(`/api/providers/${encodeURIComponent(id)}/sync-models`, {
     method: 'POST',

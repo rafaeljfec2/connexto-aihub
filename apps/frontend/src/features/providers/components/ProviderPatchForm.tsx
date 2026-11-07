@@ -1,14 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Lock, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
   clearAntigravityProxyRuntimeSessions,
+  clearCursorUsageProxyRuntimeSessions,
   getAntigravityProxyAuthStatus,
+  getCursorProxyAuthStatus,
+  providersQueryKeys,
   startAntigravityProxyAuth,
+  startCursorProxyAuth,
+  updateProvider,
   validateProvider,
 } from '../api/queries'
+import { cursorProxyAuthErrorMessage } from '../lib/mutationErrors'
 import type { AdminProvider } from '../types'
 
 const patchSchema = z.object({
@@ -33,11 +40,17 @@ type ProviderPatchFormProps = {
 }
 
 export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit }: ProviderPatchFormProps) {
+  const queryClient = useQueryClient()
   const [testingConnection, setTestingConnection] = useState(false)
   const [clearingProxySessions, setClearingProxySessions] = useState(false)
   const [loadingAuthStatus, setLoadingAuthStatus] = useState(false)
   const [startingOAuth, setStartingOAuth] = useState(false)
+  const [clearingCursorUsage, setClearingCursorUsage] = useState(false)
+  const [startingCursorAuth, setStartingCursorAuth] = useState(false)
+  const [loadingCursorAuthStatus, setLoadingCursorAuthStatus] = useState(false)
+  const [activeCursorSessionId, setActiveCursorSessionId] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const cursorPollStopRef = useRef(false)
 
   async function handleClearAntigravitySessions() {
     setClearingProxySessions(true)
@@ -99,6 +112,151 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
   const managementValue = watch('management_credential')
   const oauthRedirectValue = watch('oauth_redirect_uri')
   const isAntigravity = provider.type === 'antigravity'
+  const isCursor = provider.type === 'cursor'
+
+  useEffect(() => {
+    if (!isCursor || activeCursorSessionId === null) {
+      return undefined
+    }
+    cursorPollStopRef.current = false
+    const sessionId = activeCursorSessionId
+    const poll = async (): Promise<void> => {
+      if (cursorPollStopRef.current) {
+        return
+      }
+      try {
+        const s = await getCursorProxyAuthStatus(provider.id, sessionId)
+        if (s.status === 'authenticated') {
+          cursorPollStopRef.current = true
+          setTestResult({
+            success: true,
+            message: `Login web no proxy: autenticado. Sessão ${s.sessionId}. Expira em ${s.expiresAt}.`,
+          })
+          return
+        }
+        if (s.status === 'expired' || s.status === 'authentication_failed') {
+          cursorPollStopRef.current = true
+          setTestResult({
+            success: false,
+            message: `Sessão de login web: ${s.status}. Expira em ${s.expiresAt}.`,
+          })
+        }
+      } catch {
+        // keep polling until user checks manually or session ends
+      }
+    }
+    void poll()
+    const handle = window.setInterval(() => void poll(), 3000)
+    return () => {
+      cursorPollStopRef.current = true
+      window.clearInterval(handle)
+    }
+  }, [isCursor, activeCursorSessionId, provider.id])
+
+  async function handleClearCursorUsageSessions() {
+    setClearingCursorUsage(true)
+    setTestResult(null)
+    cursorPollStopRef.current = true
+    setActiveCursorSessionId(null)
+    try {
+      const summary = await clearCursorUsageProxyRuntimeSessions(provider.id)
+      setTestResult({
+        success: true,
+        message: `Sessões do coletor Cursor limpas no proxy (namespace: ${summary.namespace ?? 'cursor-usage'}). É necessário novo login web para coletar uso.`,
+      })
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Falha ao limpar sessões cursor-usage no proxy. Verifique endpoint e Gateway API Key.',
+      })
+    } finally {
+      setClearingCursorUsage(false)
+    }
+  }
+
+  async function handleCursorAuthStatus() {
+    if (!activeCursorSessionId) {
+      setTestResult({
+        success: false,
+        message: 'Nenhuma sessão ativa. Use «Login web» para iniciar.',
+      })
+      return
+    }
+    setLoadingCursorAuthStatus(true)
+    setTestResult(null)
+    try {
+      const s = await getCursorProxyAuthStatus(provider.id, activeCursorSessionId)
+      setTestResult({
+        success: s.status === 'authenticated',
+        message: `Login web: ${s.status}. Conta proxy: ${s.accountId || '—'}. Expira em ${s.expiresAt}.`,
+      })
+      if (s.status === 'authenticated') {
+        cursorPollStopRef.current = true
+      }
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message:
+          err instanceof Error
+            ? err.message
+            : 'Falha ao consultar status no proxy. Verifique endpoint e Gateway API Key.',
+      })
+    } finally {
+      setLoadingCursorAuthStatus(false)
+    }
+  }
+
+  async function persistCursorGatewayIfNeeded(): Promise<boolean> {
+    if (provider.management_credential_configured) {
+      return true
+    }
+    const mgmt = managementValue?.trim() ?? ''
+    if (mgmt.length === 0) {
+      return false
+    }
+    await validateProvider(provider.id, { management_credential: mgmt })
+    await updateProvider(provider.id, { management_credential: mgmt })
+    await queryClient.invalidateQueries({ queryKey: providersQueryKeys.list })
+    await queryClient.invalidateQueries({ queryKey: providersQueryKeys.detail(provider.id) })
+    return true
+  }
+
+  async function handleCursorAuthStart() {
+    setStartingCursorAuth(true)
+    setTestResult(null)
+    try {
+      const gatewayReady = await persistCursorGatewayIfNeeded()
+      if (!gatewayReady) {
+        setTestResult({
+          success: false,
+          message:
+            'Informe a Gateway API Key do proxy (campo acima) antes de iniciar o login web.',
+        })
+        return
+      }
+      const res = await startCursorProxyAuth(provider.id)
+      setActiveCursorSessionId(res.sessionId)
+      cursorPollStopRef.current = false
+      setTestResult({
+        success: true,
+        message:
+          'Login iniciado. Use a janela «Sign in — Google Chrome» que o proxy abriu (e-mail/senha ou Google/GitHub). ' +
+          'Não use outra aba do navegador — o status atualiza aqui automaticamente. ' +
+          'Instruções: ' +
+          res.interactionUrl,
+      })
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message: cursorProxyAuthErrorMessage(err),
+      })
+    } finally {
+      setStartingCursorAuth(false)
+    }
+  }
 
   async function handleAntigravityAuthStatus() {
     setLoadingAuthStatus(true)
@@ -204,7 +362,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
   }
 
   const isBusy =
-    isPending || testingConnection || clearingProxySessions || loadingAuthStatus || startingOAuth
+    isPending ||
+    testingConnection ||
+    clearingProxySessions ||
+    loadingAuthStatus ||
+    startingOAuth ||
+    clearingCursorUsage ||
+    loadingCursorAuthStatus ||
+    startingCursorAuth
 
   return (
     <form
@@ -218,13 +383,20 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
             : undefined
 
         // Always perform connection test before saving when a new credential is provided
-        if (isAntigravity ? mgmtIncoming : cred) {
+        const shouldPreTestMgmt = (isAntigravity || isCursor) && mgmtIncoming
+        const shouldPreTestCred = !isAntigravity && cred
+        if (shouldPreTestMgmt || shouldPreTestCred) {
           setTestingConnection(true)
           try {
-            if (isAntigravity) {
-              await validateProvider(provider.id, { management_credential: mgmtIncoming! })
+            if (isAntigravity && mgmtIncoming) {
+              await validateProvider(provider.id, { management_credential: mgmtIncoming })
             } else {
-              await validateProvider(provider.id, { credential: cred! })
+              if (shouldPreTestCred) {
+                await validateProvider(provider.id, { credential: cred! })
+              }
+              if (isCursor && mgmtIncoming) {
+                await validateProvider(provider.id, { management_credential: mgmtIncoming })
+              }
             }
           } catch (err) {
             setTestingConnection(false)
@@ -250,7 +422,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         if (provider.type === 'openrouter' && values.management_credential && values.management_credential.length > 0) {
           payload.management_credential = values.management_credential
         }
-        if (isAntigravity && mgmtIncoming) {
+        if ((isAntigravity || isCursor) && mgmtIncoming) {
           payload.management_credential = mgmtIncoming
         }
         onSubmit(payload)
@@ -277,17 +449,19 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         />
       </div>
 
-      {provider.type === 'openrouter' || isAntigravity ? (
+      {provider.type === 'openrouter' || isAntigravity || isCursor ? (
         <div>
           <label htmlFor="provider-management-cred" className="mb-0.5 block text-[11px] font-medium text-secondary">
-            {isAntigravity ? 'Gateway API Key (write-only)' : 'Management API Key (write-only)'}
+            {isAntigravity || isCursor
+              ? 'Gateway API Key (write-only)'
+              : 'Management API Key (write-only)'}
           </label>
           <input
             id="provider-management-cred"
             type="password"
             autoComplete="new-password"
             placeholder={
-              isAntigravity
+              isAntigravity || isCursor
                 ? provider.management_credential_configured
                   ? 'Configured — enter to replace'
                   : 'Gateway API key (X-Gateway-API-Key)'
@@ -355,21 +529,6 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
               <button
                 type="button"
                 disabled={isBusy}
-                onClick={() => void handleAntigravityAuthStatus()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
-              >
-                {loadingAuthStatus ? (
-                  <>
-                    <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Consultando…</span>
-                  </>
-                ) : (
-                  <span>Status OAuth</span>
-                )}
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
                 onClick={() => void handleAntigravityAuthStart()}
                 className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[9px] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
               >
@@ -380,6 +539,21 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
                   </>
                 ) : (
                   <span>Login OAuth</span>
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleAntigravityAuthStatus()}
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
+              >
+                {loadingAuthStatus ? (
+                  <>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Consultando…</span>
+                  </>
+                ) : (
+                  <span>Status OAuth</span>
                 )}
               </button>
               <button
@@ -409,6 +583,70 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
                 <li>Limpa ACP/cache no gateway neste fluxo.</li>
                 <li>Não apaga tokens OAuth em disco no host do proxy (~/.gemini).</li>
                 <li>«Ver status OAuth» pode seguir autenticado até revogar ou remover tokens lá.</li>
+              </ul>
+            </details>
+          </>
+        ) : null}
+        {isCursor ? (
+          <>
+            <div className="mt-1.5 grid min-w-0 grid-cols-3 gap-1">
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleCursorAuthStart()}
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[9px] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
+              >
+                {startingCursorAuth ? (
+                  <>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Iniciando…</span>
+                  </>
+                ) : (
+                  <span>Login web</span>
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleCursorAuthStatus()}
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
+              >
+                {loadingCursorAuthStatus ? (
+                  <>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Consultando…</span>
+                  </>
+                ) : (
+                  <span>Ver status</span>
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void handleClearCursorUsageSessions()}
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/50 bg-[#141a24] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-amber-200/90 shadow-sm transition-colors [text-wrap:balance] hover:border-amber-500/25 hover:bg-amber-500/5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-0.5 sm:px-1.5 sm:text-[10px]"
+              >
+                {clearingCursorUsage ? (
+                  <>
+                    <RefreshCw className="size-3 shrink-0 animate-spin" />
+                    <span>Limpando…</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="size-3 shrink-0 text-amber-300/80" />
+                    <span>Limpar sessão</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[10px] text-muted">
+              <summary className="cursor-pointer list-none font-medium text-secondary marker:content-none [&::-webkit-details-marker]:hidden">
+                Sobre login web e coleta de uso
+              </summary>
+              <ul className="mt-1 list-disc space-y-0.5 pl-3.5 leading-snug marker:text-muted">
+                <li>Gateway API Key autentica o Hub no Connexto Proxy.</li>
+                <li>«Login web» abre o sign-in do Cursor no proxy para leitura de uso.</li>
+                <li>«Limpar sessão» remove o estado cursor-usage no proxy; será necessário novo login.</li>
               </ul>
             </details>
           </>

@@ -6,6 +6,7 @@ import {
   consumptionCell,
   countGovernanceMetrics,
   formatQuotaResetAt,
+  formatQuotaSourceName,
   franchiseSummary,
   primaryQuotaSnapshot,
   providerQuotaSituation,
@@ -149,6 +150,30 @@ describe('franchiseSummary and consumptionCell', () => {
     }
     expect(franchiseSummary(snap).title).toBe('Franquia não integrada')
     expect(franchiseSummary(snap).value).toContain('proxy')
+  })
+
+  it('shortens Cursor unauthorized franchise copy for the detail panel', () => {
+    const snap: ProviderQuotaSnapshot = {
+      account_id: 'cursor',
+      account_label: 'Cursor',
+      provider_id: 'cursor',
+      provider_name: 'Cursor',
+      status: 'unauthorized',
+      scope: 'account',
+      quotas: [],
+      source: {
+        type: 'provider_api',
+        name: 'cursor_proxy_usage_collect',
+        scope: 'account',
+        fetched_at: '2026-11-06T22:24:00Z',
+      },
+      error: {
+        code: 'cursor_auth_required',
+        message: 'Sessão Cursor no proxy requer autenticação assistida',
+      },
+    }
+    expect(franchiseSummary(snap).value).toBe('Login web pendente no proxy')
+    expect(formatQuotaSourceName(snap)).toBe('Cursor Proxy Usage Collector')
   })
 
   it('formats Antigravity available quotas properly', () => {

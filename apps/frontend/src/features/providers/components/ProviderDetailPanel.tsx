@@ -138,8 +138,8 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
             <div className="providers-large-track" aria-hidden />
           )}
           <div className="providers-quota-foot">
-            <span>
-              Consumo:{' '}
+            <span title={franchise.title}>
+              <span className="text-[#8A97A8]">Consumo: </span>
               {franchise.value !== '—'
                 ? franchise.value
                 : percent != null
@@ -147,13 +147,14 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
                   : 'não reportado'}
             </span>
             <span>
+              <span className="text-[#8A97A8]">Limite: </span>
               {isAntigravity
-                ? 'Limite: pools oficiais'
+                ? 'pools oficiais'
                 : percent != null
-                  ? 'Limite: percentual do provedor'
+                  ? 'percentual do provedor'
                   : balance !== '—'
-                    ? `Disponível: ${balance}`
-                    : 'Limite: leitura oficial'}
+                    ? `disponível ${balance}`
+                    : 'leitura oficial'}
             </span>
           </div>
         </div>
@@ -213,9 +214,9 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
             <span>Última atualização</span>
             <strong>{updatedAt}</strong>
           </div>
-          <div className="providers-detail-row border-b-0">
+          <div className="providers-detail-row border-b-0 items-center">
             <span>Situação</span>
-            <strong>
+            <strong className="flex justify-start">
               <span className={`providers-state ${situation.state}`}>
                 <i aria-hidden />
                 {situation.label}

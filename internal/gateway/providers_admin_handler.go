@@ -38,6 +38,7 @@ const (
 	proxyAntigravityAuthFailedMsg  = "the connexto proxy rejected the Antigravity OAuth request"
 	proxyCursorAuthFailedType      = "proxy_cursor_auth_failed"
 	proxyCursorAuthFailedMsg       = "the connexto proxy rejected the Cursor usage auth request"
+	proxyCursorAuthBrowserUnavailableMsg = "Cursor usage auth requires Chromium on the Connexto Proxy (configure CHROMIUM_EXECUTABLE_PATH and restart the proxy)."
 )
 
 // ProviderAdmin serves the administrative provider endpoints. Responses carry
@@ -586,7 +587,16 @@ func decodeHasTrailingData(decoder *json.Decoder) bool {
 }
 
 func proxyCursorAuthFailureMessage(err error) string {
-	return proxyAntigravityAuthFailureMessage(err)
+	var usageErr *providers.ProxyCursorUsageFailedError
+	if errors.As(err, &usageErr) {
+		if usageErr.Code == "browser_unavailable" {
+			return proxyCursorAuthBrowserUnavailableMsg
+		}
+		if strings.TrimSpace(usageErr.Detail) != "" {
+			return fmt.Sprintf("%s (%s)", proxyCursorAuthFailedMsg, strings.TrimSpace(usageErr.Detail))
+		}
+	}
+	return proxyCursorAuthFailedMsg
 }
 
 func proxyAntigravityAuthFailureMessage(err error) string {

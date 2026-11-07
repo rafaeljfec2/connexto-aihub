@@ -171,8 +171,11 @@ export function ProviderQuotaTable({
                       )}
                     </td>
                     <td className="providers-remaining">{available}</td>
-                    <td>
-                      <span className={`providers-state ${situation.state}`}>
+                    <td className="whitespace-nowrap">
+                      <span
+                        className={`providers-state ${situation.state}`}
+                        title={situation.label}
+                      >
                         <i aria-hidden />
                         {situation.label}
                       </span>

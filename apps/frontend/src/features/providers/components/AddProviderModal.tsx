@@ -94,6 +94,9 @@ export function AddProviderModal({
 
   const isGatewayOnlyProvider =
     selectedProvider?.credential_type === 'none' && !!selectedProvider?.management_credential_label
+  const isCursorProvider = selectedProvider?.connection_type === 'cursor'
+  const showCursorGatewayField =
+    isCursorProvider && !isGatewayOnlyProvider && !!selectedProvider?.management_credential_label
 
   async function handleQuickTestConnection() {
     if (!selectedProvider) return
@@ -149,11 +152,15 @@ export function AddProviderModal({
       // 2. Persist the connection with the encrypted credential
       setPhase('saving')
       let savedProvider: AdminProvider
+      const mgmtPayload =
+        managementCredential.trim().length > 0
+          ? { management_credential: managementCredential.trim() }
+          : {}
       if (isEditing) {
         savedProvider = await updateProvider(selectedProvider.id, {
           ...(isGatewayOnlyProvider
             ? { management_credential: managementCredential.trim() }
-            : { credential: credential.trim() }),
+            : { credential: credential.trim(), ...mgmtPayload }),
         })
       } else {
         savedProvider = await createProvider({
@@ -163,7 +170,7 @@ export function AddProviderModal({
           endpoint: selectedProvider.default_endpoint,
           ...(isGatewayOnlyProvider
             ? { management_credential: managementCredential.trim() }
-            : { credential: credential.trim() }),
+            : { credential: credential.trim(), ...mgmtPayload }),
           enabled: true,
         })
       }
@@ -438,6 +445,48 @@ export function AddProviderModal({
                 )}
               </div>
             </div>
+
+            {showCursorGatewayField ? (
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="provider-cursor-gateway-input"
+                  className="block text-xs font-medium text-secondary"
+                >
+                  {selectedProvider?.management_credential_label ?? 'Gateway API Key'}{' '}
+                  <span className="font-normal text-muted">(opcional)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="provider-cursor-gateway-input"
+                    type={showMgmtSecret ? 'text' : 'password'}
+                    autoComplete="off"
+                    disabled={isBusy}
+                    value={managementCredential}
+                    onChange={(e) => setManagementCredential(e.target.value)}
+                    placeholder={
+                      selectedProvider?.management_credential_placeholder ??
+                      'Chave do gateway do Connexto Proxy (X-Gateway-API-Key)'
+                    }
+                    className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => setShowMgmtSecret((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
+                    aria-label={showMgmtSecret ? 'Ocultar Gateway API Key' : 'Exibir Gateway API Key'}
+                  >
+                    {showMgmtSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted">
+                  Recomendado quando o endpoint for o Connexto Proxy. Após salvar a Gateway API Key,
+                  use <strong className="font-medium text-secondary">Gerenciar provedor</strong> →{' '}
+                  <strong className="font-medium text-secondary">Login web</strong> para autorizar a
+                  coleta de uso.
+                </p>
+              </div>
+            ) : null}
 
             <div className="flex items-center gap-2 rounded-md border border-line/60 bg-[#0D121B] p-2.5 text-[11px] text-muted">
               <Lock className="size-3.5 shrink-0 text-cobalt" />

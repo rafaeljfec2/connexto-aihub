@@ -211,11 +211,3 @@ func (s *Service) GetCursorProxyAuthStatus(ctx context.Context, providerID, sess
 	}
 	return &out, nil
 }
-
-func newProxyCursorUsageFailed(status int, body []byte) error {
-	msg := strings.TrimSpace(string(body))
-	if len(msg) > 512 {
-		msg = msg[:512]
-	}
-	return fmt.Errorf("%w: status %d: %s", ErrProxyCursorUsageFailed, status, msg)
-}

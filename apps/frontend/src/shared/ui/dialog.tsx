@@ -14,6 +14,8 @@ type DialogProps = {
   bodyClassName?: string
   /** When false, the body does not scroll (content must fit or handle overflow inside). */
   bodyScroll?: boolean
+  /** Vertical placement of the panel (default: centered). */
+  align?: 'top' | 'center'
 }
 
 export function Dialog({
@@ -25,6 +27,7 @@ export function Dialog({
   contentClassName,
   bodyClassName,
   bodyScroll = true,
+  align = 'center',
 }: DialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -32,8 +35,10 @@ export function Dialog({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/70" />
         <DialogPrimitive.Content
           className={cn(
-            // Top-anchored so tall content is not clipped by vertical centering on short viewports
-            'fixed left-1/2 top-[max(0.5rem,min(5vh,2rem))] z-50 flex max-h-[calc(100dvh-1rem)] w-[min(100%,32rem)] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-line bg-[#171E29] shadow-2xl outline-none sm:max-h-[min(92vh,42rem)]',
+            'fixed left-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[min(100%,32rem)] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-line bg-[#171E29] shadow-2xl outline-none sm:max-h-[min(92vh,42rem)]',
+            align === 'center'
+              ? 'top-1/2 -translate-y-1/2'
+              : 'top-[max(0.5rem,min(5vh,2rem))]',
             contentClassName,
           )}
         >

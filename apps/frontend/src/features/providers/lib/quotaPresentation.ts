@@ -106,6 +106,9 @@ export function providerQuotaSituation(
   if (provider.type === 'antigravity' && snapshot.status === 'unsupported') {
     return { state: 'na', label: 'Sem leitura de franquia' }
   }
+  if (provider.type === 'cursor' && snapshot.status === 'unauthorized') {
+    return { state: 'warn', label: 'Login web no proxy' }
+  }
   return {
     state: snapshotSituationState(snapshot.status),
     label: snapshotStatusLabel(snapshot.status),
@@ -157,6 +160,17 @@ function hasDisplayableReading(snapshot: ProviderQuotaSnapshot | undefined): boo
   return usage != null || credits != null
 }
 
+function cursorQuotaUnavailableSummary(snapshot: ProviderQuotaSnapshot): FranchiseSummary | undefined {
+  if (snapshot.provider_id !== 'cursor') return undefined
+  if (snapshot.status === 'unauthorized' || snapshot.error?.code === 'cursor_auth_required') {
+    return {
+      title: 'Não monitorada',
+      value: 'Login web pendente no proxy',
+    }
+  }
+  return undefined
+}
+
 export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): FranchiseSummary {
   if (!snapshot || snapshot.status !== 'available') {
     if (snapshot?.status === 'unsupported' && snapshot.error?.code === 'quota_not_applicable') {
@@ -165,6 +179,8 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
         value: 'Este provedor não expõe leitura oficial de cota no hub (uso via proxy).',
       }
     }
+    const cursorSummary = snapshot ? cursorQuotaUnavailableSummary(snapshot) : undefined
+    if (cursorSummary) return cursorSummary
     return {
       title: 'Não monitorada',
       value: snapshot?.error?.message ?? 'Sem fonte de quota configurada',
@@ -345,10 +361,16 @@ export function primaryGoPeriodLabel(snapshot: ProviderQuotaSnapshot | undefined
 export function formatQuotaSourceName(snapshot: ProviderQuotaSnapshot | undefined): string {
   if (!snapshot) return 'Sem leitura na API'
   if (snapshot.status !== 'available') {
+    if (snapshot.provider_id === 'cursor') {
+      return 'Cursor Proxy Usage Collector'
+    }
     return snapshot.error?.message ?? 'Sem leitura na API'
   }
   if (snapshot.source.name === 'antigravity_proxy_usage_api') {
     return 'Antigravity Proxy Usage API'
+  }
+  if (snapshot.source.name === 'cursor_proxy_usage_collect') {
+    return 'Cursor Proxy Usage Collector'
   }
   return snapshot.source.name
 }

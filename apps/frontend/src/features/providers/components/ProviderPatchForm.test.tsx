@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProviderPatchForm } from './ProviderPatchForm'
 import * as queries from '../api/queries'
@@ -11,8 +12,19 @@ vi.mock('../api/queries', async () => {
     validateProvider: vi.fn(),
     clearAntigravityProxyRuntimeSessions: vi.fn(),
     startAntigravityProxyAuth: vi.fn(),
+    clearCursorUsageProxyRuntimeSessions: vi.fn(),
+    startCursorProxyAuth: vi.fn(),
+    getCursorProxyAuthStatus: vi.fn(),
+    updateProvider: vi.fn(),
   }
 })
+
+function renderPatchForm(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
 
 const openRouterProvider: AdminProvider = {
   id: 'openrouter-primary',
@@ -22,6 +34,18 @@ const openRouterProvider: AdminProvider = {
   enabled: true,
   credential_configured: true,
   management_credential_configured: false,
+  created_at: '2026-11-04T00:00:00Z',
+  updated_at: '2026-11-04T00:00:00Z',
+}
+
+const cursorProvider: AdminProvider = {
+  id: 'cursor',
+  name: 'Cursor',
+  type: 'cursor',
+  endpoint: 'http://127.0.0.1:9090/v1',
+  enabled: true,
+  credential_configured: true,
+  management_credential_configured: true,
   created_at: '2026-11-04T00:00:00Z',
   updated_at: '2026-11-04T00:00:00Z',
 }
@@ -52,7 +76,7 @@ describe('ProviderPatchForm', () => {
   })
 
   it('keeps name field locked and disabled so the user cannot change provider identity', () => {
-    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={vi.fn()} />)
+    renderPatchForm(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={vi.fn()} />)
 
     const nameInput = screen.getByLabelText('Name')
     expect(nameInput.hasAttribute('disabled')).toBe(true)
@@ -62,7 +86,7 @@ describe('ProviderPatchForm', () => {
 
   it('submits separate OpenRouter credentials after successful connection test', async () => {
     const onSubmit = vi.fn()
-    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={onSubmit} />)
+    renderPatchForm(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={onSubmit} />)
 
     const managementInput = screen.getByLabelText('Management API Key (write-only)')
     const inferenceInput = screen.getByLabelText('Credential (write-only)')
@@ -91,7 +115,7 @@ describe('ProviderPatchForm', () => {
   })
 
   it('allows testing connection explicitly via Testar conexão button', async () => {
-    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={vi.fn()} />)
+    renderPatchForm(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={vi.fn()} />)
 
     const inferenceInput = screen.getByLabelText('Credential (write-only)')
     fireEvent.change(inferenceInput, { target: { value: 'test-key-probe' } })
@@ -108,7 +132,7 @@ describe('ProviderPatchForm', () => {
   })
 
   it('for Antigravity, Testar conexão clarifies probe vs ACP context', async () => {
-    render(<ProviderPatchForm provider={antigravityProvider} isPending={false} onSubmit={vi.fn()} />)
+    renderPatchForm(<ProviderPatchForm provider={antigravityProvider} isPending={false} onSubmit={vi.fn()} />)
 
     const testBtn = screen.getByRole('button', { name: /Testar conexão/i })
     fireEvent.click(testBtn)
@@ -122,7 +146,7 @@ describe('ProviderPatchForm', () => {
   it('for Antigravity, passes optional OAuth redirect URI to startAntigravityProxyAuth', async () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
 
-    render(<ProviderPatchForm provider={antigravityProvider} isPending={false} onSubmit={vi.fn()} />)
+    renderPatchForm(<ProviderPatchForm provider={antigravityProvider} isPending={false} onSubmit={vi.fn()} />)
 
     const redirectInput = screen.getByLabelText(/OAuth redirect URI/i)
     fireEvent.change(redirectInput, { target: { value: 'https://proxy.example/v1/providers/antigravity/auth/callback' } })
@@ -141,7 +165,7 @@ describe('ProviderPatchForm', () => {
   it('blocks saving and shows error message if connection test fails', async () => {
     vi.mocked(queries.validateProvider).mockRejectedValue(new Error('Credencial inválida no upstream'))
     const onSubmit = vi.fn()
-    render(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={onSubmit} />)
+    renderPatchForm(<ProviderPatchForm provider={openRouterProvider} isPending={false} onSubmit={onSubmit} />)
 
     const inferenceInput = screen.getByLabelText('Credential (write-only)')
     fireEvent.change(inferenceInput, { target: { value: 'invalid-secret' } })
@@ -159,8 +183,51 @@ describe('ProviderPatchForm', () => {
     })
   })
 
+  it('for Cursor, shows gateway field, proxy auth actions, and submits management_credential', async () => {
+    vi.mocked(queries.startCursorProxyAuth).mockResolvedValue({
+      status: 'authentication_pending',
+      sessionId: 'sess-cur-1',
+      expiresAt: '2099-01-01T00:00:00Z',
+      interactionUrl: 'https://proxy.example/cursor/login',
+    })
+    const onSubmit = vi.fn()
+    renderPatchForm(<ProviderPatchForm provider={cursorProvider} isPending={false} onSubmit={onSubmit} />)
+
+    expect(screen.getByLabelText('Gateway API Key (write-only)')).toBeDefined()
+    expect(screen.getByRole('button', { name: /Login web/i })).toBeDefined()
+
+    fireEvent.change(screen.getByLabelText('Gateway API Key (write-only)'), {
+      target: { value: 'gw-key-new' },
+    })
+    fireEvent.change(screen.getByLabelText('Credential (write-only)'), {
+      target: { value: 'cursor-token-new' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Login web/i }))
+    await waitFor(() => {
+      expect(queries.startCursorProxyAuth).toHaveBeenCalledWith('cursor')
+    })
+
+    const form = screen.getByRole('button', { name: /Save changes|Salvar alterações/i }).closest('form')
+    if (!form) throw new Error('Provider patch form was not rendered')
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(queries.validateProvider).toHaveBeenCalledWith('cursor', {
+        credential: 'cursor-token-new',
+      })
+      expect(queries.validateProvider).toHaveBeenCalledWith('cursor', {
+        management_credential: 'gw-key-new',
+      })
+      expect(onSubmit).toHaveBeenCalledWith({
+        credential: 'cursor-token-new',
+        management_credential: 'gw-key-new',
+      })
+    })
+  })
+
   it('does not show an OpenRouter Management API Key field for other providers', () => {
-    render(
+    renderPatchForm(
       <ProviderPatchForm
         provider={{ ...openRouterProvider, type: 'opencode-go' }}
         isPending={false}

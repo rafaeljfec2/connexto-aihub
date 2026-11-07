@@ -2,6 +2,7 @@ package providers_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -60,5 +61,45 @@ func TestStartCursorProxyAuth_OK(t *testing.T) {
 	}
 	if hubAccount != "acct-cursor" {
 		t.Fatalf("X-Hub-Account-Id = %q", hubAccount)
+	}
+}
+
+func TestStartCursorProxyAuth_upstream503BrowserUnavailable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"status":"browser_unavailable","message":"Chromium is unavailable"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	repo := newMemoryRepository()
+	cipher := testCipher(t)
+	service := providers.NewService(repo, cipher, providers.NewRegistry(),
+		func(context.Context, string, string) error { return nil },
+		[]string{"127.0.0.1"})
+
+	proxyBase := strings.TrimRight(server.URL, "/") + "/v1"
+	_, err := service.Create(context.Background(), providers.CreateInput{
+		ID:                   "acct-cursor-503",
+		Name:                 "Cursor",
+		Type:                 providers.TypeCursor,
+		Endpoint:             proxyBase,
+		ManagementCredential: "gw-test-key",
+		Enabled:              true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	_, err = service.StartCursorProxyAuth(context.Background(), "acct-cursor-503")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, providers.ErrProxyCursorUsageFailed) {
+		t.Fatalf("errors.Is = false: %v", err)
+	}
+	var usageErr *providers.ProxyCursorUsageFailedError
+	if !errors.As(err, &usageErr) || usageErr.Code != "browser_unavailable" {
+		t.Fatalf("expected browser_unavailable: %v", err)
 	}
 }

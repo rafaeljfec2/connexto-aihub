@@ -31,6 +31,8 @@ const mockAvailable: AvailableProvider[] = [
     connection_type: 'cursor',
     default_endpoint: 'http://127.0.0.1:9090/v1',
     enabled: true,
+    management_credential_label: 'Gateway API Key',
+    management_credential_placeholder: 'Chave do gateway do Connexto Proxy (X-Gateway-API-Key)',
   },
   {
     id: 'openrouter',
@@ -143,6 +145,56 @@ describe('AddProviderModal', () => {
     fireEvent.click(toggleBtn)
 
     expect(input.getAttribute('type')).toBe('text')
+  })
+
+  it('shows optional Gateway API Key field for Cursor and sends both secrets when filled', async () => {
+    vi.mocked(queries.validateProvider).mockResolvedValue({ status: 'reachable' })
+    vi.mocked(queries.createProvider).mockResolvedValue({
+      id: 'cursor',
+      name: 'Cursor',
+      type: 'cursor',
+      endpoint: 'http://127.0.0.1:9090/v1',
+      enabled: true,
+      credential_configured: true,
+      management_credential_configured: true,
+      created_at: '2026-11-05T00:00:00Z',
+      updated_at: '2026-11-05T00:00:00Z',
+    })
+    vi.mocked(queries.syncProviderModels).mockResolvedValue({
+      provider: 'cursor',
+      outcome: 'success',
+      counts: { discovered: 1, added: 1, updated: 0, unchanged: 0, missing: 0 },
+      duration_ms: 50,
+    })
+
+    renderWithClient(
+      <AddProviderModal open={true} onOpenChange={vi.fn()} existingProviders={existingProviders} />,
+    )
+
+    fireEvent.click((await screen.findByText('Cursor')).closest('button')!)
+
+    fireEvent.change(
+      await screen.findByPlaceholderText('Informe seu token ou chave do Cursor'),
+      { target: { value: 'cur_token' } },
+    )
+    fireEvent.change(
+      screen.getByPlaceholderText('Chave do gateway do Connexto Proxy (X-Gateway-API-Key)'),
+      { target: { value: 'gw_cursor' } },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Validar e adicionar/i }))
+
+    await waitFor(() => {
+      expect(queries.createProvider).toHaveBeenCalledWith({
+        id: 'cursor',
+        name: 'Cursor',
+        type: 'cursor',
+        endpoint: 'http://127.0.0.1:9090/v1',
+        credential: 'cur_token',
+        management_credential: 'gw_cursor',
+        enabled: true,
+      })
+    })
   })
 
   it('validates, saves connection and synchronizes models on submit', async () => {
