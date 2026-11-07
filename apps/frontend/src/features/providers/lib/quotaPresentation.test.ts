@@ -195,13 +195,14 @@ describe('franchiseSummary and consumptionCell', () => {
     })
     expect(franchiseSummary(availableAg)).toEqual({
       title: 'Antigravity (Google One AI Premium)',
-      value: '1 modelo(s) reportado(s)',
+      value: 'Gemini 85%',
     })
     expect(consumptionCell(availableAg)).toEqual({
-      kind: 'usage',
-      label: 'Cotas por modelo',
-      primary: '1 modelos',
-      secondary: 'Taxa restante por modelo',
+      kind: 'percent',
+      label: 'Gemini (Limite 5h)',
+      percent: 85,
+      barValue: 85,
+      barMax: 100,
     })
   })
 

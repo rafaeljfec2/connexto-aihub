@@ -5,8 +5,9 @@ import {
   productUsageTitle,
 } from '../lib/goPlusMeters'
 import { formatQuotaFetchedAt } from '../lib/formatQuotaDate'
-import type { DataScope, ProviderQuotaSnapshot } from '../types/quota'
+import type { DataScope, ProviderQuotaMetric, ProviderQuotaSnapshot } from '../types/quota'
 import { OverviewQuotaMetricRow } from './OverviewQuotaMetricRow'
+import { AntigravityQuotaOverview } from './AntigravityQuotaOverview'
 
 type ProviderQuotaAccountRowProps = Readonly<{
   snapshots: readonly ProviderQuotaSnapshot[]
@@ -116,6 +117,7 @@ function goSummaryLine(snapshots: readonly ProviderQuotaSnapshot[]): string | un
 function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }>) {
   const metrics = summaryMetrics(snapshot)
   const balance = availableBalance(snapshot)
+  const isAntigravity = snapshot.provider_id === 'antigravity'
 
   return (
     <section
@@ -126,26 +128,30 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
         <span className="font-medium text-[#AEBBD0]">{scopeLabel(snapshot.scope)}</span>
         <span className="text-[#8290A5]">{statusLabel(snapshot.status)}</span>
       </header>
-      {snapshot.status === 'available' && metrics.length > 0 ? (
-        <div className="space-y-1">
-          {metrics.map((metric) => (
-            <OverviewQuotaMetricRow
-              key={metric.metric}
-              accountId={snapshot.account_id}
-              snapshotScope={snapshot.scope}
-              metric={metric}
-            />
-          ))}
-          {balance != null ? (
-            <div
-              className="flex items-baseline justify-between gap-2"
-              data-testid={`quota-balance-${snapshot.account_id}`}
-            >
-              <span className="text-[9px] font-medium text-[#CBD5E2]">Saldo disponível</span>
-              <span className="text-[9px] text-[#A7B3C3]">{formatAvailableBalance(balance)}</span>
-            </div>
-          ) : null}
-        </div>
+      {snapshot.status === 'available' && (isAntigravity ? snapshot.quotas.length > 0 : metrics.length > 0) ? (
+        isAntigravity ? (
+          <AntigravityQuotaOverview accountId={snapshot.account_id} quotas={snapshot.quotas} />
+        ) : (
+          <div className="space-y-1">
+            {metrics.map((metric) => (
+              <OverviewQuotaMetricRow
+                key={metric.metric}
+                accountId={snapshot.account_id}
+                snapshotScope={snapshot.scope}
+                metric={metric}
+              />
+            ))}
+            {balance != null ? (
+              <div
+                className="flex items-baseline justify-between gap-2"
+                data-testid={`quota-balance-${snapshot.account_id}`}
+              >
+                <span className="text-[9px] font-medium text-[#CBD5E2]">Saldo disponível</span>
+                <span className="text-[9px] text-[#A7B3C3]">{formatAvailableBalance(balance)}</span>
+              </div>
+            ) : null}
+          </div>
+        )
       ) : (
         <p className="text-[9px] text-muted" role="status">
           {statusMessage(snapshot)}

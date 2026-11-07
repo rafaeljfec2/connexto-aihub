@@ -6,6 +6,7 @@ import {
   goPlusMetersFromSnapshot,
   type GoPlusMeterView,
 } from '../../overview/lib/goPlusMeters'
+import { categorizeAntigravityQuotas } from '../../overview/lib/antigravityCategories'
 import type { ProviderQuotaSnapshot, ProviderQuotaStatus } from '../../overview/types/quota'
 import type { AdminProvider } from '../types'
 import { providerCredentialConfigured, type ProviderSituation } from './providerPresentation'
@@ -182,6 +183,20 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
 
   if (snapshot.provider_id === 'antigravity') {
     const tier = snapshot.workspace_name ? ` (${snapshot.workspace_name})` : ''
+    const families = categorizeAntigravityQuotas(snapshot.quotas)
+    const active = families.filter((f) => f.id !== 'autocomplete_background')
+    if (active.length > 0) {
+      const summaryParts = active.map((f) => {
+        const primaryLimit = f.limits[0]
+        const shortTitle =
+          f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
+        return `${shortTitle} ${primaryLimit ? `${primaryLimit.remainingPercent.toLocaleString('pt-BR')}%` : ''}`
+      })
+      return {
+        title: `Antigravity${tier}`,
+        value: summaryParts.join(' · '),
+      }
+    }
     return {
       title: `Antigravity${tier}`,
       value: `${snapshot.quotas.length} modelo(s) reportado(s)`,
@@ -226,6 +241,34 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
   }
 
   if (snapshot.provider_id === 'antigravity') {
+    const families = categorizeAntigravityQuotas(snapshot.quotas)
+    const active = families.filter((f) => f.id !== 'autocomplete_background')
+
+    let bottleneck: { title: string; remainingPercent: number; windowLabel: string } | undefined
+    for (const f of active) {
+      for (const limit of f.limits) {
+        if (!bottleneck || limit.remainingPercent < bottleneck.remainingPercent) {
+          const shortTitle =
+            f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
+          bottleneck = {
+            title: shortTitle,
+            remainingPercent: limit.remainingPercent,
+            windowLabel: limit.windowLabel,
+          }
+        }
+      }
+    }
+
+    if (bottleneck) {
+      return {
+        kind: 'percent',
+        label: `${bottleneck.title} (${bottleneck.windowLabel})`,
+        percent: bottleneck.remainingPercent,
+        barValue: bottleneck.remainingPercent,
+        barMax: 100,
+      }
+    }
+
     return {
       kind: 'usage',
       label: 'Cotas por modelo',
@@ -303,6 +346,9 @@ export function formatQuotaSourceName(snapshot: ProviderQuotaSnapshot | undefine
   if (!snapshot) return 'Sem leitura na API'
   if (snapshot.status !== 'available') {
     return snapshot.error?.message ?? 'Sem leitura na API'
+  }
+  if (snapshot.source.name === 'antigravity_proxy_usage_api') {
+    return 'Antigravity Proxy Usage API'
   }
   return snapshot.source.name
 }

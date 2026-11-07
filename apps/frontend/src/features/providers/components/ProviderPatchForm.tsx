@@ -16,10 +16,11 @@ const patchSchema = z.object({
   endpoint: z.string().url('Endpoint must be a valid URL'),
   credential: z.string().optional(),
   management_credential: z.string().optional(),
-  oauth_redirect_uri: z.preprocess(
-    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
-    z.string().url('OAuth redirect URI must be a valid URL').optional(),
-  ),
+  oauth_redirect_uri: z
+    .string()
+    .url('OAuth redirect URI must be a valid URL')
+    .optional()
+    .or(z.literal('')),
 })
 
 type PatchFormValues = z.infer<typeof patchSchema>

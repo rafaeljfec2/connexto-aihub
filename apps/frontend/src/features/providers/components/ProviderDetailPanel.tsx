@@ -3,6 +3,7 @@ import { Edit2 } from 'lucide-react'
 import { AiBrandIcon } from '../../../shared/branding'
 import { Panel } from '../../../shared/ui'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
+import { categorizeAntigravityQuotas } from '../../overview/lib/antigravityCategories'
 import {
   providerConnectionSubtitle,
   providerIconSlug,
@@ -41,19 +42,48 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
     )
   }
 
+  const isAntigravity = snapshot?.provider_id === 'antigravity'
   const situation = providerQuotaSituation(provider, snapshot)
   const updatedAt = formatQuotaUpdatedAt(snapshot, provider.updated_at)
-  const percent = primaryGoPercent(snapshot)
+  const goPercent = primaryGoPercent(snapshot)
   const goPeriod = primaryGoPeriodLabel(snapshot)
   const consumption = consumptionCell(snapshot)
   const franchise = franchiseSummary(snapshot)
   const balance = availableBalanceDisplay(snapshot)
+
+  const percent = goPercent ?? (consumption.kind === 'percent' ? consumption.percent : undefined)
+  const percentPeriod =
+    goPercent != null
+      ? (goPeriod ?? 'provedor')
+      : consumption.kind === 'percent'
+        ? consumption.label
+        : undefined
+
+  const mainQuotaValue =
+    percent != null
+      ? `${percent.toLocaleString('pt-BR')}%`
+      : consumption.kind === 'usage'
+        ? consumption.primary
+        : 'Sem leitura'
+
+  const mainQuotaSuffix =
+    isAntigravity
+      ? 'restante'
+      : percent != null || consumption.kind === 'percent'
+        ? 'utilizado'
+        : 'utilizado'
+
   const primaryReading =
     percent != null
-      ? `${percent.toLocaleString('pt-BR')}% (${goPeriod ?? 'provedor'})`
+      ? `${percent.toLocaleString('pt-BR')}% (${percentPeriod})`
       : consumption.kind === 'usage'
         ? consumption.primary
         : '—'
+
+  const antigravityFamilies =
+    isAntigravity && snapshot?.status === 'available'
+      ? categorizeAntigravityQuotas(snapshot.quotas).filter((f) => f.id !== 'autocomplete_background')
+      : []
 
   return (
     <Panel className="providers-panel min-w-0">
@@ -82,14 +112,8 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
         <div className="providers-quota-box" data-testid={`providers-detail-quota-${provider.id}`}>
           <div className="providers-quota-box-label">CONSUMO DA FRANQUIA</div>
           <div className="providers-quota-box-main">
-            <strong>
-              {percent != null
-                ? `${percent.toLocaleString('pt-BR')}%`
-                : consumption.kind === 'usage'
-                  ? consumption.primary
-                  : 'Sem leitura'}
-            </strong>
-            <span>utilizado</span>
+            <strong>{mainQuotaValue}</strong>
+            <span>{mainQuotaSuffix}</span>
           </div>
           {percent != null ? (
             <div className="providers-large-track">
@@ -116,21 +140,61 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
           <div className="providers-quota-foot">
             <span>
               Consumo:{' '}
-              {percent != null
-                ? `${percent.toLocaleString('pt-BR')}% (${goPeriod ?? 'provedor'})`
-                : consumption.kind === 'usage'
-                  ? franchise.value
+              {franchise.value !== '—'
+                ? franchise.value
+                : percent != null
+                  ? `${percent.toLocaleString('pt-BR')}% (${percentPeriod})`
                   : 'não reportado'}
             </span>
             <span>
-              {percent != null
-                ? 'Limite: percentual do provedor'
-                : balance !== '—'
-                  ? `Disponível: ${balance}`
-                  : 'Limite: leitura oficial'}
+              {isAntigravity
+                ? 'Limite: pools oficiais'
+                : percent != null
+                  ? 'Limite: percentual do provedor'
+                  : balance !== '—'
+                    ? `Disponível: ${balance}`
+                    : 'Limite: leitura oficial'}
             </span>
           </div>
         </div>
+
+        {antigravityFamilies.length > 0 ? (
+          <div
+            className="mt-2 rounded-lg border border-line/60 bg-[#171E29]/90 p-2 space-y-1.5"
+            data-testid="antigravity-detail-families"
+          >
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-semibold text-[#8290A5]">
+              <span>Franquias por Família</span>
+              <span className="font-mono text-[8px] text-muted">
+                {snapshot?.quotas.length ?? 0} modelos
+              </span>
+            </div>
+            {antigravityFamilies.map((family) => (
+              <div
+                key={family.id}
+                className="space-y-1 rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
+              >
+                <div className="flex items-center justify-between text-[10px] font-medium text-[#CBD5E2]">
+                  <span>{family.title}</span>
+                  <span className="text-[9px] text-[#8290A5]">
+                    {family.totalModelsCount} modelo(s)
+                  </span>
+                </div>
+                {family.limits.map((limit, idx) => (
+                  <div
+                    key={`${limit.windowType}-${idx}`}
+                    className="flex items-center justify-between text-[9px]"
+                  >
+                    <span className="text-[#AEBBD0]">{limit.windowLabel}</span>
+                    <span className="font-semibold text-[#CBD5E2]">
+                      {limit.remainingPercent.toLocaleString('pt-BR')}% restante
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="mt-1">
           <div className="providers-detail-row">
