@@ -313,6 +313,36 @@ func (a *ProviderAdmin) ClearCursorUsageProxyRuntimeSessions() http.Handler {
 	})
 }
 
+// CursorProxyUsageCollect handles POST /api/providers/{id}/proxy/cursor/usage/collect.
+func (a *ProviderAdmin) CursorProxyUsageCollect() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		id := r.PathValue("id")
+		payload, err := a.service.PostCursorProxyUsageCollect(r.Context(), id)
+		if err != nil {
+			switch {
+			case errors.Is(err, providers.ErrNotFound):
+				a.writeError(w, err)
+			case errors.Is(err, providers.ErrInvalid):
+				writeJSONError(w, http.StatusBadRequest, invalidRequestType, err.Error())
+			case errors.Is(err, providers.ErrNoGatewayKey):
+				writeJSONError(w, http.StatusConflict, gatewayCredentialMissingType, gatewayCredentialMissingMsg)
+			case errors.Is(err, providers.ErrProxyCursorUsageFailed):
+				a.logger.Warn("proxy cursor usage collect failed", "provider", id, "error", err)
+				writeJSONError(w, http.StatusBadGateway, proxyCursorAuthFailedType, proxyCursorAuthFailureMessage(err))
+			default:
+				a.logger.Error("proxy cursor usage collect", "provider", id, "error", err.Error())
+				writeJSONError(w, http.StatusInternalServerError, internalErrorType, adminInternalMsg)
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, payload)
+	})
+}
+
 // CursorProxyUsageSession handles GET /api/providers/{id}/proxy/cursor/usage/session.
 func (a *ProviderAdmin) CursorProxyUsageSession() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

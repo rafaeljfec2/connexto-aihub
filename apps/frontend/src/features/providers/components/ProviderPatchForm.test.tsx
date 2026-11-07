@@ -15,6 +15,8 @@ vi.mock('../api/queries', async () => {
     clearCursorUsageProxyRuntimeSessions: vi.fn(),
     startCursorProxyAuth: vi.fn(),
     getCursorProxyAuthStatus: vi.fn(),
+    getCursorProxyUsageSession: vi.fn(),
+    probeCursorProxyUsageCollect: vi.fn(),
     updateProvider: vi.fn(),
   }
 })
@@ -65,6 +67,14 @@ const antigravityProvider: AdminProvider = {
 describe('ProviderPatchForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(queries.getCursorProxyUsageSession).mockResolvedValue({
+      status: 'authentication_required',
+      accountId: 'cursor',
+    })
+    vi.mocked(queries.probeCursorProxyUsageCollect).mockResolvedValue({
+      status: 'authentication_required',
+      accountId: 'cursor',
+    })
     vi.mocked(queries.validateProvider).mockResolvedValue({ status: 'reachable' })
     vi.mocked(queries.startAntigravityProxyAuth).mockResolvedValue({
       operation_id: 'op-1',

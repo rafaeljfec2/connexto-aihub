@@ -81,6 +81,7 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/cursor/runtime/sessions/clear", Handler: admin.ClearCursorUsageProxyRuntimeSessions()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/cursor/auth/start", Handler: admin.CursorProxyAuthStart()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}/proxy/cursor/usage/session", Handler: admin.CursorProxyUsageSession()},
+		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/cursor/usage/collect", Handler: admin.CursorProxyUsageCollect()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}/proxy/cursor/auth/{sessionId}", Handler: admin.CursorProxyAuthStatus()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}/proxy/antigravity/auth/status", Handler: admin.AntigravityProxyAuthStatus()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/antigravity/auth/start", Handler: admin.AntigravityProxyAuthStart()},

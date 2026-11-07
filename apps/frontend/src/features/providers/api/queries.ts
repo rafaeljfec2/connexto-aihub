@@ -169,11 +169,27 @@ export type CursorProxyUsageSessionResponse = {
   touchedAt?: string
 }
 
+export type CursorProxyUsageCollectResponse = {
+  status: string
+  provider?: string
+  accountId: string
+  collectedAt?: string
+}
+
 export async function getCursorProxyUsageSession(
   id: string,
 ): Promise<CursorProxyUsageSessionResponse> {
   return fetchJson<CursorProxyUsageSessionResponse>(
     `/api/providers/${encodeURIComponent(id)}/proxy/cursor/usage/session`,
+  )
+}
+
+export async function probeCursorProxyUsageCollect(
+  id: string,
+): Promise<CursorProxyUsageCollectResponse> {
+  return fetchJson<CursorProxyUsageCollectResponse>(
+    `/api/providers/${encodeURIComponent(id)}/proxy/cursor/usage/collect`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' },
   )
 }
 

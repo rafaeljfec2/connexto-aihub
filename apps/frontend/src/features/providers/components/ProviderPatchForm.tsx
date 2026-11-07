@@ -10,6 +10,7 @@ import {
   getAntigravityProxyAuthStatus,
   getCursorProxyAuthStatus,
   getCursorProxyUsageSession,
+  probeCursorProxyUsageCollect,
   providersQueryKeys,
   startAntigravityProxyAuth,
   startCursorProxyAuth,
@@ -17,6 +18,7 @@ import {
   validateProvider,
 } from '../api/queries'
 import { cursorAuthStartSuccessMessage } from '../lib/cursorAuthStartMessage'
+import { messageForCursorCollectReadiness } from '../lib/cursorCollectReadiness'
 import { cursorProxyAuthErrorMessage } from '../lib/mutationErrors'
 import type { AdminProvider } from '../types'
 
@@ -116,6 +118,38 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
   const isAntigravity = provider.type === 'antigravity'
   const isCursor = provider.type === 'cursor'
 
+  async function evaluateCursorSessionForCollect() {
+    const persisted = await getCursorProxyUsageSession(provider.id)
+    if (persisted.status !== 'authenticated') {
+      return messageForCursorCollectReadiness(persisted, {
+        status: 'authentication_required',
+        accountId: provider.id,
+      })
+    }
+    const collect = await probeCursorProxyUsageCollect(provider.id)
+    return messageForCursorCollectReadiness(persisted, collect)
+  }
+
+  useEffect(() => {
+    if (!isCursor || !provider.management_credential_configured) {
+      return undefined
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const result = await evaluateCursorSessionForCollect()
+        if (!cancelled) {
+          setTestResult(result)
+        }
+      } catch {
+        // User can use «Ver status» manually.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isCursor, provider.id, provider.management_credential_configured])
+
   useEffect(() => {
     if (!isCursor || activeCursorSessionId === null) {
       return undefined
@@ -130,15 +164,15 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         const s = await getCursorProxyAuthStatus(provider.id, sessionId)
         if (s.status === 'authenticated') {
           cursorPollStopRef.current = true
-          const persisted = await getCursorProxyUsageSession(provider.id)
           void queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
-          setTestResult({
-            success: persisted.status === 'authenticated',
-            message:
-              persisted.status === 'authenticated'
-                ? `Login concluído e sessão persistida para coleta (conta ${persisted.accountId}). Atualize Franquias. Último toque: ${persisted.touchedAt ?? '—'}.`
-                : `Login web concluído, mas a sessão para coleta ainda não foi gravada no proxy. Mantenha o Chromium aberto até esta mensagem confirmar persistência, ou repita o login no mesmo proxy (Docker vs pnpm dev). Sessão ${s.sessionId}.`,
-          })
+          try {
+            setTestResult(await evaluateCursorSessionForCollect())
+          } catch {
+            setTestResult({
+              success: false,
+              message: `Login web concluído (sessão ${s.sessionId}), mas não foi possível confirmar persistência/coleta no proxy.`,
+            })
+          }
           return
         }
         if (s.status === 'expired' || s.status === 'authentication_failed') {
@@ -188,12 +222,16 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
     setLoadingCursorAuthStatus(true)
     setTestResult(null)
     try {
-      const persisted = await getCursorProxyUsageSession(provider.id)
-      if (persisted.status === 'authenticated') {
-        setTestResult({
-          success: true,
-          message: `Coleta: sessão persistida no proxy (conta ${persisted.accountId}). Último toque: ${persisted.touchedAt ?? '—'}. Use Atualizar em Franquias.`,
-        })
+      const readiness = await evaluateCursorSessionForCollect()
+      if (readiness.success) {
+        void queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
+        setTestResult(readiness)
+        return
+      }
+      if (readiness.message.includes('Nenhuma sessão persistida')) {
+        // fall through to active login operation status
+      } else {
+        setTestResult(readiness)
         return
       }
       if (!activeCursorSessionId) {
@@ -205,13 +243,21 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, onSubmit 
         return
       }
       const s = await getCursorProxyAuthStatus(provider.id, activeCursorSessionId)
-      setTestResult({
-        success: s.status === 'authenticated',
-        message: `Login web (operação): ${s.status}. Conta proxy: ${s.accountId || '—'}. Expira em ${s.expiresAt}.`,
-      })
       if (s.status === 'authenticated') {
         cursorPollStopRef.current = true
-        void queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
+        try {
+          setTestResult(await evaluateCursorSessionForCollect())
+        } catch {
+          setTestResult({
+            success: false,
+            message: `Login web (operação) autenticado, mas falha ao sondar coleta no proxy.`,
+          })
+        }
+      } else {
+        setTestResult({
+          success: false,
+          message: `Login web (operação): ${s.status}. Conta proxy: ${s.accountId || '—'}. Expira em ${s.expiresAt}.`,
+        })
       }
     } catch (err) {
       setTestResult({
