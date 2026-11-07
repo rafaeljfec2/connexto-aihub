@@ -47,7 +47,7 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-semibold text-[#CBD5E2]">
-                      {limit.remainingPercent.toLocaleString('pt-BR')}% restante
+                      {Math.round(limit.remainingPercent)}% restante
                     </span>
                     <CircularQuotaProgress percent={limit.remainingPercent} size={14} />
                   </div>

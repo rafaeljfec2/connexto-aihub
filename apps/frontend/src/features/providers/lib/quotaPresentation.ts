@@ -220,7 +220,10 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     const active = families.filter((f) => f.id !== 'autocomplete_background')
     if (active.length > 0) {
       const summaryParts = active.map((f) => {
-        const primaryLimit = f.limits[0]
+        // Pick the bottleneck (lowest remaining percentage) limit for this family
+        const primaryLimit = f.limits.reduce((prev, curr) =>
+          curr.remainingPercent < prev.remainingPercent ? curr : prev,
+        )
         const shortTitle =
           f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
         return `${shortTitle} ${primaryLimit ? `${primaryLimit.remainingPercent.toLocaleString('pt-BR')}%` : ''}`

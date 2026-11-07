@@ -128,6 +128,7 @@ export function categorizeAntigravityQuotas(
   const familyMap = new Map<AntigravityFamilyId, Map<string, WindowBucket>>()
 
   for (const metric of quotas) {
+    const isGroupMetric = metric.scope === 'group' || metric.metric.startsWith('group:')
     const familyId = detectFamily(metric.metric, metric.label || metric.metric)
     const windowType = detectWindowType(metric, nowMs)
     const key = `${windowType}_${metric.resets_at ?? ''}`
@@ -150,12 +151,14 @@ export function categorizeAntigravityQuotas(
         remainingPercent: metric.remaining_percent ?? 100,
         consumedPercent: metric.consumed_percent,
         resetsAt: metric.resets_at,
-        models: [member],
+        models: isGroupMetric ? [] : [member],
       })
     } else {
       const bucket = windowMap.get(key)!
-      bucket.models.push(member)
-      // If any model in the shared pool reports a remaining percent, keep the lowest (safest)
+      if (!isGroupMetric) {
+        bucket.models.push(member)
+      }
+      // If any metric in the shared pool reports a remaining percent, keep the lowest (safest)
       if (metric.remaining_percent != null) {
         bucket.remainingPercent = Math.min(bucket.remainingPercent, metric.remaining_percent)
       }
@@ -173,9 +176,43 @@ export function categorizeAntigravityQuotas(
 
   const result: AntigravityFamilyGroup[] = []
 
+  // Global weekly reset reference across account (e.g. from Claude weekly bucket if present)
+  let sharedWeeklyReset: string | undefined
+  for (const windowMap of familyMap.values()) {
+    for (const bucket of windowMap.values()) {
+      if (bucket.windowType === 'weekly' && bucket.resetsAt) {
+        sharedWeeklyReset = bucket.resetsAt
+        break
+      }
+    }
+    if (sharedWeeklyReset) break
+  }
+
   for (const fid of familyOrder) {
     const windowMap = familyMap.get(fid)
     if (!windowMap || windowMap.size === 0) continue
+
+    // For active generative model families, ensure both 'weekly' and '5h' limits are present
+    if (fid === 'gemini_models' || fid === 'claude_gpt_models') {
+      const hasWeekly = Array.from(windowMap.values()).some((b) => b.windowType === 'weekly')
+      const has5h = Array.from(windowMap.values()).some((b) => b.windowType === '5h')
+
+      if (!hasWeekly) {
+        windowMap.set('weekly_default', {
+          windowType: 'weekly',
+          remainingPercent: 100,
+          resetsAt: sharedWeeklyReset,
+          models: [],
+        })
+      }
+      if (!has5h) {
+        windowMap.set('5h_default', {
+          windowType: '5h',
+          remainingPercent: 100,
+          models: [],
+        })
+      }
+    }
 
     const limits: AntigravityWindowLimit[] = []
     let totalModels = 0

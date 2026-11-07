@@ -52,7 +52,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
 
               <div className="flex items-center gap-2.5">
                 <span className="text-sm font-semibold text-[#CBD5E2]">
-                  {limit.remainingPercent.toLocaleString('pt-BR')}% restante
+                  {Math.round(limit.remainingPercent)}% restante
                 </span>
                 <CircularQuotaProgress percent={limit.remainingPercent} size={20} />
               </div>

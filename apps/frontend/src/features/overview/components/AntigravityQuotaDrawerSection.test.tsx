@@ -36,9 +36,9 @@ describe('AntigravityQuotaDrawerSection', () => {
     expect(screen.getByText('Gemini Models')).toBeTruthy()
     expect(screen.getByText('Claude and GPT models')).toBeTruthy()
 
-    // Pools with remaining percentage
-    expect(screen.getByText('46,8% restante')).toBeTruthy()
-    expect(screen.getByText('73,83% restante')).toBeTruthy()
+    // Pools with remaining percentage rounded to whole number
+    expect(screen.getByText('47% restante')).toBeTruthy()
+    expect(screen.getByText('74% restante')).toBeTruthy()
 
     // Toggle models
     const toggleButton = screen.getAllByRole('button', { name: /1 modelo\(s\) incluído\(s\)/i })[0]

@@ -44,9 +44,9 @@ describe('AntigravityQuotaOverview', () => {
     expect(screen.getByText('Gemini Models')).toBeTruthy()
     expect(screen.getByText('Claude and GPT models')).toBeTruthy()
 
-    // Shared pools deduplicated
-    expect(screen.getByText('46,8% restante')).toBeTruthy()
-    expect(screen.getByText('73,83% restante')).toBeTruthy()
+    // Shared pools deduplicated with integer rounding matching IDE
+    expect(screen.getByText('47% restante')).toBeTruthy()
+    expect(screen.getByText('74% restante')).toBeTruthy()
 
     // Model count badges
     expect(screen.getByText('1 modelo(s)')).toBeTruthy()

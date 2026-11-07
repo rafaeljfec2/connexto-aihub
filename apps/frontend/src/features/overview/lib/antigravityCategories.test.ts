@@ -77,24 +77,28 @@ describe('categorizeAntigravityQuotas', () => {
       'autocomplete_background',
     ])
 
-    // Gemini Models verification
+    // Gemini Models verification (weekly + 5h dual limits)
     const geminiGroup = groups.find((g) => g.id === 'gemini_models')!
     expect(geminiGroup.title).toBe('Gemini Models')
     expect(geminiGroup.totalModelsCount).toBe(2)
-    expect(geminiGroup.limits).toHaveLength(1)
-    expect(geminiGroup.limits[0].windowType).toBe('5h')
-    expect(geminiGroup.limits[0].windowLabel).toBe('Limite 5h')
-    expect(geminiGroup.limits[0].remainingPercent).toBe(73.83)
-    expect(geminiGroup.limits[0].models).toHaveLength(2)
+    expect(geminiGroup.limits).toHaveLength(2)
+    expect(geminiGroup.limits[0].windowType).toBe('weekly')
+    expect(geminiGroup.limits[0].windowLabel).toBe('Limite semanal')
+    expect(geminiGroup.limits[1].windowType).toBe('5h')
+    expect(geminiGroup.limits[1].windowLabel).toBe('Limite 5h')
+    expect(geminiGroup.limits[1].remainingPercent).toBe(73.83)
+    expect(geminiGroup.limits[1].models).toHaveLength(2)
 
-    // Claude and GPT models verification (deduplicated shared pool)
+    // Claude and GPT models verification (weekly + 5h dual limits)
     const claudeGptGroup = groups.find((g) => g.id === 'claude_gpt_models')!
     expect(claudeGptGroup.title).toBe('Claude and GPT models')
     expect(claudeGptGroup.totalModelsCount).toBe(3)
-    expect(claudeGptGroup.limits).toHaveLength(1)
+    expect(claudeGptGroup.limits).toHaveLength(2)
     expect(claudeGptGroup.limits[0].windowType).toBe('weekly')
     expect(claudeGptGroup.limits[0].windowLabel).toBe('Limite semanal')
     expect(claudeGptGroup.limits[0].remainingPercent).toBe(46.8)
+    expect(claudeGptGroup.limits[1].windowType).toBe('5h')
+    expect(claudeGptGroup.limits[1].windowLabel).toBe('Limite 5h')
     expect(claudeGptGroup.limits[0].models.map((m) => m.id)).toEqual([
       'claude-sonnet-5-5-medium',
       'claude-opus-5-5-low',
@@ -142,5 +146,61 @@ describe('categorizeAntigravityQuotas', () => {
     expect(family.limits[0].remainingPercent).toBe(48)
     expect(family.limits[1].windowType).toBe('5h')
     expect(family.limits[1].remainingPercent).toBe(98)
+  })
+
+  it('guarantees dual limits (weekly and 5h) for active Gemini and Claude families with rounded whole numbers matching IDE', () => {
+    const quotas: ProviderQuotaMetric[] = [
+      {
+        metric: 'gemini-2.5-pro',
+        label: 'Gemini 2.5 Pro',
+        nature: 'rate_limit',
+        remaining_percent: 73.83,
+        period: '5h',
+        resets_at: '2026-11-06T21:20:00Z',
+      },
+      {
+        metric: 'group:Claude and GPT models:weekly',
+        label: 'Claude and GPT models (Weekly Limit Remaining)',
+        nature: 'rate_limit',
+        scope: 'group',
+        remaining_percent: 47.73,
+        period: 'weekly',
+        resets_at: '2026-11-12T00:46:33Z',
+      },
+      {
+        metric: 'group:Claude and GPT models:5h',
+        label: 'Claude and GPT models (Five Hour Limit Remaining)',
+        nature: 'rate_limit',
+        scope: 'group',
+        remaining_percent: 100,
+        period: '5h',
+        resets_at: '2026-11-07T05:51:19Z',
+      },
+      {
+        metric: 'claude-sonnet-5-5-medium',
+        label: 'Claude Sonnet 5.5',
+        nature: 'rate_limit',
+        remaining_percent: 47.73,
+        period: 'weekly',
+        resets_at: '2026-11-12T00:46:33Z',
+      },
+    ]
+
+    const groups = categorizeAntigravityQuotas(quotas, baseTime)
+
+    // Gemini group should have both weekly and 5h
+    const gemini = groups.find((g) => g.id === 'gemini_models')!
+    expect(gemini.limits).toHaveLength(2)
+    expect(gemini.limits[0].windowType).toBe('weekly')
+    expect(gemini.limits[1].windowType).toBe('5h')
+    expect(gemini.limits[1].remainingPercent).toBe(73.83)
+
+    // Claude group should have both weekly and 5h
+    const claude = groups.find((g) => g.id === 'claude_gpt_models')!
+    expect(claude.limits).toHaveLength(2)
+    expect(claude.limits[0].windowType).toBe('weekly')
+    expect(claude.limits[0].remainingPercent).toBe(47.73)
+    expect(claude.limits[1].windowType).toBe('5h')
+    expect(claude.limits[1].remainingPercent).toBe(100)
   })
 })
