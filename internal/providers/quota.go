@@ -117,6 +117,12 @@ type ProviderQuotaSnapshot struct {
 	WorkspaceName     *string               `json:"workspace_name,omitempty"`
 	UsageURL          *string               `json:"usage_url,omitempty"`
 	UsageChart        *ProviderUsageChart   `json:"usage_chart,omitempty"`
+
+	// Background refresh, staleness, and observability metadata
+	Refreshing       bool                `json:"refreshing,omitempty"`
+	Stale            bool                `json:"stale,omitempty"`
+	LastAttemptAt    *string             `json:"last_attempt_at,omitempty"`
+	LastAttemptError *ProviderQuotaError `json:"last_attempt_error,omitempty"`
 }
 
 // ProviderQuotasResponse wraps all account snapshots returned by the query.

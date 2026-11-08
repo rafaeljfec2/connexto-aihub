@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -37,11 +38,23 @@ func (s *QuotaService) queryConfiguredAccount(ctx context.Context, record Record
 		return []ProviderQuotaSnapshot{s.queryOpenCodeSubscription(ctx, record, adapter)}
 	}
 
-	snapshots := []ProviderQuotaSnapshot{s.queryKeyScope(ctx, record, adapter)}
 	if accountAdapter, ok := adapter.(AccountQuotaAdapter); ok {
-		snapshots = append(snapshots, s.queryAccountScope(ctx, record, accountAdapter))
+		var keySnapshot, accountSnapshot ProviderQuotaSnapshot
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			keySnapshot = s.queryKeyScope(ctx, record, adapter)
+		}()
+		go func() {
+			defer wg.Done()
+			accountSnapshot = s.queryAccountScope(ctx, record, accountAdapter)
+		}()
+		wg.Wait()
+		return []ProviderQuotaSnapshot{keySnapshot, accountSnapshot}
 	}
-	return snapshots
+
+	return []ProviderQuotaSnapshot{s.queryKeyScope(ctx, record, adapter)}
 }
 
 func (s *QuotaService) queryCursorProxyAccount(ctx context.Context, record Record, adapter QuotaAdapter) ProviderQuotaSnapshot {

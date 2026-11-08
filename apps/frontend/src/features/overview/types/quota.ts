@@ -91,6 +91,11 @@ export interface ProviderQuotaSnapshot {
   workspace_name?: string
   usage_url?: string
   usage_chart?: ProviderUsageChart
+
+  refreshing?: boolean
+  stale?: boolean
+  last_attempt_at?: string
+  last_attempt_error?: ProviderQuotaError
 }
 
 export interface ProviderQuotasResponse {

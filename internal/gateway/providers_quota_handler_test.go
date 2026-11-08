@@ -86,7 +86,7 @@ func TestProviderQuotasHandler_Success(t *testing.T) {
 
 	handler := NewProviderQuotasHandler(quotaService, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/ui/providers/quotas", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/ui/providers/quotas?sync=true", nil)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -122,6 +122,24 @@ func TestProviderQuotasHandler_Success(t *testing.T) {
 	}
 	if resp.Snapshots[1].Status != providers.QuotaStatusUnconfiguredCredential {
 		t.Fatalf("account snapshot status = %q, want unconfigured credential", resp.Snapshots[1].Status)
+	}
+
+	// 2. Subsequent default GET /api/ui/providers/quotas returns cached snapshots immediately without sync query.
+	reqCached := httptest.NewRequest(http.MethodGet, "/api/ui/providers/quotas", nil)
+	recCached := httptest.NewRecorder()
+	handler.ServeHTTP(recCached, reqCached)
+	if recCached.Code != http.StatusOK {
+		t.Fatalf("expected status 200 on cached read, got %d", recCached.Code)
+	}
+	var respCached providers.ProviderQuotasResponse
+	if err := json.Unmarshal(recCached.Body.Bytes(), &respCached); err != nil {
+		t.Fatalf("failed to decode cached response: %v", err)
+	}
+	if len(respCached.Snapshots) != 2 {
+		t.Fatalf("expected 2 cached snapshots, got %d", len(respCached.Snapshots))
+	}
+	if respCached.Snapshots[0].Status != providers.QuotaStatusAvailable {
+		t.Errorf("cached snapshot status = %q, want available", respCached.Snapshots[0].Status)
 	}
 }
 
