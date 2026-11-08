@@ -302,11 +302,16 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
     const families = categorizeAntigravityQuotas(snapshot.quotas)
     const active = families.filter((f) => f.id !== 'autocomplete_background')
 
-    // Prioritize Gemini models weekly consumption
+    // Prioritize Gemini models weekly consumption with actual reported models
     const geminiFamily = active.find((f) => f.id === 'gemini_models')
     if (geminiFamily && geminiFamily.limits.length > 0) {
-      const weeklyLimit = geminiFamily.limits.find((l) => l.windowType === 'weekly')
-      const targetLimit = weeklyLimit ?? geminiFamily.limits[0]
+      const weeklyLimit = geminiFamily.limits.find(
+        (l) => l.windowType === 'weekly' && l.models.length > 0,
+      )
+      const targetLimit =
+        weeklyLimit ??
+        geminiFamily.limits.find((l) => l.models.length > 0) ??
+        geminiFamily.limits[0]
       return {
         kind: 'percent',
         label: `Gemini (${targetLimit.windowLabel})`,

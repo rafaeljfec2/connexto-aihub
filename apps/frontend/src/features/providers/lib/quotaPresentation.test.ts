@@ -231,6 +231,56 @@ describe('franchiseSummary and consumptionCell', () => {
     })
   })
 
+  it('prefers Gemini weekly consumption in grid over Claude/GPT bottleneck', () => {
+    const multiAg: ProviderQuotaSnapshot = {
+      account_id: 'antigravity',
+      account_label: 'engineer@connexto.ai',
+      provider_id: 'antigravity',
+      provider_name: 'Antigravity',
+      status: 'available',
+      scope: 'account',
+      quotas: [
+        {
+          metric: 'gemini-2.5-pro',
+          label: 'Gemini 2.5 Pro',
+          nature: 'rate_limit',
+          remaining_percent: 73.03,
+          period: 'weekly',
+          resets_at: '2026-11-13T21:23:00Z',
+        },
+        {
+          metric: 'gemini-2.5-flash',
+          label: 'Gemini 2.5 Flash',
+          nature: 'rate_limit',
+          remaining_percent: 83.85,
+          period: '5h',
+          resets_at: '2026-11-08T05:00:00Z',
+        },
+        {
+          metric: 'claude-3-7-sonnet',
+          label: 'Claude 3.7 Sonnet',
+          nature: 'rate_limit',
+          remaining_percent: 47.73,
+          period: 'weekly',
+          resets_at: '2026-11-13T21:23:00Z',
+        },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'antigravity_proxy_usage_api',
+        scope: 'account',
+        fetched_at: '2026-11-08T00:00:00Z',
+      },
+    }
+    expect(consumptionCell(multiAg)).toEqual({
+      kind: 'percent',
+      label: 'Gemini (Limite semanal)',
+      percent: 73.03,
+      barValue: 73.03,
+      barMax: 100,
+    })
+  })
+
   it('prefers Go weekly percent to match Console chip (not rolling)', () => {
     const go = snapshot('subscription', [
       {
