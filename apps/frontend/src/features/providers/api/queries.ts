@@ -34,6 +34,10 @@ export async function getProviderQuotas(): Promise<ProviderQuotasResponse> {
   return fetchJson<ProviderQuotasResponse>('/api/ui/providers/quotas')
 }
 
+export async function getProviderQuotasForce(): Promise<ProviderQuotasResponse> {
+  return fetchJson<ProviderQuotasResponse>('/api/ui/providers/quotas?refresh=true')
+}
+
 export async function listProviders(): Promise<ProviderListResponse> {
   return fetchJson<ProviderListResponse>('/api/providers')
 }

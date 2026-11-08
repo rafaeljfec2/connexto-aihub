@@ -23,7 +23,6 @@ type ProviderQuotaTableProps = {
   selectedId: string | null
   onSelect: (provider: AdminProvider) => void
   onOpenManage?: (provider: AdminProvider) => void
-  isLoading?: boolean
 }
 
 export function ProviderQuotaTable({
@@ -32,7 +31,6 @@ export function ProviderQuotaTable({
   selectedId,
   onSelect,
   onOpenManage,
-  isLoading,
 }: ProviderQuotaTableProps) {
   const [search, setSearch] = useState('')
 
@@ -67,12 +65,12 @@ export function ProviderQuotaTable({
         }
       />
 
-      {isLoading ? (
-        <div className="py-8 text-center text-xs text-muted animate-pulse">
-          Carregando lista de provedores…
+      {filtered.length === 0 ? (
+        <div className="py-8 text-center text-xs text-muted">
+          {providers.length === 0
+            ? 'Nenhum provedor configurado.'
+            : 'Nenhum provedor corresponde à busca.'}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="py-8 text-center text-xs text-muted">Nenhum provedor encontrado.</div>
       ) : (
         <div className="providers-table-body">
           <div className="grid-table-scroll scrollbar-slim">
@@ -205,7 +203,7 @@ export function ProviderQuotaTable({
         </div>
       )}
 
-      {!isLoading && filtered.length > 0 ? (
+      {filtered.length > 0 ? (
         <GridPagination
           meta={pagination.meta}
           onPreviousPage={pagination.goToPreviousPage}

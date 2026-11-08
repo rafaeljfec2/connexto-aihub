@@ -1,9 +1,18 @@
 import { cn } from './cn'
 
-export function Skeleton({ className }: { className?: string }) {
+type SkeletonProps = Readonly<{
+  className?: string
+  motionSafe?: boolean
+}>
+
+export function Skeleton({ className, motionSafe = false }: SkeletonProps) {
   return (
     <div
-      className={cn('animate-pulse rounded-md bg-raised/80', className)}
+      className={cn(
+        motionSafe ? 'motion-safe:animate-pulse' : 'animate-pulse',
+        'rounded-md bg-raised/80',
+        className,
+      )}
       aria-hidden
     />
   )

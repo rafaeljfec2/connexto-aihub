@@ -22,28 +22,41 @@ import {
 } from '../lib/quotaPresentation'
 import type { AdminProvider } from '../types'
 
-type ProviderDetailPanelProps = {
+type ProviderDetailPanelProps = Readonly<{
   provider: AdminProvider | null
   snapshot?: ProviderQuotaSnapshot
+  hasProviders?: boolean
   onOpenManage: (provider: AdminProvider) => void
-}
+}>
 
-export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: ProviderDetailPanelProps) {
+export function ProviderDetailPanel({
+  provider,
+  snapshot,
+  hasProviders = true,
+  onOpenManage,
+}: ProviderDetailPanelProps) {
+  const isAntigravity = snapshot?.provider_id === 'antigravity'
+  const antigravityBars = useMemo(
+    () => buildAntigravityBars(isAntigravity, snapshot),
+    [isAntigravity, snapshot],
+  )
+
   if (!provider) {
     return (
       <Panel className="providers-panel min-w-0">
         <div className="providers-detail-head shrink-0">
           <strong>Detalhe da franquia</strong>
-          <small>SELECIONE UM PROVEDOR</small>
+          <small>{hasProviders ? 'SELECIONE UM PROVEDOR' : 'SEM PROVEDORES'}</small>
         </div>
         <p className="py-6 text-center text-xs text-muted">
-          Selecione um provedor na tabela para inspecionar a conexão.
+          {hasProviders
+            ? 'Selecione um provedor na tabela para inspecionar a conexão.'
+            : 'Nenhum provedor configurado para inspecionar.'}
         </p>
       </Panel>
     )
   }
 
-  const isAntigravity = snapshot?.provider_id === 'antigravity'
   const situation = providerQuotaSituation(provider, snapshot)
   const updatedAt = formatQuotaUpdatedAt(snapshot, provider.updated_at)
   const goPercent = primaryGoPercent(snapshot)
@@ -85,69 +98,6 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
     isAntigravity && snapshot?.status === 'available'
       ? categorizeAntigravityQuotas(snapshot.quotas).filter((f) => f.id !== 'autocomplete_background')
       : []
-
-  const antigravityBars = useMemo(() => {
-    if (!isAntigravity || snapshot?.status !== 'available') return []
-    const families = categorizeAntigravityQuotas(snapshot.quotas).filter(
-      (f) => f.id !== 'autocomplete_background',
-    )
-    const gemini = families.find((f) => f.id === 'gemini_models')
-    const claudeGpt = families.find((f) => f.id === 'claude_gpt_models')
-
-    const bars: Array<{ id: string; label: string; percent: number }> = []
-
-    if (gemini) {
-      const weekly = gemini.limits.find((l) => l.windowType === 'weekly')
-      if (weekly) {
-        bars.push({
-          id: 'gemini-weekly',
-          label: 'Gemini (Limite semanal)',
-          percent: weekly.remainingPercent,
-        })
-      }
-      const fiveHours = gemini.limits.find((l) => l.windowType === '5h')
-      if (fiveHours) {
-        bars.push({
-          id: 'gemini-5h',
-          label: 'Gemini (Limite 5h)',
-          percent: fiveHours.remainingPercent,
-        })
-      }
-    }
-
-    if (claudeGpt) {
-      const weekly = claudeGpt.limits.find((l) => l.windowType === 'weekly') ?? claudeGpt.limits[0]
-      if (weekly) {
-        bars.push({
-          id: 'claude-gpt-weekly',
-          label: `Claude/GPT (${weekly.windowLabel})`,
-          percent: weekly.remainingPercent,
-        })
-      }
-    }
-
-    // Complement with any other limits if fewer than 3 bars are populated
-    if (bars.length < 3) {
-      for (const f of families) {
-        for (const limit of f.limits) {
-          const id = `${f.id}-${limit.windowType}`
-          if (!bars.some((b) => b.id === id || b.label.includes(limit.windowLabel))) {
-            const shortTitle =
-              f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
-            bars.push({
-              id,
-              label: `${shortTitle} (${limit.windowLabel})`,
-              percent: limit.remainingPercent,
-            })
-            if (bars.length >= 3) break
-          }
-        }
-        if (bars.length >= 3) break
-      }
-    }
-
-    return bars
-  }, [isAntigravity, snapshot])
 
   return (
     <Panel className="providers-panel min-w-0">
@@ -336,4 +286,77 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
       </div>
     </Panel>
   )
+}
+
+type AntigravityQuotaBar = Readonly<{
+  id: string
+  label: string
+  percent: number
+}>
+
+function buildAntigravityBars(
+  isAntigravity: boolean,
+  snapshot: ProviderQuotaSnapshot | undefined,
+): AntigravityQuotaBar[] {
+  if (!isAntigravity || snapshot?.status !== 'available') return []
+  const families = categorizeAntigravityQuotas(snapshot.quotas).filter(
+    (family) => family.id !== 'autocomplete_background',
+  )
+  return fillAntigravityBars(primaryAntigravityBars(families), families)
+}
+
+function primaryAntigravityBars(
+  families: ReturnType<typeof categorizeAntigravityQuotas>,
+): AntigravityQuotaBar[] {
+  const bars: AntigravityQuotaBar[] = []
+  const gemini = families.find((family) => family.id === 'gemini_models')
+  const claudeGpt = families.find((family) => family.id === 'claude_gpt_models')
+  const weeklyGemini = gemini?.limits.find((limit) => limit.windowType === 'weekly')
+  const fiveHourGemini = gemini?.limits.find((limit) => limit.windowType === '5h')
+  const weeklyClaudeGpt =
+    claudeGpt?.limits.find((limit) => limit.windowType === 'weekly') ?? claudeGpt?.limits[0]
+
+  if (weeklyGemini) {
+    bars.push({ id: 'gemini-weekly', label: 'Gemini (Limite semanal)', percent: weeklyGemini.remainingPercent })
+  }
+  if (fiveHourGemini) {
+    bars.push({ id: 'gemini-5h', label: 'Gemini (Limite 5h)', percent: fiveHourGemini.remainingPercent })
+  }
+  if (weeklyClaudeGpt) {
+    bars.push({
+      id: 'claude-gpt-weekly',
+      label: `Claude/GPT (${weeklyClaudeGpt.windowLabel})`,
+      percent: weeklyClaudeGpt.remainingPercent,
+    })
+  }
+  return bars
+}
+
+function fillAntigravityBars(
+  initialBars: AntigravityQuotaBar[],
+  families: ReturnType<typeof categorizeAntigravityQuotas>,
+): AntigravityQuotaBar[] {
+  const bars = [...initialBars]
+  for (const family of families) {
+    for (const limit of family.limits) {
+      const id = `${family.id}-${limit.windowType}`
+      const alreadyIncluded = bars.some(
+        (bar) => bar.id === id || bar.label.includes(limit.windowLabel),
+      )
+      if (alreadyIncluded) continue
+      bars.push({
+        id,
+        label: `${antigravityFamilyShortTitle(family.id, family.title)} (${limit.windowLabel})`,
+        percent: limit.remainingPercent,
+      })
+      if (bars.length >= 3) return bars
+    }
+  }
+  return bars
+}
+
+function antigravityFamilyShortTitle(id: string, title: string): string {
+  if (id === 'claude_gpt_models') return 'Claude/GPT'
+  if (id === 'gemini_models') return 'Gemini'
+  return title
 }

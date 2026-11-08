@@ -1,19 +1,48 @@
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, ShieldCheck } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
-import { appPageClassName } from '../../../app/layouts/appShellLayout'
-import { getProviderQuotas, listProviders, providersQueryKeys } from '../api/queries'
-import { AddProviderModal } from '../components/AddProviderModal'
-import { ProviderDetailPanel } from '../components/ProviderDetailPanel'
-import { ProviderGovernanceMetrics } from '../components/ProviderGovernanceMetrics'
-import { ProviderManageDrawer } from '../components/ProviderManageDrawer'
-import { ProviderQuotaTable } from '../components/ProviderQuotaTable'
-import { primaryQuotaSnapshot } from '../lib/quotaPresentation'
+import { getProviderQuotas, getProviderQuotasForce, listProviders, providersQueryKeys } from '../api/queries'
+import type { ProviderQuotaSnapshot, ProviderQuotasResponse } from '../../overview/types/quota'
+import { ProviderQuotasPageView } from './ProviderQuotasPageView'
 import type { AdminProvider } from '../types'
+import { primaryQuotaSnapshot } from '../lib/quotaPresentation'
 
 export function ProvidersPage() {
   const meta = useAppPageMeta()
+  const queryState = useProvidersPageQueries()
+  const [selectedProvider, setSelectedProvider] = useState<AdminProvider | null>(null)
+  const [manageTarget, setManageTarget] = useState<AdminProvider | null>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const { refresh, ...viewState } = queryState
+  const activeSelected = selectCurrentProvider(selectedProvider, queryState.providers)
+  const activeSnapshot = useActiveSnapshot(activeSelected, queryState.snapshots)
+  const manageProvider = currentManageProvider(manageTarget, queryState.providers)
+
+  return (
+    <ProviderQuotasPageView
+      meta={meta}
+      {...viewState}
+      selectedProvider={activeSelected}
+      selectedSnapshot={activeSnapshot}
+      manageProvider={manageProvider}
+      isAddModalOpen={isAddModalOpen}
+      hasProviders={queryState.providers.length > 0}
+      onSelectProvider={setSelectedProvider}
+      onOpenManage={setManageTarget}
+      onCloseManage={() => setManageTarget(null)}
+      onAddProvider={() => setIsAddModalOpen(true)}
+      onAddModalChange={setIsAddModalOpen}
+      onRefresh={refresh}
+      onProviderAdded={(provider) => {
+        setSelectedProvider(provider)
+        refresh()
+      }}
+    />
+  )
+}
+
+function useProvidersPageQueries() {
+  const queryClient = useQueryClient()
   const providersQuery = useQuery({
     queryKey: providersQueryKeys.list,
     queryFn: listProviders,
@@ -29,113 +58,104 @@ export function ProvidersPage() {
     retry: 1,
   })
 
-  const providers = providersQuery.data?.providers ?? []
-  const snapshots = quotasQuery.data?.snapshots ?? []
-  const [selectedProvider, setSelectedProvider] = useState<AdminProvider | null>(null)
-  const [manageTarget, setManageTarget] = useState<AdminProvider | null>(null)
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
+  const [manualRefreshFailed, setManualRefreshFailed] = useState(false)
+  const refreshInFlightRef = useRef(false)
 
-  /** Drawer must follow the latest row from the list after React Query refetch (not the snapshot from click time). */
-  const manageProvider = useMemo(() => {
-    if (manageTarget === null) return null
-    return providers.find((p) => p.id === manageTarget.id) ?? manageTarget
-  }, [manageTarget, providers])
+  const hasInitialError =
+    (providersQuery.isError && providersQuery.data === undefined) ||
+    (quotasQuery.isError && quotasQuery.data === undefined)
+  const isInitialLoading =
+    !hasInitialError && (providersQuery.isLoading || quotasQuery.isLoading)
+  const isRefreshing =
+    providersQuery.isFetching || quotasQuery.isFetching || isManualRefreshing
 
-  const activeSelected =
-    selectedProvider !== null
-      ? providers.find((provider) => provider.id === selectedProvider.id) ?? providers[0] ?? null
-      : providers[0] ?? null
+  return {
+    providers: providersQuery.data?.providers ?? [],
+    snapshots: quotasQuery.data?.snapshots ?? [],
+    hasInitialError,
+    isInitialLoading,
+    hasRefetchError:
+      (providersQuery.isRefetchError && providersQuery.data !== undefined) ||
+      (quotasQuery.isRefetchError && quotasQuery.data !== undefined) ||
+      manualRefreshFailed,
+    isRefreshing,
+    isBackgroundRefreshing: !isInitialLoading && isRefreshing,
+    refresh: () => {
+      if (refreshInFlightRef.current) return
+      refreshInFlightRef.current = true
+      setIsManualRefreshing(true)
+      setManualRefreshFailed(false)
+      void runForcedQuotaRefresh(queryClient)
+        .then((completed) => {
+          if (!completed) setManualRefreshFailed(true)
+        })
+        .catch(() => setManualRefreshFailed(true))
+        .finally(() => {
+          refreshInFlightRef.current = false
+          setIsManualRefreshing(false)
+        })
+      void providersQuery.refetch()
+    },
+  }
+}
 
-  const activeSnapshot = useMemo(() => {
-    if (!activeSelected) return undefined
-    return primaryQuotaSnapshot(activeSelected.id, snapshots)
-  }, [activeSelected, snapshots])
+const quotaRefreshPollIntervalMs = 1500
+/** Upper bound matches the slowest provider collection budget (Cursor browser automation, ~120s). */
+const quotaRefreshTimeoutMs = 120_000
 
-  const isRefreshing = providersQuery.isFetching || quotasQuery.isFetching
+function quotaRefreshDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
-  return (
-    <div className={appPageClassName('providers-page')}>
-      <header className="providers-pagehead">
-        <div className="min-w-0">
-          <p className="providers-page-eyebrow">{meta.eyebrow}</p>
-          <h1 className="providers-page-title">{meta.title}</h1>
-          {meta.lead ? <p className="providers-page-lead">{meta.lead}</p> : null}
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <span className="overview-backend-tag">DADOS DO BACKEND</span>
-          <button
-            type="button"
-            className="providers-primary-action"
-            onClick={() => {
-              void providersQuery.refetch()
-              void quotasQuery.refetch()
-            }}
-            disabled={isRefreshing}
-            aria-label="Atualizar franquias"
-          >
-            <RefreshCw className={`mr-1 inline size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden />
-            Atualizar
-          </button>
-          <button
-            type="button"
-            className="providers-primary-action"
-            onClick={() => setIsAddModalOpen(true)}
-            aria-label="Adicionar provedor"
-          >
-            ＋ Adicionar provedor
-          </button>
-        </div>
-      </header>
+function isQuotaCollectionRunning(response: ProviderQuotasResponse): boolean {
+  return response.snapshots.some((snapshot) => snapshot.refreshing === true)
+}
 
-      <ProviderGovernanceMetrics providers={providers} snapshots={snapshots} />
+/**
+ * Forces the backend to collect quotas from the providers physically, then polls the
+ * regular endpoint until every background collection settles. Cached snapshots remain
+ * visible the whole time; the cache only swaps once the actual collected data arrives.
+ */
+async function runForcedQuotaRefresh(
+  queryClient: ReturnType<typeof useQueryClient>,
+): Promise<boolean> {
+  const forced = await getProviderQuotasForce()
+  queryClient.setQueryData(providersQueryKeys.quotas, forced)
+  if (!isQuotaCollectionRunning(forced)) return true
 
-      <div className="providers-layout">
-        <ProviderQuotaTable
-          providers={providers}
-          snapshots={snapshots}
-          selectedId={activeSelected?.id ?? null}
-          onSelect={(provider) => setSelectedProvider(provider)}
-          onOpenManage={(provider) => setManageTarget(provider)}
-          isLoading={providersQuery.isLoading || quotasQuery.isLoading}
-        />
-        <ProviderDetailPanel
-          provider={activeSelected}
-          snapshot={activeSnapshot}
-          onOpenManage={(provider) => setManageTarget(provider)}
-        />
-      </div>
+  const deadline = Date.now() + quotaRefreshTimeoutMs
+  while (Date.now() < deadline) {
+    await quotaRefreshDelay(quotaRefreshPollIntervalMs)
+    const latest = await getProviderQuotas()
+    queryClient.setQueryData(providersQueryKeys.quotas, latest)
+    if (!isQuotaCollectionRunning(latest)) return true
+  }
+  return false
+}
 
-      <div className="providers-page-footer">
-        <div className="providers-bottominfo">
-          <ShieldCheck className="size-3.5 shrink-0 text-accent-light" aria-hidden />
-          <p>
-            <strong className="text-primary">Leitura confiável:</strong> sem leitura de quota quando
-            o provedor não reportar dados — nunca saldo estimado. Utilização por execução permanece
-            em Execuções (E09.5), separada desta franquia oficial.
-          </p>
-        </div>
-        <footer className="providers-page-footnote">
-          <span>FONTES · PROVIDER-REPORTED · GATEWAY-METERED · MANUAL ALLOWANCE</span>
-          <span>CONNEXTO AI HUB / PROVIDER QUOTAS</span>
-        </footer>
-      </div>
+function selectCurrentProvider(
+  selectedProvider: AdminProvider | null,
+  providers: AdminProvider[],
+): AdminProvider | null {
+  if (selectedProvider === null) return providers[0] ?? null
+  return providers.find((provider) => provider.id === selectedProvider.id) ?? providers[0] ?? null
+}
 
-      <ProviderManageDrawer
-        provider={manageProvider}
-        open={manageTarget !== null}
-        onClose={() => setManageTarget(null)}
-      />
-
-      <AddProviderModal
-        open={isAddModalOpen}
-        onOpenChange={setIsAddModalOpen}
-        existingProviders={providers}
-        onProviderAdded={(newProvider) => {
-          setSelectedProvider(newProvider)
-          void providersQuery.refetch()
-          void quotasQuery.refetch()
-        }}
-      />
-    </div>
+function useActiveSnapshot(
+  provider: AdminProvider | null,
+  snapshots: ProviderQuotaSnapshot[],
+): ProviderQuotaSnapshot | undefined {
+  return useMemo(
+    () => (provider ? primaryQuotaSnapshot(provider.id, snapshots) : undefined),
+    [provider, snapshots],
   )
+}
+
+function currentManageProvider(
+  manageTarget: AdminProvider | null,
+  providers: AdminProvider[],
+): AdminProvider | null {
+  if (manageTarget === null) return null
+  return providers.find((provider) => provider.id === manageTarget.id) ?? manageTarget
 }
