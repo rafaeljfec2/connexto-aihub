@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Edit2 } from 'lucide-react'
 import { AiBrandIcon } from '../../../shared/branding'
@@ -85,6 +86,69 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
       ? categorizeAntigravityQuotas(snapshot.quotas).filter((f) => f.id !== 'autocomplete_background')
       : []
 
+  const antigravityBars = useMemo(() => {
+    if (!isAntigravity || snapshot?.status !== 'available') return []
+    const families = categorizeAntigravityQuotas(snapshot.quotas).filter(
+      (f) => f.id !== 'autocomplete_background',
+    )
+    const gemini = families.find((f) => f.id === 'gemini_models')
+    const claudeGpt = families.find((f) => f.id === 'claude_gpt_models')
+
+    const bars: Array<{ id: string; label: string; percent: number }> = []
+
+    if (gemini) {
+      const weekly = gemini.limits.find((l) => l.windowType === 'weekly')
+      if (weekly) {
+        bars.push({
+          id: 'gemini-weekly',
+          label: 'Gemini (Limite semanal)',
+          percent: weekly.remainingPercent,
+        })
+      }
+      const fiveHours = gemini.limits.find((l) => l.windowType === '5h')
+      if (fiveHours) {
+        bars.push({
+          id: 'gemini-5h',
+          label: 'Gemini (Limite 5h)',
+          percent: fiveHours.remainingPercent,
+        })
+      }
+    }
+
+    if (claudeGpt) {
+      const weekly = claudeGpt.limits.find((l) => l.windowType === 'weekly') ?? claudeGpt.limits[0]
+      if (weekly) {
+        bars.push({
+          id: 'claude-gpt-weekly',
+          label: `Claude/GPT (${weekly.windowLabel})`,
+          percent: weekly.remainingPercent,
+        })
+      }
+    }
+
+    // Complement with any other limits if fewer than 3 bars are populated
+    if (bars.length < 3) {
+      for (const f of families) {
+        for (const limit of f.limits) {
+          const id = `${f.id}-${limit.windowType}`
+          if (!bars.some((b) => b.id === id || b.label.includes(limit.windowLabel))) {
+            const shortTitle =
+              f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
+            bars.push({
+              id,
+              label: `${shortTitle} (${limit.windowLabel})`,
+              percent: limit.remainingPercent,
+            })
+            if (bars.length >= 3) break
+          }
+        }
+        if (bars.length >= 3) break
+      }
+    }
+
+    return bars
+  }, [isAntigravity, snapshot])
+
   return (
     <Panel className="providers-panel min-w-0">
       <div className="providers-detail-head shrink-0">
@@ -115,7 +179,27 @@ export function ProviderDetailPanel({ provider, snapshot, onOpenManage }: Provid
             <strong>{mainQuotaValue}</strong>
             <span>{mainQuotaSuffix}</span>
           </div>
-          {percent != null ? (
+
+          {isAntigravity && antigravityBars.length > 0 ? (
+            <div className="space-y-2.5 my-2.5" data-testid="antigravity-quota-bars">
+              {antigravityBars.map((bar) => (
+                <div key={bar.id} className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-[#AEBBD0] font-medium">{bar.label}</span>
+                    <span className="font-semibold text-[#E7ECF5]">
+                      {bar.percent.toLocaleString('pt-BR')}% restante
+                    </span>
+                  </div>
+                  <div className="providers-large-track">
+                    <div
+                      className="providers-large-fill"
+                      style={{ width: `${Math.min(Math.max(bar.percent, 0), 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : percent != null ? (
             <div className="providers-large-track">
               <div
                 className="providers-large-fill"

@@ -74,17 +74,21 @@ describe('ProviderDetailPanel', () => {
     // Header & provider name
     expect(screen.getByText('Antigravity')).toBeTruthy()
 
-    // Quota box main percentage
-    expect(screen.getByText('46,8%')).toBeTruthy()
+    // Quota box main percentage reflects primary Gemini
     expect(screen.getByText('restante')).toBeTruthy()
+
+    // 3 Quota Bars for Antigravity (Gemini semanal, Gemini 5h, Claude/GPT semanal)
+    expect(screen.getByTestId('antigravity-quota-bars')).toBeTruthy()
+    expect(screen.getByText('Gemini (Limite semanal)')).toBeTruthy()
+    expect(screen.getByText('Gemini (Limite 5h)')).toBeTruthy()
+    expect(screen.getByText('Claude/GPT (Limite semanal)')).toBeTruthy()
+    expect(screen.getAllByText(/46,8/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/68,83/).length).toBeGreaterThan(0)
 
     // Families block
     expect(screen.getByText('Franquias por Família')).toBeTruthy()
     expect(screen.getByText('Claude and GPT models')).toBeTruthy()
     expect(screen.getByText('Gemini Models')).toBeTruthy()
-
-    // Primary reading
-    expect(screen.getByText(/46,8% \(Claude\/GPT \(Limite semanal\)\)/)).toBeTruthy()
 
     // Source name mapped
     expect(screen.getByText('Antigravity Proxy Usage API')).toBeTruthy()
