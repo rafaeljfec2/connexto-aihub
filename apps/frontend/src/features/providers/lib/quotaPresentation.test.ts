@@ -395,4 +395,73 @@ describe('franchiseSummary — Cursor', () => {
       value: 'US$ 41,68 consumido · Limite US$ 46,15',
     })
   })
+
+  it('shows weekly percent and USD franchise when consumed_percent exists', () => {
+    const cursorSnapshot: ProviderQuotaSnapshot = {
+      account_id: 'cursor-1',
+      account_label: 'Cursor',
+      provider_id: 'cursor',
+      provider_name: 'Cursor',
+      status: 'available',
+      scope: 'account',
+      quotas: [
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 46.16, unit: 'USD' },
+        {
+          metric: 'total_credits',
+          label: 'Weekly included budget',
+          nature: 'quota',
+          limit: 46.15,
+          unit: 'USD',
+          consumed_percent: 100.02,
+        },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'cursor_proxy_usage_collect',
+        scope: 'account',
+        fetched_at: '2026-11-06T20:00:00Z',
+      },
+    }
+    expect(franchiseSummary(cursorSnapshot)).toEqual({
+      title: 'Franquia semanal Cursor',
+      value: '100% reportado · US$ 46,16 consumido · Limite US$ 46,15',
+    })
+  })
+
+  it('returns consumptionCell with kind percent for Cursor', () => {
+    const cursorSnapshot: ProviderQuotaSnapshot = {
+      account_id: 'cursor-1',
+      account_label: 'Cursor',
+      provider_id: 'cursor',
+      provider_name: 'Cursor',
+      status: 'available',
+      scope: 'account',
+      quotas: [
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 46.16, unit: 'USD' },
+        {
+          metric: 'total_credits',
+          label: 'Weekly included budget',
+          nature: 'quota',
+          limit: 46.15,
+          unit: 'USD',
+          consumed_percent: 100.02,
+        },
+        { metric: 'prepaid_available_credits', label: 'Prepaid credits', nature: 'quota', remaining: 3.15, unit: 'USD' },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'cursor_proxy_usage_collect',
+        scope: 'account',
+        fetched_at: '2026-11-06T20:00:00Z',
+      },
+    }
+    expect(consumptionCell(cursorSnapshot)).toEqual({
+      kind: 'percent',
+      label: 'Franquia semanal',
+      percent: 100,
+      barValue: 100,
+      barMax: 100,
+    })
+    expect(availableBalanceDisplay(cursorSnapshot)).toBe('US$ 3,15')
+  })
 })

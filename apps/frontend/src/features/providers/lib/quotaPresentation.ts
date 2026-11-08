@@ -137,6 +137,20 @@ function primaryGoPercentFromSnapshot(snapshot: ProviderQuotaSnapshot): number |
   return primaryGoMeter(snapshot)?.percent
 }
 
+export function primaryCursorPercent(snapshot: ProviderQuotaSnapshot | undefined): number | undefined {
+  if (!snapshot || snapshot.status !== 'available' || snapshot.provider_id !== 'cursor') {
+    return undefined
+  }
+  const percentMetric = snapshot.quotas.find((metric) => metric.metric === 'weekly_used_percent')
+  const creditsMetric = snapshot.quotas.find((metric) => metric.metric === 'total_credits')
+  const usageMetric = snapshot.quotas.find((metric) => metric.metric === 'total_usage')
+  return (
+    percentMetric?.consumed_percent ??
+    creditsMetric?.consumed_percent ??
+    usageMetric?.consumed_percent
+  )
+}
+
 function accountUsageMetrics(snapshot: ProviderQuotaSnapshot): {
   usage?: { used: number; unit?: string }
   credits?: { limit: number; unit?: string }
@@ -156,6 +170,7 @@ function accountUsageMetrics(snapshot: ProviderQuotaSnapshot): {
 function hasDisplayableReading(snapshot: ProviderQuotaSnapshot | undefined): boolean {
   if (!snapshot || snapshot.status !== 'available') return false
   if (primaryGoPercentFromSnapshot(snapshot) != null) return true
+  if (primaryCursorPercent(snapshot) != null) return true
   const { usage, credits } = accountUsageMetrics(snapshot)
   return usage != null || credits != null
 }
@@ -198,9 +213,13 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
   }
 
   if (snapshot.provider_id === 'cursor') {
+    const percent = primaryCursorPercent(snapshot)
     const { usage, credits } = accountUsageMetrics(snapshot)
-    if (usage != null || credits != null) {
+    if (percent != null || usage != null || credits != null) {
       const parts: string[] = []
+      if (percent != null) {
+        parts.push(`${Math.round(percent).toLocaleString('pt-BR')}% reportado`)
+      }
       if (usage != null) {
         parts.push(`${formatMetricAmount(usage.used, usage.unit)} consumido`)
       }
@@ -316,6 +335,26 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
     }
   }
 
+  if (snapshot.provider_id === 'cursor') {
+    const { usage, credits } = accountUsageMetrics(snapshot)
+    const percent =
+      primaryCursorPercent(snapshot) ??
+      (usage != null && credits?.limit != null && credits.limit > 0
+        ? (usage.used / credits.limit) * 100
+        : undefined)
+
+    if (percent != null) {
+      const rounded = Math.round(percent)
+      return {
+        kind: 'percent',
+        label: 'Franquia semanal',
+        percent: rounded,
+        barValue: Math.min(100, rounded),
+        barMax: 100,
+      }
+    }
+  }
+
   const { usage, credits } = accountUsageMetrics(snapshot)
   const usageLabel =
     snapshot.provider_id === 'cursor' ? 'Franquia semanal' : 'Leitura oficial'
@@ -355,6 +394,11 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
 export function availableBalanceDisplay(snapshot: ProviderQuotaSnapshot | undefined): string {
   if (!snapshot || snapshot.status !== 'available' || snapshot.scope !== 'account') {
     return EMPTY_DASH
+  }
+
+  const prepaid = snapshot.quotas.find((metric) => metric.metric === 'prepaid_available_credits')
+  if (prepaid?.remaining != null && prepaid.unit === 'USD') {
+    return formatAccountUsd(prepaid.remaining)
   }
 
   const credits = snapshot.quotas.find((metric) => metric.metric === 'total_credits')

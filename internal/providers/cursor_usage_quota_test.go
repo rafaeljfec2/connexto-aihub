@@ -11,9 +11,11 @@ import (
 
 func TestMapCursorUsageMetrics_mapsUsdTotals(t *testing.T) {
 	usage := map[string]interface{}{
-		"total_usage":   41.68,
-		"total_credits": 46.15,
-		"currency":      "USD",
+		"total_usage":              41.68,
+		"total_credits":            46.15,
+		"weekly_used_percent":      90.31,
+		"prepaid_available_credits": 3.15,
+		"currency":                 "USD",
 	}
 	metrics := mapCursorUsageMetrics(usage)
 
@@ -24,6 +26,17 @@ func TestMapCursorUsageMetrics_mapsUsdTotals(t *testing.T) {
 	creditsMetric, ok := findQuotaMetric(metrics, "total_credits")
 	if !ok || creditsMetric.Limit == nil || *creditsMetric.Limit != 46.15 {
 		t.Fatalf("total_credits metric = %+v, want limit 46.15", creditsMetric)
+	}
+	if creditsMetric.ConsumedPercent == nil || *creditsMetric.ConsumedPercent != 90.31 {
+		t.Fatalf("total_credits ConsumedPercent = %v, want 90.31", creditsMetric.ConsumedPercent)
+	}
+	percentMetric, ok := findQuotaMetric(metrics, "weekly_used_percent")
+	if !ok || percentMetric.ConsumedPercent == nil || *percentMetric.ConsumedPercent != 90.31 {
+		t.Fatalf("weekly_used_percent metric = %+v, want 90.31", percentMetric)
+	}
+	prepaidMetric, ok := findQuotaMetric(metrics, "prepaid_available_credits")
+	if !ok || prepaidMetric.Remaining == nil || *prepaidMetric.Remaining != 3.15 {
+		t.Fatalf("prepaid_available_credits metric = %+v, want 3.15", prepaidMetric)
 	}
 }
 

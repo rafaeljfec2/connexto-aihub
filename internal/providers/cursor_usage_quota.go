@@ -191,6 +191,11 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 	metrics := make([]ProviderQuotaMetric, 0, 8)
 	unit := "USD"
 
+	var weeklyUsedPercent *float64
+	if pct, ok := cursorUsageFloat(usage, "weekly_used_percent"); ok {
+		weeklyUsedPercent = &pct
+	}
+
 	if used, ok := cursorUsageFloat(usage, "total_usage"); ok {
 		metrics = append(metrics, ProviderQuotaMetric{
 			Metric: "total_usage",
@@ -201,12 +206,27 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 		})
 	}
 	if limit, ok := cursorUsageFloat(usage, "total_credits"); ok {
+		if weeklyUsedPercent == nil {
+			if used, ok := cursorUsageFloat(usage, "total_usage"); ok && limit > 0 {
+				pct := (used / limit) * 100
+				weeklyUsedPercent = &pct
+			}
+		}
 		metrics = append(metrics, ProviderQuotaMetric{
-			Metric: "total_credits",
-			Label:  "Weekly included budget",
-			Nature: NatureQuota,
-			Limit:  &limit,
-			Unit:   &unit,
+			Metric:          "total_credits",
+			Label:           "Weekly included budget",
+			Nature:          NatureQuota,
+			Limit:           &limit,
+			Unit:            &unit,
+			ConsumedPercent: weeklyUsedPercent,
+		})
+	}
+	if weeklyUsedPercent != nil {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric:          "weekly_used_percent",
+			Label:           "Weekly used percent",
+			Nature:          NatureUsage,
+			ConsumedPercent: weeklyUsedPercent,
 		})
 	}
 	if resetsAt, ok := cursorUsageString(usage, "weekly_resets_at"); ok {
@@ -215,6 +235,15 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 			Label:    "Weekly reset",
 			Nature:   NatureUsage,
 			ResetsAt: &resetsAt,
+		})
+	}
+	if prepaid, ok := cursorUsageFloat(usage, "prepaid_available_credits"); ok {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric:    "prepaid_available_credits",
+			Label:     "Prepaid credits available",
+			Nature:    NatureQuota,
+			Remaining: &prepaid,
+			Unit:      &unit,
 		})
 	}
 	if agentTotal, ok := cursorUsageFloat(usage, "analytics_agent_requests_total"); ok {
