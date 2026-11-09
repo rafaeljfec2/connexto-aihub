@@ -198,3 +198,12 @@ func descriptorFromRaw(model rawModel, raw json.RawMessage) ModelDescriptor {
 
 	return descriptor
 }
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func int64Ptr(value int64) *int64 {
+	return &value
+}
+

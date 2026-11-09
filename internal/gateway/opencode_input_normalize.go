@@ -9,12 +9,44 @@ import (
 
 // adaptResponsesPayloadForProvider applies provider-specific request shaping before
 // upstream execution. OpenCode Go rejects top-level input_text/input_image items;
-// they must appear inside type=message (or role+content) entries.
+// they must appear inside type=message (or role+content) entries. Antigravity requires
+// the model identity to be prefixed with antigravity:.
 func adaptResponsesPayloadForProvider(providerID string, body []byte) ([]byte, error) {
-	if providerID != providers.OpenCodeGoID {
+	switch providerID {
+	case providers.OpenCodeGoID:
+		return normalizeOpenCodeGoResponsesInput(body)
+	case providers.AntigravityID:
+		return normalizeAntigravityResponsesModel(body)
+	default:
 		return body, nil
 	}
-	return normalizeOpenCodeGoResponsesInput(body)
+}
+
+func normalizeAntigravityResponsesModel(body []byte) ([]byte, error) {
+	if len(body) == 0 {
+		return body, nil
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return body, nil
+	}
+	modelRaw, ok := envelope["model"]
+	if !ok {
+		return body, nil
+	}
+	var modelID string
+	if err := json.Unmarshal(modelRaw, &modelID); err != nil {
+		return body, nil
+	}
+	if !strings.HasPrefix(modelID, "antigravity:") {
+		newRaw, err := json.Marshal("antigravity:" + modelID)
+		if err != nil {
+			return nil, err
+		}
+		envelope["model"] = newRaw
+		return json.Marshal(envelope)
+	}
+	return body, nil
 }
 
 func normalizeOpenCodeGoResponsesInput(body []byte) ([]byte, error) {

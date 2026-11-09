@@ -3,7 +3,6 @@ package routing
 import (
 	"strings"
 
-	"aihub/internal/catalog"
 	"aihub/internal/providers"
 )
 
@@ -22,6 +21,13 @@ func SelectDeterministic(ctx RoutingContext, snapshot Snapshot, eligibility Elig
 	explicitProvider := strings.TrimSpace(ctx.ExplicitProvider)
 	hasExplicitProvider := explicitProvider != ""
 	explicitModelID := explicitModelID(ctx)
+
+	if !hasExplicitProvider && strings.HasPrefix(explicitModelID, "antigravity:") {
+		explicitProvider = providers.AntigravityID
+		hasExplicitProvider = true
+	} else if hasExplicitProvider && explicitProvider == providers.AntigravityID {
+		explicitModelID = resolveAntigravityModelID(snapshot, explicitProvider, explicitModelID)
+	}
 
 	if hasExplicitProvider && !providerKnown(snapshot, explicitProvider) {
 		return reject(decision, RejectProviderNotFound, nil)
@@ -67,6 +73,15 @@ func selectExplicitProviderAndModel(
 		decision.Origin = OriginExplicitProviderAndModel
 		decision.Criteria = []string{"rule:explicit_provider_and_model"}
 		return decision
+	}
+	if providerID == providers.AntigravityID && !strings.HasPrefix(modelID, "antigravity:") {
+		alt := Target{ProviderID: providerID, ModelID: "antigravity:" + modelID}
+		if containsTarget(eligibility.Eligible, alt) {
+			decision.Selected = &alt
+			decision.Origin = OriginExplicitProviderAndModel
+			decision.Criteria = []string{"rule:explicit_provider_and_model"}
+			return decision
+		}
 	}
 
 	scope := evaluatedForProvider(eligibility.Evaluated, providerID)
@@ -227,152 +242,4 @@ func classifyZeroEligible(evaluated []CandidateEvaluation) RejectionCode {
 	}
 
 	return RejectRoutingUnavailable
-}
-
-func providerKnown(snapshot Snapshot, providerID string) bool {
-	admin, adminKnown := snapshot.Admin[providerID]
-	_, runtimeKnown := snapshot.Runtime[providerID]
-
-	if !adminKnown && !runtimeKnown {
-		return false
-	}
-
-	if adminKnown && !admin.Known {
-		return false
-	}
-
-	return true
-}
-
-func coverageCatalogFreshForProvider(snapshot Snapshot, eligibility EligibilityResult, providerID string) bool {
-	for _, coverage := range eligibility.Coverage.Providers {
-		if coverage.ProviderID != providerID {
-			continue
-		}
-
-		if !coverage.PassesProviderChecks {
-			return true
-		}
-
-		return coverage.CatalogFreshAccepted
-	}
-
-	reasons, _ := evaluateProvider(providerID, snapshot)
-	if len(reasons) > 0 {
-		return true
-	}
-
-	sync, ok := snapshot.Sync[providerID]
-	if !ok {
-		return false
-	}
-
-	return providerCatalogFresh(sync, snapshot.CapturedAt, snapshot.StaleAfter)
-}
-
-func modelPresentOnProvider(snapshot Snapshot, providerID, modelID string) bool {
-	for _, view := range snapshot.Models {
-		if view.Entry.ProviderID != providerID || view.Entry.ModelID != modelID {
-			continue
-		}
-
-		return view.Presence != catalog.PresenceMissing
-	}
-
-	return false
-}
-
-func modelPresentUnderOtherProvider(snapshot Snapshot, explicitProviderID, modelID string) bool {
-	for _, view := range snapshot.Models {
-		if view.Entry.ProviderID == explicitProviderID || view.Entry.ModelID != modelID {
-			continue
-		}
-
-		if view.Presence == catalog.PresenceMissing {
-			continue
-		}
-
-		if !providerPassingChecks(snapshot, view.Entry.ProviderID) {
-			continue
-		}
-
-		return true
-	}
-
-	return false
-}
-
-func modelPresentOnRelevantProviders(snapshot Snapshot, modelID string) bool {
-	for _, view := range snapshot.Models {
-		if view.Entry.ModelID != modelID || view.Presence == catalog.PresenceMissing {
-			continue
-		}
-
-		if !providerPassingChecks(snapshot, view.Entry.ProviderID) {
-			continue
-		}
-
-		return true
-	}
-
-	return false
-}
-
-func providerPassingChecks(snapshot Snapshot, providerID string) bool {
-	reasons, _ := evaluateProvider(providerID, snapshot)
-	return len(reasons) == 0
-}
-
-func containsTarget(targets []Target, want Target) bool {
-	for _, target := range targets {
-		if target == want {
-			return true
-		}
-	}
-
-	return false
-}
-
-func filterEligibleByProvider(targets []Target, providerID string) []Target {
-	filtered := make([]Target, 0, len(targets))
-	for _, target := range targets {
-		if target.ProviderID == providerID {
-			filtered = append(filtered, target)
-		}
-	}
-
-	return filtered
-}
-
-func filterEligibleByModel(targets []Target, modelID string) []Target {
-	filtered := make([]Target, 0, len(targets))
-	for _, target := range targets {
-		if target.ModelID == modelID {
-			filtered = append(filtered, target)
-		}
-	}
-
-	return filtered
-}
-
-func evaluatedForProvider(evaluated []CandidateEvaluation, providerID string) []CandidateEvaluation {
-	filtered := make([]CandidateEvaluation, 0, len(evaluated))
-	for _, candidate := range evaluated {
-		if candidate.Target.ProviderID == providerID {
-			filtered = append(filtered, candidate)
-		}
-	}
-
-	return filtered
-}
-
-func evaluatedForModel(evaluated []CandidateEvaluation, modelID string) []CandidateEvaluation {
-	filtered := make([]CandidateEvaluation, 0, len(evaluated))
-	for _, candidate := range evaluated {
-		if candidate.Target.ModelID == modelID {
-			filtered = append(filtered, candidate)
-		}
-	}
-
-	return filtered
 }

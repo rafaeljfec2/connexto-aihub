@@ -155,6 +155,56 @@ func TestOpenRouterResponsesMapsHeaderTimeoutWithoutCredential(t *testing.T) {
 	}
 }
 
+func TestOpenRouterFetchModelDescriptorsExtractsCapabilitiesAndLimits(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"data": [
+				{
+					"id": "openai/gpt-5.2",
+					"name": "OpenAI: GPT-5.2",
+					"context_length": 400000,
+					"top_provider": {
+						"max_completion_tokens": 128000,
+						"context_length": 400000
+					},
+					"supported_parameters": [
+						"tools",
+						"reasoning",
+						"structured_outputs"
+					]
+				}
+			]
+		}`)
+	}))
+	defer server.Close()
+
+	client := newOpenRouterTestClient(t, server.URL+"/api/v1", server.Client(), openRouterTestCredential)
+	descriptors, err := client.FetchModelDescriptors(context.Background())
+	if err != nil {
+		t.Fatalf("FetchModelDescriptors() error = %v", err)
+	}
+	if len(descriptors) != 1 {
+		t.Fatalf("len(descriptors) = %d, want 1", len(descriptors))
+	}
+	d := descriptors[0]
+	if d.LimitContext == nil || *d.LimitContext != 400000 {
+		t.Fatalf("LimitContext = %v, want 400000", d.LimitContext)
+	}
+	if d.LimitOutput == nil || *d.LimitOutput != 128000 {
+		t.Fatalf("LimitOutput = %v, want 128000", d.LimitOutput)
+	}
+	if d.ToolsSupported == nil || !*d.ToolsSupported {
+		t.Fatalf("ToolsSupported = %v, want true", d.ToolsSupported)
+	}
+	if d.ReasoningSupported == nil || !*d.ReasoningSupported {
+		t.Fatalf("ReasoningSupported = %v, want true", d.ReasoningSupported)
+	}
+	if d.StructuredOutput == nil || !*d.StructuredOutput {
+		t.Fatalf("StructuredOutput = %v, want true", d.StructuredOutput)
+	}
+}
+
 func newOpenRouterTestClient(t *testing.T, endpoint string, client *http.Client, credential string) *providers.OpenRouterClient {
 	t.Helper()
 	adapter, err := providers.NewOpenRouterClient(providers.Settings{

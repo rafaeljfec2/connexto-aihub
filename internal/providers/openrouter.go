@@ -179,6 +179,11 @@ func openRouterDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 			InputModalities  *[]string `json:"input_modalities"`
 			OutputModalities *[]string `json:"output_modalities"`
 		} `json:"architecture"`
+		TopProvider struct {
+			ContextLength       *int64 `json:"context_length"`
+			MaxCompletionTokens *int64 `json:"max_completion_tokens"`
+		} `json:"top_provider"`
+		SupportedParameters []string `json:"supported_parameters"`
 	}
 	if err := json.Unmarshal(raw, &model); err != nil {
 		return ModelDescriptor{}, err
@@ -186,7 +191,19 @@ func openRouterDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 	if model.ID == "" {
 		return ModelDescriptor{}, errors.New("catalog model has no ID")
 	}
-	descriptor := ModelDescriptor{ID: model.ID, Name: model.Name, LimitContext: model.ContextLength, Raw: bytes.Clone(raw)}
+
+	limitContext := model.ContextLength
+	if limitContext == nil && model.TopProvider.ContextLength != nil {
+		limitContext = model.TopProvider.ContextLength
+	}
+
+	descriptor := ModelDescriptor{
+		ID:           model.ID,
+		Name:         model.Name,
+		LimitContext: limitContext,
+		LimitOutput:  model.TopProvider.MaxCompletionTokens,
+		Raw:          bytes.Clone(raw),
+	}
 	if model.Architecture.InputModalities != nil {
 		descriptor.InputModalities = NormalizeInputModalitiesForCatalog(*model.Architecture.InputModalities)
 		descriptor.InputModalitiesPresent = true
@@ -195,6 +212,24 @@ func openRouterDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 		descriptor.OutputModalities = *model.Architecture.OutputModalities
 		descriptor.OutputModalitiesPresent = true
 	}
+
+	if model.SupportedParameters != nil {
+		var tools, reasoning, structured bool
+		for _, param := range model.SupportedParameters {
+			switch param {
+			case "tools", "tool_choice":
+				tools = true
+			case "reasoning", "include_reasoning", "reasoning_effort":
+				reasoning = true
+			case "structured_outputs", "response_format":
+				structured = true
+			}
+		}
+		descriptor.ToolsSupported = boolPtr(tools)
+		descriptor.ReasoningSupported = boolPtr(reasoning)
+		descriptor.StructuredOutput = boolPtr(structured)
+	}
+
 	return descriptor, nil
 }
 

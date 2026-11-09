@@ -254,3 +254,25 @@ func assertSelected(t *testing.T, decision routing.RoutingDecision, providerID, 
 		t.Fatalf("origin = %q, want %q", decision.Origin, origin)
 	}
 }
+
+func TestSelectDeterministicAntigravityAliasWithoutPrefix(t *testing.T) {
+	now := time.Now().UTC()
+	success := now.Add(-time.Hour)
+	snapshot := baseSnapshot(now, success)
+	snapshot.Admin[providers.AntigravityID] = routing.AdminProviderFacts{ID: providers.AntigravityID, Known: true, Enabled: true, HasCredential: true}
+	snapshot.Runtime[providers.AntigravityID] = routing.RuntimeProviderFacts{Bound: true, ResponsesSupported: true, RuntimeEnabled: true}
+	snapshot.Sync[providers.AntigravityID] = catalog.ProviderSyncState{LastSuccessAt: &success, Outcome: catalog.SyncOutcomeSuccess}
+	snapshot.Models = append(snapshot.Models, modelView(providers.AntigravityID, "antigravity:claude-sonnet-4-6", now, success, providers.StateHealthy))
+
+	ctx := routing.RoutingContext{
+		RequestID:        "req-alias",
+		ExplicitProvider: providers.AntigravityID,
+		Structural:       routing.StructuralRequest{ModelPresent: true, ModelID: "claude-sonnet-4-6"},
+	}
+
+	eligibility := routing.EvaluateEligibility(ctx, snapshot, routing.RequirementStatus{})
+	decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
+
+	assertSelected(t, decision, providers.AntigravityID, "antigravity:claude-sonnet-4-6", routing.OriginExplicitProviderAndModel)
+}
+
