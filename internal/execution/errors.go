@@ -1,6 +1,9 @@
 package execution
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	ErrUnavailable        = errors.New("execution unavailable")
@@ -10,6 +13,21 @@ var (
 
 type responseHeaderTimeout interface {
 	IsResponseHeaderTimeout() bool
+}
+
+// upstreamQuotaNotice mirrors providers.QuotaNoticeError without importing
+// the provider package (same seam as responseHeaderTimeout).
+type upstreamQuotaNotice interface {
+	IsUpstreamQuotaNotice() bool
+	QuotaResetIn() time.Duration
+}
+
+func quotaNoticeReset(err error) (*int64, bool) {
+	var notice upstreamQuotaNotice
+	if !errors.As(err, &notice) {
+		return nil, false
+	}
+	return durationValue(notice.QuotaResetIn()), true
 }
 
 type terminalEvent struct {

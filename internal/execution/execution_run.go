@@ -57,6 +57,11 @@ func (e *execution) reserveOpenFailure(openErr error) {
 		e.reserve(terminalEvent{outcome: OutcomeTimedOut, phase: PhaseOpening, cause: CauseOpening})
 		return
 	}
+	if quotaReset, ok := quotaNoticeReset(openErr); ok {
+		e.quotaResetIn = quotaReset
+		e.reserve(terminalEvent{outcome: OutcomeFailed, phase: PhaseOpening, cause: CauseUpstreamQuota})
+		return
+	}
 	e.reserve(terminalEvent{outcome: OutcomeFailed, phase: PhaseOpening, cause: CauseTransport})
 }
 
@@ -97,7 +102,6 @@ func (e *execution) forward(sink Sink) {
 		}
 	}
 }
-
 func (e *execution) startReader() <-chan readResult {
 	chunks := make(chan readResult, 1)
 	done := make(chan struct{})

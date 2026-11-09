@@ -232,11 +232,27 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeExecutionFailureResponse(w, result)
+}
+
+// writeExecutionFailureResponse maps an uncommitted terminal opening result
+// to the structured endpoint error. Upstream quota/subscription exhaustion
+// answers 429 with the bounded reset window; everything else keeps the
+// historical 502/504 envelopes.
+func writeExecutionFailureResponse(w http.ResponseWriter, result execution.Result) {
 	if result.Outcome == execution.OutcomeTimedOut && result.Phase == execution.PhaseOpening {
 		writeJSONError(w, http.StatusGatewayTimeout, executionTimeoutType, executionTimeoutMsg)
 		return
 	}
 	if result.Outcome == execution.OutcomeFailed && result.Phase == execution.PhaseOpening {
+		if result.Cause == execution.CauseUpstreamQuota {
+			resetAt := ""
+			if result.QuotaResetInNS != nil && *result.QuotaResetInNS > 0 {
+				resetAt = time.Now().Add(time.Duration(*result.QuotaResetInNS)).UTC().Format(time.RFC3339)
+			}
+			writeJSONErrorWithReset(w, http.StatusTooManyRequests, upstreamQuotaExceededType, upstreamQuotaExceededMsg, resetAt)
+			return
+		}
 		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
 	}
 }

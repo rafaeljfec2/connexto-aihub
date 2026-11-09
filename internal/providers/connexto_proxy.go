@@ -168,6 +168,11 @@ func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target Re
 		connextoProxyResponses, bytes.NewReader(payload), contentType)
 	if err == nil {
 		sanitizeConnextoProxyErrorResponse(response)
+		if logicalID == AntigravityID {
+			if noticeErr := classifyAntigravityQuotaNotice(response); noticeErr != nil {
+				return nil, noticeErr
+			}
+		}
 		return response, nil
 	}
 	if ctx.Err() != nil || !requestWritten.Load() {

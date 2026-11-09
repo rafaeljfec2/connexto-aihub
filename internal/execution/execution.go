@@ -28,6 +28,7 @@ type execution struct {
 	providerLatencyNS      *int64
 	timeToFirstTokenNS     *int64
 	outputStreamDurationNS *int64
+	quotaResetIn           *int64
 	firstOutputAt          time.Time
 	telemetryEvents        []TelemetryEvent
 

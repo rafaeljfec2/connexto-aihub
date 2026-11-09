@@ -46,12 +46,13 @@ const (
 type Cause string
 
 const (
-	CauseTransport    Cause = "transport"
-	CauseUpstreamRead Cause = "upstream_read"
-	CauseClient       Cause = "client"
-	CauseShutdown     Cause = "shutdown"
-	CauseOpening      Cause = "opening"
-	CauseInactivity   Cause = "inactivity"
+	CauseTransport     Cause = "transport"
+	CauseUpstreamRead  Cause = "upstream_read"
+	CauseClient        Cause = "client"
+	CauseShutdown      Cause = "shutdown"
+	CauseOpening       Cause = "opening"
+	CauseInactivity    Cause = "inactivity"
+	CauseUpstreamQuota Cause = "upstream_quota"
 )
 
 // Result is published after the upstream body is closed and the reader joins.
@@ -69,6 +70,9 @@ type Result struct {
 	TimeToFirstTokenNS     *int64
 	OutputStreamDurationNS *int64
 	TelemetryEvents        []TelemetryEvent
+	// QuotaResetInNS is set when the upstream reported a quota or
+	// subscription exhaustion and announced a reset window.
+	QuotaResetInNS *int64
 }
 
 // FinishedExecution is the minimal immutable observation offered to consumers

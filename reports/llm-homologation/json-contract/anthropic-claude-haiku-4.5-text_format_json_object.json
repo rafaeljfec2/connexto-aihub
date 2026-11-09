@@ -1,0 +1,9 @@
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1794255488-FMRe1enCBvU5OdVJynAY","object":"response","created_at":1794255488,"model":"anthropic/claude-haiku-4.5","status":"completed","completed_at":1794255490,"output":[{"id":"msg_tmp_4d2ql8jnywq","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"```json\n{\n  \"name\": \"Connexto AI-Hub\",\n  \"language\": \"Go\",\n  \"type\": \"API\"\n}\n```","annotations":[],"logprobs":[]}]}],"error":null,"incomplete_details":null,"access_programs":null,"tools":[],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":256,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"default","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"json_object"}},"reasoning":null,"safety_identifier":null,"prompt_cache_key":null,"prompt_cache_options":null,"usage":{"input_tokens":39,"input_tokens_details":{"cached_tokens":0,"cache_write_tokens":0},"output_tokens":40,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":79,"cost":0.000239,"is_byok":false,"cost_details":{"upstream_inference_cost":0.000239,"upstream_inference_input_cost":0.000039,"upstream_inference_output_cost":0.0002}}}

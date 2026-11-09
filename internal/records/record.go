@@ -37,12 +37,13 @@ const (
 
 // Cause vocabulary copied from the execution boundary.
 const (
-	CauseTransport    = "transport"
-	CauseUpstreamRead = "upstream_read"
-	CauseClient       = "client"
-	CauseShutdown     = "shutdown"
-	CauseOpening      = "opening"
-	CauseInactivity   = "inactivity"
+	CauseTransport     = "transport"
+	CauseUpstreamRead  = "upstream_read"
+	CauseClient        = "client"
+	CauseShutdown      = "shutdown"
+	CauseOpening       = "opening"
+	CauseInactivity    = "inactivity"
+	CauseUpstreamQuota = "upstream_quota"
 )
 
 // ErrInvalidRecord marks values outside the schema-v1 contract.
@@ -183,7 +184,7 @@ func knownPhase(value string) bool {
 
 func knownCause(value string) bool {
 	switch value {
-	case CauseTransport, CauseUpstreamRead, CauseClient, CauseShutdown, CauseOpening, CauseInactivity:
+	case CauseTransport, CauseUpstreamRead, CauseClient, CauseShutdown, CauseOpening, CauseInactivity, CauseUpstreamQuota:
 		return true
 	default:
 		return false
