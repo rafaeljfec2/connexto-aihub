@@ -2,7 +2,6 @@ import { formatQuotaFetchedAt } from '../../overview/lib/formatQuotaDate'
 import { formatQuotaValue } from '../../overview/lib/formatQuotaValue'
 import {
   formatGoProductLabel,
-  goPlusChipPercent,
   goPlusMetersFromSnapshot,
   type GoPlusMeterView,
 } from '../../overview/lib/goPlusMeters'
@@ -115,22 +114,22 @@ export function providerQuotaSituation(
   }
 }
 
-const goPeriodLabels: Record<GoPlusMeterView['id'], string> = {
+export const goPeriodLabels: Record<GoPlusMeterView['id'], string> = {
   go_rolling: 'janela 5h',
   go_weekly: 'semanal',
   go_monthly: 'mensal',
 }
 
-/** Primary Go meter matches Console chip: prefer weekly when present. */
+/** Primary Go meter for provider governance: prefer monthly meter when present. */
 function primaryGoMeter(snapshot: ProviderQuotaSnapshot): GoPlusMeterView | undefined {
   if (snapshot.status !== 'available') return undefined
   const meters = goPlusMetersFromSnapshot(snapshot)
   if (meters.length === 0) return undefined
-  const percent = goPlusChipPercent(meters)
-  if (percent == null) return undefined
-  return meters.find((meter) => meter.percent === percent && meter.id === 'go_weekly') ??
-    meters.find((meter) => meter.percent === percent) ??
+  return (
+    meters.find((meter) => meter.id === 'go_monthly') ??
+    meters.find((meter) => meter.id === 'go_weekly') ??
     meters[0]
+  )
 }
 
 function primaryGoPercentFromSnapshot(snapshot: ProviderQuotaSnapshot): number | undefined {

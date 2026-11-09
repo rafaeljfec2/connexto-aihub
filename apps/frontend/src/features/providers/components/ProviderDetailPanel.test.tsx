@@ -93,4 +93,84 @@ describe('ProviderDetailPanel', () => {
     // Source name mapped
     expect(screen.getByText('Antigravity Proxy Usage API')).toBeTruthy()
   })
+
+  it('renders OpenCode Go with monthly consumption as primary and window breakdown', () => {
+    const openCodeProvider: AdminProvider = {
+      id: 'opencode-go-primary',
+      name: 'OpenCode Go Primary',
+      type: 'opencode-go',
+      endpoint: 'https://opencode.ai/zen',
+      enabled: true,
+      credential_configured: true,
+      created_at: '2026-11-04T10:00:00Z',
+      updated_at: '2026-11-04T12:00:00Z',
+    }
+
+    const snapshot: ProviderQuotaSnapshot = {
+      account_id: 'opencode-go-primary',
+      account_label: 'opencode-go-primary',
+      provider_id: 'opencode-go',
+      provider_name: 'OpenCode Go',
+      workspace_name: 'Go Plus',
+      status: 'available',
+      scope: 'subscription',
+      quotas: [
+        {
+          metric: 'go_rolling',
+          label: 'Go rolling',
+          nature: 'quota',
+          consumed_percent: 12,
+          resets_at: '2026-11-09T15:00:00Z',
+        },
+        {
+          metric: 'go_weekly',
+          label: 'Go weekly',
+          nature: 'quota',
+          consumed_percent: 36,
+          resets_at: '2026-11-16T00:00:00Z',
+        },
+        {
+          metric: 'go_monthly',
+          label: 'Go monthly',
+          nature: 'quota',
+          consumed_percent: 24,
+          resets_at: '2026-12-01T00:00:00Z',
+        },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'opencode_go_usage_api',
+        scope: 'subscription',
+        fetched_at: '2026-11-09T10:00:00Z',
+      },
+    }
+
+    render(
+      <MemoryRouter>
+        <ProviderDetailPanel provider={openCodeProvider} snapshot={snapshot} onOpenManage={onOpenManage} />
+      </MemoryRouter>,
+    )
+
+    // Provider name & product
+    expect(screen.getByText('OpenCode Go Primary')).toBeTruthy()
+    expect(screen.getByText(/Go Plus/)).toBeTruthy()
+
+    // Primary consumption reflects monthly (24%)
+    const quotaBox = screen.getByTestId('providers-detail-quota-opencode-go-primary')
+    expect(quotaBox.textContent).toContain('24%')
+    expect(quotaBox.textContent).toContain('utilizado')
+
+    // Detail rows
+    expect(screen.getByText('24% (mensal)')).toBeTruthy()
+
+    // Windows breakdown block
+    expect(screen.getByTestId('opencode-detail-meters')).toBeTruthy()
+    expect(screen.getByText('Janelas de franquia')).toBeTruthy()
+    expect(screen.getByText('Janela 5h')).toBeTruthy()
+    expect(screen.getByText('Semanal')).toBeTruthy()
+    expect(screen.getByText('Mensal')).toBeTruthy()
+    expect(screen.getByText('12% utilizado')).toBeTruthy()
+    expect(screen.getByText('36% utilizado')).toBeTruthy()
+    expect(screen.getByText('24% utilizado')).toBeTruthy()
+  })
 })

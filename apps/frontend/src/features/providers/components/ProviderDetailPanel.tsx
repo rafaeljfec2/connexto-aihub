@@ -5,6 +5,7 @@ import { AiBrandIcon } from '../../../shared/branding'
 import { Panel } from '../../../shared/ui'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import { categorizeAntigravityQuotas } from '../../overview/lib/antigravityCategories'
+import { goPlusMetersFromSnapshot } from '../../overview/lib/goPlusMeters'
 import {
   providerConnectionSubtitle,
   providerIconSlug,
@@ -98,6 +99,8 @@ export function ProviderDetailPanel({
     isAntigravity && snapshot?.status === 'available'
       ? categorizeAntigravityQuotas(snapshot.quotas).filter((f) => f.id !== 'autocomplete_background')
       : []
+
+  const goMeters = snapshot?.status === 'available' ? goPlusMetersFromSnapshot(snapshot) : []
 
   return (
     <Panel className="providers-panel min-w-0">
@@ -228,6 +231,39 @@ export function ProviderDetailPanel({
                 ))}
               </div>
             ))}
+          </div>
+        ) : null}
+
+        {goMeters.length > 0 ? (
+          <div
+            className="mt-2 rounded-lg border border-line/60 bg-[#171E29]/90 p-2 space-y-1.5"
+            data-testid="opencode-detail-meters"
+          >
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-semibold text-[#8290A5]">
+              <span>Janelas de franquia</span>
+              <span className="font-mono text-[8px] text-muted">
+                {goMeters.length} métrica(s)
+              </span>
+            </div>
+            {goMeters.map((meter) => {
+              const label =
+                meter.id === 'go_monthly'
+                  ? 'Mensal'
+                  : meter.id === 'go_weekly'
+                    ? 'Semanal'
+                    : 'Janela 5h'
+              return (
+                <div
+                  key={meter.id}
+                  className="flex items-center justify-between text-[9px] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
+                >
+                  <span className="text-[#AEBBD0]">{label}</span>
+                  <span className="font-semibold text-[#CBD5E2]">
+                    {meter.percent.toLocaleString('pt-BR')}% utilizado
+                  </span>
+                </div>
+              )
+            })}
           </div>
         ) : null}
 

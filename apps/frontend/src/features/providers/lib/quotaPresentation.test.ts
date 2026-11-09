@@ -306,6 +306,37 @@ describe('franchiseSummary and consumptionCell', () => {
       },
     ])
     expect(franchiseSummary(go)).toEqual({
+      title: 'Franquia Go Plus (mensal)',
+      value: '24% reportado pelo provedor',
+    })
+    expect(consumptionCell(go)).toEqual({
+      kind: 'percent',
+      label: 'Percentual mensal',
+      percent: 24,
+      barValue: 24,
+      barMax: 100,
+    })
+    expect(formatQuotaResetAt(go)).not.toContain('T')
+  })
+
+  it('falls back to weekly when monthly is absent', () => {
+    const go = snapshot('subscription', [
+      {
+        metric: 'go_rolling',
+        label: 'Go rolling',
+        nature: 'quota',
+        consumed_percent: 12,
+        resets_at: '2026-11-04T18:31:46.000Z',
+      },
+      {
+        metric: 'go_weekly',
+        label: 'Go weekly',
+        nature: 'quota',
+        consumed_percent: 36,
+        resets_at: '2026-11-09T00:00:00.000Z',
+      },
+    ])
+    expect(franchiseSummary(go)).toEqual({
       title: 'Franquia Go Plus (semanal)',
       value: '36% reportado pelo provedor',
     })
@@ -316,10 +347,9 @@ describe('franchiseSummary and consumptionCell', () => {
       barValue: 36,
       barMax: 100,
     })
-    expect(formatQuotaResetAt(go)).not.toContain('T')
   })
 
-  it('falls back to rolling when weekly is absent', () => {
+  it('falls back to rolling when weekly and monthly are absent', () => {
     const go = snapshot('subscription', [
       {
         metric: 'go_rolling',
