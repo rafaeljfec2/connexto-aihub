@@ -83,6 +83,8 @@ func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *p
 		providers.TypeAntigravity: antigravityQuotaAdapter,
 	}, logger)
 	runtime.providerAdmin.BindQuotaService(quotaService)
+	usageAnalyticsService := providers.NewCursorUsageAnalyticsService(providerConfig.service, nil, logger)
+	runtime.providerAdmin.BindCursorUsageAnalytics(usageAnalyticsService)
 	resourceService := resources.NewService(resourcespg.New(pool))
 	runtime.resourceAdmission = resourceService
 	runtime.resourceAdmin = gateway.NewResourceAdmin(resourceService, logger)

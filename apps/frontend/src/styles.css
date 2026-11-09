@@ -1302,4 +1302,37 @@
     @apply absolute m-[-1px] h-px w-px overflow-hidden border-0 p-0 whitespace-nowrap;
     clip: rect(0, 0, 0, 0);
   }
+
+  .cursor-drawer-usage {
+    @apply mt-4 border-t border-line/70 pt-3;
+  }
+
+  .cursor-drawer-usage-label {
+    @apply font-mono text-[8px] tracking-[0.08em] text-muted;
+  }
+
+  .cursor-drawer-usage-metrics {
+    @apply mt-2 grid grid-cols-2 gap-2;
+  }
+
+  .cursor-drawer-usage-metric {
+    @apply flex min-h-14 flex-col justify-between rounded-md border border-line/70 bg-[#171E29] p-2;
+  }
+
+  .cursor-drawer-usage-metric span {
+    @apply text-[9px] text-secondary;
+  }
+
+  .cursor-drawer-usage-metric strong {
+    @apply mt-1 text-sm font-semibold text-primary;
+  }
+
+  .cursor-drawer-usage-metric small {
+    @apply text-[8px] text-muted;
+  }
+
+  .cursor-drawer-usage-chart {
+    @apply mt-2 flex h-14 items-end gap-1;
+  }
+
 }

@@ -18,26 +18,26 @@ import (
 )
 
 const (
-	providerNotFoundType    = "provider_not_found"
-	providerConflictType    = "provider_conflict"
-	credentialMissingType   = "credential_missing"
+	providerNotFoundType         = "provider_not_found"
+	providerConflictType         = "provider_conflict"
+	credentialMissingType        = "credential_missing"
 	gatewayCredentialMissingType = "gateway_credential_missing"
-	providerUnreachableType = "provider_unreachable"
+	providerUnreachableType      = "provider_unreachable"
 
-	providerRequestMaxBytes = 16 << 10
-	providerNotFoundMsg     = "provider configuration not found"
-	providerConflictMsg     = "provider configuration already exists"
-	invalidRequestMsg       = "request body is not a valid provider payload"
-	credentialMissingMsg    = "provider has no credential configured"
-	gatewayCredentialMissingMsg = "provider has no gateway API key configured"
-	providerUnreachableMsg  = "the provider rejected the connectivity check or is unreachable"
-	adminInternalMsg        = "the provider administration request failed"
-	proxySessionClearFailedType   = "proxy_session_clear_failed"
-	proxySessionClearFailedMsg    = "the connexto proxy rejected clearing runtime sessions"
-	proxyAntigravityAuthFailedType = "proxy_antigravity_auth_failed"
-	proxyAntigravityAuthFailedMsg  = "the connexto proxy rejected the Antigravity OAuth request"
-	proxyCursorAuthFailedType      = "proxy_cursor_auth_failed"
-	proxyCursorAuthFailedMsg       = "the connexto proxy rejected the Cursor usage auth request"
+	providerRequestMaxBytes              = 16 << 10
+	providerNotFoundMsg                  = "provider configuration not found"
+	providerConflictMsg                  = "provider configuration already exists"
+	invalidRequestMsg                    = "request body is not a valid provider payload"
+	credentialMissingMsg                 = "provider has no credential configured"
+	gatewayCredentialMissingMsg          = "provider has no gateway API key configured"
+	providerUnreachableMsg               = "the provider rejected the connectivity check or is unreachable"
+	adminInternalMsg                     = "the provider administration request failed"
+	proxySessionClearFailedType          = "proxy_session_clear_failed"
+	proxySessionClearFailedMsg           = "the connexto proxy rejected clearing runtime sessions"
+	proxyAntigravityAuthFailedType       = "proxy_antigravity_auth_failed"
+	proxyAntigravityAuthFailedMsg        = "the connexto proxy rejected the Antigravity OAuth request"
+	proxyCursorAuthFailedType            = "proxy_cursor_auth_failed"
+	proxyCursorAuthFailedMsg             = "the connexto proxy rejected the Cursor usage auth request"
 	proxyCursorAuthBrowserUnavailableMsg = "Não foi possível abrir o Chromium no proxy. Confira CHROMIUM_EXECUTABLE_PATH, DISPLAY=:0 (WSL) no .env do proxy e reinicie pnpm dev; feche janelas Chrome do login anteriores."
 )
 
@@ -49,6 +49,7 @@ type ProviderAdmin struct {
 	eventHub       *operational.Hub
 	statuses       func() []providers.Status
 	quotaService   *providers.QuotaService
+	usageAnalytics *providers.CursorUsageAnalyticsService
 	catalogManager *catalog.Manager
 }
 
@@ -81,9 +82,35 @@ func (a *ProviderAdmin) BindQuotaService(quotaService *providers.QuotaService) {
 	a.quotaService = quotaService
 }
 
+// BindCursorUsageAnalytics attaches the cursor usage analytics collection service.
+func (a *ProviderAdmin) BindCursorUsageAnalytics(service *providers.CursorUsageAnalyticsService) {
+	a.usageAnalytics = service
+}
+
 // Quotas handles GET /api/ui/providers/quotas.
 func (a *ProviderAdmin) Quotas() http.Handler {
 	return NewProviderQuotasHandler(a.quotaService, a.logger)
+}
+
+// CursorUsageAnalytics handles GET /api/ui/providers/cursor/usage-analytics.
+func (a *ProviderAdmin) CursorUsageAnalytics() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeJSONError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+			return
+		}
+		if a.usageAnalytics == nil {
+			writeJSONError(w, http.StatusInternalServerError, "usage_analytics_unavailable", "cursor usage analytics service not configured")
+			return
+		}
+		forceRefresh := r.URL.Query().Get("refresh") == "true"
+		envelope, err := a.usageAnalytics.Get(r.Context(), r.URL.Query().Get("providerId"), forceRefresh)
+		if err != nil {
+			a.writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, envelope)
+	})
 }
 
 func (a *ProviderAdmin) notifyProviderStatus() {
