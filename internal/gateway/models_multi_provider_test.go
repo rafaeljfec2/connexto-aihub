@@ -49,7 +49,7 @@ func TestModelsRouteAggregatesAllProvidersWithoutSelector(t *testing.T) {
 		t.Fatalf("default models response = %d %s", defaultResponse.Code, defaultResponse.Body.String())
 	}
 	body := defaultResponse.Body.String()
-	if !strings.Contains(body, "deepseek-v4.1-flash") || !strings.Contains(body, "anthropic/claude-sonnet-4.5") {
+	if !strings.Contains(body, "deepseek-v4.1-flash") || !strings.Contains(body, "anthropic/claude-sonnet-4.5") || !strings.Contains(body, "aihub/auto") {
 		t.Fatalf("aggregated models response = %s", body)
 	}
 	routedResponse := serveModels(handler, providers.OpenRouterID)

@@ -9,6 +9,7 @@ const (
 	OriginExplicitModel            SelectionOrigin = "explicit_model"
 	OriginCompatibilityDefault     SelectionOrigin = "compatibility_default"
 	OriginAutomaticUniqueCandidate SelectionOrigin = "automatic_unique_candidate"
+	OriginVirtualAuto              SelectionOrigin = "virtual_auto"
 )
 
 // RejectionCode is a stable routing decision failure identifier (contract §6.3).

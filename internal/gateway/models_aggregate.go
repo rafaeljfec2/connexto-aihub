@@ -53,6 +53,9 @@ func writeAggregatedRegistryModels(
 		return
 	}
 
+	virtualAuto := json.RawMessage(`{"id":"aihub/auto","object":"model","created":1700000000,"owned_by":"connexto"}`)
+	merged = append([]json.RawMessage{virtualAuto}, merged...)
+
 	writeJSON(writer, http.StatusOK, openAIModelListEnvelope{
 		Object: "list",
 		Data:   merged,

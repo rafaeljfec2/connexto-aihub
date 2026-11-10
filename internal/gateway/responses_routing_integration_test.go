@@ -108,3 +108,55 @@ func TestResponsesRoutingExplicitOpenRouterModelOnly(t *testing.T) {
 		t.Fatalf("provider hit = %q, want openrouter", providerHit)
 	}
 }
+
+func TestResponsesRoutingVirtualAutoInjectsHeadersAndSubstitutesPayload(t *testing.T) {
+	var capturedBody string
+	openCode := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		capturedBody = string(body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"virtual-resp"}`)
+	}))
+	defer openCode.Close()
+	openRouter := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"openrouter-resp"}`)
+	}))
+	defer openRouter.Close()
+
+	handler, _, _ := newRoutedResponsesHandler(t, openCode.URL, openRouter.URL)
+	payload := `{"model":"aihub/auto","input":[{"type":"input_text","text":"hi"}]}`
+	response := serveResponses(handler, "", payload)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", response.Code, response.Body.String())
+	}
+
+	// Verify pre-commit transparency headers
+	resolvedModel := response.Header().Get("X-AIHub-Resolved-Model")
+	if resolvedModel == "" {
+		t.Errorf("expected X-AIHub-Resolved-Model header, got empty")
+	}
+	resolvedProvider := response.Header().Get("X-AIHub-Resolved-Provider")
+	if resolvedProvider == "" {
+		t.Errorf("expected X-AIHub-Resolved-Provider header, got empty")
+	}
+	profile := response.Header().Get("X-AIHub-Routing-Profile")
+	if profile != "balanced" {
+		t.Errorf("expected X-AIHub-Routing-Profile = 'balanced', got %q", profile)
+	}
+	reason := response.Header().Get("X-AIHub-Routing-Reason")
+	if reason == "" {
+		t.Errorf("expected X-AIHub-Routing-Reason header, got empty")
+	}
+
+	// Verify upstream did NOT receive the virtual model string
+	if strings.Contains(capturedBody, "aihub/auto") {
+		t.Fatalf("upstream payload still contains 'aihub/auto': %s", capturedBody)
+	}
+
+	// Verify upstream received the resolved model
+	if !strings.Contains(capturedBody, resolvedModel) {
+		t.Fatalf("upstream payload does not contain resolved model %q: %s", resolvedModel, capturedBody)
+	}
+}

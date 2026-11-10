@@ -120,7 +120,7 @@ func routeResponses(
 }
 
 func prepareResponsesPayload(original []byte, structural routing.StructuralRequest, selectedModelID string) ([]byte, error) {
-	if structural.ModelPresent || selectedModelID == "" {
+	if (structural.ModelPresent && !routing.IsVirtualModel(structural.ModelID)) || selectedModelID == "" {
 		return original, nil
 	}
 

@@ -123,6 +123,16 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		providerID = target.ProviderID
 		modelID = target.ModelID
 		executionPayload = prepared
+		if routingDecision.Origin == routing.OriginVirtualAuto && target.ModelID != "" {
+			w.Header().Set(routing.HeaderResolvedModel, target.ModelID)
+			w.Header().Set(routing.HeaderResolvedProvider, target.ProviderID)
+			w.Header().Set(routing.HeaderRoutingProfile, string(routing.ProfileBalanced))
+			reason := "virtual_auto_ranked_priority"
+			if len(routingDecision.Criteria) > 0 {
+				reason = routingDecision.Criteria[0]
+			}
+			w.Header().Set(routing.HeaderRoutingReason, reason)
+		}
 		if !h.requireProvider(providerID, w) {
 			logRoutingDecision(false)
 			return
