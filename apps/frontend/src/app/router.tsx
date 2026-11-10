@@ -3,6 +3,7 @@ import { LoginPage, OperatorAuthGate } from '../features/auth'
 import { CatalogPage } from '../features/catalog'
 import { ExecutionsPage } from '../features/executions'
 import { ResourcesPage } from '../features/resources'
+import { IntelligencePage } from '../features/intelligence'
 import { OverviewPage } from '../features/overview'
 import { PlaygroundPage } from '../features/playground'
 import { ProvidersPage } from '../features/providers'
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: 'providers', element: <ProvidersPage /> },
       { path: 'catalog', element: <CatalogPage /> },
       { path: 'playground', element: <PlaygroundPage /> },
+      { path: 'intelligence', element: <IntelligencePage /> },
       { path: 'executions', element: <ExecutionsPage /> },
       { path: 'resources', element: <ResourcesPage /> },
     ],

@@ -60,7 +60,7 @@ describe('AppSidebar focus behavior', () => {
   it('shows unavailable navigation items without adding dead links', () => {
     renderSidebar()
 
-    expect(screen.getByRole('button', { name: 'Inteligência' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('link', { name: 'Inteligência' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Configurações' }).hasAttribute('disabled')).toBe(true)
     expect(screen.queryByRole('link', { name: 'Playground' })).toBeNull()
   })

@@ -23,7 +23,7 @@ const operationItems: readonly SidebarItem[] = [
   { to: '/', label: 'Visão geral', icon: LayoutDashboard, end: true },
   { to: '/providers', label: 'Provedores', icon: Plug },
   { to: '/catalog', label: 'Modelos', icon: Layers },
-  { label: 'Inteligência', icon: Brain, disabled: true },
+  { to: '/intelligence', label: 'Inteligência', icon: Brain },
   { to: '/executions', label: 'Execuções', icon: Activity },
   { to: '/resources', label: 'Recursos', icon: SlidersHorizontal },
 ]

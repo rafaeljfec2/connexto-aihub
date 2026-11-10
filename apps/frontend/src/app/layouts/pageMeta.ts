@@ -51,6 +51,12 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     lead:
       'Cross-gateway quota policies, concurrency occupancy, and provider-reported usage from E09 admin APIs.',
   },
+  '/intelligence': {
+    crumb: 'Inteligência',
+    eyebrow: 'INTELLIGENCE / LEARNING ENGINE',
+    title: 'Aprendizagem & decisões',
+    lead: 'Entenda como o contexto orienta a escolha de modelos — e quais evidências sustentam cada decisão.',
+  },
 }
 
 export function resolvePageMeta(pathname: string): AppPageMeta {
