@@ -9,7 +9,7 @@ import { EvolutionTimelinePanel } from '../components/EvolutionTimelinePanel'
 
 export function IntelligencePage() {
   return (
-    <div className={appPageClassName('space-y-3.5', 'py-4', 'pb-8')}>
+    <div className={appPageClassName('space-y-2.5', 'py-3', 'pb-6')}>
       <AppPageHeader
         actions={
           <div className="flex items-center gap-2">
@@ -27,17 +27,17 @@ export function IntelligencePage() {
 
       <IntelligenceStatCards />
 
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         <ContextAdequacyPanel />
         <DecisionStackPanel />
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         <SignalsPanel />
         <EvolutionTimelinePanel />
       </div>
 
-      <div className="flex items-center gap-2.5 rounded-[10px] border border-line bg-surface/80 px-3.5 py-2 text-[11px] text-secondary">
+      <div className="flex items-center gap-2.5 rounded-[10px] border border-line bg-surface/80 px-3 py-2 text-[11px] text-secondary">
         <div className="size-1.5 shrink-0 rounded-full bg-cobalt" />
         <p>
           <strong className="font-semibold text-primary">Princípio de produto:</strong> nenhuma recomendação adaptativa deve alterar o roteamento sem evidência rastreável, avaliação e política explícita.

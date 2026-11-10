@@ -2,15 +2,17 @@ import { AlertTriangle } from 'lucide-react'
 
 export function IntelligenceNoticeBanner() {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[10px] border border-warning/20 bg-warning/[0.04] p-3">
+    <div className="flex items-center justify-between gap-3 rounded-[10px] border border-warning/20 bg-warning/[0.04] px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
           <AlertTriangle className="size-4" />
         </div>
         <div className="min-w-0">
-          <strong className="text-xs font-semibold text-primary">O Learning Engine ainda não está ativo</strong>
+          <strong className="text-xs font-semibold text-primary">
+            Learning Engine (E10) em planejamento · Roteamento determinístico e aihub/auto ativos
+          </strong>
           <p className="mt-0.5 text-[11px] leading-relaxed text-secondary">
-            O E08 já toma decisões determinísticas e rastreáveis. Avaliação de resultados por contexto, comparação adaptativa e recomendações aprendidas pertencem ao E10 e ainda não foram implementadas.
+            O E08 e a seleção do modelo virtual <code className="font-mono text-[10px] text-accent-light">aihub/auto</code> por prioridade administrativa operam de forma determinística no Gateway. Avaliação adaptativa por contexto e ranking histórico pertencem ao E10 e ainda não estão ativos.
           </p>
         </div>
       </div>
@@ -23,4 +25,3 @@ export function IntelligenceNoticeBanner() {
     </div>
   )
 }
-

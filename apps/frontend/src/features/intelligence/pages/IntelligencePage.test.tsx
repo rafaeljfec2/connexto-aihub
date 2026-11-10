@@ -24,7 +24,7 @@ describe('IntelligencePage', () => {
   it('renders notice banner with waiting status', () => {
     renderPage()
 
-    expect(screen.getByText('O Learning Engine ainda não está ativo')).toBeTruthy()
+    expect(screen.getByText(/Learning Engine \(E10\) em planejamento/i)).toBeTruthy()
     expect(screen.getByText('AGUARDANDO E10')).toBeTruthy()
   })
 
@@ -32,9 +32,9 @@ describe('IntelligencePage', () => {
     renderPage()
 
     expect(screen.getByText('ROTEAMENTO ATUAL')).toBeTruthy()
-    expect(screen.getByText('Determinístico')).toBeTruthy()
-    expect(screen.getByText('CONTEXTO DA TAREFA')).toBeTruthy()
-    expect(screen.getByText('Não classificado')).toBeTruthy()
+    expect(screen.getByText('Determinístico & Auto')).toBeTruthy()
+    expect(screen.getByText('REQUEST UNDERSTANDING')).toBeTruthy()
+    expect(screen.getByText('Estrutural')).toBeTruthy()
     expect(screen.getByText('AVALIAÇÃO DE RESULTADOS')).toBeTruthy()
     expect(screen.getByText('Não ativada')).toBeTruthy()
     expect(screen.getByText('POLÍTICAS APRENDIDAS')).toBeTruthy()
@@ -62,8 +62,8 @@ describe('IntelligencePage', () => {
 
     expect(screen.getByText('Como a decisão acontece hoje')).toBeTruthy()
     expect(screen.getByText('Validar e projetar requisitos')).toBeTruthy()
-    expect(screen.getByText('Verificar elegibilidade')).toBeTruthy()
-    expect(screen.getByText('Selecionar deterministicamente')).toBeTruthy()
+    expect(screen.getByText('Verificar elegibilidade de candidatos')).toBeTruthy()
+    expect(screen.getByText('Seleção determinística & virtual auto')).toBeTruthy()
     expect(screen.getByText('Avaliar resultados por contexto')).toBeTruthy()
 
     expect(screen.getByText('Sinais disponíveis para evoluir o E10')).toBeTruthy()
