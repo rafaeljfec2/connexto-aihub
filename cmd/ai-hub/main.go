@@ -149,7 +149,7 @@ func run() error {
 		runtime.executionManager, catalogModule, recordsModule, runtime.generationService,
 		readiness, runtime.providerAdmin, runtime.resourceAdmin, runtime.concurrencyAdmin,
 		runtime.analyticsAdmin, runtime.resourceAdmission, runtime.concurrencyGate,
-		runtime.usageMetering, eventHub, operatorGate)
+		runtime.usageMetering, eventHub, operatorGate, runtime.quotaService)
 	if err != nil {
 		return err
 	}

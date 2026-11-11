@@ -32,6 +32,7 @@ func TestSelectDeterministic_VirtualAuto_SelectsBestCandidate(t *testing.T) {
 			modelView(providers.OpenCodeGoID, "gpt-6-luna", now, success, providers.StateHealthy),
 			modelView("openrouter", "anthropic/claude-haiku-4.5", now, success, providers.StateHealthy),
 		},
+		AutoQuota: routing.BuildAutoQuotaView(nil, now, 2*time.Minute),
 	}
 
 	ctx := routing.RoutingContext{
@@ -40,6 +41,7 @@ func TestSelectDeterministic_VirtualAuto_SelectsBestCandidate(t *testing.T) {
 			ModelPresent: true,
 			ModelID:      routing.VirtualModelAuto,
 		},
+		Understanding: routing.RequestUnderstanding{OptimizationProfile: routing.ProfileBalanced},
 	}
 
 	reqStatus := routing.RequirementStatus{
@@ -65,9 +67,11 @@ func TestSelectDeterministic_VirtualAuto_SelectsBestCandidate(t *testing.T) {
 		t.Errorf("expected Origin = %q, got %q", routing.OriginVirtualAuto, decision.Origin)
 	}
 
-	// Should select gpt-6-luna as highest administrative priority
-	if decision.Selected.ModelID != "gpt-6-luna" {
-		t.Errorf("expected ModelID 'gpt-6-luna', got %q", decision.Selected.ModelID)
+	if !routing.IsAutoAllowlistTarget(*decision.Selected) {
+		t.Errorf("selected model %q is outside the auto allowlist", decision.Selected.ModelID)
+	}
+	if decision.RoutingReasonCode != "awrr_pool_select" {
+		t.Errorf("expected awrr_pool_select, got %q", decision.RoutingReasonCode)
 	}
 }
 

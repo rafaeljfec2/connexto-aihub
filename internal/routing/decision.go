@@ -33,4 +33,13 @@ type RoutingDecision struct {
 	Criteria    []string
 	Rejection   RejectionCode
 	Eligibility EligibilityResult
+
+	AppliedProfile       OptimizationProfile
+	RoutingReasonCode    string
+	SelectedPool         string
+	PoolPressure         *float64
+	PoolWeight           *float64
+	ShadowLegacyModel    string
+	ShadowCandidateModel string
+	ShadowCandidatePool  string
 }

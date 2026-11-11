@@ -19,6 +19,9 @@ type ResponsesRouting struct {
 	Statuses        func() []providers.Status
 	ProviderService *providers.Service
 	StaleAfter      time.Duration
+	// QuotaSnapshots supplies cached quota reads only (no synchronous upstream refresh).
+	QuotaSnapshots func(ctx context.Context) []providers.ProviderQuotaSnapshot
+	QuotaStaleTTL  time.Duration
 }
 
 type routingHTTPError struct {
@@ -54,7 +57,7 @@ func routeResponses(
 		}
 	}
 
-	requirements, err := routing.ProjectRequirements(payload, structural)
+	understanding, err := routing.UnderstandRequest(payload, structural)
 	if err != nil {
 		return routing.Target{}, nil, decision, routingHTTPError{
 			status:  http.StatusBadRequest,
@@ -82,15 +85,31 @@ func routeResponses(
 		Catalog:    deps.Catalog,
 	})
 
+	quotaTTL := deps.QuotaStaleTTL
+	if quotaTTL <= 0 {
+		quotaTTL = 2 * time.Minute
+	}
+	if deps.QuotaSnapshots != nil {
+		snapshot.AutoQuota = routing.BuildAutoQuotaView(deps.QuotaSnapshots(reqCtx), snapshot.CapturedAt, quotaTTL)
+	}
+
 	routeCtx := routing.RoutingContext{
 		RequestID:        requestID,
 		ExplicitProvider: explicitProvider,
 		Structural:       structural,
+		Understanding:    understanding,
 	}
 
-	eligibility := routing.EvaluateEligibility(routeCtx, snapshot, requirements)
+	eligibility := routing.EvaluateEligibility(routeCtx, snapshot, understanding.Requirements)
 	decision = routing.SelectDeterministic(routeCtx, snapshot, eligibility)
 	if decision.Rejection != "" {
+		if status, gate := routing.MapAutoGate0HTTPStatus(decision.Criteria); gate {
+			return routing.Target{}, nil, decision, routingHTTPError{
+				status:  status,
+				typ:     string(decision.Rejection),
+				message: "auto routing is blocked until Gate 0 is satisfied for all ten models",
+			}
+		}
 		return routing.Target{}, nil, decision, mapRoutingRejection(decision.Rejection, explicitProvider, eligibility)
 	}
 

@@ -39,7 +39,7 @@ func TestResponsesSelectsProviderByIDAndDefaultsToOpenCode(t *testing.T) {
 	}))
 	defer openRouterServer.Close()
 	handler, _, openRouter := newRoutedResponsesHandler(t, openCodeServer.URL, openRouterServer.URL)
-	payload := `{"model":"anthropic/claude-sonnet-4.5","input":"hello"}`
+	payload := `{"model":"anthropic/claude-haiku-4.5","input":"hello"}`
 
 	defaultResponse := serveResponses(handler, "", `{"input":[{"type":"input_text","text":"hello"}]}`)
 	if defaultResponse.Code != http.StatusOK || !strings.Contains(defaultResponse.Body.String(), "opencode-response") {

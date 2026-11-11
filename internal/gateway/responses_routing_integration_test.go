@@ -99,7 +99,7 @@ func TestResponsesRoutingExplicitOpenRouterModelOnly(t *testing.T) {
 	defer openRouter.Close()
 
 	handler, _, _ := newRoutedResponsesHandler(t, openCode.URL, openRouter.URL)
-	payload := `{"model":"anthropic/claude-sonnet-4.5","input":[{"type":"input_text","text":"hi"}]}`
+	payload := `{"model":"anthropic/claude-haiku-4.5","input":[{"type":"input_text","text":"hi"}]}`
 	response := serveResponses(handler, "", payload)
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d body=%s", response.Code, response.Body.String())

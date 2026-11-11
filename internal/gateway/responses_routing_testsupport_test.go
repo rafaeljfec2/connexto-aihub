@@ -191,10 +191,10 @@ func newRoutedResponsesHandler(t *testing.T, openCodeEndpoint, openRouterEndpoin
 	now := time.Now()
 	catalogManager := gatewayTestCatalog(t, now, map[string]catalog.SourceFunc{
 		providers.OpenCodeGoID: func(context.Context) ([]providers.ModelDescriptor, error) {
-			return []providers.ModelDescriptor{gatewayTestDescriptor("opencode-default-model")}, nil
+			return []providers.ModelDescriptor{gatewayTestDescriptor("gpt-6-luna")}, nil
 		},
 		providers.OpenRouterID: func(context.Context) ([]providers.ModelDescriptor, error) {
-			return []providers.ModelDescriptor{gatewayTestDescriptor("anthropic/claude-sonnet-4.5")}, nil
+			return []providers.ModelDescriptor{gatewayTestDescriptor("anthropic/claude-haiku-4.5")}, nil
 		},
 	})
 

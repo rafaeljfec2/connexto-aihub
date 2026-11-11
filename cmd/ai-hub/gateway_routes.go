@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"aihub/internal/access"
 	"aihub/internal/catalog"
@@ -26,11 +28,11 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
 	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
 	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
-	eventHub *operational.Hub, operatorGate ui.Gate) (http.Handler, error) {
+	eventHub *operational.Hub, operatorGate ui.Gate, quotaService *providers.QuotaService) (http.Handler, error) {
 	return buildGatewayRouterWithGenerations(cfg, logger, registry, providerManager, providerService, executionManager,
 		catalogModule, recordsModule, generations.NewService(recordsModule, nil, logger), readiness,
 		providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission,
-		concurrencyGate, usageMetering, eventHub, operatorGate)
+		concurrencyGate, usageMetering, eventHub, operatorGate, quotaService)
 }
 
 func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
@@ -40,7 +42,7 @@ func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, r
 	resourceAdmin *gateway.ResourceAdmin, concurrencyAdmin *gateway.ConcurrencyAdmin,
 	analyticsAdmin *gateway.AnalyticsAdmin, resourceAdmission gateway.ResourceAdmitter,
 	concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
-	eventHub *operational.Hub, operatorGate ui.Gate) (http.Handler, error) {
+	eventHub *operational.Hub, operatorGate ui.Gate, quotaService *providers.QuotaService) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
@@ -50,15 +52,26 @@ func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, r
 	if err != nil {
 		return nil, fmt.Errorf("build gateway access policy: %w", err)
 	}
+	routingDeps := &gateway.ResponsesRouting{
+		Catalog:         catalogModule,
+		Statuses:        providerManager.Statuses,
+		ProviderService: providerService,
+		StaleAfter:      cfg.Catalog.StaleAfter,
+		QuotaStaleTTL:   2 * time.Minute,
+	}
+	if quotaService != nil {
+		routingDeps.QuotaSnapshots = func(ctx context.Context) []providers.ProviderQuotaSnapshot {
+			resp, err := quotaService.GetSnapshots(ctx)
+			if err != nil {
+				return nil
+			}
+			return resp.Snapshots
+		}
+	}
 	routes := []server.Route{
 		{Method: http.MethodPost, Pattern: "/v1/responses",
 			Handler: gateway.NewResponsesHandlerWithRegistryAndGenerations(registry, executionManager, logger, gateway.StreamInactivityTimeout,
-				&gateway.ResponsesRouting{
-					Catalog:         catalogModule,
-					Statuses:        providerManager.Statuses,
-					ProviderService: providerService,
-					StaleAfter:      cfg.Catalog.StaleAfter,
-				}, resourceAdmission, concurrencyGate, usageMetering, generationService),
+				routingDeps, resourceAdmission, concurrencyGate, usageMetering, generationService),
 			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},
 		{Method: http.MethodGet, Pattern: "/diagnostics/providers", Handler: gateway.NewProvidersHandler(providerManager.Statuses)},

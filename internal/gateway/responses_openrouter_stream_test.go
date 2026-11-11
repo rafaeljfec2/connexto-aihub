@@ -39,7 +39,7 @@ func TestOpenRouterSSEIsProgressiveAndClientCancellationReachesUpstream(t *testi
 	defer gatewayServer.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, gatewayServer.URL+"/v1/responses", strings.NewReader(`{"model":"anthropic/claude-sonnet-4.5","input":"hello","stream":true}`))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, gatewayServer.URL+"/v1/responses", strings.NewReader(`{"model":"anthropic/claude-haiku-4.5","input":"hello","stream":true}`))
 	if err != nil {
 		t.Fatal(err)
 	}

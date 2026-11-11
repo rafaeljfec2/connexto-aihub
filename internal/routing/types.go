@@ -68,6 +68,7 @@ type RoutingContext struct {
 	ExplicitProvider  string
 	ExplicitModel     string
 	Structural        StructuralRequest
+	Understanding     RequestUnderstanding
 }
 
 // StructuralRequest is the validated structural subset of a Responses body.
@@ -101,4 +102,5 @@ type Snapshot struct {
 	Runtime      map[string]RuntimeProviderFacts
 	Models       []catalog.View
 	Sync         map[string]catalog.ProviderSyncState
+	AutoQuota    AutoQuotaView
 }

@@ -40,6 +40,7 @@ type persistenceRuntime struct {
 	usageMetering     *metering.Service
 	generationService *generations.Service
 	executionManager  *execution.Manager
+	quotaService      *providers.QuotaService
 }
 
 func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *providers.Registry,
@@ -83,6 +84,7 @@ func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *p
 		providers.TypeAntigravity: antigravityQuotaAdapter,
 	}, logger)
 	runtime.providerAdmin.BindQuotaService(quotaService)
+	runtime.quotaService = quotaService
 	usageAnalyticsService := providers.NewCursorUsageAnalyticsService(providerConfig.service, nil, logger)
 	runtime.providerAdmin.BindCursorUsageAnalytics(usageAnalyticsService)
 	resourceService := resources.NewService(resourcespg.New(pool))

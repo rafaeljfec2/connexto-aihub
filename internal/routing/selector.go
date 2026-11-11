@@ -35,7 +35,7 @@ func SelectDeterministic(ctx RoutingContext, snapshot Snapshot, eligibility Elig
 
 	switch {
 	case IsVirtualModel(explicitModelID):
-		return selectVirtualAuto(decision, snapshot, eligibility)
+		return selectVirtualAuto(decision, ctx, snapshot, eligibility)
 	case hasExplicitProvider && explicitModelID != "":
 		return selectExplicitProviderAndModel(decision, snapshot, eligibility, explicitProvider, explicitModelID)
 	case hasExplicitProvider:

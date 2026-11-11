@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"aihub/internal/execution"
+	"aihub/internal/routing"
 )
 
 // headerRecorder implements http.ResponseWriter for the mapping tests.
@@ -61,7 +62,7 @@ func quotaResult(cause execution.Cause, resetIn *int64) execution.Result {
 func TestWriteExecutionFailureResponseMapsUpstreamQuotaTo429(t *testing.T) {
 	resetIn := int64((54 * time.Hour).Nanoseconds())
 	recorder := newHeaderRecorder()
-	writeExecutionFailureResponse(recorder, quotaResult(execution.CauseUpstreamQuota, &resetIn))
+	writeExecutionFailureResponse(recorder, quotaResult(execution.CauseUpstreamQuota, &resetIn), routing.Target{})
 
 	status, headers, body := recorder.snapshot()
 	if status != http.StatusTooManyRequests {
@@ -94,7 +95,7 @@ func TestWriteExecutionFailureResponseMapsUpstreamQuotaTo429(t *testing.T) {
 func TestWriteExecutionFailureResponseKeepsHistoricalMappings(t *testing.T) {
 	t.Run("transport failure keeps 502", func(t *testing.T) {
 		recorder := newHeaderRecorder()
-		writeExecutionFailureResponse(recorder, quotaResult(execution.CauseTransport, nil))
+		writeExecutionFailureResponse(recorder, quotaResult(execution.CauseTransport, nil), routing.Target{})
 		if status, _, _ := recorder.snapshot(); status != http.StatusBadGateway {
 			t.Fatalf("status = %d, want 502", status)
 		}
@@ -104,7 +105,7 @@ func TestWriteExecutionFailureResponseKeepsHistoricalMappings(t *testing.T) {
 		recorder := newHeaderRecorder()
 		result := quotaResult(execution.CauseOpening, nil)
 		result.Outcome = execution.OutcomeTimedOut
-		writeExecutionFailureResponse(recorder, result)
+		writeExecutionFailureResponse(recorder, result, routing.Target{})
 		if status, _, _ := recorder.snapshot(); status != http.StatusGatewayTimeout {
 			t.Fatalf("status = %d, want 504", status)
 		}
@@ -112,7 +113,7 @@ func TestWriteExecutionFailureResponseKeepsHistoricalMappings(t *testing.T) {
 
 	t.Run("quota without reset window answers 429 without reset_at", func(t *testing.T) {
 		recorder := newHeaderRecorder()
-		writeExecutionFailureResponse(recorder, quotaResult(execution.CauseUpstreamQuota, nil))
+		writeExecutionFailureResponse(recorder, quotaResult(execution.CauseUpstreamQuota, nil), routing.Target{})
 		status, _, body := recorder.snapshot()
 		if status != http.StatusTooManyRequests {
 			t.Fatalf("status = %d, want 429", status)

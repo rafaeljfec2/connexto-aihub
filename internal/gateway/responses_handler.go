@@ -126,9 +126,13 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if routingDecision.Origin == routing.OriginVirtualAuto && target.ModelID != "" {
 			w.Header().Set(routing.HeaderResolvedModel, target.ModelID)
 			w.Header().Set(routing.HeaderResolvedProvider, target.ProviderID)
-			w.Header().Set(routing.HeaderRoutingProfile, string(routing.ProfileBalanced))
-			reason := "virtual_auto_ranked_priority"
-			if len(routingDecision.Criteria) > 0 {
+			profile := routingDecision.AppliedProfile
+			if profile == "" {
+				profile = routing.ProfileBalanced
+			}
+			w.Header().Set(routing.HeaderRoutingProfile, string(profile))
+			reason := routingDecision.RoutingReasonCode
+			if reason == "" && len(routingDecision.Criteria) > 0 {
 				reason = routingDecision.Criteria[0]
 			}
 			w.Header().Set(routing.HeaderRoutingReason, reason)
@@ -141,6 +145,9 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		routingOverheadNS = &elapsed
 		routingSelectedAt = time.Now().UTC()
 		pendingRoutingLog = true
+		if routingDecision.SelectedPool != "" {
+			defer routing.ReleaseProvisionalDebit(routing.AutoPoolID(routingDecision.SelectedPool))
+		}
 	} else {
 		providerID, err = requestedProviderID(r)
 		if err != nil {
@@ -242,14 +249,14 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeExecutionFailureResponse(w, result)
+	writeExecutionFailureResponse(w, result, routing.Target{ProviderID: providerID, ModelID: modelID})
 }
 
 // writeExecutionFailureResponse maps an uncommitted terminal opening result
 // to the structured endpoint error. Upstream quota/subscription exhaustion
 // answers 429 with the bounded reset window; everything else keeps the
 // historical 502/504 envelopes.
-func writeExecutionFailureResponse(w http.ResponseWriter, result execution.Result) {
+func writeExecutionFailureResponse(w http.ResponseWriter, result execution.Result, routedTarget routing.Target) {
 	if result.Outcome == execution.OutcomeTimedOut && result.Phase == execution.PhaseOpening {
 		writeJSONError(w, http.StatusGatewayTimeout, executionTimeoutType, executionTimeoutMsg)
 		return
@@ -257,11 +264,19 @@ func writeExecutionFailureResponse(w http.ResponseWriter, result execution.Resul
 	if result.Outcome == execution.OutcomeFailed && result.Phase == execution.PhaseOpening {
 		if result.Cause == execution.CauseUpstreamQuota {
 			resetAt := ""
+			var resetTime time.Time
 			if result.QuotaResetInNS != nil && *result.QuotaResetInNS > 0 {
-				resetAt = time.Now().Add(time.Duration(*result.QuotaResetInNS)).UTC().Format(time.RFC3339)
+				resetTime = time.Now().Add(time.Duration(*result.QuotaResetInNS)).UTC()
+				resetAt = resetTime.Format(time.RFC3339)
+			}
+			if routedTarget.ProviderID != "" && routedTarget.ModelID != "" {
+				routing.RecordAutoQuotaExhausted(routedTarget, resetTime)
 			}
 			writeJSONErrorWithReset(w, http.StatusTooManyRequests, upstreamQuotaExceededType, upstreamQuotaExceededMsg, resetAt)
 			return
+		}
+		if result.UpstreamStatus == http.StatusTooManyRequests && routedTarget.ProviderID == providers.OpenCodeGoID {
+			routing.RecordAutoOverloadCooldown(routedTarget)
 		}
 		writeJSONError(w, http.StatusBadGateway, upstreamUnavailableType, upstreamUnavailableMsg)
 	}
