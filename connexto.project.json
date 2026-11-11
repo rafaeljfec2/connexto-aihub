@@ -6,8 +6,8 @@
   },
   "commands": {
     "install": null,
-    "test": "go test ./... -count=1 -race",
-    "lint": "go vet ./...",
+    "test": "go -C apps/backend test ./... -count=1 -race",
+    "lint": "go -C apps/backend vet ./...",
     "typecheck": null,
     "build": null,
     "implement": null

@@ -96,7 +96,8 @@ ls_specific_settings: {}
 #     - "./subproject1"
 #     - "./subproject2"
 ls_workspace_folders:
-- "."
+- "./apps/backend"
+- "./apps/frontend"
 
 # list of additional workspace folder paths for cross-package reference support.
 # Paths can be absolute or relative to the project root.

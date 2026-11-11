@@ -12,22 +12,23 @@ The tooling decision is recorded in
 
 ```text
 /
-├── cmd/ai-hub/       # Backend entrypoint (Go module `aihub`, at the root)
-├── internal/         # Backend packages (Go)
-├── scripts/          # Validation and forensic scripts (Go/Python/Bash)
-├── docs/             # Architecture, specs, ADRs, validation docs
-├── apps/frontend/    # Planned React + Vite app (not created yet)
+├── apps/
+│   ├── backend/      # Go backend module `aihub` (`go.mod`, `cmd/`, `internal/`)
+│   └── frontend/     # React + Vite dashboard (`@connexto/frontend`)
 ├── packages/ui/      # Future shared UI kit (not created yet)
+├── scripts/          # Validation, sync, and forensic scripts (Node/Python/Bash)
+├── docs/             # Architecture, specs, ADRs, validation docs
+├── bin/              # Release / smoke / E2E binaries (gitignored)
 ├── package.json      # Root scripts + pnpm/Turbo toolchain pins
 ├── pnpm-workspace.yaml
 ├── turbo.json
 ├── pnpm-lock.yaml
-├── .nvmrc
-└── go.mod
+└── .nvmrc
 ```
 
-The Go backend stays at the repository root. It was not moved into
-`apps/backend`; the existing Go layout remains the source of truth.
+The Go backend module (`aihub`) lives in `apps/backend/` as a pure Go module
+without a `package.json`, keeping the Go and Node ecosystems independent while
+sharing the monorepo `apps/*` directory structure.
 
 ## Tool responsibilities
 
@@ -56,18 +57,18 @@ is exposed as a pnpm package. Turborepo coordinates only the JS/TS packages.
 
 Run from the repository root:
 
-| Command        | What it runs                          | Implemented |
-| -------------- | ------------------------------------- | ----------- |
-| `pnpm install` | Installs JS/TS workspace dependencies | yes         |
-| `pnpm build`   | `go build ./...`                      | yes         |
-| `pnpm dev`     | `go run ./cmd/ai-hub`                 | yes         |
-| `pnpm lint`    | `go vet ./...`                        | yes         |
-| `pnpm test`    | `go test ./... -count=1 -race`        | yes         |
-| `pnpm check`   | `go vet ./...` + `go test ./...`      | yes         |
-| `pnpm typecheck` | — provided by a future TS package   | not yet     |
+| Command        | What it runs                                  | Implemented |
+| -------------- | --------------------------------------------- | ----------- |
+| `pnpm install` | Installs JS/TS workspace dependencies         | yes         |
+| `pnpm build`   | `go -C apps/backend build ./...`              | yes         |
+| `pnpm dev`     | `turbo run dev //#dev:backend`                | yes         |
+| `pnpm lint`    | `go -C apps/backend vet ./...`                | yes         |
+| `pnpm test`    | `go -C apps/backend test ./... -count=1 -race`| yes         |
+| `pnpm check`   | `go -C apps/backend vet ./...` + `go -C apps/backend test ./...` + frontend check | yes |
+| `pnpm typecheck` | — provided by frontend/TS packages          | frontend    |
 
 Every backend command works without pnpm as well
-(`go test ./... -count=1 -race`).
+(`go -C apps/backend test ./... -count=1 -race`, or `go test ./... -count=1 -race` from `apps/backend/`).
 
 `golangci-lint run ./...` remains the documented deeper manual lint. It is not
 part of the default gate; it currently reports pre-existing staticcheck
@@ -137,7 +138,7 @@ the implementation SPEC; see the [Frontend MVP guide](frontend/FRONTEND-MVP.md).
   AIHUB_DATABASE_URL='postgres://dev:dev@127.0.0.1:5432/ai_hub' \
     AIHUB_CATALOG_PERSISTENCE=postgres \
     AIHUB_GATEWAY_API_KEY='<32+ character local key>' \
-    go run ./cmd/ai-hub
+    go -C apps/backend run ./cmd/ai-hub
   ```
   The application creates and migrates its schema on startup; it does not
   create databases or containers. Integration tests opt in through

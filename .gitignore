@@ -3,7 +3,7 @@
 /ai-hub
 *.test
 coverage.out
-internal/static/dist/
+apps/backend/internal/static/dist/
 
 # Node workspace artifacts (pnpm + Turborepo)
 node_modules/

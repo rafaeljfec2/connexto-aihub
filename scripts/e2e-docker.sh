@@ -27,7 +27,7 @@ fuser -k "${LOOPBACK_PORT}/tcp" "${PASSPHRASE_PORT}/tcp" 2>/dev/null || true
 cd "$ROOT"
 pnpm --filter @connexto/frontend build
 node scripts/sync-frontend-dist.mjs
-go build -o bin/ai-hub-e2e ./cmd/ai-hub/
+go -C apps/backend build -o "$ROOT/bin/ai-hub-e2e" ./cmd/ai-hub/
 
 export HUB_BIN="$ROOT/bin/ai-hub-e2e"
 bash "$ROOT/scripts/e2e-hub.sh" "$LOOPBACK_PORT" &

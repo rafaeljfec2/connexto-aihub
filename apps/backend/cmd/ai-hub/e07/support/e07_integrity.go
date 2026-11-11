@@ -71,6 +71,15 @@ func E07RepositoryRoot(start string) (string, error) {
 		return E07ResolveDirectory(toplevel)
 	}
 	for current := absolute; ; current = filepath.Dir(current) {
+		if info, err := os.Stat(filepath.Join(current, "pnpm-workspace.yaml")); err == nil && !info.IsDir() {
+			return E07ResolveDirectory(current)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	for current := absolute; ; current = filepath.Dir(current) {
 		if info, err := os.Stat(filepath.Join(current, "go.mod")); err == nil && !info.IsDir() {
 			return E07ResolveDirectory(current)
 		}

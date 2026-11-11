@@ -2,7 +2,7 @@
  * Maps Connexto AI Hub provider identifiers / logo tokens onto ai-icons
  * file slugs (basename without variant suffix).
  *
- * When adding a connector in internal/providers/service.go, add a matching
+ * When adding a connector in apps/backend/internal/providers/service.go, add a matching
  * entry here so the UI can resolve a brand icon.
  */
 const HUB_TO_ICON_SLUG: Readonly<Record<string, string>> = {

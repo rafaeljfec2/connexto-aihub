@@ -22,7 +22,7 @@ coverage.out
 
 # Frontend build and the copy embedded into the Go binary
 **/dist/
-internal/static/dist/
+apps/backend/internal/static/dist/
 
 # Test and browser artifacts
 coverage/

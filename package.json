@@ -6,14 +6,14 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "go build ./...",
-    "build:release": "pnpm --filter @connexto/frontend build && node scripts/sync-frontend-dist.mjs && go build -o bin/ai-hub ./cmd/ai-hub/",
+    "build": "go -C apps/backend build ./...",
+    "build:release": "pnpm --filter @connexto/frontend build && node scripts/sync-frontend-dist.mjs && go -C apps/backend build -o ../../bin/ai-hub ./cmd/ai-hub/",
     "dev": "turbo run dev //#dev:backend",
-    "dev:backend": "go run ./cmd/ai-hub",
+    "dev:backend": "go -C apps/backend run ./cmd/ai-hub",
     "dev:frontend": "pnpm --filter @connexto/frontend dev",
-    "lint": "go vet ./...",
-    "test": "go test ./... -count=1 -race",
-    "check": "go vet ./... && go test ./... -count=1 -race && pnpm --filter @connexto/frontend check",
+    "lint": "go -C apps/backend vet ./...",
+    "test": "go -C apps/backend test ./... -count=1 -race",
+    "check": "go -C apps/backend vet ./... && go -C apps/backend test ./... -count=1 -race && pnpm --filter @connexto/frontend check",
     "e2e": "pnpm --dir e2e install && pnpm --dir e2e exec playwright install chromium && pnpm --dir e2e test",
     "sync:ai-icons": "node scripts/sync-ai-icons.mjs"
   },

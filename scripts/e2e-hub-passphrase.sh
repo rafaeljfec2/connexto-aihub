@@ -20,4 +20,4 @@ fi
 if [[ -n "${HUB_BIN:-}" && -x "${HUB_BIN}" ]]; then
   exec "${HUB_BIN}"
 fi
-exec go run ./cmd/ai-hub
+exec go -C apps/backend run ./cmd/ai-hub

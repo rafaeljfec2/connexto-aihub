@@ -27,7 +27,7 @@ export AIHUB_DATA_DIR="${AIHUB_DATA_DIR:-/tmp/aihub-embedded-smoke-$$}"
 
 cd "$ROOT"
 node scripts/sync-frontend-dist.mjs >/dev/null
-go build -o "$HUB_BIN" ./cmd/ai-hub/
+go -C apps/backend build -o "$HUB_BIN" ./cmd/ai-hub/
 
 echo "Starting hub on ${BASE} (log: ${LOG_FILE})"
 "$HUB_BIN" >"${LOG_FILE}" 2>&1 &

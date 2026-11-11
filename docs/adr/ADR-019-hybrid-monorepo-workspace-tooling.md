@@ -1,7 +1,9 @@
 # ADR-019 — Hybrid monorepo: independent Go Modules and pnpm ecosystems with Turborepo orchestration
 
-- **Status:** accepted (Management Foundation Phase A, 2026-11-02)
+- **Status:** partially superseded (layout updated 2026-11-11: Go module relocated into `apps/backend/`, ecosystem separation preserved; originally accepted 2026-11-02)
 - **Related:** `README.md`, `docs/development-workspace.md`, ADR-007, ADR-002
+
+> **Layout update (2026-11-11):** The Go backend module (`aihub`: `go.mod`, `go.sum`, `cmd/`, `internal/`) was relocated from the repository root into `apps/backend/`. All other ADR-019 principles remain in effect: `apps/backend` stays a pure Go module without a `package.json`, Go and pnpm ecosystems remain independent, and root scripts invoke Go via `go -C apps/backend ...`.
 
 ## Context
 

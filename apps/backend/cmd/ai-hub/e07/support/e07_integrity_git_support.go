@@ -113,12 +113,12 @@ func E07NoUntrackedProductionFiles(root string) (bool, error) {
 
 func e07ProductionPathspecs() []string {
 	return []string{
-		"internal",
-		"cmd/ai-hub/main.go",
-		"go.mod",
-		"go.sum",
-		":(glob)cmd/ai-hub/lifecycle/*.go",
-		":(exclude,glob)cmd/ai-hub/lifecycle/*_test.go",
+		"apps/backend/internal",
+		"apps/backend/cmd/ai-hub/main.go",
+		"apps/backend/go.mod",
+		"apps/backend/go.sum",
+		":(glob)apps/backend/cmd/ai-hub/lifecycle/*.go",
+		":(exclude,glob)apps/backend/cmd/ai-hub/lifecycle/*_test.go",
 	}
 }
 

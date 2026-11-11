@@ -92,12 +92,12 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 	root := t.TempDir()
 	e07support.E07RunGit(t, root, "init", "-q")
 	files := map[string]string{
-		"go.mod":                                     "module fixture\n\ngo 1.23\n",
-		"internal/production.go":                     "package internal\n",
-		"cmd/ai-hub/main.go":                         "package main\n",
-		"cmd/ai-hub/lifecycle/lifecycle.go":          "package lifecycle\n",
-		"cmd/ai-hub/lifecycle/lifecycle_test.go":     "package lifecycle\n",
-		"cmd/ai-hub/e07/integrity/e07_scope_test.go": "package integrity\n",
+		"apps/backend/go.mod":                                     "module fixture\n\ngo 1.23\n",
+		"apps/backend/internal/production.go":                     "package internal\n",
+		"apps/backend/cmd/ai-hub/main.go":                         "package main\n",
+		"apps/backend/cmd/ai-hub/lifecycle/lifecycle.go":          "package lifecycle\n",
+		"apps/backend/cmd/ai-hub/lifecycle/lifecycle_test.go":     "package lifecycle\n",
+		"apps/backend/cmd/ai-hub/e07/integrity/e07_scope_test.go": "package integrity\n",
 	}
 	for relative, content := range files {
 		path := filepath.Join(root, filepath.FromSlash(relative))
@@ -120,7 +120,7 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 		t.Fatalf("unchanged production source did not match the baseline: %v", err)
 	}
 
-	lifecyclePath := filepath.Join(root, "cmd", "ai-hub", "lifecycle", "lifecycle.go")
+	lifecyclePath := filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "lifecycle", "lifecycle.go")
 	if err := os.WriteFile(lifecyclePath, []byte("package lifecycle\n\n// production change\n"), 0o600); err != nil {
 		t.Fatal("lifecycle production fixture file could not be changed")
 	}
@@ -131,9 +131,9 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 	if matches {
 		t.Fatal("a lifecycle source change matched the baseline")
 	}
-	e07support.E07RunGit(t, root, "checkout", "--", "cmd/ai-hub/lifecycle/lifecycle.go")
+	e07support.E07RunGit(t, root, "checkout", "--", "apps/backend/cmd/ai-hub/lifecycle/lifecycle.go")
 
-	lifecycleTestPath := filepath.Join(root, "cmd", "ai-hub", "lifecycle", "lifecycle_test.go")
+	lifecycleTestPath := filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "lifecycle", "lifecycle_test.go")
 	if err := os.WriteFile(lifecycleTestPath, []byte("package lifecycle\n\n// test-only change\n"), 0o600); err != nil {
 		t.Fatal("lifecycle test fixture file could not be changed")
 	}
@@ -141,19 +141,19 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 	if err != nil || !matches {
 		t.Fatalf("a lifecycle test change affected the production baseline: %v", err)
 	}
-	e07support.E07RunGit(t, root, "checkout", "--", "cmd/ai-hub/lifecycle/lifecycle_test.go")
-	if err := os.WriteFile(filepath.Join(root, "cmd", "ai-hub", "lifecycle", "untracked_test.go"), []byte("package lifecycle\n"), 0o600); err != nil {
+	e07support.E07RunGit(t, root, "checkout", "--", "apps/backend/cmd/ai-hub/lifecycle/lifecycle_test.go")
+	if err := os.WriteFile(filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "lifecycle", "untracked_test.go"), []byte("package lifecycle\n"), 0o600); err != nil {
 		t.Fatal("untracked lifecycle test fixture file could not be written")
 	}
 	matches, err = e07support.E07ProductionBaselineMatches(root, baseline)
 	if err != nil || !matches {
 		t.Fatalf("an untracked lifecycle test affected the production baseline: %v", err)
 	}
-	if err := os.Remove(filepath.Join(root, "cmd", "ai-hub", "lifecycle", "untracked_test.go")); err != nil {
+	if err := os.Remove(filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "lifecycle", "untracked_test.go")); err != nil {
 		t.Fatal("untracked lifecycle test fixture file could not be removed")
 	}
 
-	if err := os.WriteFile(filepath.Join(root, "cmd", "ai-hub", "e07", "integrity", "e07_scope_test.go"), []byte("package integrity\n\n// test-only change\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "e07", "integrity", "e07_scope_test.go"), []byte("package integrity\n\n// test-only change\n"), 0o600); err != nil {
 		t.Fatal("test-only fixture file could not be changed")
 	}
 	matches, err = e07support.E07ProductionBaselineMatches(root, baseline)
@@ -161,7 +161,7 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 		t.Fatalf("a test-only change affected the production baseline: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(root, "internal", "production.go"), []byte("package internal\n\n// production change\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "apps", "backend", "internal", "production.go"), []byte("package internal\n\n// production change\n"), 0o600); err != nil {
 		t.Fatal("production fixture file could not be changed")
 	}
 	matches, err = e07support.E07ProductionBaselineMatches(root, baseline)
@@ -172,10 +172,10 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 		t.Fatal("a production source change matched the baseline")
 	}
 
-	if err := os.WriteFile(filepath.Join(root, "internal", "untracked_production.go"), []byte("package internal\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "apps", "backend", "internal", "untracked_production.go"), []byte("package internal\n"), 0o600); err != nil {
 		t.Fatal("untracked production fixture file could not be written")
 	}
-	e07support.E07RunGit(t, root, "checkout", "--", "internal/production.go")
+	e07support.E07RunGit(t, root, "checkout", "--", "apps/backend/internal/production.go")
 	matches, err = e07support.E07ProductionBaselineMatches(root, baseline)
 	if err != nil {
 		t.Fatalf("untracked production source could not be compared: %v", err)
@@ -183,10 +183,10 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 	if matches {
 		t.Fatal("an untracked production source file matched the baseline")
 	}
-	if err := os.Remove(filepath.Join(root, "internal", "untracked_production.go")); err != nil {
+	if err := os.Remove(filepath.Join(root, "apps", "backend", "internal", "untracked_production.go")); err != nil {
 		t.Fatal("untracked production fixture file could not be removed")
 	}
-	if err := os.WriteFile(filepath.Join(root, "cmd", "ai-hub", "lifecycle", "untracked.go"), []byte("package lifecycle\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "lifecycle", "untracked.go"), []byte("package lifecycle\n"), 0o600); err != nil {
 		t.Fatal("untracked lifecycle production fixture file could not be written")
 	}
 	matches, err = e07support.E07ProductionBaselineMatches(root, baseline)
@@ -196,14 +196,14 @@ func TestE07ProductionBaselineComparisonIgnoresTestOnlyChanges(t *testing.T) {
 	if matches {
 		t.Fatal("an untracked lifecycle source file matched the baseline")
 	}
-	if err := os.Remove(filepath.Join(root, "cmd", "ai-hub", "lifecycle", "untracked.go")); err != nil {
+	if err := os.Remove(filepath.Join(root, "apps", "backend", "cmd", "ai-hub", "lifecycle", "untracked.go")); err != nil {
 		t.Fatal("untracked lifecycle production fixture file could not be removed")
 	}
 
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("internal/ignored_production.go\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("apps/backend/internal/ignored_production.go\n"), 0o600); err != nil {
 		t.Fatal("baseline fixture ignore file could not be written")
 	}
-	if err := os.WriteFile(filepath.Join(root, "internal", "ignored_production.go"), []byte("package internal\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "apps", "backend", "internal", "ignored_production.go"), []byte("package internal\n"), 0o600); err != nil {
 		t.Fatal("ignored production fixture file could not be written")
 	}
 	matches, err = e07support.E07ProductionBaselineMatches(root, baseline)

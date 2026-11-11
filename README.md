@@ -51,18 +51,17 @@ the [consolidated roadmap](docs/roadmap/AI-HUB-ROADMAP.md) and
 
 The repository is a hybrid monorepo since the Management Foundation Phase A
 (see [ADR-019](docs/adr/ADR-019-hybrid-monorepo-workspace-tooling.md) and the
-[workspace guide](docs/development-workspace.md)). The Go backend stays at the
-root and keeps native Go commands; pnpm/Turborepo cover `apps/*` and
-`packages/*` for the planned frontend. React + Vite is the documented
-direction; the E11 dashboard remains future work.
+[workspace guide](docs/development-workspace.md)). The Go backend module
+(`aihub`) lives under `apps/backend` and keeps native Go commands (`go -C apps/backend ...`);
+pnpm/Turborepo cover `apps/*` and `packages/*` for JS/TS packages (`apps/frontend`).
 
 ```bash
 pnpm install   # JS/TS tooling (turbo); no effect on Go builds
-pnpm build     # go build ./...
-pnpm dev       # go run ./cmd/ai-hub
-pnpm lint      # go vet ./...
-pnpm test      # go test ./... -count=1 -race
-pnpm check     # go vet ./... && go test ./... -count=1 -race
+pnpm build     # go -C apps/backend build ./...
+pnpm dev       # turbo + go -C apps/backend run ./cmd/ai-hub
+pnpm lint      # go -C apps/backend vet ./...
+pnpm test      # go -C apps/backend test ./... -count=1 -race
+pnpm check     # go -C apps/backend vet ./... && go -C apps/backend test ./... -count=1 -race && pnpm --filter @connexto/frontend check
 ```
 
 ## Run locally
@@ -72,13 +71,13 @@ cp .env.example .env   # then adjust values; never commit .env
 # AIHUB_GATEWAY_API_KEY is mandatory and must differ from the provider key.
 # Generate a private value with `openssl rand -base64 48`; .env.example leaves
 # it empty intentionally so startup fails closed until the operator sets it.
-go run ./cmd/ai-hub
+go -C apps/backend run ./cmd/ai-hub
 ```
 
 With an explicit env file:
 
 ```bash
-go run ./cmd/ai-hub -env-file /path/to/.env
+go -C apps/backend run ./cmd/ai-hub -env-file /path/to/.env
 ```
 
 The server binds to `127.0.0.1:8080` by default.
@@ -313,7 +312,7 @@ Retention settings accept `AIHUB_RECORDS_MAX_AGE` 1h–8760h,
 
 ```bash
 AIHUB_LIVE_SMOKE=1 AIHUB_PROVIDER_OPENCODEGO_API_KEY=oc_sk_... \
-  go test ./internal/providers/ -run TestLiveOpenCodeGoSmoke -v
+  go -C apps/backend test ./internal/providers/ -run TestLiveOpenCodeGoSmoke -v
 ```
 
 It is skipped automatically without both variables. The provider-only smoke
@@ -358,7 +357,7 @@ env -i PATH="$PATH" HOME="$AIHUB_E07_BUILD_DIR/home" \
   GOPATH="$AIHUB_E07_BUILD_DIR/go" \
   GOMODCACHE="$AIHUB_E07_BUILD_DIR/go/pkg/mod" \
   GOCACHE="$AIHUB_E07_BUILD_DIR/cache" \
-  go build -o "$AIHUB_E07_BINARY" ./cmd/ai-hub
+  go -C apps/backend build -o "$AIHUB_E07_BINARY" ./cmd/ai-hub
 ```
 
 In Terminal A, enter the credentials without echo. The Hub receives only the
@@ -646,7 +645,7 @@ env -i PATH="$PATH" HOME="$AIHUB_E07_TEST_DIR/home" \
   GOPATH="$AIHUB_E07_TEST_DIR/go" \
   GOMODCACHE="$AIHUB_E07_TEST_DIR/go/pkg/mod" \
   GOCACHE="$AIHUB_E07_TEST_DIR/cache" \
-  go test -c -o "$AIHUB_E07_TEST_DIR/ai-hub-e07.test" ./cmd/ai-hub/e07/live
+  go -C apps/backend test -c -o "$AIHUB_E07_TEST_DIR/ai-hub-e07.test" ./cmd/ai-hub/e07/live
 ```
 
 In Terminal C, enter new, distinct gateway and provider credentials using
@@ -706,10 +705,10 @@ claim above applies only to the validated release and environment.
 ## Tests and validation
 
 ```bash
-go test ./... -count=1 -race
-go vet ./...
-staticcheck ./...
-golangci-lint run ./...
+go -C apps/backend test ./... -count=1 -race
+go -C apps/backend vet ./...
+go -C apps/backend run honnef.co/go/tools/cmd/staticcheck ./... # or staticcheck inside apps/backend
+golangci-lint run ./... # run inside apps/backend
 ```
 
 The isolated Codex shell canary is opt-in because it requires the exact
@@ -717,7 +716,7 @@ validated CLI release and a global Codex tree that no ambient Codex process is
 modifying. It is skipped by the default suite and fails closed when enabled:
 
 ```bash
-AIHUB_E07_CANARY=1 go test ./cmd/ai-hub/e07/codex \
+AIHUB_E07_CANARY=1 go -C apps/backend test ./cmd/ai-hub/e07/codex \
   -run '^TestE07CodexShellEnvironmentPolicyIsEffective$' -count=1 -v
 ```
 

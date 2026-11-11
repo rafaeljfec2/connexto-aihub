@@ -33,3 +33,26 @@ func TestDefaultEnvFilePathFallsBackToWorkingDirectoryOutsideModule(t *testing.T
 		t.Fatalf("defaultEnvFilePathFrom(%q) = %q, want %q", workingDir, got, want)
 	}
 }
+
+func TestDefaultEnvFilePathResolvesWorkspaceRootFromNestedModule(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "pnpm-workspace.yaml"), []byte("packages:\n  - apps/*\n"), 0o600); err != nil {
+		t.Fatalf("write pnpm-workspace.yaml: %v", err)
+	}
+
+	backendDir := filepath.Join(workspaceDir, "apps", "backend")
+	serviceDir := filepath.Join(backendDir, "cmd", "ai-hub")
+	if err := os.MkdirAll(serviceDir, 0o700); err != nil {
+		t.Fatalf("create nested service directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(backendDir, "go.mod"), []byte("module test\n"), 0o600); err != nil {
+		t.Fatalf("write nested go.mod: %v", err)
+	}
+
+	want := filepath.Join(workspaceDir, ".env")
+	for _, startDir := range []string{workspaceDir, backendDir, serviceDir} {
+		if got := defaultEnvFilePathFrom(startDir); got != want {
+			t.Errorf("defaultEnvFilePathFrom(%q) = %q, want %q", startDir, got, want)
+		}
+	}
+}
