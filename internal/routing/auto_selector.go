@@ -34,12 +34,18 @@ func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Sn
 		decision.ShadowLegacyModel = legacySelectedModel(legacy)
 	}
 
-	poolID, poolReasons := SelectPoolAWRR(allowlisted, quota)
+	bandB, bandReasons := FilterAutoBandBCandidates(understanding, allowlisted)
+	if len(bandB) == 0 {
+		criteria := append(bandReasons, "contract_band", "profile:"+string(profile))
+		return reject(decision, RejectNoEligibleModel, criteria)
+	}
+
+	poolID, poolReasons := SelectPoolAWRR(bandB, quota)
 	if poolID == "" {
 		return reject(decision, RejectNoEligibleModel, append(poolReasons, "profile:"+string(profile)))
 	}
 
-	selected, modelReasons := SelectModelInPool(poolID, allowlisted, understanding)
+	selected, modelReasons := SelectModelInPool(poolID, bandB, understanding)
 	if selected.ModelID == "" {
 		return reject(decision, RejectNoEligibleModel, append(modelReasons, "profile:"+string(profile)))
 	}

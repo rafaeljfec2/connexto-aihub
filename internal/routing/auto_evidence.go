@@ -105,6 +105,32 @@ func requiresStructuredOutput(req RequirementStatus) bool {
 	return false
 }
 
+// FilterAutoBandBCandidates keeps allowlist targets that pass contract proofs for this request.
+func FilterAutoBandBCandidates(understanding RequestUnderstanding, allowlisted []Target) ([]Target, []string) {
+	if len(allowlisted) == 0 {
+		return nil, nil
+	}
+	out := make([]Target, 0, len(allowlisted))
+	reasons := make([]string, 0, 4)
+	seen := make(map[string]struct{}, 4)
+	for _, t := range allowlisted {
+		ok, code := PassesAutoContractBand(understanding, t)
+		if ok {
+			out = append(out, t)
+			continue
+		}
+		if code == "" {
+			continue
+		}
+		if _, dup := seen[code]; dup {
+			continue
+		}
+		seen[code] = struct{}{}
+		reasons = append(reasons, code)
+	}
+	return out, reasons
+}
+
 // PassesAutoContractBand applies Band B contract proofs for the request shape.
 func PassesAutoContractBand(understanding RequestUnderstanding, t Target) (bool, string) {
 	ev, ok := LookupAutoModelEvidence(t)

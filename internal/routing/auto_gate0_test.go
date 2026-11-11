@@ -130,6 +130,45 @@ func TestSelectDeterministic_VirtualAuto_ExcludesBlockedAntigravityHomologation(
 	}
 }
 
+func TestSelectDeterministic_VirtualAuto_BandBBeforePoolAvoidsDeadAntigravityPool(t *testing.T) {
+	prev := routing.AutoGate0Enforced
+	t.Cleanup(func() { routing.AutoGate0Enforced = prev })
+	routing.AutoGate0Enforced = false
+
+	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	snapshot := routing.Snapshot{
+		CapturedAt: now,
+		AutoQuota:  routing.BuildAutoQuotaView(nil, now, 2*time.Minute),
+	}
+	blockedOnly := []routing.Target{
+		{ProviderID: providers.AntigravityID, ModelID: "antigravity:claude-opus-4-6-thinking"},
+		{ProviderID: providers.AntigravityID, ModelID: "antigravity:claude-sonnet-4-6"},
+		{ProviderID: providers.AntigravityID, ModelID: "antigravity:gpt-oss-120b-medium"},
+		{ProviderID: providers.OpenCodeGoID, ModelID: "gpt-6-luna"},
+	}
+	ctx := routing.RoutingContext{
+		RequestID: "req-bandb-pool",
+		Structural: routing.StructuralRequest{
+			ModelPresent: true,
+			ModelID:      routing.VirtualModelAuto,
+		},
+		Understanding: routing.RequestUnderstanding{
+			OptimizationProfile: routing.ProfileBalanced,
+			Requirements:        routing.RequirementStatus{RequiredCapabilities: []string{"reasoning"}},
+		},
+	}
+	eligibility := routing.EligibilityResult{Eligible: blockedOnly}
+	for i := 0; i < 12; i++ {
+		decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
+		if decision.Rejection != "" {
+			t.Fatalf("iteration %d: rejection %q criteria=%v", i, decision.Rejection, decision.Criteria)
+		}
+		if decision.Selected == nil || decision.Selected.ModelID != "gpt-6-luna" {
+			t.Fatalf("iteration %d: selected %+v, want gpt-6-luna", i, decision.Selected)
+		}
+	}
+}
+
 func autoGateModelView(providerID, modelID string, now, success time.Time) catalog.View {
 	entry := catalog.ModelEntry{
 		ProviderID: providerID,
