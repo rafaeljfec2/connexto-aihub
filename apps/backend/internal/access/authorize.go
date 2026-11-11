@@ -21,7 +21,7 @@ func (p Policy) Authorize(next http.Handler) http.Handler {
 		}
 
 		metadata := Metadata{Host: host, Origin: origin}
-		if !healthExempt(r) && !uiLoginExempt(r) {
+		if !healthExempt(r) && !uiAuthExempt(r) {
 			principal, authorized := p.authenticate(r)
 			if !authorized {
 				unauthorized(w)
@@ -61,8 +61,12 @@ func healthExempt(r *http.Request) bool {
 	return r.URL.Path == "/healthz" || r.URL.Path == "/readyz"
 }
 
-func uiLoginExempt(r *http.Request) bool {
-	return r.Method == http.MethodPost && r.URL.Path == "/api/ui/login"
+func uiAuthExempt(r *http.Request) bool {
+	if r.Method == http.MethodPost && r.URL.Path == "/api/ui/login" {
+		return true
+	}
+
+	return r.Method == http.MethodGet && r.URL.Path == "/api/ui/session"
 }
 
 // authenticate selects the credential for the route namespace: the

@@ -1,0 +1,64 @@
+name: connexto-aihub
+
+include:
+  - path: ../connexto-proxy-cli-llms/docker-compose.yml
+    project_directory: ../connexto-proxy-cli-llms
+    env_file:
+      - ../connexto-proxy-cli-llms/.env
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    image: aihub-backend:local
+    ports:
+      - "${AIHUB_SERVER_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      AIHUB_SERVER_HOST: 0.0.0.0
+      AIHUB_SERVER_PORT: 8080
+      AIHUB_DATA_DIR: /var/lib/aihub
+      AIHUB_SERVE_EMBEDDED_UI: "false"
+      AIHUB_LOG_FORMAT: ${AIHUB_LOG_FORMAT:-json}
+      AIHUB_GATEWAY_ALLOWED_HOSTS: ${AIHUB_GATEWAY_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,aihub-backend}
+      AIHUB_PROVIDER_CONNEXTO_PROXY_BASE_URL: ${AIHUB_DOCKER_PROXY_BASE_URL:-http://gateway:9090/v1}
+      AIHUB_PROVIDER_ALLOWED_HOSTS: ${AIHUB_PROVIDER_ALLOWED_HOSTS:-opencode.ai,openrouter.ai,127.0.0.1,localhost,gateway,connexto-aihub-gateway-1,host.docker.internal}
+      # Non-loopback listeners disable loopback_trust; operator auth requires a passphrase + 32+ byte secret.
+      AIHUB_OPERATOR_PASSPHRASE: ${AIHUB_OPERATOR_PASSPHRASE:-aihub-local-operator-passphrase}
+      AIHUB_UI_SESSION_SECRET: ${AIHUB_UI_SESSION_SECRET:-aihub-local-docker-session-secret-32bytes}
+      AIHUB_UI_SECURE_COOKIES: ${AIHUB_UI_SECURE_COOKIES:-false}
+    depends_on:
+      gateway:
+        condition: service_healthy
+    volumes:
+      - aihub-data:/var/lib/aihub
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NODE_VERSION: "24.22.1"
+        PNPM_VERSION: "12.16.1"
+    image: aihub-frontend:local
+    ports:
+      - "${AIHUB_FRONTEND_PORT:-5173}:80"
+    environment:
+      AIHUB_BACKEND_UPSTREAM: http://backend:8080
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  aihub-data:
