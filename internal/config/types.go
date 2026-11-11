@@ -35,6 +35,7 @@ const (
 	EnvRecordsMaxStorageBytes    = "AIHUB_RECORDS_MAX_STORAGE_BYTES"
 	EnvRecordsSegmentBytes       = "AIHUB_RECORDS_SEGMENT_BYTES"
 	EnvRecordsRetentionInterval  = "AIHUB_RECORDS_RETENTION_INTERVAL"
+	EnvAutoGate0Enforced         = "AIHUB_AUTO_GATE0_ENFORCED"
 )
 
 // knownEnvKeys lists every variable the application consumes.
@@ -77,6 +78,7 @@ var knownEnvKeys = map[string]struct{}{
 	EnvUISessionTTL:              {},
 	EnvUISecureCookies:           {},
 	EnvServeEmbeddedUI:           {},
+	EnvAutoGate0Enforced:         {},
 }
 
 // LogLevel is a validated log level accepted by the application.

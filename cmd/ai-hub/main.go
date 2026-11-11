@@ -21,6 +21,7 @@ import (
 	"aihub/internal/operational"
 	"aihub/internal/providers"
 	"aihub/internal/records"
+	"aihub/internal/routing"
 	"aihub/internal/server"
 	"aihub/internal/static"
 )
@@ -58,6 +59,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	routing.InitAutoGate0FromEnv()
 
 	logger := observability.NewLogger(os.Stdout, cfg.Log.Level.SlogLevel(), string(cfg.Log.Format))
 	logger.Info("starting ai hub", "version", version)

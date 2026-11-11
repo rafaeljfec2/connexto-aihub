@@ -8,8 +8,8 @@ import (
 // AutoShadowMode compares old vs new selector without changing execution.
 var AutoShadowMode bool
 
-// AutoGate0Enforced blocks aihub/auto when Gate 0 is unsatisfied (production default).
-var AutoGate0Enforced = true
+// AutoGate0Enforced blocks aihub/auto when Gate 0 is unsatisfied (opt-in via AIHUB_AUTO_GATE0_ENFORCED).
+var AutoGate0Enforced = false
 
 // selectVirtualAuto resolves aihub/auto using allowlist, bands, and AW-RR.
 func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Snapshot, eligibility EligibilityResult) RoutingDecision {
