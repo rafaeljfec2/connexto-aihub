@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -28,7 +30,13 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 		return providerConfiguration{}, fmt.Errorf("build provider credentials: %w", err)
 	}
 
-	service := providers.NewServiceWithProbes(pgstore.New(pool), cipher, registry, map[string]providers.ProbeFunc{
+	rewriteLoopbackProxy := strings.EqualFold(strings.TrimSpace(os.Getenv(config.EnvDockerRewriteLoopbackProxy)), "true")
+	var repo providers.Repository = pgstore.New(pool)
+	if rewriteLoopbackProxy {
+		repo = providers.WrapLoopbackProxyEndpoint(repo, cfg.Provider.ConnextoProxy.BaseURL)
+	}
+
+	service := providers.NewServiceWithProbes(repo, cipher, registry, map[string]providers.ProbeFunc{
 		providers.TypeOpenCodeGo:    providers.ProbeEndpoint,
 		providers.TypeOpenRouter:    providers.ProbeOpenRouterEndpoint,
 		providers.TypeCursor:        providers.ProbeCursorEndpoint,
@@ -36,6 +44,10 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 		providers.TypeAntigravity:   providers.ProbeAntigravityEndpoint,
 	},
 		cfg.Provider.AllowedEndpointHosts)
+
+	if rewriteLoopbackProxy {
+		service.AllowHTTPEndpoint(cfg.Provider.ConnextoProxy.BaseURL)
+	}
 
 	service.SetDefaultEndpoint(providers.CursorID, cfg.Provider.ConnextoProxy.BaseURL)
 	service.SetDefaultEndpoint(providers.AntigravityID, cfg.Provider.ConnextoProxy.BaseURL)

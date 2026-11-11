@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -33,12 +34,13 @@ type UpdateInput struct {
 // Service owns provider administration: validation, credential protection,
 // persistence and propagation of the configuration to the bound runtime.
 type Service struct {
-	repo             Repository
-	cipher           *CredentialCipher
-	registry         *Registry
-	probes           map[string]ProbeFunc
-	allowedHosts     map[string]struct{}
-	defaultEndpoints map[string]string
+	repo                 Repository
+	cipher               *CredentialCipher
+	registry             *Registry
+	probes               map[string]ProbeFunc
+	allowedHosts         map[string]struct{}
+	allowedHTTPAddresses map[string]struct{}
+	defaultEndpoints     map[string]string
 }
 
 // NewService builds the administrative service. allowedHosts is the exact
@@ -54,6 +56,20 @@ func (s *Service) SetDefaultEndpoint(providerID, endpoint string) {
 		s.defaultEndpoints = make(map[string]string)
 	}
 	s.defaultEndpoints[providerID] = strings.TrimSpace(endpoint)
+}
+
+// AllowHTTPEndpoint permits plain HTTP for the exact scheme-less host:port of
+// an internal container proxy URL such as http://gateway:9090/v1 while keeping
+// HTTPS mandatory for all other non-loopback endpoints.
+func (s *Service) AllowHTTPEndpoint(endpoint string) {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil || !strings.EqualFold(parsed.Scheme, "http") || parsed.Host == "" {
+		return
+	}
+	if s.allowedHTTPAddresses == nil {
+		s.allowedHTTPAddresses = make(map[string]struct{})
+	}
+	s.allowedHTTPAddresses[strings.ToLower(parsed.Host)] = struct{}{}
 }
 
 // AvailableProviders returns all supported provider templates with UI metadata.

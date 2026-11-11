@@ -37,13 +37,21 @@ func (s *Service) validateEndpoint(endpoint string) error {
 	if err != nil {
 		return fmt.Errorf("%w: endpoint is not a valid base URL", ErrInvalid)
 	}
-	if strings.EqualFold(parsed.Scheme, "http") && !isLoopbackHost(parsed.Hostname()) {
+	if strings.EqualFold(parsed.Scheme, "http") && !isLoopbackHost(parsed.Hostname()) && !s.isAllowedHTTPAddress(parsed.Host) {
 		return fmt.Errorf("%w: endpoint must use https unless it targets a loopback host", ErrInvalid)
 	}
 	if _, allowed := s.allowedHosts[strings.ToLower(parsed.Hostname())]; !allowed {
 		return fmt.Errorf("%w: endpoint host is not in AIHUB_PROVIDER_ALLOWED_HOSTS", ErrInvalid)
 	}
 	return nil
+}
+
+func (s *Service) isAllowedHTTPAddress(host string) bool {
+	if len(s.allowedHTTPAddresses) == 0 {
+		return false
+	}
+	_, allowed := s.allowedHTTPAddresses[strings.ToLower(strings.TrimSpace(host))]
+	return allowed
 }
 
 func isLoopbackHost(host string) bool {

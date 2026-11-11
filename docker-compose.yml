@@ -27,6 +27,7 @@ services:
       AIHUB_LOG_FORMAT: ${AIHUB_LOG_FORMAT:-json}
       AIHUB_GATEWAY_ALLOWED_HOSTS: ${AIHUB_GATEWAY_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,aihub-backend}
       AIHUB_PROVIDER_CONNEXTO_PROXY_BASE_URL: ${AIHUB_DOCKER_PROXY_BASE_URL:-http://gateway:9090/v1}
+      AIHUB_DOCKER_REWRITE_LOOPBACK_PROXY: ${AIHUB_DOCKER_REWRITE_LOOPBACK_PROXY:-true}
       AIHUB_PROVIDER_ALLOWED_HOSTS: ${AIHUB_PROVIDER_ALLOWED_HOSTS:-opencode.ai,openrouter.ai,127.0.0.1,localhost,gateway,connexto-aihub-gateway-1,host.docker.internal}
       # Non-loopback listeners disable loopback_trust; operator auth requires a passphrase + 32+ byte secret.
       AIHUB_OPERATOR_PASSPHRASE: ${AIHUB_OPERATOR_PASSPHRASE:-aihub-local-operator-passphrase}
