@@ -1,0 +1,41 @@
+# Cursor context exclusions for connexto-aihub (Go gateway + Vite frontend).
+# .gitignore and Cursor's default list already skip node_modules, lockfiles,
+# .env*, images, and binaries. Patterns below cover this repo's extra noise
+# and re-include the env contract the agent should still read.
+
+# Secrets stay out of Agent, Tab, and @ mentions.
+.env
+.env.*
+!.env.example
+
+# Dependencies and package-manager caches
+node_modules/
+**/node_modules/
+.pnpm-store/
+.turbo/
+
+# Go build outputs
+/bin/
+/ai-hub
+*.test
+coverage.out
+
+# Frontend build and the copy embedded into the Go binary
+**/dist/
+internal/static/dist/
+
+# Test and browser artifacts
+coverage/
+e2e/test-results/
+playwright-report/
+.playwright-mcp/
+
+# Vendored icon pack (hundreds of SVGs). LICENSE, VERSION, and icon-toc.json stay visible.
+apps/frontend/vendor/ai-icons/svgs/
+
+# Local workflow and language-server caches
+.connexto/
+.serena/cache/
+.serena/project.local.yml
+
+*.log
