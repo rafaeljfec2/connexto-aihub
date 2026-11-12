@@ -6,12 +6,14 @@ import (
 )
 
 var openRouterStrippedPartTypes = map[string]struct{}{
-	"redacted_thinking":        {},
-	"thinking":               {},
-	"reasoning":              {},
-	"reasoning_summary_text": {},
-	"reasoning_text":         {},
-	"encrypted_content":      {},
+	"redacted_thinking":          {},
+	"thinking":                 {},
+	"reasoning":                {},
+	"reasoning_summary_text":   {},
+	"reasoning_text":           {},
+	"encrypted_content":        {},
+	"custom_tool_call":         {},
+	"custom_tool_call_output":  {},
 }
 
 // ScrubNonPortableThinkingInput removes thinking blocks from a Responses input array.
@@ -37,34 +39,7 @@ func ScrubNonPortableThinkingInput(raw json.RawMessage) (json.RawMessage, bool, 
 // NormalizeOpenRouterResponsesPayload strips non-replayable thinking blocks from
 // Responses bodies before they reach OpenRouter upstream routers.
 func NormalizeOpenRouterResponsesPayload(body []byte) ([]byte, error) {
-	if len(body) == 0 {
-		return body, nil
-	}
-	var envelope map[string]json.RawMessage
-	if err := json.Unmarshal(body, &envelope); err != nil {
-		return body, nil
-	}
-
-	inputChanged := false
-	if rawInput, ok := envelope["input"]; ok && len(rawInput) > 0 && rawInput[0] != '"' {
-		var decoded any
-		if err := json.Unmarshal(rawInput, &decoded); err == nil {
-			scrubbed, changed := scrubOpenRouterInputValue(decoded)
-			if changed {
-				next, err := json.Marshal(scrubbed)
-				if err != nil {
-					return nil, err
-				}
-				envelope["input"] = next
-				inputChanged = true
-			}
-		}
-	}
-	includeChanged := stripOpenRouterIncludeField(envelope)
-	if !inputChanged && !includeChanged {
-		return body, nil
-	}
-	return json.Marshal(envelope)
+	return NormalizePortableResponsesPayload(body)
 }
 
 func stripOpenRouterIncludeField(envelope map[string]json.RawMessage) bool {

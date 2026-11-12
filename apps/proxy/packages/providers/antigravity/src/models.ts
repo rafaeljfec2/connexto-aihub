@@ -35,10 +35,8 @@ const AGENT_MODELS = [
 ] as const;
 
 const ACP_MODEL_ALIASES: Readonly<Record<string, string>> = {
-  "claude-sonnet-4-6": "claude-sonnet-5-5",
-  "claude-opus-4-6-thinking": "claude-opus-5-5",
-  "claude-sonnet-5-5": "claude-sonnet-5-5",
-  "claude-opus-5-5": "claude-opus-5-5",
+  "claude-sonnet-4-6": "claude-sonnet-4-6",
+  "claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
 };
 
 export const ANTIGRAVITY_MODELS: readonly AntigravityModel[] = AGENT_MODELS.map((model) => ({

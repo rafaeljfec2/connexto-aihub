@@ -12,9 +12,9 @@ var openCodeNativeReasoningFields = []string{
 	"max_tokens",
 }
 
-// NormalizeOpenCodeGoResponsesPayload keeps Responses payloads compatible with routed
-// OpenCode Go execution (non-native Responses targets).
-func NormalizeOpenCodeGoResponsesPayload(body []byte) ([]byte, error) {
+// NormalizePortableResponsesPayload keeps Responses payloads compatible with routed
+// (non-native) execution through the AI Hub and Connexto proxy.
+func NormalizePortableResponsesPayload(body []byte) ([]byte, error) {
 	if len(body) == 0 {
 		return body, nil
 	}
@@ -42,6 +42,12 @@ func NormalizeOpenCodeGoResponsesPayload(body []byte) ([]byte, error) {
 		return body, nil
 	}
 	return json.Marshal(envelope)
+}
+
+// NormalizeOpenCodeGoResponsesPayload is an alias kept for call sites that predate the
+// portable name.
+func NormalizeOpenCodeGoResponsesPayload(body []byte) ([]byte, error) {
+	return NormalizePortableResponsesPayload(body)
 }
 
 func stripOpenCodePortableReasoningField(envelope map[string]json.RawMessage) bool {
