@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"aihub/cmd/ai-hub/lifecycle"
 	"aihub/internal/app"
@@ -134,8 +135,9 @@ func run() error {
 	}
 
 	catalogModule := catalog.NewManager(logger, providerModule.Statuses, catalogSources, runtime.catalogStore, catalog.Options{
-		StaleAfter:  cfg.Catalog.StaleAfter,
-		SyncTimeout: cfg.Catalog.SyncTimeout,
+		StaleAfter:          cfg.Catalog.StaleAfter,
+		SyncTimeout:         cfg.Catalog.SyncTimeout,
+		AutoRefreshInterval: catalogAutoRefreshInterval(cfg.Catalog.StaleAfter),
 	})
 
 	if runtime.providerAdmin != nil {
@@ -212,4 +214,20 @@ func run() error {
 
 	logger.Info("ai hub stopped")
 	return nil
+}
+
+func catalogAutoRefreshInterval(staleAfter time.Duration) time.Duration {
+	if staleAfter <= 0 {
+		return 15 * time.Minute
+	}
+
+	interval := staleAfter / 8
+	if interval > 15*time.Minute {
+		interval = 15 * time.Minute
+	}
+	if interval < time.Second {
+		interval = time.Second
+	}
+
+	return interval
 }

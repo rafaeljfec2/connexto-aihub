@@ -19,9 +19,10 @@ type SourceFunc func(context.Context) ([]providers.ModelDescriptor, error)
 
 // Options tunes the catalog manager.
 type Options struct {
-	StaleAfter  time.Duration
-	SyncTimeout time.Duration
-	Now         func() time.Time
+	StaleAfter          time.Duration
+	SyncTimeout         time.Duration
+	AutoRefreshInterval time.Duration
+	Now                 func() time.Time
 }
 
 // SyncResult reports one manual or startup synchronization.
@@ -35,13 +36,14 @@ type SyncResult struct {
 // Manager owns the catalog state and implements app.Module. It never fails
 // startup because of catalog or provider problems.
 type Manager struct {
-	logger      *slog.Logger
-	statuses    func() []providers.Status
-	sources     map[string]SourceFunc
-	store       SnapshotStore
-	staleAfter  time.Duration
-	syncTimeout time.Duration
-	now         func() time.Time
+	logger              *slog.Logger
+	statuses            func() []providers.Status
+	sources             map[string]SourceFunc
+	store               SnapshotStore
+	staleAfter          time.Duration
+	syncTimeout         time.Duration
+	autoRefreshInterval time.Duration
+	now                 func() time.Time
 
 	mu         sync.RWMutex
 	entries    map[ModelKey]ModelEntry
@@ -82,15 +84,16 @@ func NewManager(logger *slog.Logger, statuses func() []providers.Status, sources
 	}
 
 	manager := &Manager{
-		logger:      logger,
-		statuses:    statuses,
-		sources:     sources,
-		store:       store,
-		staleAfter:  opts.StaleAfter,
-		syncTimeout: opts.SyncTimeout,
-		now:         opts.Now,
-		entries:     make(map[ModelKey]ModelEntry),
-		syncStates:  make(map[string]ProviderSyncState),
+		logger:              logger,
+		statuses:            statuses,
+		sources:             sources,
+		store:               store,
+		staleAfter:          opts.StaleAfter,
+		syncTimeout:         opts.SyncTimeout,
+		autoRefreshInterval: opts.AutoRefreshInterval,
+		now:                 opts.Now,
+		entries:             make(map[ModelKey]ModelEntry),
+		syncStates:          make(map[string]ProviderSyncState),
 	}
 
 	for providerID := range sources {
@@ -165,6 +168,10 @@ func (m *Manager) Start(ctx context.Context) error {
 		default:
 			m.persistSkip(providerID, SyncErrorNone)
 		}
+	}
+
+	if m.autoRefreshInterval > 0 {
+		m.launchAutoRefreshLoop()
 	}
 
 	return nil
@@ -329,6 +336,74 @@ func (m *Manager) launchStartupSync(providerID string) {
 		// contain an upstream URL) is deliberately not logged.
 		_, _ = m.Sync(m.ctx, providerID)
 	}()
+}
+
+func (m *Manager) launchAutoRefreshLoop() {
+	m.wg.Add(1)
+
+	go func() {
+		defer m.wg.Done()
+
+		// Recover stale or never-synced catalogs immediately in the background
+		// so restarts do not leave routing blocked until manual intervention.
+		m.refreshDueProviders(false)
+
+		ticker := time.NewTicker(m.autoRefreshInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-ticker.C:
+				m.refreshDueProviders(true)
+			}
+		}
+	}()
+}
+
+func (m *Manager) refreshDueProviders(proactive bool) {
+	for _, providerID := range m.ProviderIDs() {
+		if m.ctx.Err() != nil {
+			return
+		}
+
+		if !m.providerNeedsRefresh(providerID, proactive) {
+			continue
+		}
+
+		// Sync logs sanitized outcome/error fields; raw errors are omitted to
+		// avoid leaking upstream URLs or credentials.
+		_, _ = m.Sync(m.ctx, providerID)
+	}
+}
+
+func (m *Manager) providerNeedsRefresh(providerID string, proactive bool) bool {
+	status := m.statusFor(providerID)
+	if status.State == providers.StateDisabled || status.State == providers.StateUnhealthy {
+		return false
+	}
+
+	now := m.now().UTC()
+
+	m.mu.RLock()
+	state := m.syncStates[providerID]
+	m.mu.RUnlock()
+
+	if deriveFreshness(state, now, m.staleAfter) != FreshnessFresh {
+		return true
+	}
+
+	if !proactive || state.LastSuccessAt == nil {
+		return false
+	}
+
+	refreshAfter := m.staleAfter * 3 / 4
+	if refreshAfter <= 0 {
+		refreshAfter = m.staleAfter
+	}
+
+	return now.Sub(*state.LastSuccessAt) >= refreshAfter
 }
 
 func (m *Manager) persistSkip(providerID string, class SyncErrorClass) {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -935,5 +937,152 @@ func TestManagerStartDropsLegacyTransportCatalogProvider(t *testing.T) {
 	reloaded, _ := store.Load(ctx)
 	if _, ok := reloaded.Providers[providers.ConnextoProxyID]; ok {
 		t.Fatal("persisted snapshot still contains legacy transport provider")
+	}
+}
+
+func TestManagerAutoRefreshRecoversStaleUnknownProvider(t *testing.T) {
+	now := time.Date(2026, 11, 12, 3, 0, 0, 0, time.UTC)
+	staleAt := now.Add(-27 * time.Hour)
+	ctx := context.Background()
+	store := storeTestStore(t.TempDir(), osOps{})
+
+	staleEntry := NormalizeEntry(providers.OpenCodeGoID, managerDescriptor("A", false, true), staleAt)
+	snapshot := Snapshot{
+		Version: SnapshotVersion,
+		SavedAt: staleAt,
+		Providers: map[string]ProviderSnapshot{
+			providers.OpenCodeGoID: {
+				Sync: ProviderSyncState{
+					Outcome:       SyncOutcomeSuccess,
+					ErrorClass:    SyncErrorNone,
+					LastAttemptAt: &staleAt,
+					LastSuccessAt: &staleAt,
+				},
+				Models: []ModelEntry{staleEntry},
+			},
+		},
+	}
+	if _, err := store.Save(ctx, snapshot); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	var calls atomic.Int32
+	options := managerOptions(now)
+	options.AutoRefreshInterval = 50 * time.Millisecond
+
+	manager := NewManager(storeTestLogger(), managerStatuses(providers.StateUnknown), map[string]SourceFunc{
+		providers.OpenCodeGoID: func(context.Context) ([]providers.ModelDescriptor, error) {
+			calls.Add(1)
+			return []providers.ModelDescriptor{managerDescriptor("A", false, true)}, nil
+		},
+	}, store, options)
+	t.Cleanup(func() { _ = manager.Stop(context.Background()) })
+
+	if err := manager.Start(ctx); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	waitForOutcome(t, manager, SyncOutcomeSuccess)
+
+	if calls.Load() == 0 {
+		t.Fatal("auto-refresh did not sync stale unknown provider")
+	}
+
+	view, ok := manager.Get(providers.OpenCodeGoID, "A")
+	if !ok || view.Freshness != FreshnessFresh {
+		t.Fatalf("view freshness = %q (ok=%t), want fresh", view.Freshness, ok)
+	}
+}
+
+func TestManagerAutoRefreshProactiveBeforeExpiry(t *testing.T) {
+	base := time.Date(2026, 11, 12, 3, 0, 0, 0, time.UTC)
+	lastSuccess := base.Add(-1 * time.Hour)
+	ctx := context.Background()
+	store := storeTestStore(t.TempDir(), osOps{})
+
+	entry := NormalizeEntry(providers.OpenCodeGoID, managerDescriptor("A", false, true), lastSuccess)
+	snapshot := Snapshot{
+		Version: SnapshotVersion,
+		SavedAt: lastSuccess,
+		Providers: map[string]ProviderSnapshot{
+			providers.OpenCodeGoID: {
+				Sync: ProviderSyncState{
+					Outcome:       SyncOutcomeSuccess,
+					ErrorClass:    SyncErrorNone,
+					LastAttemptAt: &lastSuccess,
+					LastSuccessAt: &lastSuccess,
+				},
+				Models: []ModelEntry{entry},
+			},
+		},
+	}
+	if _, err := store.Save(ctx, snapshot); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	var clockMu sync.RWMutex
+	currentNow := base
+	var calls atomic.Int32
+
+	options := Options{
+		StaleAfter:          24 * time.Hour,
+		SyncTimeout:         time.Second,
+		AutoRefreshInterval: 15 * time.Millisecond,
+		Now: func() time.Time {
+			clockMu.RLock()
+			defer clockMu.RUnlock()
+			return currentNow
+		},
+	}
+
+	manager := NewManager(storeTestLogger(), managerStatuses(providers.StateUnknown), map[string]SourceFunc{
+		providers.OpenCodeGoID: func(context.Context) ([]providers.ModelDescriptor, error) {
+			calls.Add(1)
+			return []providers.ModelDescriptor{managerDescriptor("A", false, true)}, nil
+		},
+	}, store, options)
+	t.Cleanup(func() { _ = manager.Stop(context.Background()) })
+
+	if err := manager.Start(ctx); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	time.Sleep(40 * time.Millisecond)
+	if calls.Load() != 0 {
+		t.Fatalf("calls while catalog is fresh = %d, want 0", calls.Load())
+	}
+
+	clockMu.Lock()
+	currentNow = lastSuccess.Add(19 * time.Hour)
+	clockMu.Unlock()
+
+	waitForOutcome(t, manager, SyncOutcomeSuccess)
+	if calls.Load() == 0 {
+		t.Fatal("proactive auto-refresh did not run before StaleAfter expiry")
+	}
+}
+
+func TestManagerAutoRefreshSkipsDisabledAndUnhealthy(t *testing.T) {
+	now := time.Date(2026, 11, 12, 3, 0, 0, 0, time.UTC)
+	for _, state := range []providers.State{providers.StateDisabled, providers.StateUnhealthy} {
+		t.Run(string(state), func(t *testing.T) {
+			var calls atomic.Int32
+			options := managerOptions(now)
+			options.AutoRefreshInterval = 15 * time.Millisecond
+
+			manager := newTestManager(t, func(context.Context) ([]providers.ModelDescriptor, error) {
+				calls.Add(1)
+				return []providers.ModelDescriptor{managerDescriptor("A", false, true)}, nil
+			}, state, options)
+
+			if err := manager.Start(context.Background()); err != nil {
+				t.Fatalf("Start() error = %v", err)
+			}
+
+			time.Sleep(50 * time.Millisecond)
+			if calls.Load() != 0 {
+				t.Fatalf("calls for %s provider = %d, want 0", state, calls.Load())
+			}
+		})
 	}
 }
