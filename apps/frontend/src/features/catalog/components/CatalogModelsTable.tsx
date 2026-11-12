@@ -1,9 +1,11 @@
 import { type RefObject, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Brain } from 'lucide-react'
 import { CopyTextButton } from '../../../shared/ui'
 import { formatPricingCell } from '../lib/formatCatalogPricing'
 import { catalogProviderLabel } from '../lib/catalogProviderLabel'
 import type { CatalogColumnFilters } from '../lib/catalogColumnFilters'
+import { catalogListingLabel } from '../lib/catalogListingLabel'
 import type { CatalogModel } from '../types'
 
 type CatalogModelsTableProps = {
@@ -19,13 +21,6 @@ type CatalogModelsTableProps = {
   providerOptions: string[]
   listingOptions: string[]
   modelFilterInputRef?: RefObject<HTMLInputElement | null>
-}
-
-function listingLabel(model: CatalogModel): string {
-  if (model.listing_state) {
-    return model.listing_state
-  }
-  return 'Listado'
 }
 
 function CatalogTableColGroup({ withCompare }: { withCompare: boolean }) {
@@ -58,14 +53,16 @@ export function CatalogModelsTable({
   listingOptions,
   modelFilterInputRef,
 }: CatalogModelsTableProps) {
+  const { t } = useTranslation('catalog')
+
   if (isLoading) {
-    return <p className="py-8 text-center text-xs text-muted">Carregando modelos do catálogo…</p>
+    return <p className="py-8 text-center text-xs text-muted">{t('table.loading')}</p>
   }
 
   if (isError) {
     return (
       <div className="banner banner-error m-3" role="alert">
-        Falha ao carregar o catálogo. Verifique o acesso ao gateway e os filtros aplicados.
+        {t('table.loadError')}
       </div>
     )
   }
@@ -95,32 +92,32 @@ export function CatalogModelsTable({
     <thead>
       <tr>
         <th scope="col" className="catalog-col-model">
-          Modelo
+          {t('table.colModel')}
         </th>
         <th scope="col" className="catalog-col-provider">
-          Provedor
+          {t('table.colProvider')}
         </th>
         <th scope="col" className="catalog-col-id">
-          Identificador
+          {t('table.colId')}
         </th>
         <th scope="col" className="catalog-col-price">
-          Entrada
+          {t('table.colInput')}
         </th>
         <th scope="col" className="catalog-col-price">
-          Saída
+          {t('table.colOutput')}
         </th>
         <th scope="col" className="catalog-col-price">
-          Cache leitura
+          {t('table.colCacheRead')}
         </th>
         <th scope="col" className="catalog-col-price">
-          Cache escrita
+          {t('table.colCacheWrite')}
         </th>
         <th scope="col" className="catalog-col-listing">
-          Catálogo
+          {t('table.colListing')}
         </th>
         {withCompare ? (
           <th scope="col" className="catalog-col-compare">
-            Comparar
+            {t('table.compareHeader')}
           </th>
         ) : null}
       </tr>
@@ -131,9 +128,9 @@ export function CatalogModelsTable({
             type="search"
             value={columnFilters.model}
             onChange={(event) => onColumnFilterChange({ model: event.target.value })}
-            placeholder="Filtrar modelo…"
+            placeholder={t('table.filterModel')}
             className="catalog-column-filter"
-            aria-label="Filtrar coluna modelo"
+            aria-label={t('table.filterModelAria')}
             onClick={(event) => event.stopPropagation()}
           />
         </th>
@@ -142,10 +139,10 @@ export function CatalogModelsTable({
             value={columnFilters.provider}
             onChange={(event) => onColumnFilterChange({ provider: event.target.value })}
             className="catalog-column-filter"
-            aria-label="Filtrar coluna provedor"
+            aria-label={t('table.filterProviderAria')}
             onClick={(event) => event.stopPropagation()}
           >
-            <option value="">Todos os provedores</option>
+            <option value="">{t('table.filterAllProviders')}</option>
             {providerOptions.map((provider) => (
               <option key={provider} value={provider}>
                 {provider}
@@ -158,9 +155,9 @@ export function CatalogModelsTable({
             type="search"
             value={columnFilters.modelId}
             onChange={(event) => onColumnFilterChange({ modelId: event.target.value })}
-            placeholder="Filtrar ID…"
+            placeholder={t('table.filterId')}
             className="catalog-column-filter"
-            aria-label="Filtrar coluna identificador"
+            aria-label={t('table.filterIdAria')}
             onClick={(event) => event.stopPropagation()}
           />
         </th>
@@ -173,10 +170,10 @@ export function CatalogModelsTable({
             value={columnFilters.listing}
             onChange={(event) => onColumnFilterChange({ listing: event.target.value })}
             className="catalog-column-filter"
-            aria-label="Filtrar coluna catálogo"
+            aria-label={t('table.filterListingAria')}
             onClick={(event) => event.stopPropagation()}
           >
-            <option value="">Todos os estados</option>
+            <option value="">{t('table.filterAllListing')}</option>
             {listingOptions.map((listing) => (
               <option key={listing} value={listing}>
                 {listing}
@@ -212,7 +209,7 @@ export function CatalogModelsTable({
             {showEmptyBody ? (
               <tr>
                 <td colSpan={withCompare ? 9 : 8} className="py-8 text-center text-xs text-muted">
-                  Nenhum modelo corresponde aos filtros das colunas.
+                  {t('table.empty')}
                 </td>
               </tr>
             ) : (
@@ -268,7 +265,7 @@ export function CatalogModelsTable({
                     <td className="catalog-col-listing">
                       <span className="catalog-state">
                         <i aria-hidden />
-                        {listingLabel(model)}
+                        {catalogListingLabel(model)}
                       </span>
                     </td>
                     {withCompare ? (

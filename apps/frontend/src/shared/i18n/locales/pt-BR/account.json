@@ -1,0 +1,15 @@
+{
+  "settingsTitle": "Configurações",
+  "settingsLead": "Preferências da interface e da conta.",
+  "interfaceLanguage": "Idioma da interface",
+  "languagePortuguese": "Português (Brasil)",
+  "languageEnglish": "English",
+  "passwordPanelLead": "Alteração de senha e notificações ficam disponíveis quando o envio de e-mail estiver configurado no hub.",
+  "resetPasswordLink": "Redefinir senha por e-mail",
+  "profileTitle": "Meu perfil",
+  "profileLead": "Dados da sua conta no AI Hub.",
+  "emailLabel": "E-mail",
+  "roleLabel": "Papel",
+  "roleAdmin": "Administrador",
+  "idLabel": "ID"
+}

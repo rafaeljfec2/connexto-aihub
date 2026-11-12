@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Dialog } from '../../../shared/ui'
 import { formatCatalogContextLimit, formatPricingCell } from '../lib/formatCatalogPricing'
 import type { CatalogModel } from '../types'
@@ -9,6 +10,8 @@ type ModelCompareModalProps = {
 }
 
 export function ModelCompareModal({ models, open, onClose }: ModelCompareModalProps) {
+  const { t } = useTranslation('catalog')
+
   if (!open) {
     return null
   }
@@ -21,23 +24,23 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
           onClose()
         }
       }}
-      title="Comparar modelos"
-      description="Metadados e capacidades disponíveis lado a lado"
+      title={t('compare.title')}
+      description={t('compare.description')}
     >
       <div className="overflow-x-auto">
         <table className="catalog-compare-table">
           <thead>
             <tr>
-              <th>Modelo</th>
-              <th>Provedor</th>
-              <th>Contexto</th>
-              <th>Entrada</th>
-              <th>Saída</th>
-              <th>Cache leitura</th>
-              <th>Cache escrita</th>
-              <th>Capacidades</th>
-              <th>Presença</th>
-              <th>Verificação</th>
+              <th>{t('table.colModel')}</th>
+              <th>{t('compare.colProvider')}</th>
+              <th>{t('compare.colContext')}</th>
+              <th>{t('compare.colInput')}</th>
+              <th>{t('compare.colOutput')}</th>
+              <th>{t('compare.colCacheRead')}</th>
+              <th>{t('compare.colCacheWrite')}</th>
+              <th>{t('compare.colCapabilities')}</th>
+              <th>{t('compare.colPresence')}</th>
+              <th>{t('compare.colExecVerify')}</th>
             </tr>
           </thead>
           <tbody>
@@ -74,7 +77,7 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
                         ))}
                       </div>
                     ) : (
-                      <span className="font-mono text-[#8290A5]">Não informadas</span>
+                      <span className="font-mono text-[#8290A5]">{t('compare.capabilitiesNotListed')}</span>
                     )}
                   </td>
                   <td className="font-mono text-[#8290A5]">{model.presence}</td>
@@ -86,10 +89,7 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
         </table>
       </div>
 
-      <p className="catalog-compare-footnote">
-        Campos não retornados pelo catálogo oficial do provedor aparecem como &quot;Não informado&quot; ou
-        &quot;—&quot;. Preços são por 1M tokens reportados pelo provedor, não custo de execução do Hub.
-      </p>
+      <p className="catalog-compare-footnote">{t('compare.footnote')}</p>
     </Dialog>
   )
 }

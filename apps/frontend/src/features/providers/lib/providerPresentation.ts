@@ -1,4 +1,5 @@
 import { hubProviderIconSlug } from '../../../shared/branding'
+import i18n from '../../../shared/i18n'
 import type { AdminProvider } from '../types'
 
 export type ProviderSituation = 'ok' | 'warn' | 'na' | 'off'
@@ -24,14 +25,14 @@ export function providerCredentialConfigured(provider: AdminProvider): boolean {
 }
 
 export function providerConnectionSubtitle(provider: AdminProvider): string {
-  const typeLabel = provider.type ? `${provider.type} · ` : ''
+  const typeLabel = provider.type ? `${provider.type}${i18n.t('providers:connection.typeSeparator')}` : ''
   if (!provider.enabled) {
-    return `${typeLabel}desabilitado`
+    return `${typeLabel}${i18n.t('providers:connection.disabledSuffix')}`
   }
   if (!providerCredentialConfigured(provider)) {
-    return `${typeLabel}credencial pendente`
+    return `${typeLabel}${i18n.t('providers:connection.pendingCredentialSuffix')}`
   }
-  return `${typeLabel}conectado`
+  return `${typeLabel}${i18n.t('providers:connection.connectedSuffix')}`
 }
 
 /** Connection-only situation when no quota snapshot is considered. */
@@ -40,10 +41,10 @@ export function providerSituation(provider: AdminProvider): {
   label: string
 } {
   if (!provider.enabled) {
-    return { state: 'off', label: 'Desabilitado' }
+    return { state: 'off', label: i18n.t('providers:situation.disabled') }
   }
   if (!providerCredentialConfigured(provider)) {
-    return { state: 'warn', label: 'Pendente' }
+    return { state: 'warn', label: i18n.t('providers:situation.pending') }
   }
-  return { state: 'na', label: 'Sem leitura' }
+  return { state: 'na', label: i18n.t('providers:situation.noReading') }
 }

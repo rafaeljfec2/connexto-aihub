@@ -1,3 +1,5 @@
+import i18n from '../../../shared/i18n'
+import { formatNumber } from '../../../shared/i18n/format'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 
 export type CursorProductWeeklyEntry = Readonly<{
@@ -17,10 +19,7 @@ export type CursorMonthlyAdditionalUsage = Readonly<{
 }>
 
 export function formatAccountUsd(value: number): string {
-  return `US$ ${value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+  return `US$ ${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 /**
@@ -37,7 +36,7 @@ function formatCursorProductLabel(product: string): string {
   const normalized = product.trim().toLowerCase()
   if (normalized === 'cursor') return 'Cursor'
   if (normalized === 'grok') return 'Grok'
-  if (!normalized) return 'Produto'
+  if (!normalized) return i18n.t('providers:productDefault')
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 

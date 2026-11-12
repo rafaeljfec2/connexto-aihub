@@ -1,3 +1,4 @@
+import i18n from '../../../shared/i18n'
 import type { ResourceScope } from '../types'
 
 export function formatScopeLabel(scope: ResourceScope, providerId?: string, modelId?: string): string {
@@ -11,7 +12,7 @@ export function formatScopeLabel(scope: ResourceScope, providerId?: string, mode
     return `${base} · ${provider}/${model}`
   }
   if (scope === 'global') {
-    return 'WORKSPACE'
+    return i18n.t('resources:scope.workspaceLabel')
   }
   return base
 }
@@ -23,15 +24,18 @@ export function policyDisplayName(
   modelId?: string,
 ): string {
   if (scope === 'global') {
-    return `Limite do workspace #${policyId}`
+    return i18n.t('resources:scope.workspacePolicy', { policyId })
   }
   if (scope === 'provider' && providerId) {
-    return `Limite do provedor · ${providerId}`
+    return i18n.t('resources:scope.providerPolicy', { providerId })
   }
   if (scope === 'model') {
-    return `Limite do modelo · ${providerId ?? '?'}/${modelId ?? '?'}`
+    return i18n.t('resources:scope.modelPolicy', {
+      provider: providerId ?? '?',
+      model: modelId ?? '?',
+    })
   }
-  return `Política #${policyId}`
+  return i18n.t('resources:scope.genericPolicy', { policyId })
 }
 
 export function concurrencyPolicyDisplayName(
@@ -41,13 +45,16 @@ export function concurrencyPolicyDisplayName(
   modelId?: string,
 ): string {
   if (scope === 'global') {
-    return `Concorrência do workspace #${policyId}`
+    return i18n.t('resources:scope.workspaceConcurrency', { policyId })
   }
   if (scope === 'provider' && providerId) {
     return providerId
   }
   if (scope === 'model') {
-    return `Concorrência do modelo · ${providerId ?? '?'}/${modelId ?? '?'}`
+    return i18n.t('resources:scope.modelConcurrency', {
+      provider: providerId ?? '?',
+      model: modelId ?? '?',
+    })
   }
-  return `Política de concorrência #${policyId}`
+  return i18n.t('resources:scope.genericConcurrencyPolicy', { policyId })
 }

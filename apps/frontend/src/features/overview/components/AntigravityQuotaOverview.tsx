@@ -3,6 +3,8 @@ import {
   categorizeAntigravityQuotas,
   type AntigravityFamilyGroup,
 } from '../lib/antigravityCategories'
+import i18n from '../../../shared/i18n'
+import { formatNumber } from '../../../shared/i18n/format'
 import type { ProviderQuotaMetric } from '../types/quota'
 import { CircularQuotaProgress } from './CircularQuotaProgress'
 
@@ -25,7 +27,7 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
           <div className="flex items-center justify-between text-[0.625rem] font-semibold text-[#CBD5E2]">
             <span>{family.title}</span>
             <span className="text-[0.5625rem] font-normal text-[#8290A5]">
-              {family.totalModelsCount} modelo(s)
+              {i18n.t('overview:antigravity.modelsCount', { count: family.totalModelsCount })}
             </span>
           </div>
 
@@ -47,7 +49,9 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-semibold text-[#CBD5E2]">
-                      {Math.round(limit.remainingPercent)}% restante
+                      {i18n.t('overview:antigravity.percentRemaining', {
+                        percent: formatNumber(Math.round(limit.remainingPercent)),
+                      })}
                     </span>
                     <CircularQuotaProgress percent={limit.remainingPercent} size={14} />
                   </div>
@@ -60,8 +64,10 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
 
       {backgroundGroup ? (
         <div className="flex items-center justify-between text-[0.5rem] text-[#8290A5] pt-0.5 border-t border-line/20">
-          <span>{backgroundGroup.title} ({backgroundGroup.totalModelsCount} modelos)</span>
-          <span className="text-[#AEBBD0]">100% restante</span>
+          <span>
+            {backgroundGroup.title} ({i18n.t('overview:antigravity.modelsCountShort', { count: backgroundGroup.totalModelsCount })})
+          </span>
+          <span className="text-[#AEBBD0]">{i18n.t('overview:antigravity.hundredPercentRemaining')}</span>
         </div>
       ) : null}
     </div>

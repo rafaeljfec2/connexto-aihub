@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { AdminProvider } from '../types'
 import { ProviderAdminCard } from './ProviderAdminCard'
 
@@ -8,20 +9,22 @@ type ProviderAdminListProps = {
 }
 
 export function ProviderAdminList({ providers, isLoading, isError }: ProviderAdminListProps) {
+  const { t } = useTranslation('providers')
+
   if (isLoading) {
-    return <p>Loading providers…</p>
+    return <p>{t('admin.loading')}</p>
   }
 
   if (isError) {
     return (
       <div className="banner banner-error" role="alert">
-        Provider administration is unavailable. Ensure PostgreSQL persistence is enabled and the admin API is reachable.
+        {t('admin.unavailable')}
       </div>
     )
   }
 
   if (providers.length === 0) {
-    return <p className="empty-state">No providers configured yet.</p>
+    return <p className="empty-state">{t('admin.empty')}</p>
   }
 
   return (

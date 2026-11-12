@@ -1,3 +1,4 @@
+import i18n from '../../../shared/i18n'
 import type { ProviderQuotaMetric, ProviderQuotaSnapshot } from '../types/quota'
 
 export type GoPlusMeterId = 'go_rolling' | 'go_weekly' | 'go_monthly'
@@ -11,10 +12,10 @@ export type GoPlusMeterView = Readonly<{
 
 const meterOrder: readonly GoPlusMeterId[] = ['go_rolling', 'go_weekly', 'go_monthly']
 
-const meterLabels: Record<GoPlusMeterId, string> = {
-  go_rolling: '5-hour window',
-  go_weekly: 'Weekly',
-  go_monthly: 'Monthly',
+export function goPlusMeterLabel(id: GoPlusMeterId): string {
+  if (id === 'go_rolling') return i18n.t('overview:goPlus.meterRolling')
+  if (id === 'go_weekly') return i18n.t('overview:goPlus.meterWeekly')
+  return i18n.t('overview:goPlus.meterMonthly')
 }
 
 export function isGoPlusMeterId(metric: string): metric is GoPlusMeterId {
@@ -23,9 +24,11 @@ export function isGoPlusMeterId(metric: string): metric is GoPlusMeterId {
 
 export function formatGoProductLabel(workspaceName?: string): string {
   const raw = workspaceName?.trim()
-  if (!raw) return 'Go Plus'
+  if (!raw) return i18n.t('overview:goPlus.productDefault')
   const normalized = raw.toLowerCase()
-  if (normalized === 'go-plus' || normalized === 'go plus') return 'Go Plus'
+  if (normalized === 'go-plus' || normalized === 'go plus') {
+    return i18n.t('overview:goPlus.productDefault')
+  }
   return raw
     .split(/[-_\s]+/)
     .filter(Boolean)
@@ -34,7 +37,9 @@ export function formatGoProductLabel(workspaceName?: string): string {
 }
 
 export function productUsageTitle(workspaceName?: string): string {
-  return `${formatGoProductLabel(workspaceName)} usage`
+  return i18n.t('overview:goPlus.usageTitle', {
+    product: formatGoProductLabel(workspaceName),
+  })
 }
 
 export function consoleBudgetsFromSnapshot(
@@ -70,7 +75,7 @@ export function goPlusMetersFromSnapshot(snapshot: ProviderQuotaSnapshot): GoPlu
     if (metric?.consumed_percent == null) continue
     meters.push({
       id,
-      label: meterLabels[id],
+      label: goPlusMeterLabel(id),
       percent: metric.consumed_percent,
       resetsAt: metric.resets_at,
     })

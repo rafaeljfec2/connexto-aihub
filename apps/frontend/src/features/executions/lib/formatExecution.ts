@@ -1,3 +1,5 @@
+import i18n from 'i18next'
+import { formatDateTime } from '../../../shared/i18n/format'
 import type { ExecutionRecord } from '../types'
 
 const ALLOWED_AUDIT_KEYS: ReadonlyArray<keyof ExecutionRecord> = [
@@ -19,21 +21,23 @@ const ALLOWED_AUDIT_KEYS: ReadonlyArray<keyof ExecutionRecord> = [
 
 export function formatDurationNs(durationNs: number): string {
   if (!Number.isFinite(durationNs) || durationNs < 0) {
-    return '—'
+    return i18n.t('executions:format.emDash')
   }
   if (durationNs < 1_000) {
-    return `${durationNs} ns`
+    return i18n.t('executions:format.duration.ns', { value: durationNs })
   }
   const micros = durationNs / 1_000
   if (micros < 1_000) {
-    return `${micros.toFixed(0)} µs`
+    return i18n.t('executions:format.duration.micros', { value: micros.toFixed(0) })
   }
   const millis = micros / 1_000
   if (millis < 1_000) {
-    return `${millis.toFixed(millis < 10 ? 1 : 0)} ms`
+    return i18n.t('executions:format.duration.millis', {
+      value: millis.toFixed(millis < 10 ? 1 : 0),
+    })
   }
   const seconds = millis / 1_000
-  return `${seconds.toFixed(2)} s`
+  return i18n.t('executions:format.duration.seconds', { value: seconds.toFixed(2) })
 }
 
 export function formatRecordTime(iso: string): string {
@@ -41,24 +45,24 @@ export function formatRecordTime(iso: string): string {
   if (Number.isNaN(parsed)) {
     return iso
   }
-  return new Intl.DateTimeFormat(undefined, {
+  return formatDateTime(parsed, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  }).format(new Date(parsed))
+  })
 }
 
 export function formatOutcomeLabel(outcome: string): string {
   switch (outcome) {
     case 'completed':
-      return 'Completed'
+      return i18n.t('executions:format.outcomes.completed')
     case 'failed':
-      return 'Failed'
+      return i18n.t('executions:format.outcomes.failed')
     case 'canceled':
-      return 'Canceled'
+      return i18n.t('executions:format.outcomes.canceled')
     case 'timed_out':
-      return 'Timed out'
+      return i18n.t('executions:format.outcomes.timed_out')
     default:
       return outcome
   }

@@ -206,14 +206,14 @@ describe('OverviewProvidersPanel quota fidelity', () => {
     ])
 
     expect(screen.getByTestId('provider-summary-opencode-go')).toBeTruthy()
-    expect(screen.getByTestId('go-plus-summary-opencode-go').textContent).toContain('Go Plus 36% used')
+    expect(screen.getByTestId('go-plus-summary-opencode-go').textContent).toContain('Go Plus 36% usado')
     expect(screen.queryByTestId('go-plus-overview-opencode-go-meter-go_rolling')).toBeNull()
 
     fireEvent.click(screen.getByTestId('provider-summary-opencode-go'))
 
     expect(screen.getByTestId('provider-quota-drawer')).toBeTruthy()
-    expect(screen.getByTestId('go-plus-drawer-meter-go_rolling').textContent).toContain('12% used')
-    expect(screen.getByTestId('go-plus-drawer-meter-go_weekly').textContent).toContain('36% used')
-    expect(screen.getByTestId('go-plus-drawer-meter-go_monthly').textContent).toContain('24% used')
+    expect(screen.getByTestId('go-plus-drawer-meter-go_rolling').textContent).toContain('12% usado')
+    expect(screen.getByTestId('go-plus-drawer-meter-go_weekly').textContent).toContain('36% usado')
+    expect(screen.getByTestId('go-plus-drawer-meter-go_monthly').textContent).toContain('24% usado')
   })
 })

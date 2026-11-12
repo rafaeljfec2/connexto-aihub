@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus } from 'lucide-react'
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 import { ApiError } from '../../../shared/api/client'
@@ -17,25 +19,18 @@ import {
   requiresOperatorLogin,
   signUpUser,
 } from '../api/operatorSession'
+import { createSignUpSchema } from '../lib/authSchemas'
 
-const schema = z
-  .object({
-    email: z.string().email('Enter a valid email'),
-    password: z.string().min(8, 'Use at least 8 characters'),
-    confirm: z.string().min(1, 'Confirm your password'),
-  })
-  .refine((data) => data.password === data.confirm, {
-    message: 'Passwords do not match',
-    path: ['confirm'],
-  })
-
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<ReturnType<typeof createSignUpSchema>>
 
 export function SignUpPage() {
+  const { t, i18n } = useTranslation('auth')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const redirectTarget = searchParams.get('redirect') ?? '/'
+
+  const schema = useMemo(() => createSignUpSchema(), [i18n.language])
 
   const sessionQuery = useQuery({
     queryKey: operatorSessionQueryKey,
@@ -93,20 +88,20 @@ export function SignUpPage() {
             <UserPlus className="size-5" aria-hidden />
           </span>
           <div>
-            <h1 className="text-lg font-semibold text-primary">Create account</h1>
-            <p className="text-xs text-secondary">Register with your email and password.</p>
+            <h1 className="text-lg font-semibold text-primary">{t('createAccountTitle')}</h1>
+            <p className="text-xs text-secondary">{t('createAccountLead')}</p>
           </div>
         </div>
 
         {emailTaken ? (
           <Banner variant="error" className="mb-4">
-            That email is already registered. Sign in or use another email.
+            {t('emailTaken')}
           </Banner>
         ) : null}
 
         {signUpMutation.error && !emailTaken ? (
           <Banner variant="error" className="mb-4">
-            Sign-up failed. Verify your details and try again.
+            {t('signUpFailed')}
           </Banner>
         ) : null}
 
@@ -115,7 +110,7 @@ export function SignUpPage() {
           onSubmit={form.handleSubmit((values) => signUpMutation.mutate(values))}
         >
           <FieldLabel>
-            Email
+            {t('email')}
             <Input
               type="email"
               autoComplete="email"
@@ -128,7 +123,7 @@ export function SignUpPage() {
             ) : null}
           </FieldLabel>
           <FieldLabel>
-            Password
+            {t('password')}
             <Input
               type="password"
               autoComplete="new-password"
@@ -140,7 +135,7 @@ export function SignUpPage() {
             ) : null}
           </FieldLabel>
           <FieldLabel>
-            Confirm password
+            {t('confirmPassword')}
             <Input
               type="password"
               autoComplete="new-password"
@@ -152,14 +147,14 @@ export function SignUpPage() {
             ) : null}
           </FieldLabel>
           <Button type="submit" variant="primary" size="lg" disabled={signUpMutation.isPending}>
-            {signUpMutation.isPending ? 'Creating account…' : 'Create account'}
+            {signUpMutation.isPending ? t('creatingAccount') : t('createAccount')}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-xs text-secondary">
-          Already have an account?{' '}
+          {t('alreadyHaveAccount')}{' '}
           <Link className="text-cobalt hover:underline" to="/login">
-            Sign in
+            {t('signIn')}
           </Link>
         </p>
       </Panel>

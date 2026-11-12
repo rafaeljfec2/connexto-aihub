@@ -259,6 +259,6 @@ describe('ProviderPatchForm', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Remover conta' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Save changes|Salvar alterações/i })).toBeTruthy()
   })
 })

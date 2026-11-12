@@ -1,3 +1,4 @@
+import i18n from '../../../shared/i18n'
 import type {
   CursorProxyUsageCollectResponse,
   CursorProxyUsageSessionResponse,
@@ -14,6 +15,24 @@ const COLLECT_BLOCKING_STATUSES = new Set([
   'challenge_required',
 ])
 
+export type CursorCollectReadinessCode =
+  | 'no_persisted_session'
+  | 'authentication_pending'
+  | 'browser_unavailable'
+  | 'authentication_required'
+  | 'collection_failed'
+  | 'challenge_required'
+  | 'session_expired'
+  | 'timeout'
+  | 'probe_blocked'
+  | 'ready'
+
+export type CursorCollectReadiness = {
+  success: boolean
+  message: string
+  code?: CursorCollectReadinessCode
+}
+
 export function cursorCollectReady(
   session: CursorProxyUsageSessionResponse,
   collect: CursorProxyUsageCollectResponse,
@@ -28,69 +47,79 @@ export function isCollectProbeBlocking(status: string): boolean {
 export function messageForCursorCollectReadiness(
   session: CursorProxyUsageSessionResponse,
   collect: CursorProxyUsageCollectResponse,
-): { success: boolean; message: string } {
+): CursorCollectReadiness {
   if (session.status !== 'authenticated') {
     return {
       success: false,
-      message:
-        'Nenhuma sessão persistida no proxy para coleta. Use «Login web» no mesmo endpoint do provedor.',
+      code: 'no_persisted_session',
+      message: i18n.t('providers:collectReadiness.noPersistedSession'),
     }
   }
   if (collect.status === 'authentication_pending') {
     return {
       success: false,
-      message:
-        'Login web ainda em andamento no Chromium do proxy. Feche o fluxo no navegador ou aguarde; a coleta só roda com a janela de login fechada.',
+      code: 'authentication_pending',
+      message: i18n.t('providers:collectReadiness.authPending'),
     }
   }
   if (collect.status === 'browser_unavailable') {
     return {
       success: false,
-      message:
-        'Chromium ocupado ou perfil em uso. Feche qualquer janela do login do proxy; se persistir, encerre processos google-chrome/chromium e reinicie o proxy (pnpm dev). Depois use «Ver status».',
+      code: 'browser_unavailable',
+      message: i18n.t('providers:collectReadiness.browserUnavailable'),
     }
   }
   if (collect.status === 'authentication_required') {
     return {
       success: false,
-      message: `Sessão listada no proxy (conta ${session.accountId}), mas a coleta retornou authentication_required. Repita o login ou confira SESSION_STORAGE_PATH no proxy.`,
+      code: 'authentication_required',
+      message: i18n.t('providers:collectReadiness.authRequired', { accountId: session.accountId }),
     }
   }
   if (collect.status === 'collection_failed') {
     return {
       success: false,
-      message:
-        'Coleta falhou no proxy (collection_failed). Feche instâncias Chromium extras, reinicie pnpm dev e repita o login.',
+      code: 'collection_failed',
+      message: i18n.t('providers:collectReadiness.collectionFailed'),
     }
   }
   if (collect.status === 'challenge_required') {
     return {
       success: false,
-      message:
-        'Login ou coleta bloqueados no navegador do proxy (Google/x.ai ou deteção de automação). Use GitHub ou e-mail no login, termine em cursor.com/dashboard ou Agents, e evite Google. Se persistir, feche a janela do login e clique «Ver status» de novo.',
+      code: 'challenge_required',
+      message: i18n.t('providers:collectReadiness.challengeRequired'),
     }
   }
   if (collect.status === 'session_expired') {
     return {
       success: false,
-      message: `Sessão gravada no proxy (toque: ${session.touchedAt ?? '—'}), mas a coleta em grok.com/dashboard falhou (session_expired). Após o login, aguarde o dashboard de uso abrir ou repita «Login web» e conclua até ver o painel de uso no Chromium do proxy.`,
+      code: 'session_expired',
+      message: i18n.t('providers:collectReadiness.sessionExpired', {
+        touchedAt: session.touchedAt ?? '—',
+      }),
     }
   }
   if (collect.status === 'timeout') {
     return {
       success: false,
-      message: 'Coleta no proxy expirou (timeout). Tente «Ver status» ou «Login web» novamente.',
+      code: 'timeout',
+      message: i18n.t('providers:collectReadiness.timeout'),
     }
   }
   if (collect.status !== 'available') {
     return {
       success: false,
-      message: `Sessão no proxy: authenticated; coleta: ${collect.status}. Não é possível atualizar Franquias até o probe retornar available.`,
+      code: 'probe_blocked',
+      message: i18n.t('providers:collectReadiness.probeBlocked', { status: collect.status }),
     }
   }
   const touched = session.touchedAt ?? '—'
   return {
     success: true,
-    message: `Coleta pronta no proxy (conta ${session.accountId}). Último toque: ${touched}. Use Atualizar em Franquias.`,
+    code: 'ready',
+    message: i18n.t('providers:collectReadiness.ready', {
+      accountId: session.accountId,
+      touchedAt: touched,
+    }),
   }
 }

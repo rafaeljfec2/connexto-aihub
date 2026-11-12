@@ -1,0 +1,189 @@
+{
+  "page": {
+    "help": "Help",
+    "badgeE08Active": "E08 · ACTIVE",
+    "badgeE10Planned": "E10 · PLANNED",
+    "productPrincipleLabel": "Product principle:",
+    "productPrincipleText": "no adaptive recommendation may change routing without traceable evidence, evaluation, and explicit policy."
+  },
+  "noticeBanner": {
+    "title": "Learning Engine (E10) in planning · Deterministic routing and aihub/auto active",
+    "bodyLead": "E08 and virtual model selection for",
+    "bodyTrail": "via administrative priority run deterministically in the Gateway. Adaptive context evaluation and historical ranking belong to E10 and are not active yet.",
+    "moduleStatus": "MODULE STATUS",
+    "waitingE10": "AWAITING E10"
+  },
+  "statCards": {
+    "currentRouting": {
+      "label": "CURRENT ROUTING",
+      "value": "Deterministic & Auto",
+      "note": "E08 accepted · aihub/auto via administrative priority"
+    },
+    "requestUnderstanding": {
+      "label": "REQUEST UNDERSTANDING",
+      "value": "Structural",
+      "note": "understanding.go · no remote classifier"
+    },
+    "resultEvaluation": {
+      "label": "RESULT EVALUATION",
+      "value": "Not enabled",
+      "note": "No adaptive comparison by context"
+    },
+    "learnedPolicies": {
+      "label": "LEARNED POLICIES",
+      "value": "Unavailable",
+      "note": "No adaptive ranking in production"
+    }
+  },
+  "contextAdequacy": {
+    "title": "Context adequacy map",
+    "subtitle": "How the module will organize conceptual evidence to compare models.",
+    "badge": "CONCEPTUAL VIEW",
+    "colContext": "USE CONTEXT",
+    "colEvidence": "EVIDENCE",
+    "colFit": "FIT",
+    "noHistory": "No history available",
+    "awaitingE10": "Awaiting E10",
+    "selectedFooterPrefix": "Selected context:",
+    "selectedFooterSuffix": ". Illustrative categories; the runtime does not classify them automatically yet.",
+    "noRanking": "NO RANKING",
+    "contexts": {
+      "code": {
+        "name": "Code and development",
+        "desc": "Generation, review, and debugging"
+      },
+      "reasoning": {
+        "name": "Reasoning and analysis",
+        "desc": "Multi-step problems and synthesis"
+      },
+      "extraction": {
+        "name": "Structured extraction",
+        "desc": "Classification and schema output"
+      },
+      "chat": {
+        "name": "Conversation and support",
+        "desc": "Interaction and contextual replies"
+      }
+    }
+  },
+  "decisionStack": {
+    "title": "How decisions happen today",
+    "subtitle": "Real flow of the deterministic E08 router and virtual Auto resolution.",
+    "badge": "E08 · ACCEPTED",
+    "footer": "There is no adaptive ranking by performance or cost/latency optimization. An execution failure does not trigger a silent provider switch.",
+    "steps": {
+      "01": {
+        "title": "Validate and project requirements",
+        "desc": "Structural validation and requirement projection (understanding.go).",
+        "state": "IMPLEMENTED"
+      },
+      "02": {
+        "title": "Verify candidate eligibility",
+        "desc": "Enabled provider, available model, and compatible capabilities without mocks.",
+        "state": "IMPLEMENTED"
+      },
+      "03": {
+        "title": "Deterministic & virtual auto selection",
+        "desc": "Explicit priority or administrative order for aihub/auto; transparency in the Gateway.",
+        "state": "IMPLEMENTED"
+      },
+      "04": {
+        "title": "Evaluate results by context",
+        "desc": "Compare execution and quality evidence before recommending a model.",
+        "state": "E10 · FUTURE"
+      }
+    }
+  },
+  "evolutionTimeline": {
+    "title": "Module evolution",
+    "subtitle": "Strict separation between delivered capability and future roadmap.",
+    "badge": "ROADMAP",
+    "phases": {
+      "01": {
+        "label": "CURRENT",
+        "title": "Deterministic & Auto baseline",
+        "desc": "E08 eligibility, virtual aihub/auto selection, and transparency."
+      },
+      "02": {
+        "label": "E10",
+        "title": "Context evaluation",
+        "desc": "Comparable evidence from real executions."
+      },
+      "03": {
+        "label": "E10",
+        "title": "Policies & recommendation",
+        "desc": "Explainable adaptive adjustments and auditable policies."
+      }
+    }
+  },
+  "signals": {
+    "title": "Signals available to evolve E10",
+    "subtitle": "Tokens reported when available; absence is not estimated or treated as zero.",
+    "badge": "EVIDENCE",
+    "statusExists": "EXISTS",
+    "statusPending": "PENDING",
+    "items": {
+      "routing": {
+        "title": "Routing decisions",
+        "sub": "Structural records, snapshots, and transparency headers"
+      },
+      "outcomeLatency": {
+        "title": "Outcome and latency",
+        "sub": "Execution cycle and Gateway observability"
+      },
+      "providerUsage": {
+        "title": "Provider-reported usage",
+        "sub": "Tokens and usage metadata when returned (E09.5)"
+      },
+      "contextQuality": {
+        "title": "Context and quality",
+        "sub": "Semantic task classification and comparative evaluation"
+      }
+    }
+  },
+  "help": {
+    "back": "Back",
+    "intro": "Intelligence routing picks a provider + model pair, or rejects the call with a reason. It does not read message text and does not call another model to decide.",
+    "contenders": {
+      "title": "Who enters the race",
+      "intro": "A model only competes if it passes all of this:",
+      "list": {
+        "provider": "The provider is enabled, has credentials, and the responses adapter is active.",
+        "catalog": "The model exists in the catalog and the catalog is fresh.",
+        "capabilities": "It declares the capabilities the request asks for (tools, image, JSON, etc.). Unknown capability eliminates the candidate.",
+        "outputLimit": "If the request asks for an output limit, that limit fits what the catalog declares."
+      },
+      "footer": "Provider health does not break ties or change the target. If more than one candidate remains without a rule that picks one, the response is ambiguous—not “the first in the list”."
+    },
+    "winner": {
+      "title": "Who wins",
+      "intro": "The order is fixed:",
+      "steps": {
+        "explicitPair": {
+          "title": "Provider and model specified.",
+          "body": "Only that pair. If the model exists only on another provider, reject. Do not switch providers."
+        },
+        "providerOnly": {
+          "title": "Provider only.",
+          "body": "Wins if exactly one eligible model remains on that provider. Zero or many: reject."
+        },
+        "modelOnly": {
+          "title": "Model only.",
+          "body": "Wins if exactly one eligible pair exists with that id. If the same id appears on multiple accounts of the same provider type, tie-break is weighted round-robin by quota (AW-RR). Different provider types stay ambiguous."
+        },
+        "nothing": {
+          "title": "Nothing specified.",
+          "body": "If OpenCode Go has exactly one eligible model, it wins. Otherwise, choose only if a single candidate remains hub-wide with fresh catalogs. Multiple candidates: reject."
+        }
+      },
+      "antigravityNoteLead": "without an explicit provider only pins the provider when a single Antigravity account exists.",
+      "antigravityCode": "antigravity:name"
+    },
+    "auto": {
+      "title": "aihub/auto",
+      "bodyLead": "That id is not a real model. The flow is: allowed list, then only models with contract proof for the request format (quota, cooldown, smoke, schema), then the pool with the highest quota weight, and within the pool the administrative order. The",
+      "bodyEfficiencyTrail": "profile pushes Gemini to the end on short calls. The",
+      "bodyIntelligenceTrail": "profile does not change order; it only records that there is no extra evidence."
+    }
+  }
+}

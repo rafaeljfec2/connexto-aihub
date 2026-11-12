@@ -1,4 +1,4 @@
-const PT_BR = 'pt-BR'
+import { formatDateTime } from '../../../shared/i18n/format'
 
 function utcDateFromIsoDate(isoDate: string): Date | undefined {
   const [year, month, day] = isoDate.split('-').map(Number)
@@ -14,10 +14,7 @@ export function formatQuotaFetchedAt(isoInstant: string): string {
   if (Number.isNaN(parsed)) {
     return isoInstant
   }
-  return new Intl.DateTimeFormat(PT_BR, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(parsed))
+  return formatDateTime(new Date(parsed), { dateStyle: 'short', timeStyle: 'short' })
 }
 
 /** Calendar day from provider `YYYY-MM-DD` (UTC, no timezone shift). */
@@ -26,12 +23,12 @@ export function formatQuotaCalendarDay(isoDate: string): string {
   if (!date) {
     return isoDate
   }
-  return new Intl.DateTimeFormat(PT_BR, {
+  return formatDateTime(date, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(date)
+  })
 }
 
 /** Compact axis label for daily usage charts (UTC calendar day). */
@@ -40,9 +37,5 @@ export function formatQuotaChartAxisDay(isoDate: string): string {
   if (!date) {
     return isoDate
   }
-  return new Intl.DateTimeFormat(PT_BR, {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(date)
+  return formatDateTime(date, { day: 'numeric', month: 'short', timeZone: 'UTC' })
 }

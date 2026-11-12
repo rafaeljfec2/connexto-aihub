@@ -1,3 +1,5 @@
+import { formatNumber } from '../../../shared/i18n/format'
+import i18n from '../../../shared/i18n'
 import { formatQuotaFetchedAt } from '../../overview/lib/formatQuotaDate'
 import { formatQuotaValue } from '../../overview/lib/formatQuotaValue'
 import {
@@ -70,13 +72,13 @@ export function primaryQuotaSnapshot(
 }
 
 function snapshotStatusLabel(status: ProviderQuotaStatus): string {
-  if (status === 'available') return 'Disponível'
-  if (status === 'rate_limited') return 'Limite da API atingido'
-  if (status === 'timeout') return 'Tempo limite excedido'
-  if (status === 'unconfigured_credential') return 'Credencial ausente'
-  if (status === 'unauthorized') return 'Sem permissão'
-  if (status === 'unsupported') return 'Sem leitura'
-  return 'Sem leitura'
+  if (status === 'available') return i18n.t('providers:situation.available')
+  if (status === 'rate_limited') return i18n.t('providers:situation.rateLimited')
+  if (status === 'timeout') return i18n.t('providers:situation.timeout')
+  if (status === 'unconfigured_credential') return i18n.t('providers:situation.unconfiguredCredential')
+  if (status === 'unauthorized') return i18n.t('providers:situation.unauthorized')
+  if (status === 'unsupported') return i18n.t('providers:situation.unsupported')
+  return i18n.t('providers:situation.noReading')
 }
 
 function snapshotSituationState(status: ProviderQuotaStatus): ProviderSituation {
@@ -91,19 +93,19 @@ export function providerQuotaSituation(
   snapshot: ProviderQuotaSnapshot | undefined,
 ): { state: ProviderSituation; label: string } {
   if (!provider.enabled) {
-    return { state: 'off', label: 'Desabilitado' }
+    return { state: 'off', label: i18n.t('providers:situation.disabled') }
   }
   if (!providerCredentialConfigured(provider)) {
-    return { state: 'warn', label: 'Pendente' }
+    return { state: 'warn', label: i18n.t('providers:situation.pending') }
   }
   if (!snapshot) {
-    return { state: 'na', label: 'Sem leitura' }
+    return { state: 'na', label: i18n.t('providers:situation.noReading') }
   }
   if (provider.type === 'antigravity' && snapshot.status === 'unsupported') {
-    return { state: 'na', label: 'Sem leitura de franquia' }
+    return { state: 'na', label: i18n.t('providers:situation.noQuotaReading') }
   }
   if (provider.type === 'cursor' && snapshot.status === 'unauthorized') {
-    return { state: 'warn', label: 'Login web no proxy' }
+    return { state: 'warn', label: i18n.t('providers:situation.proxyWebLogin') }
   }
   return {
     state: snapshotSituationState(snapshot.status),
@@ -111,10 +113,10 @@ export function providerQuotaSituation(
   }
 }
 
-export const goPeriodLabels: Record<GoPlusMeterView['id'], string> = {
-  go_rolling: 'janela 5h',
-  go_weekly: 'semanal',
-  go_monthly: 'mensal',
+export function goPeriodLabel(id: GoPlusMeterView['id']): string {
+  if (id === 'go_rolling') return i18n.t('providers:quota.goPeriodRolling')
+  if (id === 'go_weekly') return i18n.t('providers:quota.goPeriodWeekly')
+  return i18n.t('providers:quota.goPeriodMonthly')
 }
 
 /** Primary Go meter for provider governance: prefer monthly meter when present. */
@@ -175,8 +177,8 @@ function cursorQuotaUnavailableSummary(snapshot: ProviderQuotaSnapshot): Franchi
   if (snapshot.provider_id !== 'cursor') return undefined
   if (snapshot.status === 'unauthorized' || snapshot.error?.code === 'cursor_auth_required') {
     return {
-      title: 'Não monitorada',
-      value: 'Login web pendente no proxy',
+      title: i18n.t('providers:quota.notMonitored'),
+      value: i18n.t('providers:quota.webLoginPending'),
     }
   }
   return undefined
@@ -186,25 +188,27 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
   if (!snapshot || snapshot.status !== 'available') {
     if (snapshot?.status === 'unsupported' && snapshot.error?.code === 'quota_not_applicable') {
       return {
-        title: 'Franquia não integrada',
-        value: 'Este provedor não expõe leitura oficial de cota no hub (uso via proxy).',
+        title: i18n.t('providers:quota.franchiseNotIntegrated'),
+        value: i18n.t('providers:quota.noOfficialQuota'),
       }
     }
     const cursorSummary = snapshot ? cursorQuotaUnavailableSummary(snapshot) : undefined
     if (cursorSummary) return cursorSummary
     return {
-      title: 'Não monitorada',
-      value: snapshot?.error?.message ?? 'Sem fonte de quota configurada',
+      title: i18n.t('providers:quota.notMonitored'),
+      value: snapshot?.error?.message ?? i18n.t('providers:quota.noQuotaSource'),
     }
   }
 
   const goMeter = primaryGoMeter(snapshot)
   if (goMeter != null) {
     const product = formatGoProductLabel(snapshot.workspace_name)
-    const period = goPeriodLabels[goMeter.id]
+    const period = goPeriodLabel(goMeter.id)
     return {
-      title: `Franquia ${product} (${period})`,
-      value: `${goMeter.percent.toLocaleString('pt-BR')}% reportado pelo provedor`,
+      title: i18n.t('providers:quota.franchiseGo', { product, period }),
+      value: i18n.t('providers:quota.reportedByProvider', {
+        percent: formatNumber(goMeter.percent),
+      }),
     }
   }
 
@@ -214,16 +218,28 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     if (percent != null || usage != null || credits != null) {
       const parts: string[] = []
       if (percent != null) {
-        parts.push(`${formatCursorWeeklyPercent(percent).toLocaleString('pt-BR')}% reportado`)
+        parts.push(
+          i18n.t('providers:quota.reported', {
+            percent: formatNumber(formatCursorWeeklyPercent(percent)),
+          }),
+        )
       }
       if (usage != null) {
-        parts.push(`${formatMetricAmount(usage.used, usage.unit)} consumido`)
+        parts.push(
+          i18n.t('providers:quota.consumed', {
+            amount: formatMetricAmount(usage.used, usage.unit),
+          }),
+        )
       }
       if (credits != null) {
-        parts.push(`Limite ${formatMetricAmount(credits.limit, credits.unit)}`)
+        parts.push(
+          i18n.t('providers:quota.limit', {
+            amount: formatMetricAmount(credits.limit, credits.unit),
+          }),
+        )
       }
       return {
-        title: 'Franquia semanal Cursor',
+        title: i18n.t('providers:quota.cursorWeeklyFranchise'),
         value: parts.join(' · '),
       }
     }
@@ -244,7 +260,7 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
             : undefined
         const shortTitle =
           f.id === 'claude_gpt_models' ? 'Claude/GPT' : f.id === 'gemini_models' ? 'Gemini' : f.title
-        return `${shortTitle} ${primaryLimit ? `${primaryLimit.remainingPercent.toLocaleString('pt-BR')}%` : ''}`
+        return `${shortTitle} ${primaryLimit ? `${formatNumber(primaryLimit.remainingPercent)}%` : ''}`
       })
       return {
         title: `Antigravity${tier}`,
@@ -253,7 +269,7 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     }
     return {
       title: `Antigravity${tier}`,
-      value: `${snapshot.quotas.length} modelo(s) reportado(s)`,
+      value: i18n.t('providers:quota.modelsReported', { count: snapshot.quotas.length }),
     }
   }
 
@@ -267,27 +283,27 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
       parts.push(`Limite ${formatMetricAmount(credits.limit, credits.unit)}`)
     }
     return {
-      title: 'Leitura oficial',
+      title: i18n.t('providers:quota.officialReading'),
       value: parts.join(' · '),
     }
   }
 
   return {
-    title: 'Leitura oficial',
-    value: `${snapshot.quotas.length} métrica(s) do provedor`,
+    title: i18n.t('providers:quota.officialReading'),
+    value: i18n.t('providers:quota.metricsReported', { count: snapshot.quotas.length }),
   }
 }
 
 export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): ConsumptionCell {
   if (!snapshot || snapshot.status !== 'available') {
-    return { kind: 'empty', label: 'Sem dados' }
+    return { kind: 'empty', label: i18n.t('providers:quota.noData') }
   }
 
   const goMeter = primaryGoMeter(snapshot)
   if (goMeter != null) {
     return {
       kind: 'percent',
-      label: `Percentual ${goPeriodLabels[goMeter.id]}`,
+      label: i18n.t('providers:quota.percentLabel', { period: goPeriodLabel(goMeter.id) }),
       percent: goMeter.percent,
       barValue: goMeter.percent,
       barMax: 100,
@@ -344,9 +360,9 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
 
     return {
       kind: 'usage',
-      label: 'Cotas por modelo',
-      primary: `${snapshot.quotas.length} modelos`,
-      secondary: 'Taxa restante por modelo',
+      label: i18n.t('providers:quota.quotaByModel'),
+      primary: i18n.t('providers:quota.modelsCount', { count: snapshot.quotas.length }),
+      secondary: i18n.t('providers:quota.ratePerModel'),
     }
   }
 
@@ -362,7 +378,7 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
       const rounded = formatCursorWeeklyPercent(percent)
       return {
         kind: 'percent',
-        label: 'Franquia semanal',
+        label: i18n.t('providers:quota.weeklyFranchise'),
         percent: rounded,
         barValue: Math.min(100, rounded),
         barMax: 100,
@@ -372,7 +388,9 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
 
   const { usage, credits } = accountUsageMetrics(snapshot)
   const usageLabel =
-    snapshot.provider_id === 'cursor' ? 'Franquia semanal' : 'Leitura oficial'
+    snapshot.provider_id === 'cursor'
+      ? i18n.t('providers:quota.weeklyFranchise')
+      : i18n.t('providers:quota.officialReading')
   if (usage != null && credits != null) {
     return {
       kind: 'usage',
@@ -380,8 +398,8 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
       primary: `${formatMetricAmount(usage.used, usage.unit)} / ${formatMetricAmount(credits.limit, credits.unit)}`,
       secondary:
         snapshot.provider_id === 'cursor'
-          ? 'Uso semanal / limite incluído'
-          : 'Uso / limite oficiais',
+          ? i18n.t('providers:quota.weeklyUsageLimit')
+          : i18n.t('providers:quota.officialUsageLimit'),
       barValue: usage.used,
       barMax: credits.limit,
     }
@@ -389,21 +407,21 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
   if (usage != null) {
     return {
       kind: 'usage',
-      label: 'Leitura oficial',
+      label: i18n.t('providers:quota.officialReading'),
       primary: formatMetricAmount(usage.used, usage.unit),
-      secondary: 'Uso reportado',
+      secondary: i18n.t('providers:quota.reportedUsage'),
     }
   }
   if (credits != null) {
     return {
       kind: 'usage',
-      label: 'Leitura oficial',
+      label: i18n.t('providers:quota.officialReading'),
       primary: formatMetricAmount(credits.limit, credits.unit),
-      secondary: 'Créditos da conta',
+      secondary: i18n.t('providers:quota.accountCredits'),
     }
   }
 
-  return { kind: 'empty', label: 'Sem dados' }
+  return { kind: 'empty', label: i18n.t('providers:quota.noData') }
 }
 
 export function availableBalanceDisplay(snapshot: ProviderQuotaSnapshot | undefined): string {
@@ -431,33 +449,33 @@ export function availableBalanceDisplay(snapshot: ProviderQuotaSnapshot | undefi
 }
 
 export function formatQuotaResetAt(snapshot: ProviderQuotaSnapshot | undefined): string {
-  if (!snapshot) return 'Não informado'
+  if (!snapshot) return i18n.t('providers:quota.notInformed')
   const goMeter = primaryGoMeter(snapshot)
   if (goMeter?.resetsAt) return formatQuotaFetchedAt(goMeter.resetsAt)
   const fallback = snapshot.quotas.find((metric) => metric.resets_at)?.resets_at
-  if (!fallback) return 'Não informado'
+  if (!fallback) return i18n.t('providers:quota.notInformed')
   return formatQuotaFetchedAt(fallback)
 }
 
 export function primaryGoPeriodLabel(snapshot: ProviderQuotaSnapshot | undefined): string | undefined {
   if (!snapshot) return undefined
   const goMeter = primaryGoMeter(snapshot)
-  return goMeter ? goPeriodLabels[goMeter.id] : undefined
+  return goMeter ? goPeriodLabel(goMeter.id) : undefined
 }
 
 export function formatQuotaSourceName(snapshot: ProviderQuotaSnapshot | undefined): string {
-  if (!snapshot) return 'Sem leitura na API'
+  if (!snapshot) return i18n.t('providers:quota.noApiReading')
   if (snapshot.status !== 'available') {
     if (snapshot.provider_id === 'cursor') {
-      return 'Cursor Proxy Usage Collector'
+      return i18n.t('providers:quota.sourceCursorCollector')
     }
-    return snapshot.error?.message ?? 'Sem leitura na API'
+    return snapshot.error?.message ?? i18n.t('providers:quota.noApiReading')
   }
   if (snapshot.source.name === 'antigravity_proxy_usage_api') {
-    return 'Antigravity Proxy Usage API'
+    return i18n.t('providers:quota.sourceAntigravityApi')
   }
   if (snapshot.source.name === 'cursor_proxy_usage_collect') {
-    return 'Cursor Proxy Usage Collector'
+    return i18n.t('providers:quota.sourceCursorCollect')
   }
   return snapshot.source.name
 }

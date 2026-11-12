@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
 import { cn } from '../../shared/ui/cn'
 import { getRuntimeMeta, overviewQueryKeys } from '../../features/overview/api/queries'
@@ -8,31 +9,36 @@ type AppSidebarStatusProps = {
   readonly connectionState: OperationalConnectionState
 }
 
-function statusCopy(state: OperationalConnectionState): {
-  readonly label: string
-  readonly detail: string
-  readonly dotClass: string
-} {
-  if (state === 'live') {
-    return { label: 'Gateway operacional', detail: 'CONEXÃO OPERACIONAL ATIVA', dotClass: 'bg-healthy' }
-  }
-  if (state === 'connecting') {
-    return { label: 'Gateway conectando', detail: 'CONECTANDO EVENT STREAM', dotClass: 'bg-warning' }
-  }
-  return { label: 'Gateway degradado', detail: 'RECONEXÃO AGENDADA', dotClass: 'bg-failure' }
-}
-
 export function AppSidebarStatus({ collapsed, connectionState }: AppSidebarStatusProps) {
-  const status = statusCopy(connectionState)
+  const { t } = useTranslation('common')
   const runtimeMeta = useQuery({
     queryKey: overviewQueryKeys.runtimeMeta,
     queryFn: getRuntimeMeta,
     refetchInterval: false,
     retry: 1,
   })
-  const detail = runtimeMeta.data?.data_origin === 'demonstrative'
-    ? 'AMBIENTE DEMONSTRATIVO'
-    : status.detail
+
+  const status =
+    connectionState === 'live'
+      ? {
+          label: t('shell.gatewayOperational'),
+          detail: t('shell.connectionLive'),
+          dotClass: 'bg-healthy',
+        }
+      : connectionState === 'connecting'
+        ? {
+            label: t('shell.gatewayConnecting'),
+            detail: t('shell.connectionConnecting'),
+            dotClass: 'bg-warning',
+          }
+        : {
+            label: t('shell.gatewayDegraded'),
+            detail: t('shell.connectionReconnect'),
+            dotClass: 'bg-failure',
+          }
+
+  const detail =
+    runtimeMeta.data?.data_origin === 'demonstrative' ? t('shell.demonstrativeEnv') : status.detail
 
   return (
     <div className="pt-3">

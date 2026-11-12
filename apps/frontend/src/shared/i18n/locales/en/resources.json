@@ -1,0 +1,148 @@
+{
+  "page": {
+    "providersLink": "View provider quotas ↗",
+    "periodDefault": "Last 7 days"
+  },
+  "errors": {
+    "providersList": "Provider list unavailable for filters.",
+    "resourcePolicies": "Resource policies are unavailable. Verify admin API access and PostgreSQL mode.",
+    "quotaUtilization": "Quota utilization snapshot failed.",
+    "concurrencyPolicies": "Concurrency policies failed.",
+    "concurrencySnapshot": "Concurrency snapshot failed.",
+    "admissionsAnalytics": "Admissions analytics failed.",
+    "providerUsage": "Provider usage analytics failed.",
+    "providerDistribution": "Provider usage distribution failed."
+  },
+  "tabs": {
+    "overview": "Overview",
+    "policies": "Resource policies",
+    "concurrency": "Concurrency"
+  },
+  "metrics": {
+    "configuredPolicies": {
+      "label": "Configured policies",
+      "detail": "Resources and concurrency"
+    },
+    "aggregateUsage": {
+      "label": "Aggregate usage",
+      "detail": "Workspace daily limit"
+    },
+    "concurrencyInUse": {
+      "label": "Concurrency in use",
+      "detail": "Occupied slots / limit"
+    },
+    "policyAlerts": {
+      "label": "Policy alerts",
+      "detail": "Near limits"
+    }
+  },
+  "filters": {
+    "from": "From",
+    "to": "To",
+    "provider": "Provider",
+    "model": "Model",
+    "allProviders": "All providers",
+    "modelPlaceholder": "Optional",
+    "applyPeriod": "Apply period"
+  },
+  "consumption": {
+    "ariaLabel": "Resource consumption",
+    "title": "Resource consumption",
+    "subtitle": "Aggregate trend for the period",
+    "chartAriaLabel": "Resource consumption chart for the period",
+    "headlineAdmissions": "ADMISSIONS IN PERIOD",
+    "headlineAggregateLimit": "OF AGGREGATE LIMIT",
+    "loading": "Loading consumption…",
+    "seriesUnavailable": "Admissions series unavailable for the selected period.",
+    "noAdmissions": "No admissions in the selected period."
+  },
+  "usageDistribution": {
+    "ariaLabel": "Usage distribution",
+    "title": "Usage distribution",
+    "subtitle": "Consumption composition reported by providers",
+    "loading": "Loading distribution…",
+    "unavailable": "Usage distribution unavailable for the selected period.",
+    "empty": "No provider usage in the selected period.",
+    "measurementSource": "Source and units come from /api/resource-analytics/provider-usage/distribution.",
+    "measurementCounts": " Measurement: {{reported}} reported · {{partial}} partial · {{unavailable}} unavailable · {{invalid}} invalid."
+  },
+  "policies": {
+    "title": "Resource policies",
+    "subtitle": "Rules returned by /api/resource-policies",
+    "highlightTitle": "Highlighted policies",
+    "highlightSubtitle": "Rules configured to control resources",
+    "viewPolicies": "View policies ↗",
+    "loading": "Loading policies…",
+    "empty": "No resource policies configured.",
+    "measurementNote": "Limit and utilization use fields from /api/resource-policies and /api/resource-analytics/quota-utilization. When the backend does not send a limit, the cell stays blank.",
+    "table": {
+      "policy": "Policy",
+      "scope": "Scope",
+      "definedLimit": "Defined limit",
+      "utilization": "Utilization",
+      "state": "State"
+    }
+  },
+  "concurrency": {
+    "usage": {
+      "title": "Concurrency usage",
+      "subtitle": "Simultaneous runs vs limit",
+      "percentInUse": "{{value}}% IN USE",
+      "noGlobalLimit": "NO GLOBAL LIMIT",
+      "chartZeroSlots": "0 SLOTS",
+      "chartConfiguredSlots": "{{limit}} CONFIGURED SLOTS",
+      "notice": "Effective limits depend on configured policies and the backend snapshot. This screen does not infer a limit when the API does not send one."
+    },
+    "distribution": {
+      "title": "Concurrency distribution",
+      "subtitle": "Occupancy by enabled scope",
+      "loading": "Loading concurrency…",
+      "empty": "No enabled concurrency limit."
+    },
+    "policies": {
+      "title": "Concurrency policies",
+      "subtitle": "Configured simultaneous limits",
+      "loading": "Loading concurrency policies…",
+      "empty": "No concurrency policies configured.",
+      "table": {
+        "policy": "Policy",
+        "scope": "Scope",
+        "limit": "Limit",
+        "inUse": "In use",
+        "state": "State"
+      }
+    }
+  },
+  "state": {
+    "inactive": "Inactive",
+    "active": "Active",
+    "withinLimit": "Within limit",
+    "nearLimit": "Near limit",
+    "attention": "Attention",
+    "limitReached": "Limit reached",
+    "noGlobalLimit": "No global limit"
+  },
+  "utilization": {
+    "percentOfLimitCompact": "{{value}}% of limit"
+  },
+  "scope": {
+    "workspaceLabel": "WORKSPACE",
+    "workspacePolicy": "Workspace limit #{{policyId}}",
+    "providerPolicy": "Provider limit · {{providerId}}",
+    "modelPolicy": "Model limit · {{provider}}/{{model}}",
+    "genericPolicy": "Policy #{{policyId}}",
+    "workspaceConcurrency": "Workspace concurrency #{{policyId}}",
+    "modelConcurrency": "Model concurrency · {{provider}}/{{model}}",
+    "genericConcurrencyPolicy": "Concurrency policy #{{policyId}}"
+  },
+  "footnote": {
+    "apiPrefix": "API ·",
+    "hubTimestamp": "CONNEXTO AI HUB · {{time}} UTC"
+  },
+  "fetchedAt": {
+    "snapshot": "Snapshot fetched {{time}} UTC"
+  },
+  "tokens": {
+    "unknown": "Unknown"
+  }
+}

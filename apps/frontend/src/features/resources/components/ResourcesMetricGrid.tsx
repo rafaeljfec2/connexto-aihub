@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../shared/ui/cn'
 
 type ResourcesMetricGridProps = {
@@ -17,6 +18,7 @@ export function ResourcesMetricGrid({
   nearLimitAlerts,
   isLoading,
 }: ResourcesMetricGridProps) {
+  const { t } = useTranslation('resources')
   const loadingValue = '…'
   const concurrencyValueText = concurrencyMetricValue(
     isLoading,
@@ -28,13 +30,13 @@ export function ResourcesMetricGrid({
   return (
     <div className="resources-metrics" aria-busy={isLoading ? true : undefined}>
       <MetricCard
-        label="Políticas configuradas"
-        detail="Recursos e concorrência"
+        label={t('metrics.configuredPolicies.label')}
+        detail={t('metrics.configuredPolicies.detail')}
         value={isLoading ? loadingValue : String(configuredPolicies)}
       />
       <MetricCard
-        label="Uso agregado"
-        detail="Limite diário do workspace"
+        label={t('metrics.aggregateUsage.label')}
+        detail={t('metrics.aggregateUsage.detail')}
         value={
           isLoading
             ? loadingValue
@@ -45,16 +47,16 @@ export function ResourcesMetricGrid({
         suffix={!isLoading && globalUtilizationPercent !== null ? '%' : undefined}
       />
       <MetricCard
-        label="Concorrência em uso"
-        detail="Slots ocupados / limite"
+        label={t('metrics.concurrencyInUse.label')}
+        detail={t('metrics.concurrencyInUse.detail')}
         value={concurrencyValueText}
         suffix={
           !isLoading && concurrencyLimit > 0 ? ` / ${concurrencyLimit}` : undefined
         }
       />
       <MetricCard
-        label="Alertas de política"
-        detail="Limites próximos"
+        label={t('metrics.policyAlerts.label')}
+        detail={t('metrics.policyAlerts.detail')}
         value={isLoading ? loadingValue : String(nearLimitAlerts).padStart(2, '0')}
         valueClassName={!isLoading && nearLimitAlerts > 0 ? 'is-warn' : undefined}
       />

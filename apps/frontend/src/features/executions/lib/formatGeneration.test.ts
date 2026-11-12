@@ -38,12 +38,12 @@ const generation: Generation = {
 describe('generation value formatting', () => {
   it('preserves explicit zero and labels unknown token values', () => {
     expect(formatGenerationTokens(0)).toBe('0')
-    expect(formatGenerationTokens(null)).toBe('Not reported')
+    expect(formatGenerationTokens(null)).toBe('Não informado')
   })
 
   it('preserves provider-reported zero cost and currency', () => {
     expect(formatProviderReportedCost('0.000000000000', 'USD')).toBe('USD 0.000000000000')
-    expect(formatProviderReportedCost(null, null)).toBe('Not reported')
+    expect(formatProviderReportedCost(null, null)).toBe('Não informado')
   })
 
   it('calculates throughput only with an observed positive output interval', () => {
@@ -51,10 +51,10 @@ describe('generation value formatting', () => {
     expect(formatGenerationThroughput({
       ...generation,
       telemetry: { ...generation.telemetry, output_stream_duration_ns: 0 },
-    })).toBe('Not reported')
+    })).toBe('Não informado')
     expect(formatGenerationThroughput({
       ...generation,
       usage: { ...generation.usage, output_tokens: null },
-    })).toBe('Not reported')
+    })).toBe('Não informado')
   })
 })

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation } from 'react-router-dom'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
 import { cn } from '../../shared/ui/cn'
@@ -30,7 +31,8 @@ type AppShellProps = {
 
 export function AppShell({ connectionState }: AppShellProps) {
   const location = useLocation()
-  const meta = resolvePageMeta(location.pathname)
+  const { t } = useTranslation('meta')
+  const meta = resolvePageMeta(location.pathname, t)
   const [collapsed, setCollapsed] = useState<boolean>(getInitialSidebarCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
 

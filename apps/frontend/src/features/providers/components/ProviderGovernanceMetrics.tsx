@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import { countGovernanceMetrics } from '../lib/quotaPresentation'
 import type { AdminProvider } from '../types'
@@ -11,35 +12,36 @@ export function ProviderGovernanceMetrics({
   providers,
   snapshots,
 }: ProviderGovernanceMetricsProps) {
+  const { t } = useTranslation('providers')
   const metrics = countGovernanceMetrics(providers, snapshots)
 
   return (
     <div className="providers-metrics">
       <div className="providers-metric">
         <div>
-          <span>Provedores monitorados</span>
-          <small>Conexões cadastradas no gateway</small>
+          <span>{t('governance.monitoredTitle')}</span>
+          <small>{t('governance.monitoredSubtitle')}</small>
         </div>
         <strong>{String(metrics.monitored).padStart(2, '0')}</strong>
       </div>
       <div className="providers-metric">
         <div>
-          <span>Próximos do limite</span>
-          <small>Sinal oficial do provedor</small>
+          <span>{t('governance.nearLimitTitle')}</span>
+          <small>{t('governance.nearLimitSubtitle')}</small>
         </div>
         <strong className="text-[#D9B87E]">{String(metrics.nearLimit).padStart(2, '0')}</strong>
       </div>
       <div className="providers-metric">
         <div>
-          <span>Limite atingido</span>
-          <small>Requer atenção imediata</small>
+          <span>{t('governance.atLimitTitle')}</span>
+          <small>{t('governance.atLimitSubtitle')}</small>
         </div>
         <strong>{String(metrics.atLimit).padStart(2, '0')}</strong>
       </div>
       <div className="providers-metric">
         <div>
-          <span>Sem leitura de franquia</span>
-          <small>Monitoramento não disponível na API</small>
+          <span>{t('governance.withoutReadingTitle')}</span>
+          <small>{t('governance.withoutReadingSubtitle')}</small>
         </div>
         <strong>{String(metrics.withoutReading).padStart(2, '0')}</strong>
       </div>

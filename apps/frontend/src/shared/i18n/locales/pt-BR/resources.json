@@ -1,0 +1,148 @@
+{
+  "page": {
+    "providersLink": "Ver franquias por provedor ↗",
+    "periodDefault": "Últimos 7 dias"
+  },
+  "errors": {
+    "providersList": "Lista de provedores indisponível para filtros.",
+    "resourcePolicies": "Políticas de recursos indisponíveis. Verifique o acesso à API de admin e o modo PostgreSQL.",
+    "quotaUtilization": "Falha ao obter snapshot de utilização de cota.",
+    "concurrencyPolicies": "Falha ao carregar políticas de concorrência.",
+    "concurrencySnapshot": "Falha ao obter snapshot de concorrência.",
+    "admissionsAnalytics": "Falha na análise de admissões.",
+    "providerUsage": "Falha na análise de uso por provedor.",
+    "providerDistribution": "Falha na distribuição de uso por provedor."
+  },
+  "tabs": {
+    "overview": "Visão geral",
+    "policies": "Políticas de recursos",
+    "concurrency": "Concorrência"
+  },
+  "metrics": {
+    "configuredPolicies": {
+      "label": "Políticas configuradas",
+      "detail": "Recursos e concorrência"
+    },
+    "aggregateUsage": {
+      "label": "Uso agregado",
+      "detail": "Limite diário do workspace"
+    },
+    "concurrencyInUse": {
+      "label": "Concorrência em uso",
+      "detail": "Slots ocupados / limite"
+    },
+    "policyAlerts": {
+      "label": "Alertas de política",
+      "detail": "Limites próximos"
+    }
+  },
+  "filters": {
+    "from": "De",
+    "to": "Até",
+    "provider": "Provedor",
+    "model": "Modelo",
+    "allProviders": "Todos os provedores",
+    "modelPlaceholder": "Opcional",
+    "applyPeriod": "Aplicar período"
+  },
+  "consumption": {
+    "ariaLabel": "Consumo de recursos",
+    "title": "Consumo de recursos",
+    "subtitle": "Evolução agregada no período",
+    "chartAriaLabel": "Gráfico de consumo de recursos no período",
+    "headlineAdmissions": "ADMISSÕES NO PERÍODO",
+    "headlineAggregateLimit": "DO LIMITE AGREGADO",
+    "loading": "Carregando consumo…",
+    "seriesUnavailable": "Série de admissões indisponível para o período selecionado.",
+    "noAdmissions": "Nenhuma admissão no período selecionado."
+  },
+  "usageDistribution": {
+    "ariaLabel": "Distribuição de uso",
+    "title": "Distribuição de uso",
+    "subtitle": "Composição do consumo informado pelos provedores",
+    "loading": "Carregando distribuição…",
+    "unavailable": "Distribuição de uso indisponível para o período selecionado.",
+    "empty": "Nenhum uso por provedor no período selecionado.",
+    "measurementSource": "A origem e as unidades vêm de /api/resource-analytics/provider-usage/distribution.",
+    "measurementCounts": " Medição: {{reported}} reportadas · {{partial}} parciais · {{unavailable}} indisponíveis · {{invalid}} inválidas."
+  },
+  "policies": {
+    "title": "Políticas de recursos",
+    "subtitle": "Regras retornadas por /api/resource-policies",
+    "highlightTitle": "Políticas em destaque",
+    "highlightSubtitle": "Regras configuradas para controlar recursos",
+    "viewPolicies": "Ver políticas ↗",
+    "loading": "Carregando políticas…",
+    "empty": "Nenhuma política de recursos configurada.",
+    "measurementNote": "Limite e utilização usam os campos de /api/resource-policies e /api/resource-analytics/quota-utilization. Quando o backend não envia um limite, a célula fica em branco.",
+    "table": {
+      "policy": "Política",
+      "scope": "Escopo",
+      "definedLimit": "Limite definido",
+      "utilization": "Utilização",
+      "state": "Estado"
+    }
+  },
+  "concurrency": {
+    "usage": {
+      "title": "Uso de concorrência",
+      "subtitle": "Execuções simultâneas em relação ao limite",
+      "percentInUse": "{{value}}% EM USO",
+      "noGlobalLimit": "SEM LIMITE GLOBAL",
+      "chartZeroSlots": "0 SLOTS",
+      "chartConfiguredSlots": "{{limit}} SLOTS CONFIGURADOS",
+      "notice": "Os limites efetivos dependem das políticas configuradas e do snapshot do backend. A tela não infere um limite quando a API não o envia."
+    },
+    "distribution": {
+      "title": "Distribuição de concorrência",
+      "subtitle": "Ocupação por escopo habilitado",
+      "loading": "Carregando concorrência…",
+      "empty": "Nenhum limite de concorrência habilitado."
+    },
+    "policies": {
+      "title": "Políticas de concorrência",
+      "subtitle": "Limites simultâneos configurados",
+      "loading": "Carregando políticas de concorrência…",
+      "empty": "Nenhuma política de concorrência configurada.",
+      "table": {
+        "policy": "Política",
+        "scope": "Escopo",
+        "limit": "Limite",
+        "inUse": "Em uso",
+        "state": "Estado"
+      }
+    }
+  },
+  "state": {
+    "inactive": "Inativa",
+    "active": "Ativa",
+    "withinLimit": "Dentro do limite",
+    "nearLimit": "Próximo do limite",
+    "attention": "Atenção",
+    "limitReached": "Limite atingido",
+    "noGlobalLimit": "Sem limite global"
+  },
+  "utilization": {
+    "percentOfLimitCompact": "{{value}}% do limite"
+  },
+  "scope": {
+    "workspaceLabel": "WORKSPACE",
+    "workspacePolicy": "Limite do workspace #{{policyId}}",
+    "providerPolicy": "Limite do provedor · {{providerId}}",
+    "modelPolicy": "Limite do modelo · {{provider}}/{{model}}",
+    "genericPolicy": "Política #{{policyId}}",
+    "workspaceConcurrency": "Concorrência do workspace #{{policyId}}",
+    "modelConcurrency": "Concorrência do modelo · {{provider}}/{{model}}",
+    "genericConcurrencyPolicy": "Política de concorrência #{{policyId}}"
+  },
+  "footnote": {
+    "apiPrefix": "API ·",
+    "hubTimestamp": "CONNEXTO AI HUB · {{time}} UTC"
+  },
+  "fetchedAt": {
+    "snapshot": "Snapshot obtido {{time}} UTC"
+  },
+  "tokens": {
+    "unknown": "Desconhecido"
+  }
+}

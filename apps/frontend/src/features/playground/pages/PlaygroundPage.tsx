@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { PlaygroundComposer } from '../components/PlaygroundComposer'
@@ -14,6 +15,7 @@ import {
 } from '../hooks/usePlaygroundCatalog'
 
 export function PlaygroundPage() {
+  const { t } = useTranslation('playground')
   const catalog = usePlaygroundCatalogModels()
   const { state, dispatch, sendMessage, cancel, isStreaming } = usePlayground()
 
@@ -56,7 +58,7 @@ export function PlaygroundPage() {
 
       {catalog.isError ? (
         <div className="banner banner-error" role="alert">
-          Catalog models unavailable. Open Catalog or sync providers before using the playground.
+          {t('catalogUnavailable')}
         </div>
       ) : null}
 
@@ -85,7 +87,7 @@ export function PlaygroundPage() {
           disabled={isStreaming}
           onClick={() => dispatch({ type: 'clear_conversation' })}
         >
-          Clear conversation
+          {t('clearConversation')}
         </button>
       </section>
 

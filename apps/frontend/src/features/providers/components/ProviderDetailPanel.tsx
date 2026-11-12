@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { Edit2 } from 'lucide-react'
 import { AiBrandIcon } from '../../../shared/branding'
 import { Panel } from '../../../shared/ui'
+import { useTranslation } from 'react-i18next'
+import i18n from '../../../shared/i18n'
+import { formatNumber } from '../../../shared/i18n/format'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import { categorizeAntigravityQuotas } from '../../overview/lib/antigravityCategories'
 import { goPlusMetersFromSnapshot } from '../../overview/lib/goPlusMeters'
@@ -37,6 +40,7 @@ export function ProviderDetailPanel({
   hasProviders = true,
   onOpenManage,
 }: ProviderDetailPanelProps) {
+  const { t } = useTranslation('providers')
   const isAntigravity = snapshot?.provider_id === 'antigravity'
   const antigravityBars = useMemo(
     () => buildAntigravityBars(isAntigravity, snapshot),
@@ -47,13 +51,11 @@ export function ProviderDetailPanel({
     return (
       <Panel className="providers-panel min-w-0">
         <div className="providers-detail-head shrink-0">
-          <strong>Detalhe da franquia</strong>
-          <small>{hasProviders ? 'SELECIONE UM PROVEDOR' : 'SEM PROVEDORES'}</small>
+          <strong>{t('detail.detailTitle')}</strong>
+          <small>{hasProviders ? t('detail.selectPrompt') : t('detail.noProviders')}</small>
         </div>
         <p className="py-6 text-center text-xs text-muted">
-          {hasProviders
-            ? 'Selecione um provedor na tabela para inspecionar a conexão.'
-            : 'Nenhum provedor configurado para inspecionar.'}
+          {hasProviders ? t('detail.selectHint') : t('detail.emptyHint')}
         </p>
       </Panel>
     )
@@ -70,28 +72,24 @@ export function ProviderDetailPanel({
   const percent = goPercent ?? (consumption.kind === 'percent' ? consumption.percent : undefined)
   const percentPeriod =
     goPercent != null
-      ? (goPeriod ?? 'provedor')
+      ? (goPeriod ?? t('detail.defaultPeriod'))
       : consumption.kind === 'percent'
         ? consumption.label
         : undefined
 
   const mainQuotaValue =
     percent != null
-      ? `${percent.toLocaleString('pt-BR')}%`
+      ? `${formatNumber(percent)}%`
       : consumption.kind === 'usage'
         ? consumption.primary
-        : 'Sem leitura'
+        : t('detail.noReadingShort')
 
   const mainQuotaSuffix =
-    isAntigravity
-      ? 'restante'
-      : percent != null || consumption.kind === 'percent'
-        ? 'utilizado'
-        : 'utilizado'
+    isAntigravity ? t('detail.remaining') : t('detail.usedSuffix')
 
   const primaryReading =
     percent != null
-      ? `${percent.toLocaleString('pt-BR')}% (${percentPeriod})`
+      ? `${formatNumber(percent)}% (${percentPeriod ?? t('detail.defaultPeriod')})`
       : consumption.kind === 'usage'
         ? consumption.primary
         : '—'
@@ -106,8 +104,8 @@ export function ProviderDetailPanel({
   return (
     <Panel className="providers-panel min-w-0">
       <div className="providers-detail-head shrink-0">
-        <strong>Detalhe da franquia</strong>
-        <small>INSPEÇÃO DE GOVERNANÇA</small>
+        <strong>{t('detail.detailTitle')}</strong>
+        <small>{t('detail.governanceInspection')}</small>
       </div>
 
       <div className="providers-detail-body">
@@ -128,7 +126,7 @@ export function ProviderDetailPanel({
         </div>
 
         <div className="providers-quota-box" data-testid={`providers-detail-quota-${provider.id}`}>
-          <div className="providers-quota-box-label">CONSUMO DA FRANQUIA</div>
+          <div className="providers-quota-box-label">{t('detail.franchiseConsumptionLabel')}</div>
           <div className="providers-quota-box-main">
             <strong>{mainQuotaValue}</strong>
             <span>{mainQuotaSuffix}</span>
@@ -141,7 +139,7 @@ export function ProviderDetailPanel({
                   <div className="flex items-center justify-between text-[0.6875rem]">
                     <span className="text-[#AEBBD0] font-medium">{bar.label}</span>
                     <span className="font-semibold text-[#E7ECF5]">
-                      {bar.percent.toLocaleString('pt-BR')}% restante
+                      {t('detail.percentRemaining', { percent: formatNumber(bar.percent) })}
                     </span>
                   </div>
                   <div className="providers-large-track">
@@ -177,22 +175,22 @@ export function ProviderDetailPanel({
           )}
           <div className="providers-quota-foot">
             <span title={franchise.title}>
-              <span className="text-[#8A97A8]">Consumo: </span>
+              <span className="text-[#8A97A8]">{t('detail.consumptionLabel')} </span>
               {franchise.value !== '—'
                 ? franchise.value
                 : percent != null
-                  ? `${percent.toLocaleString('pt-BR')}% (${percentPeriod})`
-                  : 'não reportado'}
+                  ? `${formatNumber(percent)}% (${percentPeriod})`
+                  : t('detail.notReported')}
             </span>
             <span>
-              <span className="text-[#8A97A8]">Limite: </span>
+              <span className="text-[#8A97A8]">{t('detail.limitLabel')} </span>
               {isAntigravity
-                ? 'pools oficiais'
+                ? t('detail.officialPools')
                 : percent != null
-                  ? 'percentual do provedor'
+                  ? t('detail.providerPercent')
                   : balance !== '—'
-                    ? `disponível ${balance}`
-                    : 'leitura oficial'}
+                    ? t('detail.availableBalance', { balance })
+                    : t('detail.officialReadingShort')}
             </span>
           </div>
         </div>
@@ -203,9 +201,9 @@ export function ProviderDetailPanel({
             data-testid="antigravity-detail-families"
           >
             <div className="flex items-center justify-between text-[0.5625rem] uppercase tracking-wider font-semibold text-[#8290A5]">
-              <span>Franquias por Família</span>
+              <span>{t('detail.familiesTitle')}</span>
               <span className="font-mono text-[0.5rem] text-muted">
-                {snapshot?.quotas.length ?? 0} modelos
+                {t('detail.modelsCountShort', { count: snapshot?.quotas.length ?? 0 })}
               </span>
             </div>
             {antigravityFamilies.map((family) => (
@@ -216,7 +214,7 @@ export function ProviderDetailPanel({
                 <div className="flex items-center justify-between text-[0.625rem] font-medium text-[#CBD5E2]">
                   <span>{family.title}</span>
                   <span className="text-[0.5625rem] text-[#8290A5]">
-                    {family.totalModelsCount} modelo(s)
+                    {t('detail.modelsCountLong', { count: family.totalModelsCount })}
                   </span>
                 </div>
                 {family.limits.map((limit, idx) => (
@@ -226,7 +224,7 @@ export function ProviderDetailPanel({
                   >
                     <span className="text-[#AEBBD0]">{limit.windowLabel}</span>
                     <span className="font-semibold text-[#CBD5E2]">
-                      {limit.remainingPercent.toLocaleString('pt-BR')}% restante
+                      {t('detail.percentRemaining', { percent: formatNumber(limit.remainingPercent) })}
                     </span>
                   </div>
                 ))}
@@ -241,26 +239,26 @@ export function ProviderDetailPanel({
             data-testid="opencode-detail-meters"
           >
             <div className="flex items-center justify-between text-[0.5625rem] uppercase tracking-wider font-semibold text-[#8290A5]">
-              <span>Janelas de franquia</span>
+              <span>{t('detail.quotaWindowsTitle')}</span>
               <span className="font-mono text-[0.5rem] text-muted">
-                {goMeters.length} métrica(s)
+                {t('detail.metricsCount', { count: goMeters.length })}
               </span>
             </div>
             {goMeters.map((meter) => {
-              const label =
+              const meterPeriodLabel =
                 meter.id === 'go_monthly'
-                  ? 'Mensal'
+                  ? t('detail.periodMonthly')
                   : meter.id === 'go_weekly'
-                    ? 'Semanal'
-                    : 'Janela 5h'
+                    ? t('detail.periodWeekly')
+                    : t('detail.periodRolling')
               return (
                 <div
                   key={meter.id}
                   className="flex items-center justify-between text-[0.5625rem] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
                 >
-                  <span className="text-[#AEBBD0]">{label}</span>
+                  <span className="text-[#AEBBD0]">{meterPeriodLabel}</span>
                   <span className="font-semibold text-[#CBD5E2]">
-                    {meter.percent.toLocaleString('pt-BR')}% utilizado
+                    {t('detail.percentUsedShort', { percent: formatNumber(meter.percent) })}
                   </span>
                 </div>
               )
@@ -272,23 +270,23 @@ export function ProviderDetailPanel({
 
         <div className="mt-1">
           <div className="providers-detail-row">
-            <span>Leitura principal</span>
+            <span>{t('detail.rowPrimaryReading')}</span>
             <strong>{primaryReading}</strong>
           </div>
           <div className="providers-detail-row">
-            <span>Renovação / reset</span>
+            <span>{t('detail.rowReset')}</span>
             <strong>{formatQuotaResetAt(snapshot)}</strong>
           </div>
           <div className="providers-detail-row">
-            <span>Fonte da medição</span>
+            <span>{t('detail.rowSource')}</span>
             <strong>{formatQuotaSourceName(snapshot)}</strong>
           </div>
           <div className="providers-detail-row">
-            <span>Última atualização</span>
+            <span>{t('detail.rowUpdatedAt')}</span>
             <strong>{updatedAt}</strong>
           </div>
           <div className="providers-detail-row border-b-0 items-center">
-            <span>Situação</span>
+            <span>{t('detail.rowSituation')}</span>
             <strong className="flex justify-start">
               <span className={`providers-state ${situation.state}`}>
                 <i aria-hidden />
@@ -298,27 +296,25 @@ export function ProviderDetailPanel({
           </div>
         </div>
 
-        <p className="providers-source-note">
-          Percentuais e saldos só aparecem com leitura confiável do gateway ou do provedor.
-        </p>
+        <p className="providers-source-note">{t('detail.sourceNote')}</p>
 
         <div className="providers-detail-actions flex flex-col gap-2 pt-1">
           <button
             type="button"
             onClick={() => onOpenManage(provider)}
             className="flex items-center justify-center gap-2 w-full rounded-md bg-cobalt px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#345ED0] transition-colors cursor-pointer"
-            aria-label={`Editar credenciais e conexão de ${provider.name}`}
+            aria-label={t('detail.editCredentialsAria', { name: provider.name })}
           >
             <Edit2 className="size-3.5" />
-            Editar credenciais e conexão
+            {t('detail.editCredentials')}
           </button>
 
           <div className="flex items-center gap-2 w-full">
             <Link to="/resources" className="providers-detail-secondary flex-1 text-center">
-              Ver políticas ↗
+              {t('detail.viewPolicies')}
             </Link>
             <Link to="/catalog" className="providers-detail-ghost flex-1 text-center">
-              Explorar modelos ↗
+              {t('detail.exploreModels')}
             </Link>
           </div>
         </div>
@@ -356,15 +352,23 @@ function primaryAntigravityBars(
     claudeGpt?.limits.find((limit) => limit.windowType === 'weekly') ?? claudeGpt?.limits[0]
 
   if (weeklyGemini) {
-    bars.push({ id: 'gemini-weekly', label: 'Gemini (Limite semanal)', percent: weeklyGemini.remainingPercent })
+    bars.push({
+      id: 'gemini-weekly',
+      label: i18n.t('providers:detail.geminiWeeklyLimit'),
+      percent: weeklyGemini.remainingPercent,
+    })
   }
   if (fiveHourGemini) {
-    bars.push({ id: 'gemini-5h', label: 'Gemini (Limite 5h)', percent: fiveHourGemini.remainingPercent })
+    bars.push({
+      id: 'gemini-5h',
+      label: i18n.t('providers:detail.gemini5hLimit'),
+      percent: fiveHourGemini.remainingPercent,
+    })
   }
   if (weeklyClaudeGpt) {
     bars.push({
       id: 'claude-gpt-weekly',
-      label: `Claude/GPT (${weeklyClaudeGpt.windowLabel})`,
+      label: i18n.t('providers:detail.claudeGptWindow', { window: weeklyClaudeGpt.windowLabel }),
       percent: weeklyClaudeGpt.remainingPercent,
     })
   }

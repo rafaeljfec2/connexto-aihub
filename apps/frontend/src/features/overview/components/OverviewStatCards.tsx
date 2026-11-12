@@ -1,6 +1,8 @@
 import { Activity, CheckCircle2, Layers, Plug } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { StatCard } from '../../../shared/ui'
+import { formatNumber } from '../../../shared/i18n/format'
 import type { ProviderDiagnostic, TrafficSummary } from '../api/queries'
 import type { QuotaUtilizationEntry } from '../../resources/types'
 
@@ -16,12 +18,12 @@ type OverviewStatCardsProps = {
 
 function formatRequestsCount(count: number): string {
   if (count >= 1_000_000) {
-    return `${(count / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}M`
+    return `${formatNumber(count / 1_000_000, { maximumFractionDigits: 1 })}M`
   }
   if (count >= 1_000) {
-    return `${(count / 1_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}k`
+    return `${formatNumber(count / 1_000, { maximumFractionDigits: 1 })}k`
   }
-  return count.toLocaleString('pt-BR')
+  return formatNumber(count)
 }
 
 export function OverviewStatCards({
@@ -32,7 +34,7 @@ export function OverviewStatCards({
   trafficSummary,
   isLoading,
 }: OverviewStatCardsProps) {
-  // Determine attention quotas: providers with utilization >= 80% or degraded state
+  const { t } = useTranslation('overview')
   const degradedProviders = providers.filter(
     (p) => p.state === 'degraded' || p.state === 'unreachable',
   )
@@ -42,10 +44,10 @@ export function OverviewStatCards({
 
   const attentionNote =
     highQuotaCount > 0
-      ? 'Franquia próxima do limite'
+      ? t('stats.quotaNearLimit')
       : degradedProviders.length > 0
-        ? `${degradedProviders.length} conexão requer verificação`
-        : 'Todas as conexões em estado normal'
+        ? t('stats.providersDegraded', { count: degradedProviders.length })
+        : t('stats.providersOk')
 
   const totalRequests = trafficSummary?.total_requests ?? 0
   const trendPercent = trafficSummary?.trend_percentage ?? 0
@@ -53,61 +55,52 @@ export function OverviewStatCards({
   return (
     <div className="overview-stats">
       <StatCard
-        label="Estado do gateway"
+        label={t('stats.gatewayState')}
         icon={<CheckCircle2 className="size-3.5" />}
         value={
           isLoading ? (
-            <span className="text-base text-muted animate-pulse">Carregando…</span>
+            <span className="text-base text-muted animate-pulse">{t('stats.loading')}</span>
           ) : isOperational ? (
             <span className="text-[1.4375rem] font-medium tracking-[-0.02em] text-[#F0F3EC]">
-              Operacional
+              {t('stats.operational')}
             </span>
           ) : (
             <span className="text-[1.4375rem] font-medium tracking-[-0.02em] text-[#D88186]">
-              Degradado
+              {t('stats.degraded')}
             </span>
           )
         }
         note={
           <div className="flex items-center gap-1.5">
             <span
-              className={`size-1.5 rounded-full ${
-                isOperational ? 'bg-healthy' : 'bg-failure'
-              }`}
+              className={`size-1.5 rounded-full ${isOperational ? 'bg-healthy' : 'bg-failure'}`}
             />
             <span>
-              {isOperational
-                ? 'Pronto para receber requisições'
-                : 'Verifique a conectividade dos serviços'}
+              {isOperational ? t('stats.gatewayReady') : t('stats.checkConnectivity')}
             </span>
           </div>
         }
       />
 
       <StatCard
-        label="Franquias em atenção"
+        label={t('stats.quotasAttention')}
         icon={<Plug className="size-3.5" />}
         value={
           isLoading ? (
-            <span className="text-base text-muted animate-pulse">Carregando…</span>
+            <span className="text-base text-muted animate-pulse">{t('stats.loading')}</span>
           ) : (
-            <div className="flex items-baseline gap-1 text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
-              <span>{String(attentionCount).padStart(2, '0')}</span>
-              <span className="text-base font-normal text-[#74877A]">
-                / {String(totalMonitored).padStart(2, '0')}
-              </span>
-            </div>
+            <MotionNumberPair attention={attentionCount} total={totalMonitored} />
           )
         }
         note={attentionNote}
       />
 
       <StatCard
-        label="Modelos disponíveis"
+        label={t('stats.modelsAvailable')}
         icon={<Layers className="size-3.5" />}
         value={
           isLoading ? (
-            <span className="text-base text-muted animate-pulse">Carregando…</span>
+            <span className="text-base text-muted animate-pulse">{t('stats.loading')}</span>
           ) : (
             <span className="text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
               {modelCount !== undefined ? modelCount : '—'}
@@ -119,17 +112,17 @@ export function OverviewStatCards({
             to="/catalog"
             className="inline-flex items-center gap-1 text-[0.625rem] text-accent-light hover:text-primary hover:underline"
           >
-            Explorar catálogo ↗
+            {t('stats.exploreCatalog')}
           </Link>
         }
       />
 
       <StatCard
-        label="Requisições · 24h"
+        label={t('stats.requests24h')}
         icon={<Activity className="size-3.5" />}
         value={
           isLoading ? (
-            <span className="text-base text-muted animate-pulse">Carregando…</span>
+            <span className="text-base text-muted animate-pulse">{t('stats.loading')}</span>
           ) : (
             <span className="text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
               {formatRequestsCount(totalRequests)}
@@ -142,13 +135,22 @@ export function OverviewStatCards({
               <span className="font-semibold text-healthy">
                 ↗ {trendPercent > 0 ? `+${trendPercent.toFixed(1)}%` : `${trendPercent.toFixed(1)}%`}
               </span>{' '}
-              em relação ao período anterior
+              {t('stats.trendVsPrevious')}
             </span>
           ) : (
-            <span>Tráfego processado nas últimas 24h</span>
+            <span>{t('stats.traffic24hNote')}</span>
           )
         }
       />
+    </div>
+  )
+}
+
+function MotionNumberPair({ attention, total }: { attention: number; total: number }) {
+  return (
+    <div className="flex items-baseline gap-1 text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+      <span>{String(attention).padStart(2, '0')}</span>
+      <span className="text-base font-normal text-[#74877A]">/ {String(total).padStart(2, '0')}</span>
     </div>
   )
 }

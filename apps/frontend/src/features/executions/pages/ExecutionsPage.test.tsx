@@ -84,7 +84,7 @@ describe('ExecutionsPage generations experience', () => {
         expect.objectContaining({ credentials: 'same-origin' }),
       )
     })
-    expect(await screen.findByRole('tab', { name: 'Generations' })).toBeTruthy()
+    expect(await screen.findByRole('tab', { name: 'Gerações' })).toBeTruthy()
     expect(await screen.findByText('vendor/model')).toBeTruthy()
     expect(await screen.findByText('codex_cli_rs')).toBeTruthy()
   })
@@ -134,7 +134,7 @@ describe('ExecutionsPage generations experience', () => {
 
     renderPage()
 
-    expect(await screen.findByText('ENRICHMENT PARTIAL')).toBeTruthy()
+    expect(await screen.findByText('ENRIQUECIMENTO PARCIAL')).toBeTruthy()
   })
 
   it('opens the selected generation with keyboard input and closes it with Escape', async () => {
@@ -199,7 +199,7 @@ describe('ExecutionsPage generations experience', () => {
 
     const providerSelect = await screen.findByLabelText('Filtrar por provedor')
     await waitFor(() => {
-      expect(within(providerSelect).getByRole('option', { name: 'opencode-go' })).toBeTruthy()
+      expect(within(providerSelect).getByRole('option', { name: 'OpenCode Go' })).toBeTruthy()
     })
     fireEvent.change(providerSelect, { target: { value: 'opencode-go' } })
     await waitFor(() => {
@@ -223,7 +223,7 @@ describe('ExecutionsPage generations experience', () => {
     fireEvent.change(screen.getByLabelText('Buscar gerações carregadas'), { target: { value: 'req-test-123' } })
     expect(within(row).getByText('0')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Buscar gerações carregadas'), { target: { value: 'missing-value' } })
-    expect(screen.getByText('No generations match the current filters.')).toBeTruthy()
+    expect(screen.getByText('Nenhuma geração corresponde aos filtros atuais.')).toBeTruthy()
   })
 
   it('loads the next cursor page and refreshes explicitly', async () => {
@@ -247,7 +247,7 @@ describe('ExecutionsPage generations experience', () => {
     renderPage()
 
     await screen.findByRole('row', { name: /vendor\/model/ })
-    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Carregar mais' }))
     expect(await screen.findByRole('row', { name: /vendor\/second-model/ })).toBeTruthy()
     expect(requestedPaths.some((path) => path.includes('cursor=cursor-2'))).toBe(true)
 

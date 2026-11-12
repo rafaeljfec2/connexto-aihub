@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { formatDateTime } from '../../../shared/i18n/format'
 import type { Generation } from '../types'
 
 export type GenerationActivityDay = {
@@ -16,12 +18,11 @@ function toUtcDateKey(date: Date): string {
 }
 
 function formatDayLabel(date: Date): string {
-  return new Intl.DateTimeFormat('pt-BR', {
+  return formatDateTime(date, {
     day: '2-digit',
     month: 'short',
     timeZone: 'UTC',
   })
-    .format(date)
     .replace(/\./g, '')
     .replace(' de ', ' ')
     .toUpperCase()
@@ -73,21 +74,20 @@ type GenerationsActivityPanelProps = {
 
 /** Daily activity chart computed from loaded generations in the current view. */
 export function GenerationsActivityPanel({ generations }: GenerationsActivityPanelProps) {
+  const { t } = useTranslation('executions')
   const series = buildGenerationDailySeries(generations)
   const totalLoaded = generations.length
-  const totalLabel =
-    totalLoaded === 1 ? '1 GERAÇÃO CARREGADA · 30 DIAS' : `${totalLoaded} GERAÇÕES CARREGADAS · 30 DIAS`
+  const totalLabelKey = totalLoaded === 1 ? 'activity.totalLabel_one' : 'activity.totalLabel_other'
+  const totalLabel = t(totalLabelKey, { count: totalLoaded })
 
   return (
-    <section className="generations-activity-panel" aria-label="Atividade de gerações">
+    <section className="generations-activity-panel" aria-label={t('activity.ariaLabel')}>
       <div className="generations-activity-head">
-        <h2 className="generations-activity-title">Atividade de gerações</h2>
+        <h2 className="generations-activity-title">{t('activity.title')}</h2>
         <span className="generations-activity-note">{totalLabel}</span>
       </div>
       {totalLoaded === 0 ? (
-        <div className="generations-activity-empty">
-          Nenhuma geração carregada para exibir atividade no período.
-        </div>
+        <div className="generations-activity-empty">{t('activity.empty')}</div>
       ) : (
         <>
           <div className="generations-activity-chart-frame" role="img" aria-label={totalLabel}>
@@ -101,7 +101,10 @@ export function GenerationsActivityPanel({ generations }: GenerationsActivityPan
                 <div
                   key={bar.dateKey}
                   className="generations-activity-bar-col"
-                  title={`${bar.dayLabel}: ${bar.count} ${bar.count === 1 ? 'geração' : 'gerações'}`}
+                  title={t(
+                    bar.count === 1 ? 'activity.barTitle_one' : 'activity.barTitle_other',
+                    { day: bar.dayLabel, count: bar.count },
+                  )}
                 >
                   <div
                     className={

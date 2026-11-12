@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Skeleton } from '../../../shared/ui/skeleton'
 import { fetchOperatorSession, operatorSessionQueryKey, requiresOperatorLogin } from '../api/operatorSession'
@@ -9,6 +10,7 @@ type OperatorAuthGateProps = {
 }
 
 export function OperatorAuthGate({ children }: OperatorAuthGateProps) {
+  const { t } = useTranslation('auth')
   const location = useLocation()
   const sessionQuery = useQuery({
     queryKey: operatorSessionQueryKey,
@@ -32,7 +34,7 @@ export function OperatorAuthGate({ children }: OperatorAuthGateProps) {
   if (sessionQuery.isError) {
     return (
       <div className="grid min-h-svh place-items-center bg-graphite px-4 text-center">
-        <p className="text-sm text-failure">Unable to verify operator session. Check that the hub is running.</p>
+        <p className="text-sm text-failure">{t('sessionVerifyFailed')}</p>
       </div>
     )
   }

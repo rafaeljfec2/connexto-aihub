@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { QuotaUtilizationEntry, ResourcePolicy } from '../types'
 import { PoliciesTableBody } from './PoliciesTableShared'
 
@@ -9,14 +10,16 @@ type PoliciesTableProps = {
 }
 
 export function PoliciesTable({ policies, utilization, isLoading, fetchedAtMs }: PoliciesTableProps) {
+  const { t } = useTranslation('resources')
+
   return (
     <PoliciesTableBody
       policies={policies}
       utilization={utilization}
       isLoading={isLoading}
       fetchedAtMs={fetchedAtMs}
-      title="Políticas de recursos"
-      subtitle="Regras retornadas por /api/resource-policies"
+      title={t('policies.title')}
+      subtitle={t('policies.subtitle')}
     />
   )
 }

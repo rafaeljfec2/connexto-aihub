@@ -1,0 +1,189 @@
+{
+  "page": {
+    "help": "Ajuda",
+    "badgeE08Active": "E08 · ATIVO",
+    "badgeE10Planned": "E10 · PLANEJADO",
+    "productPrincipleLabel": "Princípio de produto:",
+    "productPrincipleText": "nenhuma recomendação adaptativa deve alterar o roteamento sem evidência rastreável, avaliação e política explícita."
+  },
+  "noticeBanner": {
+    "title": "Learning Engine (E10) em planejamento · Roteamento determinístico e aihub/auto ativos",
+    "bodyLead": "O E08 e a seleção do modelo virtual",
+    "bodyTrail": "por prioridade administrativa operam de forma determinística no Gateway. Avaliação adaptativa por contexto e ranking histórico pertencem ao E10 e ainda não estão ativos.",
+    "moduleStatus": "STATUS DO MÓDULO",
+    "waitingE10": "AGUARDANDO E10"
+  },
+  "statCards": {
+    "currentRouting": {
+      "label": "ROTEAMENTO ATUAL",
+      "value": "Determinístico & Auto",
+      "note": "E08 aceito · aihub/auto via prioridade administrativa"
+    },
+    "requestUnderstanding": {
+      "label": "REQUEST UNDERSTANDING",
+      "value": "Estrutural",
+      "note": "understanding.go · sem classificador remoto"
+    },
+    "resultEvaluation": {
+      "label": "AVALIAÇÃO DE RESULTADOS",
+      "value": "Não ativada",
+      "note": "Sem comparação adaptativa por contexto"
+    },
+    "learnedPolicies": {
+      "label": "POLÍTICAS APRENDIDAS",
+      "value": "Indisponíveis",
+      "note": "Nenhum ranking adaptativo em produção"
+    }
+  },
+  "contextAdequacy": {
+    "title": "Mapa de adequação por contexto",
+    "subtitle": "Como o módulo organizará evidências conceituais para comparar modelos.",
+    "badge": "VISÃO CONCEITUAL",
+    "colContext": "CONTEXTO DE USO",
+    "colEvidence": "EVIDÊNCIA",
+    "colFit": "ADEQUAÇÃO",
+    "noHistory": "Sem histórico disponível",
+    "awaitingE10": "Aguardando E10",
+    "selectedFooterPrefix": "Contexto selecionado:",
+    "selectedFooterSuffix": ". Categorias ilustrativas; o runtime ainda não as classifica automaticamente.",
+    "noRanking": "SEM RANKING",
+    "contexts": {
+      "code": {
+        "name": "Código e desenvolvimento",
+        "desc": "Geração, revisão e depuração"
+      },
+      "reasoning": {
+        "name": "Raciocínio e análise",
+        "desc": "Problemas multi-etapas e síntese"
+      },
+      "extraction": {
+        "name": "Extração estruturada",
+        "desc": "Classificação e saída em schema"
+      },
+      "chat": {
+        "name": "Conversação e suporte",
+        "desc": "Interação e respostas contextualizadas"
+      }
+    }
+  },
+  "decisionStack": {
+    "title": "Como a decisão acontece hoje",
+    "subtitle": "Fluxo real do roteador determinístico E08 e resolução virtual Auto.",
+    "badge": "E08 · ACEITO",
+    "footer": "Não existe ranking adaptativo por desempenho ou otimização de custo/latência. Uma falha de execução não dispara troca silenciosa de provedor.",
+    "steps": {
+      "01": {
+        "title": "Validar e projetar requisitos",
+        "desc": "Validação estrutural e projeção de requisitos da requisição (understanding.go).",
+        "state": "IMPLEMENTADO"
+      },
+      "02": {
+        "title": "Verificar elegibilidade de candidatos",
+        "desc": "Provedor habilitado, modelo disponível e capacidades compatíveis sem mock.",
+        "state": "IMPLEMENTADO"
+      },
+      "03": {
+        "title": "Seleção determinística & virtual auto",
+        "desc": "Prioridade explícita ou ordem administrativa para aihub/auto; transparência no Gateway.",
+        "state": "IMPLEMENTADO"
+      },
+      "04": {
+        "title": "Avaliar resultados por contexto",
+        "desc": "Comparar evidências de execução e qualidade antes de recomendar um modelo.",
+        "state": "E10 · FUTURO"
+      }
+    }
+  },
+  "evolutionTimeline": {
+    "title": "Evolução do módulo",
+    "subtitle": "Separação estrita entre capacidade entregue e roadmap futuro.",
+    "badge": "ROADMAP",
+    "phases": {
+      "01": {
+        "label": "ATUAL",
+        "title": "Base Determinística & Auto",
+        "desc": "Elegibilidade E08, seleção virtual aihub/auto e transparência."
+      },
+      "02": {
+        "label": "E10",
+        "title": "Avaliação por Contexto",
+        "desc": "Construção de evidência comparável a partir de execuções reais."
+      },
+      "03": {
+        "label": "E10",
+        "title": "Políticas & Recomendação",
+        "desc": "Ajustes adaptativos explicáveis e políticas auditáveis."
+      }
+    }
+  },
+  "signals": {
+    "title": "Sinais disponíveis para evoluir o E10",
+    "subtitle": "Tokens reportados quando disponíveis; ausência não é estimada nem tratada como zero.",
+    "badge": "EVIDÊNCIAS",
+    "statusExists": "EXISTE",
+    "statusPending": "PENDENTE",
+    "items": {
+      "routing": {
+        "title": "Decisões de roteamento",
+        "sub": "Registros estruturais, snapshots e headers de transparência"
+      },
+      "outcomeLatency": {
+        "title": "Resultado e latência",
+        "sub": "Ciclo de execução e observabilidade do Gateway"
+      },
+      "providerUsage": {
+        "title": "Uso reportado pelo provedor",
+        "sub": "Tokens e metadados de uso quando retornados (E09.5)"
+      },
+      "contextQuality": {
+        "title": "Contexto e qualidade",
+        "sub": "Classificação semântica de tarefa e avaliação comparativa"
+      }
+    }
+  },
+  "help": {
+    "back": "Voltar",
+    "intro": "O roteamento de inteligência escolhe um par provedor + modelo, ou recusa a chamada com um motivo. Ele não lê o texto da mensagem e não chama outro modelo para decidir.",
+    "contenders": {
+      "title": "Quem entra na disputa",
+      "intro": "Um modelo só compete se passar em tudo isto:",
+      "list": {
+        "provider": "O provedor está ligado, tem credencial e o adaptador de respostas está ativo.",
+        "catalog": "O modelo existe no catálogo e o catálogo está fresco.",
+        "capabilities": "Ele declara as capacidades que a requisição pede (ferramentas, imagem, JSON etc.). Capacidade desconhecida elimina o candidato.",
+        "outputLimit": "Se a requisição pede um limite de saída, esse limite cabe no que o catálogo declara."
+      },
+      "footer": "Saúde do provedor não desempata e não troca o alvo. Se sobrar mais de um candidato sem uma regra que escolha um só, a resposta é ambígua, não “o primeiro da lista”."
+    },
+    "winner": {
+      "title": "Quem ganha",
+      "intro": "A ordem é fixa:",
+      "steps": {
+        "explicitPair": {
+          "title": "Provedor e modelo informados.",
+          "body": "Só aquele par. Se o modelo existir só em outro provedor, recusa. Não troca de provedor."
+        },
+        "providerOnly": {
+          "title": "Só o provedor.",
+          "body": "Ganha se restar exatamente um modelo elegível nesse provedor. Zero ou vários: recusa."
+        },
+        "modelOnly": {
+          "title": "Só o modelo.",
+          "body": "Ganha se existir exatamente um par elegível com esse id. Se o mesmo id aparecer em várias contas do mesmo tipo de provedor, o desempate é rodízio ponderado pela cota (AW-RR). Tipos diferentes de provedor continuam ambíguos."
+        },
+        "nothing": {
+          "title": "Nada informado.",
+          "body": "Se o OpenCode Go tiver exatamente um modelo elegível, é ele. Senão, só escolhe se sobrar um único candidato no hub inteiro, com catálogos frescos. Vários candidatos: recusa."
+        }
+      },
+      "antigravityNoteLead": "sem provedor explícito só fixa o provedor quando existe uma única conta Antigravity.",
+      "antigravityCode": "antigravity:nome"
+    },
+    "auto": {
+      "title": "aihub/auto",
+      "bodyLead": "Esse id não é um modelo real. O fluxo é: lista permitida, depois só modelos com prova de contrato para o formato do pedido (cota, cooldown, smoke, schema), depois o pool com mais peso de cota, e dentro do pool a ordem administrativa. O perfil",
+      "bodyEfficiencyTrail": "empurra Gemini para o fim em chamadas curtas. O perfil",
+      "bodyIntelligenceTrail": "não muda a ordem; só registra que não há evidência extra."
+    }
+  }
+}

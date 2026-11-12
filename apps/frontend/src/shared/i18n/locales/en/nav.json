@@ -1,0 +1,14 @@
+{
+  "sectionOperation": "OPERATIONS",
+  "sectionSystem": "SYSTEM",
+  "overview": "Overview",
+  "providers": "Providers",
+  "catalog": "Models",
+  "intelligence": "Intelligence",
+  "executions": "Executions",
+  "resources": "Resources",
+  "settings": "Settings",
+  "profile": "My profile",
+  "logout": "Sign out",
+  "loggingOut": "Signing out…"
+}

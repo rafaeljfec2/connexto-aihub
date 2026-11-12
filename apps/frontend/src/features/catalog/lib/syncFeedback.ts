@@ -1,3 +1,4 @@
+import i18n from '../../../shared/i18n'
 import { ApiError } from '../../../shared/api/client'
 
 export type CatalogSyncFeedback = {
@@ -14,19 +15,19 @@ export function formatCatalogSyncFeedback(error: unknown): CatalogSyncFeedback |
     if (error.status === 409 && error.type === 'sync_in_progress') {
       return {
         tone: 'warning',
-        message: 'A catalog synchronization is already in progress. Wait for it to finish before starting another.',
+        message: i18n.t('catalog:sync.inProgressConflict'),
       }
     }
     if (error.status === 409 && error.type === 'provider_disabled') {
       return {
         tone: 'warning',
-        message: 'Catalog sync was rejected because the provider is disabled.',
+        message: i18n.t('catalog:sync.providerDisabled'),
       }
     }
     if (error.status === 409) {
       return {
         tone: 'warning',
-        message: error.message || 'Catalog sync conflict (409).',
+        message: error.message || i18n.t('catalog:sync.conflict409'),
       }
     }
     return {
@@ -39,5 +40,5 @@ export function formatCatalogSyncFeedback(error: unknown): CatalogSyncFeedback |
     return { tone: 'error', message: error.message }
   }
 
-  return { tone: 'error', message: 'Catalog sync failed.' }
+  return { tone: 'error', message: i18n.t('catalog:sync.failed') }
 }

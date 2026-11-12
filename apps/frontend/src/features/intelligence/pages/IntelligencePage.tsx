@@ -1,4 +1,5 @@
 import { CircleHelp } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
@@ -11,6 +12,8 @@ import { EvolutionTimelinePanel } from '../components/EvolutionTimelinePanel'
 import { Button } from '../../../shared/ui/button'
 
 export function IntelligencePage() {
+  const { t } = useTranslation('intelligence')
+
   return (
     <div className={appPageClassName('space-y-2.5', 'py-3', 'pb-6')}>
       <AppPageHeader
@@ -19,14 +22,14 @@ export function IntelligencePage() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/intelligence/help">
                 <CircleHelp className="size-3.5 text-cobalt" aria-hidden />
-                Ajuda
+                {t('page.help')}
               </Link>
             </Button>
             <span className="rounded-full border border-cobalt/25 bg-cobalt/10 px-2.5 py-0.5 font-mono text-[0.625rem] font-medium text-cobalt">
-              E08 · ATIVO
+              {t('page.badgeE08Active')}
             </span>
             <span className="rounded-full border border-warning/25 bg-warning/10 px-2.5 py-0.5 font-mono text-[0.625rem] font-medium text-warning">
-              E10 · PLANEJADO
+              {t('page.badgeE10Planned')}
             </span>
           </div>
         }
@@ -49,7 +52,8 @@ export function IntelligencePage() {
       <div className="flex items-center gap-2.5 rounded-[10px] border border-line bg-surface/80 px-3 py-2 text-[0.6875rem] text-secondary">
         <div className="size-1.5 shrink-0 rounded-full bg-cobalt" />
         <p>
-          <strong className="font-semibold text-primary">Princípio de produto:</strong> nenhuma recomendação adaptativa deve alterar o roteamento sem evidência rastreável, avaliação e política explícita.
+          <strong className="font-semibold text-primary">{t('page.productPrincipleLabel')}</strong>{' '}
+          {t('page.productPrincipleText')}
         </p>
       </div>
     </div>

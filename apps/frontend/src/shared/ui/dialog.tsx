@@ -1,5 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from './cn'
 
 type DialogProps = {
@@ -29,6 +30,8 @@ export function Dialog({
   bodyScroll = true,
   align = 'center',
 }: DialogProps) {
+  const { t } = useTranslation('common')
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -55,7 +58,7 @@ export function Dialog({
             </div>
             <DialogPrimitive.Close
               className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-line text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt/40"
-              aria-label="Close dialog"
+              aria-label={t('closeDialog')}
             >
               ✕
             </DialogPrimitive.Close>

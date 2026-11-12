@@ -5,6 +5,6 @@ import { PlaygroundMessageList } from './PlaygroundMessageList'
 describe('PlaygroundMessageList', () => {
   it('renders empty state', () => {
     render(<PlaygroundMessageList messages={[]} />)
-    expect(screen.getByText(/No messages yet/)).toBeTruthy()
+    expect(screen.getByText(/Nenhuma mensagem ainda/)).toBeTruthy()
   })
 })

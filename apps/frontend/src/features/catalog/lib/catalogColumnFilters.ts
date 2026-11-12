@@ -1,4 +1,5 @@
 import type { CatalogModel } from '../types'
+import { catalogListingLabel } from './catalogListingLabel'
 
 export type CatalogColumnFilters = {
   model: string
@@ -15,7 +16,7 @@ export const defaultCatalogColumnFilters: CatalogColumnFilters = {
 }
 
 function listingLabel(model: CatalogModel): string {
-  return model.listing_state || 'Listado'
+  return catalogListingLabel(model)
 }
 
 export function applyCatalogColumnFilters(

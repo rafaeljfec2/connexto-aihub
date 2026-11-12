@@ -1,0 +1,226 @@
+{
+  "page": {
+    "generationsTab": "Generations",
+    "viewsAriaLabel": "Generation views",
+    "apiFootnote": "API · /v1/generations",
+    "searchFootnote": "SEARCH COVERS ONLY LOADED RESULTS",
+    "errors": {
+      "loadGenerations": "Unable to load generations.",
+      "loadGenerationDetail": "Unable to load generation details."
+    }
+  },
+  "enrichment": {
+    "degraded": "ENRICHMENT DEGRADED",
+    "partial": "ENRICHMENT PARTIAL",
+    "unavailable": "ENRICHMENT UNAVAILABLE"
+  },
+  "filters": {
+    "ariaLabel": "Generation filters",
+    "searchPlaceholder": "Search by request, model, or provider…",
+    "searchAriaLabel": "Search loaded generations",
+    "outcomeAriaLabel": "Filter by outcome",
+    "providerAriaLabel": "Filter by provider",
+    "allProviders": "All providers",
+    "periodAriaLabel": "Period",
+    "period30d": "Last 30 days",
+    "period7d": "Last 7 days",
+    "periodAll": "All time",
+    "periodCustom": "Custom",
+    "applyAriaLabel": "Apply filters",
+    "modelLabel": "Model",
+    "modelPlaceholder": "Any model",
+    "modelAriaLabel": "Filter by model ID",
+    "fromLabel": "From",
+    "toLabel": "To",
+    "startDateAriaLabel": "Start date",
+    "endDateAriaLabel": "End date",
+    "outcomes": {
+      "all": "All",
+      "completed": "Completed",
+      "failed": "Failed",
+      "canceled": "Canceled",
+      "timed_out": "Timed out"
+    },
+    "legacy": {
+      "searchPlaceholder": "Filter loaded rows (id, model, cause, status…)",
+      "outcomeAriaLabel": "Outcome filter",
+      "all": "All",
+      "providerAriaLabel": "Provider filter",
+      "allProviders": "All providers",
+      "modelPlaceholder": "Model ID (API filter)",
+      "modelAriaLabel": "Model ID filter",
+      "applyModelFilter": "Apply model filter"
+    }
+  },
+  "table": {
+    "loading": "Loading generations…",
+    "loadError": "Unable to load generations.",
+    "empty": "No generations match the current filters.",
+    "ariaLabel": "Generation history",
+    "title": "Generations",
+    "recordsCount": "{{count, number}} RECORDS · {{originTag}}",
+    "refreshPartialError": "Some results could not be refreshed.",
+    "caption": "Content-free gateway generation history. Search covers loaded results.",
+    "columns": {
+      "date": "Date",
+      "model": "Model",
+      "provider": "Provider",
+      "app": "App",
+      "input": "Input",
+      "output": "Output",
+      "reportedCost": "Reported cost",
+      "listCost": "List cost",
+      "usage": "Usage",
+      "speed": "Speed",
+      "routingOverhead": "Routing overhead",
+      "firstToken": "First token",
+      "finishReason": "Finish reason",
+      "outcome": "Outcome"
+    },
+    "reportedCostTitle": "OpenCode usage.cost (charged amount reported by provider)",
+    "listCostTitle": "OpenCode usage.opencode.list_cost (list price)",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "rowAriaLabel": "{{model}}, {{provider}}, {{outcome}}",
+    "legacy": {
+      "loading": "Loading execution records…",
+      "loadError": "Failed to fetch execution records.",
+      "empty": "No executions match the active criteria.",
+      "time": "Time",
+      "modelProvider": "Model / Provider",
+      "type": "Type",
+      "status": "Status",
+      "duration": "Duration",
+      "completed": "Completed",
+      "failed": "Failed"
+    }
+  },
+  "activity": {
+    "ariaLabel": "Generation activity",
+    "title": "Generation activity",
+    "totalLabel_one": "{{count}} LOADED GENERATION · 30 DAYS",
+    "totalLabel_other": "{{count}} LOADED GENERATIONS · 30 DAYS",
+    "empty": "No generations loaded to show activity for the period.",
+    "barTitle_one": "{{day}}: {{count}} generation",
+    "barTitle_other": "{{day}}: {{count}} generations"
+  },
+  "metrics": {
+    "registered": {
+      "label": "Recorded executions",
+      "note": "Persisted sample of calls"
+    },
+    "completed": {
+      "label": "Completed",
+      "note": "Processed successfully"
+    },
+    "failed": {
+      "label": "Failures",
+      "note": "Require operational investigation"
+    },
+    "avgLatency": {
+      "label": "Average latency",
+      "note": "Average response time",
+      "unit": "ms"
+    }
+  },
+  "detailPanel": {
+    "title": "Execution details",
+    "subtitleError": "LOAD ERROR",
+    "subtitleLoading": "LOADING…",
+    "subtitleSelect": "SELECT A RECORD",
+    "subtitleSelected": "SELECTED",
+    "loadErrorDefault": "Failed to load execution details.",
+    "loadingDetail": "Loading detailed record…",
+    "selectPrompt": "Click an execution in the list to inspect technical metadata.",
+    "requestId": "REQUEST ID",
+    "fields": {
+      "outcome": "Outcome",
+      "model": "Model",
+      "provider": "Provider",
+      "time": "Time",
+      "duration": "Duration",
+      "operation": "Operation"
+    },
+    "exploreCatalog": "Explore model catalog ↗",
+    "summaryTitle": "Record summary (sanitized)"
+  },
+  "drawer": {
+    "eyebrow": "GENERATION DETAILS",
+    "selectPrompt": "Select a generation to inspect its metadata.",
+    "closeAriaLabel": "Close generation details",
+    "loading": "Loading generation details…",
+    "loadErrorDefault": "Unable to load generation details.",
+    "summaryAriaLabel": "Generation summary",
+    "sections": {
+      "summary": "Generation summary",
+      "overview": "Overview",
+      "request": "Request",
+      "providerResponses": "Provider responses"
+    },
+    "metrics": {
+      "providerLatency": "Provider latency",
+      "throughput": "Throughput",
+      "reportedCost": "Reported cost (usage.cost)",
+      "listCost": "List cost (opencode.list_cost)",
+      "tokenFlow": "Input → output tokens"
+    },
+    "fields": {
+      "outcome": "Outcome",
+      "started": "Started",
+      "duration": "Duration",
+      "usageStatus": "Usage status",
+      "provider": "Provider",
+      "modelId": "Model ID",
+      "canonicalModelId": "Canonical model ID",
+      "dataPolicy": "Data policy",
+      "streaming": "Streaming",
+      "firstToken": "First token",
+      "finishReason": "Finish reason",
+      "application": "Application",
+      "executionId": "Execution ID",
+      "requestId": "Request ID",
+      "providerSession": "Provider session",
+      "reportedCost": "Reported cost (usage.cost)",
+      "listCost": "List cost (opencode.list_cost)",
+      "costSource": "Cost source"
+    },
+    "noProviderEvents": "No provider response events were recorded for this generation.",
+    "events": {
+      "routing_selected": "Routing selected",
+      "upstream_request_started": "Provider request started",
+      "upstream_response_received": "Provider response received",
+      "first_output": "First output observed",
+      "generation_finished": "Generation finished",
+      "default": "Observed provider event"
+    }
+  },
+  "format": {
+    "notReported": "Not reported",
+    "emDash": "—",
+    "currencyNotReported": "{{cost}} · currency not reported",
+    "currencyValue": "{{currency}} {{cost}}",
+    "throughput": "{{value}} tok/s",
+    "duration": {
+      "ns": "{{value}} ns",
+      "micros": "{{value}} µs",
+      "millisFixed": "{{value}} ms",
+      "millis": "{{value}} ms",
+      "seconds": "{{value}} s"
+    },
+    "outcomes": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "canceled": "Canceled",
+      "timed_out": "Timed out"
+    },
+    "usageStatus": {
+      "reported": "Reported",
+      "partial": "Partial",
+      "invalid": "Invalid",
+      "unavailable": "Unavailable"
+    }
+  },
+  "validation": {
+    "startDateAfterEnd": "The start date must be on or before the end date."
+  }
+}

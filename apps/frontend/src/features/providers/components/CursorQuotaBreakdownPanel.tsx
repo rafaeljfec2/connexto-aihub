@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { formatNumber } from '../../../shared/i18n/format'
 import { formatQuotaFetchedAt } from '../../overview/lib/formatQuotaDate'
 import type { ProviderQuotaSnapshot } from '../../overview/types/quota'
 import {
@@ -17,6 +19,8 @@ export function CursorQuotaBreakdownPanel({
   snapshot,
   testId = 'cursor-detail-breakdown',
 }: CursorQuotaBreakdownPanelProps) {
+  const { t } = useTranslation('providers')
+
   if (!snapshot || snapshot.provider_id !== 'cursor' || snapshot.status !== 'available') {
     return null
   }
@@ -26,12 +30,7 @@ export function CursorQuotaBreakdownPanel({
   const weeklyStatus = cursorWeeklyIncludedStatus(snapshot)
   const prepaidBalance = cursorPrepaidBalanceUsd(snapshot)
 
-  if (
-    byProduct.length === 0 &&
-    !monthly &&
-    !weeklyStatus &&
-    prepaidBalance === undefined
-  ) {
+  if (byProduct.length === 0 && !monthly && !weeklyStatus && prepaidBalance === undefined) {
     return null
   }
 
@@ -41,10 +40,8 @@ export function CursorQuotaBreakdownPanel({
       data-testid={testId}
     >
       <div className="flex items-center justify-between text-[0.5625rem] uppercase tracking-wider font-semibold text-[#8290A5]">
-        <span>Detalhamento Cursor</span>
-        {weeklyStatus ? (
-          <span className="font-mono text-[0.5rem] text-muted">{weeklyStatus}</span>
-        ) : null}
+        <span>{t('cursorBreakdown.title')}</span>
+        {weeklyStatus ? <span className="font-mono text-[0.5rem] text-muted">{weeklyStatus}</span> : null}
       </div>
 
       {byProduct.length > 0 ? (
@@ -54,9 +51,11 @@ export function CursorQuotaBreakdownPanel({
               key={entry.product}
               className="flex items-center justify-between text-[0.5625rem] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
             >
-              <span className="text-[#AEBBD0]">{entry.label} (semanal)</span>
+              <span className="text-[#AEBBD0]">
+                {entry.label} {t('cursorBreakdown.weeklySuffix')}
+              </span>
               <span className="font-semibold text-[#CBD5E2]">
-                {entry.percent != null ? `${entry.percent.toLocaleString('pt-BR')}% · ` : ''}
+                {entry.percent != null ? `${formatNumber(entry.percent)}% · ` : ''}
                 {formatAccountUsd(entry.usedUsd)}
               </span>
             </div>
@@ -67,20 +66,20 @@ export function CursorQuotaBreakdownPanel({
       {monthly ? (
         <div className="space-y-1 rounded bg-[#0f1722]/50 p-1.5 border border-line/30 text-[0.5625rem]">
           <div className="flex items-center justify-between">
-            <span className="text-[#AEBBD0]">Uso adicional mensal</span>
+            <span className="text-[#AEBBD0]">{t('cursorBreakdown.monthlyAdditional')}</span>
             <span className="font-semibold text-[#CBD5E2]">
               {monthly.usedUsd != null ? formatAccountUsd(monthly.usedUsd) : '—'}
             </span>
           </div>
           <div className="flex items-center justify-between text-[#8290A5]">
-            <span>Limite mensal</span>
+            <span>{t('cursorBreakdown.monthlyLimit')}</span>
             <span>
-              {monthly.limitUsd != null ? formatAccountUsd(monthly.limitUsd) : 'Sem limite definido'}
+              {monthly.limitUsd != null ? formatAccountUsd(monthly.limitUsd) : t('cursorBreakdown.noMonthlyLimit')}
             </span>
           </div>
           {monthly.resetsAt ? (
             <div className="flex items-center justify-between text-[#8290A5]">
-              <span>Reset mensal</span>
+              <span>{t('cursorBreakdown.monthlyReset')}</span>
               <span>{formatQuotaFetchedAt(monthly.resetsAt)}</span>
             </div>
           ) : null}
@@ -89,11 +88,10 @@ export function CursorQuotaBreakdownPanel({
 
       {prepaidBalance !== undefined ? (
         <div className="flex items-center justify-between text-[0.5625rem] rounded bg-[#0f1722]/50 p-1.5 border border-line/30">
-          <span className="text-[#AEBBD0]">Créditos pré-pagos</span>
+          <span className="text-[#AEBBD0]">{t('cursorBreakdown.prepaidBalance')}</span>
           <span className="font-semibold text-[#CBD5E2]">{formatAccountUsd(prepaidBalance)}</span>
         </div>
       ) : null}
     </div>
   )
 }
-

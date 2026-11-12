@@ -1,11 +1,15 @@
 import { ApiError } from '../../../shared/api/client'
+import i18n from '../../../shared/i18n'
 
 const PROXY_CURSOR_AUTH_FAILED = 'proxy_cursor_auth_failed'
 
-const cursorAuthChromiumUnavailablePt =
-  'Chromium indisponível no proxy. Defina CHROMIUM_EXECUTABLE_PATH no Connexto Proxy e reinicie o serviço (em Docker: imagem já inclui /usr/bin/chromium).'
+function cursorAuthChromiumUnavailable(): string {
+  return i18n.t('providers:cursorErrors.chromiumUnavailable')
+}
 
-const cursorAuthGenericFailurePt = 'Falha ao iniciar login web do Cursor no proxy.'
+function cursorAuthGenericFailure(): string {
+  return i18n.t('providers:cursorErrors.genericAuthFailure')
+}
 
 function suggestsChromiumIssue(message: string, type: string): boolean {
   if (type === PROXY_CURSOR_AUTH_FAILED) {
@@ -26,18 +30,18 @@ export function cursorProxyAuthErrorMessage(error: unknown): string {
       return error.message
     }
     if (suggestsChromiumIssue(error.message, error.type)) {
-      return cursorAuthChromiumUnavailablePt
+      return cursorAuthChromiumUnavailable()
     }
   }
   if (error instanceof Error) {
     if (suggestsChromiumIssue(error.message, '')) {
-      return cursorAuthChromiumUnavailablePt
+      return cursorAuthChromiumUnavailable()
     }
     if (error.message.trim() !== '') {
-      return `${cursorAuthGenericFailurePt} ${error.message}`
+      return `${cursorAuthGenericFailure()} ${error.message}`
     }
   }
-  return cursorAuthGenericFailurePt
+  return cursorAuthGenericFailure()
 }
 
 export function mutationErrorMessage(error: unknown): string | undefined {

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { CatalogFilter } from '../types'
 
 type CatalogFiltersProps = {
@@ -6,10 +7,12 @@ type CatalogFiltersProps = {
 }
 
 export function CatalogFilters({ value, onChange }: CatalogFiltersProps) {
+  const { t } = useTranslation('catalog')
+
   return (
     <div className="catalog-filters">
       <label>
-        Provider
+        {t('filters.provider')}
         <input
           type="text"
           value={value.provider ?? ''}
@@ -17,7 +20,7 @@ export function CatalogFilters({ value, onChange }: CatalogFiltersProps) {
         />
       </label>
       <label>
-        Capability
+        {t('filters.capability')}
         <input
           type="text"
           value={value.capability ?? ''}
@@ -25,7 +28,7 @@ export function CatalogFilters({ value, onChange }: CatalogFiltersProps) {
         />
       </label>
       <label>
-        Presence
+        {t('filters.presence')}
         <input
           type="text"
           value={value.presence ?? ''}
@@ -33,7 +36,7 @@ export function CatalogFilters({ value, onChange }: CatalogFiltersProps) {
         />
       </label>
       <label>
-        Listing state
+        {t('filters.listingState')}
         <input
           type="text"
           value={value.listing_state ?? ''}

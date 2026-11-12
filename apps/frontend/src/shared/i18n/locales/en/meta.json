@@ -1,0 +1,67 @@
+{
+  "overview": {
+    "crumb": "Overview",
+    "eyebrow": "CONTROL PLANE / OVERVIEW",
+    "title": "Overview",
+    "lead": "Track providers, quotas, and gateway operations in one place."
+  },
+  "providers": {
+    "crumb": "Providers",
+    "eyebrow": "PROVIDER GOVERNANCE / QUOTAS",
+    "title": "Provider quotas",
+    "lead": "Usage, available balance, and limits for each connection in one place."
+  },
+  "catalog": {
+    "crumb": "Models",
+    "eyebrow": "CATALOG / MODEL DISCOVERY",
+    "title": "Model catalog",
+    "lead": "Find and explore models available on your providers."
+  },
+  "playground": {
+    "crumb": "Playground",
+    "eyebrow": "INFERENCE / STREAMING",
+    "title": "Playground",
+    "lead": "Stream inference through POST /v1/responses (in-memory only)."
+  },
+  "executions": {
+    "crumb": "Executions",
+    "eyebrow": "OBSERVABILITY / GENERATIONS",
+    "title": "Executions",
+    "lead": "Inspect each generation processed by the gateway."
+  },
+  "resources": {
+    "crumb": "Resources",
+    "eyebrow": "GOVERNANCE / RESOURCES",
+    "title": "Policies and concurrency",
+    "lead": "Cross-cutting view of internal gateway limits. Per-provider quotas live under Providers."
+  },
+  "intelligence": {
+    "crumb": "Intelligence",
+    "eyebrow": "INTELLIGENCE / LEARNING ENGINE",
+    "title": "Learning & decisions",
+    "lead": "See how context guides model choice — and which evidence supports each decision."
+  },
+  "intelligenceHelp": {
+    "crumb": "Routing help",
+    "eyebrow": "INTELLIGENCE / ROUTING",
+    "title": "How routing decides",
+    "lead": "Deterministic rules that pick a provider and model, or reject the call."
+  },
+  "profile": {
+    "crumb": "My profile",
+    "eyebrow": "ACCOUNT",
+    "title": "My profile",
+    "lead": "Your AI Hub account details."
+  },
+  "settings": {
+    "crumb": "Settings",
+    "eyebrow": "ACCOUNT / SETTINGS",
+    "title": "Settings",
+    "lead": "Interface and account preferences."
+  },
+  "unknown": {
+    "crumb": "Page",
+    "eyebrow": "CONTROL PLANE",
+    "title": "Page"
+  }
+}

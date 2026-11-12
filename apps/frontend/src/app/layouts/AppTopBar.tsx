@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { getRuntimeMeta, overviewQueryKeys } from '../../features/overview/api/queries'
 import { Button } from '../../shared/ui/button'
 import { APP_SHELL_TOP_BAR_CLASS } from './appShellLayout'
@@ -12,13 +13,8 @@ type AppTopBarProps = {
   onToggleSidebar?: () => void
 }
 
-function formatEnvironmentName(env?: string): string {
-  if (env === 'production') return 'Produção'
-  if (env === 'staging' || env === 'homologation') return 'Homologação'
-  return 'Desenvolvimento'
-}
-
 export function AppTopBar({ crumb, sidebarCollapsed, onOpenMobileNav, onToggleSidebar }: AppTopBarProps) {
+  const { t } = useTranslation(['common', 'overview'])
   const runtimeMeta = useQuery({
     queryKey: overviewQueryKeys.runtimeMeta,
     queryFn: getRuntimeMeta,
@@ -26,9 +22,18 @@ export function AppTopBar({ crumb, sidebarCollapsed, onOpenMobileNav, onToggleSi
     retry: 1,
   })
 
-  const environmentLabel = formatEnvironmentName(runtimeMeta.data?.environment)
+  const env = runtimeMeta.data?.environment
+  const environmentLabel =
+    env === 'production'
+      ? t('shell.envProduction', { ns: 'common' })
+      : env === 'staging' || env === 'homologation'
+        ? t('shell.envStaging', { ns: 'common' })
+        : t('shell.envDevelopment', { ns: 'common' })
+
   const isDemonstrative = runtimeMeta.data?.data_origin === 'demonstrative'
-  const originLabel = isDemonstrative ? 'DADOS DE EXEMPLO' : 'DADOS OPERACIONAIS'
+  const originLabel = isDemonstrative
+    ? t('backendTag.demonstrative', { ns: 'overview' })
+    : t('backendTag.live', { ns: 'overview' })
 
   return (
     <header className={APP_SHELL_TOP_BAR_CLASS}>
@@ -38,7 +43,7 @@ export function AppTopBar({ crumb, sidebarCollapsed, onOpenMobileNav, onToggleSi
           size="sm"
           className="lg:hidden"
           onClick={onOpenMobileNav}
-          aria-label="Open navigation"
+          aria-label={t('shell.openNav', { ns: 'common' })}
         >
           <Menu className="size-4" />
         </Button>
@@ -48,8 +53,16 @@ export function AppTopBar({ crumb, sidebarCollapsed, onOpenMobileNav, onToggleSi
             size="sm"
             className="hidden text-[#94A1B3] hover:text-[#E0E7F1] lg:inline-flex"
             onClick={onToggleSidebar}
-            aria-label={sidebarCollapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar'}
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={
+              sidebarCollapsed
+                ? t('shell.expandSidebar', { ns: 'common' })
+                : t('shell.collapseSidebar', { ns: 'common' })
+            }
+            title={
+              sidebarCollapsed
+                ? t('shell.expandSidebar', { ns: 'common' })
+                : t('shell.collapseSidebar', { ns: 'common' })
+            }
           >
             {sidebarCollapsed ? (
               <PanelLeftOpen className="size-4" />
@@ -59,7 +72,7 @@ export function AppTopBar({ crumb, sidebarCollapsed, onOpenMobileNav, onToggleSi
           </Button>
         ) : null}
         <p className="truncate text-[0.6875rem] text-[#94A1B3]">
-          Workspace <span className="mx-2 text-[#58677B]">/</span>{' '}
+          {t('shell.workspaceCrumb', { ns: 'common' })} <span className="mx-2 text-[#58677B]">/</span>{' '}
           <b className="font-medium text-[#E0E7F1]">{crumb}</b>
         </p>
       </div>

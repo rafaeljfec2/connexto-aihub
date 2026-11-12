@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { formatTokenCount, isUnknownToken } from './formatTokens'
 
 describe('formatTokenCount', () => {
-  it('renders null as Unknown', () => {
-    expect(formatTokenCount(null)).toBe('Unknown')
+  it('renders null as unknown label', () => {
+    expect(formatTokenCount(null)).toBe('Desconhecido')
     expect(isUnknownToken(null)).toBe(true)
   })
 
@@ -13,6 +13,6 @@ describe('formatTokenCount', () => {
   })
 
   it('formats positive counts', () => {
-    expect(formatTokenCount(1200)).toBe('1,200')
+    expect(formatTokenCount(1200)).toBe('1.200')
   })
 })

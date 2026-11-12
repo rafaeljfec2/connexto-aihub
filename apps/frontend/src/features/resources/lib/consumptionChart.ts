@@ -1,11 +1,10 @@
+import { formatDateTime } from '../../../shared/i18n/format'
 import type { AdmissionsDailyRow } from '../types'
 
 const CHART_WIDTH = 560
 const CHART_HEIGHT = 116
 const CHART_PADDING_X = 0
 const CHART_PADDING_Y = 8
-
-const WEEKDAY_PT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'] as const
 
 function admissionsChartPoints(daily: AdmissionsDailyRow[]): Array<{ x: number; y: number }> | null {
   if (daily.length === 0) {
@@ -100,7 +99,9 @@ export function consumptionChartDayLabels(daily: AdmissionsDailyRow[]): string[]
     if (Number.isNaN(date.getTime())) {
       return '—'
     }
-    return WEEKDAY_PT[date.getUTCDay()] ?? '—'
+    return formatDateTime(date, { weekday: 'short', timeZone: 'UTC' })
+      .replace(/\./g, '')
+      .toUpperCase()
   })
 }
 

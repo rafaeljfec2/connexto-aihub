@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 type PlaygroundComposerProps = {
   draft: string
   disabled: boolean
@@ -15,17 +17,19 @@ export function PlaygroundComposer({
   onSend,
   onStop,
 }: PlaygroundComposerProps) {
+  const { t } = useTranslation('playground')
+
   return (
     <div className="playground-composer">
       <label className="sr-only" htmlFor="playground-prompt">
-        Message
+        {t('composer.messageLabel')}
       </label>
       <textarea
         id="playground-prompt"
         rows={4}
         value={draft}
         disabled={disabled && !isStreaming}
-        placeholder="Write a prompt to test the selected model…"
+        placeholder={t('composer.placeholder')}
         onChange={(event) => onDraftChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -39,11 +43,11 @@ export function PlaygroundComposer({
       <div className="playground-composer-actions">
         {isStreaming ? (
           <button type="button" className="ghost-button" onClick={onStop}>
-            Stop generation
+            {t('composer.stopGeneration')}
           </button>
         ) : (
           <button type="button" disabled={disabled || draft.trim().length === 0} onClick={onSend}>
-            Send
+            {t('composer.send')}
           </button>
         )}
       </div>

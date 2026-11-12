@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Skeleton } from '../../../shared/ui'
 
 type ProviderQuotaPageFooterProps = Readonly<{
@@ -6,6 +7,8 @@ type ProviderQuotaPageFooterProps = Readonly<{
 }>
 
 export function ProviderQuotaPageFooter({ isLoading = false }: ProviderQuotaPageFooterProps) {
+  const { t } = useTranslation('providers')
+
   return (
     <div className="providers-page-footer" data-testid="providers-page-footer">
       {isLoading ? (
@@ -21,9 +24,8 @@ export function ProviderQuotaPageFooter({ isLoading = false }: ProviderQuotaPage
         <div className="providers-bottominfo">
           <ShieldCheck className="size-3.5 shrink-0 text-accent-light" aria-hidden />
           <p>
-            <strong className="text-primary">Leitura confiável:</strong> sem leitura de quota
-            quando o provedor não reportar dados — nunca saldo estimado. Utilização por execução
-            permanece em Execuções (E09.5), separada desta franquia oficial.
+            <strong className="text-primary">{t('page.footerReliableTitle')}</strong>{' '}
+            {t('page.footerReliableBody')}
           </p>
         </div>
       )}
@@ -34,8 +36,8 @@ export function ProviderQuotaPageFooter({ isLoading = false }: ProviderQuotaPage
         </footer>
       ) : (
         <footer className="providers-page-footnote">
-          <span>FONTES · PROVIDER-REPORTED · GATEWAY-METERED · MANUAL ALLOWANCE</span>
-          <span>CONNEXTO AI HUB / PROVIDER QUOTAS</span>
+          <span>{t('page.footnoteSources')}</span>
+          <span>{t('page.footnoteBrand')}</span>
         </footer>
       )}
     </div>

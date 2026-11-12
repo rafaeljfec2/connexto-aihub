@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../shared/ui/cn'
+import { formatNumber } from '../../../shared/i18n/format'
 import { globalConcurrencyOccupancy } from '../lib/summaryMetrics'
 import { isConcurrencySaturated } from '../lib/quotaUtilization'
 import { concurrencyPolicyDisplayName, formatScopeLabel } from '../lib/scopeLabel'
@@ -21,6 +23,7 @@ export function ConcurrencyPanel({
   snapshotFetchedAtMs,
   policiesFetchedAtMs,
 }: ConcurrencyPanelProps) {
+  const { t } = useTranslation('resources')
   const snapshotByPolicy = new Map(snapshots.map((row) => [row.policy_id, row]))
   const { active: globalActive, limit: globalLimit } = globalConcurrencyOccupancy(snapshots)
   const globalSaturated =
@@ -33,23 +36,31 @@ export function ConcurrencyPanel({
 
   const distributionRows = snapshots.filter((row) => row.enabled && row.concurrency_limit > 0)
 
+  const tableHeadings = [
+    t('concurrency.policies.table.policy'),
+    t('concurrency.policies.table.scope'),
+    t('concurrency.policies.table.limit'),
+    t('concurrency.policies.table.inUse'),
+    t('concurrency.policies.table.state'),
+  ] as const
+
   return (
     <div className="resources-concurrency-stack">
       <div className="resources-overview-grid">
       <section className="resources-panel">
         <div className="resources-panel-head">
           <div>
-            <h3 className="resources-panel-title">Uso de concorrência</h3>
-            <p className="resources-panel-subtitle">Execuções simultâneas em relação ao limite</p>
+            <h3 className="resources-panel-title">{t('concurrency.usage.title')}</h3>
+            <p className="resources-panel-subtitle">{t('concurrency.usage.subtitle')}</p>
           </div>
           <UtilizationStateBadge
             variant={globalLimit <= 0 ? 'muted' : globalSaturated ? 'warn' : 'ok'}
           >
             {globalLimit <= 0
-              ? 'Sem limite global'
+              ? t('state.noGlobalLimit')
               : globalSaturated
-                ? 'Limite atingido'
-                : 'Dentro do limite'}
+                ? t('state.limitReached')
+                : t('state.withinLimit')}
           </UtilizationStateBadge>
         </div>
 
@@ -65,9 +76,13 @@ export function ConcurrencyPanel({
             )}
           </strong>
           {globalPercent !== null ? (
-            <span>{globalPercent.toLocaleString('pt-BR')}% EM USO</span>
+            <span>
+              {t('concurrency.usage.percentInUse', {
+                value: formatNumber(globalPercent),
+              })}
+            </span>
           ) : (
-            <span>SEM LIMITE GLOBAL</span>
+            <span>{t('concurrency.usage.noGlobalLimit')}</span>
           )}
         </div>
 
@@ -80,17 +95,14 @@ export function ConcurrencyPanel({
               />
             </div>
             <div className="resources-chart-labels">
-              <span>0 SLOTS</span>
-              <span>{globalLimit} SLOTS CONFIGURADOS</span>
+              <span>{t('concurrency.usage.chartZeroSlots')}</span>
+              <span>{t('concurrency.usage.chartConfiguredSlots', { limit: globalLimit })}</span>
             </div>
           </>
         ) : null}
 
         <div className="resources-notice">
-          <p>
-            Os limites efetivos dependem das políticas configuradas e do snapshot do backend. A tela não
-            infere um limite quando a API não o envia.
-          </p>
+          <p>{t('concurrency.usage.notice')}</p>
         </div>
         <SectionFetchedAt updatedAtMs={snapshotFetchedAtMs} />
       </section>
@@ -98,8 +110,8 @@ export function ConcurrencyPanel({
       <section className="resources-panel">
         <div className="resources-panel-head">
           <div>
-            <h3 className="resources-panel-title">Distribuição de concorrência</h3>
-            <p className="resources-panel-subtitle">Ocupação por escopo habilitado</p>
+            <h3 className="resources-panel-title">{t('concurrency.distribution.title')}</h3>
+            <p className="resources-panel-subtitle">{t('concurrency.distribution.subtitle')}</p>
           </div>
         </div>
         <div className="resources-scope-list">
@@ -137,9 +149,9 @@ export function ConcurrencyPanel({
             )
           })}
           {isLoading ? (
-            <p className="resources-empty">Carregando concorrência…</p>
+            <p className="resources-empty">{t('concurrency.distribution.loading')}</p>
           ) : distributionRows.length === 0 ? (
-            <p className="resources-empty">Nenhum limite de concorrência habilitado.</p>
+            <p className="resources-empty">{t('concurrency.distribution.empty')}</p>
           ) : null}
         </div>
       </section>
@@ -148,21 +160,21 @@ export function ConcurrencyPanel({
       <section className="resources-panel">
         <div className="resources-panel-head">
           <div>
-            <h3 className="resources-panel-title">Políticas de concorrência</h3>
-            <p className="resources-panel-subtitle">Limites simultâneos configurados</p>
+            <h3 className="resources-panel-title">{t('concurrency.policies.title')}</h3>
+            <p className="resources-panel-subtitle">{t('concurrency.policies.subtitle')}</p>
           </div>
           <span className="font-mono text-[9px] text-[#8290A5]">/api/concurrency-policies</span>
         </div>
         {isLoading ? (
-          <p className="resources-empty">Carregando políticas de concorrência…</p>
+          <p className="resources-empty">{t('concurrency.policies.loading')}</p>
         ) : policies.length === 0 ? (
-          <p className="resources-empty">Nenhuma política de concorrência configurada.</p>
+          <p className="resources-empty">{t('concurrency.policies.empty')}</p>
         ) : (
           <div className="resources-table-scroll scrollbar-slim">
             <table className="resources-table min-w-[480px]">
               <thead>
                 <tr className="border-b border-line">
-                  {['Política', 'Escopo', 'Limite', 'Em uso', 'Estado'].map((heading) => (
+                  {tableHeadings.map((heading) => (
                     <th key={heading}>{heading}</th>
                   ))}
                 </tr>
@@ -191,7 +203,11 @@ export function ConcurrencyPanel({
                         <UtilizationStateBadge
                           variant={!policy.enabled ? 'muted' : saturatedRow ? 'warn' : 'ok'}
                         >
-                          {!policy.enabled ? 'Inativa' : saturatedRow ? 'Limite atingido' : 'Ativa'}
+                          {!policy.enabled
+                            ? t('state.inactive')
+                            : saturatedRow
+                              ? t('state.limitReached')
+                              : t('state.active')}
                         </UtilizationStateBadge>
                       </td>
                     </tr>

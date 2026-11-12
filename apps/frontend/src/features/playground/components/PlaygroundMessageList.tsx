@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '../types'
 import { PlaygroundMessageItem } from './PlaygroundMessageItem'
 
@@ -6,10 +7,12 @@ type PlaygroundMessageListProps = {
 }
 
 export function PlaygroundMessageList({ messages }: PlaygroundMessageListProps) {
+  const { t } = useTranslation('playground')
+
   if (messages.length === 0) {
     return (
       <div className="playground-empty" role="status">
-        <p>No messages yet. Select a provider and model, then send a prompt.</p>
+        <p>{t('message.emptyList')}</p>
       </div>
     )
   }

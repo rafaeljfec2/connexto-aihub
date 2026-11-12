@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Trash2 } from 'lucide-react'
 import { Dialog } from '../../../shared/ui'
 import { useProviderMutations } from '../hooks/useProviderMutations'
@@ -22,6 +23,7 @@ export function ProviderManageDrawer({
     return null
   }
 
+  const { t } = useTranslation('providers')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const { validate, enable, disable, patch, remove } = useProviderMutations(provider.id)
   const actionsDisabled =
@@ -42,7 +44,7 @@ export function ProviderManageDrawer({
       className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-red-500/35 bg-red-500/10 px-3 text-[0.6875rem] font-medium text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer disabled:opacity-50 sm:w-auto"
     >
       <Trash2 className="size-3.5" />
-      Remover conta
+      {t('manage.removeAccount')}
     </button>
   ) : (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -52,7 +54,7 @@ export function ProviderManageDrawer({
         onClick={() => setConfirmDelete(false)}
         className="h-8 rounded-md border border-line px-2.5 text-[0.6875rem] font-medium text-secondary hover:bg-white/5 cursor-pointer disabled:opacity-50"
       >
-        Cancelar
+        {t('manage.cancel')}
       </button>
       <button
         type="button"
@@ -67,7 +69,7 @@ export function ProviderManageDrawer({
         }}
         className="h-8 rounded-md border border-red-500/50 bg-red-600 px-3 text-[0.6875rem] font-semibold text-white hover:bg-red-500 cursor-pointer disabled:opacity-50"
       >
-        {remove.isPending ? 'Removendo...' : 'Confirmar remoção'}
+        {remove.isPending ? t('manage.removing') : t('manage.confirmRemove')}
       </button>
     </div>
   )
@@ -78,8 +80,8 @@ export function ProviderManageDrawer({
       onOpenChange={(v) => {
         if (!v) onClose()
       }}
-      title={`Gerenciar provedor: ${provider.name}`}
-      description={`Identificador técnico: ${provider.id}`}
+      title={t('manage.title', { name: provider.name })}
+      description={t('manage.description', { id: provider.id })}
       contentClassName="w-[min(100%-1rem,44rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[94dvh]"
       bodyScroll
     >
@@ -87,7 +89,7 @@ export function ProviderManageDrawer({
         <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised px-2.5 py-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[0.625rem] font-semibold uppercase tracking-wide text-primary">
-              Ações operacionais
+              {t('manage.opsTitle')}
             </h3>
             <ProviderActions
               enabled={provider.enabled}
@@ -111,10 +113,10 @@ export function ProviderManageDrawer({
         <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised px-3 py-2.5">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <h3 className="text-[0.625rem] font-semibold uppercase tracking-wide text-primary">
-              Credenciais e configuração
+              {t('manage.credentialsTitle')}
             </h3>
             <p className="text-[0.625rem] text-muted">
-              Segredos salvos nunca são exibidos; preencha apenas para atualizar.
+              {t('manage.credentialsHint')}
             </p>
           </div>
           <ProviderPatchForm

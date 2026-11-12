@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatDateTime } from '../../../shared/i18n/format'
 import { RefreshButton } from '../../../shared/ui'
 import { useCursorUsageQueries } from '../hooks/useCursorUsageQueries'
 import {
@@ -9,16 +11,19 @@ import {
 import type { CursorUsageAnalyticsEnvelope } from '../types'
 
 export function CursorUsageDrawerSection({ providerId }: Readonly<{ providerId: string }>) {
+  const { t } = useTranslation('overview')
   const { envelope, hasRefetchError, isInitialLoading, isRefreshing, refresh } =
     useCursorUsageQueries(providerId)
 
-  if (isInitialLoading) return <DrawerStatus message="Carregando atividade do Cursor…" />
-  if (!envelope) return <DrawerStatus message="Atividade do console indisponível." />
+  if (isInitialLoading) return <DrawerStatus message={t('cursor.loading')} />
+  if (!envelope) return <DrawerStatus message={t('cursor.consoleUnavailable')} />
   if (envelope.status === 'collecting') {
-    return <DrawerStatus message="Coletando dados do console Grok…" />
+    return <DrawerStatus message={t('cursor.collectingGrok')} />
   }
   if (envelope.analytics === undefined) {
-    return <DrawerStatus message={envelope.error?.message ?? 'Sem leitura de atividade do console.'} />
+    return (
+      <DrawerStatus message={envelope.error?.message ?? t('cursor.noConsoleActivity')} />
+    )
   }
 
   return (
@@ -51,6 +56,7 @@ function CursorUsageDrawerContent({
   isRefreshing: boolean
   onRefresh: () => void
 }>) {
+  const { t } = useTranslation('overview')
   const metrics = envelope.analytics?.dailyMetrics ?? []
   const summary = useMemo(() => summarizeCursorDailyMetrics(metrics), [metrics])
   const series = useMemo(() => buildCursorDailySeries(metrics, 'agent').slice(-14), [metrics])
@@ -63,7 +69,7 @@ function CursorUsageDrawerContent({
         <DrawerHeading />
         <RefreshButton
           className="providers-primary-action !p-2"
-          aria-label="Atualizar uso do Cursor"
+          aria-label={t('cursor.refreshAria')}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
           iconOnly
@@ -71,29 +77,49 @@ function CursorUsageDrawerContent({
         />
       </div>
       <div className="cursor-drawer-usage-metrics">
-        <UsageMetric label="Requisições do agente" value={summary.agentRequests} secondaryLabel="Chat" secondary={summary.chatRequests} />
-        <UsageMetric label="Linhas adicionadas" value={summary.linesAdded} secondaryLabel="Aceitas" secondary={summary.acceptedLinesAdded} />
-        <UsageMetric label="Applies" value={summary.totalApplies} secondaryLabel="Aceites" secondary={summary.totalAccepts} />
-        <UsageMetric label="Requisições inclusas" value={summary.subscriptionIncludedReqs} secondaryLabel="Uso cobrado" secondary={summary.usageBasedReqs} />
+        <UsageMetric
+          label={t('cursor.agentRequests')}
+          value={summary.agentRequests}
+          secondaryLabel={t('cursor.chat')}
+          secondary={summary.chatRequests}
+        />
+        <UsageMetric
+          label={t('cursor.linesAdded')}
+          value={summary.linesAdded}
+          secondaryLabel={t('cursor.accepted')}
+          secondary={summary.acceptedLinesAdded}
+        />
+        <UsageMetric
+          label={t('cursor.applies')}
+          value={summary.totalApplies}
+          secondaryLabel={t('cursor.accepts')}
+          secondary={summary.totalAccepts}
+        />
+        <UsageMetric
+          label={t('cursor.includedRequests')}
+          value={summary.subscriptionIncludedReqs}
+          secondaryLabel={t('cursor.usageBased')}
+          secondary={summary.usageBasedReqs}
+        />
       </div>
       {envelope.error || hasRefetchError ? (
         <p className="mt-2 text-[0.625rem] text-warning" role="status" data-testid="cursor-drawer-refresh-warning">
-          Falha ao atualizar; exibindo os dados carregados anteriormente.
+          {t('cursor.refetchWarning')}
         </p>
       ) : null}
       <div className="mt-3">
-        <p className="cursor-drawer-usage-label">REQUISIÇÕES DO AGENTE · POR DIA</p>
+        <p className="cursor-drawer-usage-label">{t('cursor.dailyChartTitle')}</p>
         {series.length === 0 ? (
-          <p className="mt-2 text-[0.625rem] text-muted">Sem atividade diária reportada.</p>
+          <p className="mt-2 text-[0.625rem] text-muted">{t('cursor.noDailyActivity')}</p>
         ) : (
-          <div className="cursor-drawer-usage-chart" role="img" aria-label="Requisições do agente por dia">
+          <div className="cursor-drawer-usage-chart" role="img" aria-label={t('cursor.chartAria')}>
             {series.map((point) => (
               <div key={point.date} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
-              <div
-                className="w-full max-w-5 rounded-t-sm bg-cobalt/75"
-                style={{ height: barHeight(point.value, maxRequests) }}
-                title={point.value === undefined ? 'Sem leitura reportada' : String(point.value)}
-              />
+                <div
+                  className="w-full max-w-5 rounded-t-sm bg-cobalt/75"
+                  style={{ height: barHeight(point.value, maxRequests) }}
+                  title={point.value === undefined ? t('cursor.noReadingReported') : String(point.value)}
+                />
                 <span className="font-mono text-[0.4375rem] text-muted">{dayOfMonth(point.date)}</span>
               </div>
             ))}
@@ -101,9 +127,9 @@ function CursorUsageDrawerContent({
         )}
       </div>
       <div className="mt-3">
-        <p className="cursor-drawer-usage-label">USO POR MODELO</p>
+        <p className="cursor-drawer-usage-label">{t('cursor.usageByModelTitle')}</p>
         {models.length === 0 ? (
-          <p className="mt-2 text-[0.625rem] text-muted">Sem uso por modelo reportado.</p>
+          <p className="mt-2 text-[0.625rem] text-muted">{t('cursor.noModelUsage')}</p>
         ) : (
           <ul className="mt-2 space-y-1.5">
             {models.map((model) => (
@@ -117,7 +143,9 @@ function CursorUsageDrawerContent({
       </div>
       {envelope.sourceCollectedAt ? (
         <p className="mt-3 text-[0.5625rem] text-muted">
-          Última coleta: {new Date(envelope.sourceCollectedAt).toLocaleString('pt-BR')}
+          {t('cursor.lastCollect', {
+            at: formatDateTime(envelope.sourceCollectedAt),
+          })}
         </p>
       ) : null}
     </section>
@@ -125,7 +153,8 @@ function CursorUsageDrawerContent({
 }
 
 function DrawerHeading() {
-  return <p className="cursor-drawer-usage-label">ATIVIDADE CURSOR · CONSOLE GROK</p>
+  const { t } = useTranslation('overview')
+  return <p className="cursor-drawer-usage-label">{t('cursor.sectionTitle')}</p>
 }
 
 function UsageMetric({
@@ -138,7 +167,11 @@ function UsageMetric({
     <div className="cursor-drawer-usage-metric">
       <span>{label}</span>
       <strong>{value ?? '—'}</strong>
-      {secondary !== undefined ? <small>{secondaryLabel}: {secondary}</small> : null}
+      {secondary !== undefined ? (
+        <small>
+          {secondaryLabel}: {secondary}
+        </small>
+      ) : null}
     </div>
   )
 }
@@ -152,5 +185,5 @@ function barHeight(value: number | undefined, max: number): number {
 function dayOfMonth(timestamp: string): string {
   const value = Number(timestamp)
   if (!Number.isFinite(value)) return '—'
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', timeZone: 'UTC' }).format(new Date(value))
+  return new Intl.DateTimeFormat(undefined, { day: '2-digit', timeZone: 'UTC' }).format(new Date(value))
 }

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, LogOut, Settings, UserRound } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { logoutOperator, operatorSessionQueryKey } from '../../features/auth/api/operatorSession'
 import { useOperatorSession } from '../../features/auth/hooks/useOperatorSession'
@@ -45,6 +46,7 @@ export function AppUserMenu() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const session = useOperatorSession()
+  const { t } = useTranslation(['nav', 'common'])
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -108,6 +110,10 @@ export function AppUserMenu() {
     return null
   }
 
+  const ariaLabel = userEmail
+    ? t('userMenuWithEmail', { ns: 'common', email: userEmail })
+    : t('userMenu', { ns: 'common' })
+
   return (
     <>
       <button
@@ -119,7 +125,7 @@ export function AppUserMenu() {
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
         title={userEmail}
-        aria-label={userEmail ? `Menu do usuário ${userEmail}` : 'Menu do usuário'}
+        aria-label={ariaLabel}
       >
         <span
           className="grid size-8 shrink-0 place-items-center rounded-md border border-cobalt/30 bg-accent-deep text-[0.6875rem] font-semibold text-cobalt"
@@ -139,7 +145,7 @@ export function AppUserMenu() {
             >
               <MenuItem
                 icon={<UserRound className="size-4" />}
-                label="Meu perfil"
+                label={t('profile')}
                 onClick={() => {
                   setOpen(false)
                   navigate('/profile')
@@ -147,7 +153,7 @@ export function AppUserMenu() {
               />
               <MenuItem
                 icon={<Settings className="size-4" />}
-                label="Configurações"
+                label={t('settings')}
                 onClick={() => {
                   setOpen(false)
                   navigate('/settings')
@@ -156,7 +162,7 @@ export function AppUserMenu() {
               <MenuDivider />
               <MenuItem
                 icon={<LogOut className="size-4" />}
-                label={logoutMutation.isPending ? 'Saindo…' : 'Sair'}
+                label={logoutMutation.isPending ? t('loggingOut') : t('logout')}
                 onClick={() => {
                   if (!logoutMutation.isPending) {
                     logoutMutation.mutate()

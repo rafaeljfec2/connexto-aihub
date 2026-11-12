@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '../../../shared/ui/input'
 import type { ResourcesUiFilter } from '../types'
 
@@ -14,10 +15,12 @@ export function ResourcesFilters({
   onChange,
   onApply,
 }: ResourcesFiltersProps) {
+  const { t } = useTranslation('resources')
+
   return (
     <div className="resources-filters">
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">De</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">{t('filters.from')}</span>
         <Input
           type="date"
           value={draft.from}
@@ -26,7 +29,7 @@ export function ResourcesFilters({
         />
       </label>
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">Até</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">{t('filters.to')}</span>
         <Input
           type="date"
           value={draft.to}
@@ -35,13 +38,13 @@ export function ResourcesFilters({
         />
       </label>
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">Provedor</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">{t('filters.provider')}</span>
         <select
           value={draft.provider_id}
           onChange={(event) => onChange({ ...draft, provider_id: event.target.value })}
           className="resources-filters-select"
         >
-          <option value="">Todos os provedores</option>
+          <option value="">{t('filters.allProviders')}</option>
           {providerOptions.map((id) => (
             <option key={id} value={id}>
               {id}
@@ -50,11 +53,11 @@ export function ResourcesFilters({
         </select>
       </label>
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">Modelo</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">{t('filters.model')}</span>
         <Input
           value={draft.model_id}
           onChange={(event) => onChange({ ...draft, model_id: event.target.value })}
-          placeholder="Opcional"
+          placeholder={t('filters.modelPlaceholder')}
           className="h-8 w-[160px] text-xs"
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
@@ -68,7 +71,7 @@ export function ResourcesFilters({
         className="h-8 rounded-md border border-line px-3 text-[0.6875rem] text-secondary hover:bg-white/[0.03]"
         onClick={onApply}
       >
-        Aplicar período
+        {t('filters.applyPeriod')}
       </button>
     </div>
   )

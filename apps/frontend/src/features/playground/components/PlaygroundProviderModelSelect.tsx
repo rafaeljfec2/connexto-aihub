@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { PlaygroundSettings } from '../types'
 
 type PlaygroundProviderModelSelectProps = {
@@ -15,10 +16,12 @@ export function PlaygroundProviderModelSelect({
   disabled,
   onChange,
 }: PlaygroundProviderModelSelectProps) {
+  const { t } = useTranslation('playground')
+
   return (
     <div className="playground-select-row">
       <label>
-        Provider
+        {t('select.provider')}
         <select
           value={settings.providerId}
           disabled={disabled || providers.length === 0}
@@ -27,7 +30,7 @@ export function PlaygroundProviderModelSelect({
             onChange({ providerId, modelId: '' })
           }}
         >
-          <option value="">Select provider</option>
+          <option value="">{t('select.selectProvider')}</option>
           {providers.map((provider) => (
             <option key={provider} value={provider}>
               {provider}
@@ -36,13 +39,13 @@ export function PlaygroundProviderModelSelect({
         </select>
       </label>
       <label>
-        Model
+        {t('select.model')}
         <select
           value={settings.modelId}
           disabled={disabled || !settings.providerId || modelsForProvider.length === 0}
           onChange={(event) => onChange({ modelId: event.target.value })}
         >
-          <option value="">Select model</option>
+          <option value="">{t('select.selectModel')}</option>
           {modelsForProvider.map((modelId) => (
             <option key={modelId} value={modelId}>
               {modelId}

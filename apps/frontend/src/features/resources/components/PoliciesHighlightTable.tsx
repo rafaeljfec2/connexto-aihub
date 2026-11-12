@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { QuotaUtilizationEntry, ResourcePolicy } from '../types'
 import { PoliciesTableBody } from './PoliciesTableShared'
 
@@ -16,6 +17,8 @@ export function PoliciesHighlightTable({
   fetchedAtMs,
   onViewPolicies,
 }: PoliciesHighlightTableProps) {
+  const { t } = useTranslation('resources')
+
   return (
     <PoliciesTableBody
       policies={policies}
@@ -23,12 +26,12 @@ export function PoliciesHighlightTable({
       compact
       isLoading={isLoading}
       fetchedAtMs={fetchedAtMs}
-      title="Políticas em destaque"
-      subtitle="Regras configuradas para controlar recursos"
+      title={t('policies.highlightTitle')}
+      subtitle={t('policies.highlightSubtitle')}
       headerAction={
         onViewPolicies ? (
           <button type="button" className="resources-select" onClick={onViewPolicies}>
-            Ver políticas ↗
+            {t('policies.viewPolicies')}
           </button>
         ) : null
       }

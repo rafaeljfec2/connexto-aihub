@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { GridPagination } from '../../../shared/ui'
 import { useGridPagination } from '../../../shared/hooks/useGridPagination'
+import { formatDateTime } from '../../../shared/i18n/format'
+import { formatDurationNs } from '../lib/formatExecution'
 import type { ExecutionRecord } from '../types'
 
 type ExecutionsTableProps = {
@@ -20,6 +23,9 @@ export function ExecutionsTable({
   isLoading,
   isError,
 }: ExecutionsTableProps) {
+  const { t } = useTranslation('executions')
+  const emDash = t('format.emDash')
+
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim()
     return records.filter((record) => {
@@ -37,25 +43,21 @@ export function ExecutionsTable({
 
   if (isLoading) {
     return (
-      <div className="py-8 text-center text-xs text-muted animate-pulse">
-        Carregando registros de execução…
-      </div>
+      <div className="py-8 text-center text-xs text-muted animate-pulse">{t('table.legacy.loading')}</div>
     )
   }
 
   if (isError) {
     return (
       <div className="banner banner-error" role="alert">
-        Falha ao buscar registros de execução.
+        {t('table.legacy.loadError')}
       </div>
     )
   }
 
   if (filtered.length === 0) {
     return (
-      <p className="empty-state py-8 text-center text-xs text-muted">
-        Nenhuma execução corresponde aos critérios ativos.
-      </p>
+      <p className="empty-state py-8 text-center text-xs text-muted">{t('table.legacy.empty')}</p>
     )
   }
 
@@ -66,19 +68,19 @@ export function ExecutionsTable({
           <thead>
             <tr className="border-b border-line font-mono text-[0.5625rem] uppercase tracking-[0.04em] text-muted">
               <th scope="col" className="px-3 py-2.5">
-                Horário
+                {t('table.legacy.time')}
               </th>
               <th scope="col" className="px-3 py-2.5">
-                Modelo / Provedor
+                {t('table.legacy.modelProvider')}
               </th>
               <th scope="col" className="px-3 py-2.5">
-                Tipo
+                {t('table.legacy.type')}
               </th>
               <th scope="col" className="px-3 py-2.5">
-                Status
+                {t('table.legacy.status')}
               </th>
               <th scope="col" className="px-3 py-2.5 text-right">
-                Duração
+                {t('table.legacy.duration')}
               </th>
             </tr>
           </thead>
@@ -89,15 +91,11 @@ export function ExecutionsTable({
               const isSuccess = record.outcome === 'completed'
 
               const time = record.started_at
-                ? new Date(record.started_at).toLocaleTimeString('pt-BR')
-                : '—'
+                ? formatDateTime(record.started_at, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                : emDash
 
-              const durationMs =
-                record.duration_ns !== undefined
-                  ? Math.round(record.duration_ns / 1_000_000)
-                  : undefined
-
-              const durationText = durationMs !== undefined ? `${durationMs} ms` : '—'
+              const durationText =
+                record.duration_ns !== undefined ? formatDurationNs(record.duration_ns) : emDash
 
               return (
                 <tr
@@ -111,8 +109,8 @@ export function ExecutionsTable({
                 >
                   <td className="px-3 py-3 font-mono text-muted">{time}</td>
                   <td className="px-3 py-3">
-                    <div className="font-semibold text-primary">{record.model_id ?? '—'}</div>
-                    <div className="text-[0.625rem] text-secondary">{record.provider_id ?? '—'}</div>
+                    <div className="font-semibold text-primary">{record.model_id ?? emDash}</div>
+                    <div className="text-[0.625rem] text-secondary">{record.provider_id ?? emDash}</div>
                   </td>
                   <td className="px-3 py-3 font-mono text-[0.625rem] text-muted">responses.create</td>
                   <td className="px-3 py-3">
@@ -124,7 +122,7 @@ export function ExecutionsTable({
                       }`}
                     >
                       <i className="size-1 rounded-full bg-current" />
-                      {isSuccess ? 'Concluída' : 'Falha'}
+                      {isSuccess ? t('table.legacy.completed') : t('table.legacy.failed')}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-right font-mono text-muted">{durationText}</td>

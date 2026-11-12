@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { AiBrandIcon, hubProviderIconSlug } from '../../../shared/branding'
 import { Dialog } from '../../../shared/ui'
 import {
@@ -39,6 +40,7 @@ export function AddProviderModal({
   existingProviders,
   onProviderAdded,
 }: AddProviderModalProps) {
+  const { t } = useTranslation('providers')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -75,7 +77,7 @@ export function AddProviderModal({
         return candidate
       }
     }
-    return `${provider.name} Nova`
+    return `${provider.name} ${t('addModal.newAccountSuffix')}`
   }
 
   function handleReset() {
@@ -132,12 +134,12 @@ export function AddProviderModal({
       } else {
         await validateProvider(selectedProvider.id, { credential: credential.trim() })
       }
-      setProbeSuccessMessage('Conexão testada com sucesso! O provedor está acessível e a credencial respondeu.')
+      setProbeSuccessMessage(t('addModal.probeSuccess'))
     } catch (err) {
       setErrorMessage(
         err instanceof Error
-          ? `Falha no teste de conexão: ${err.message}`
-          : 'Falha no teste de conexão. Verifique o segredo informado.',
+          ? t('addModal.probeFailPrefix', { message: err.message })
+          : t('addModal.probeFail'),
       )
     } finally {
       setTestingProbe(false)
@@ -199,18 +201,12 @@ export function AddProviderModal({
         void queryClient.invalidateQueries({ queryKey: ['catalog'] })
       } catch (syncErr) {
         setErrorMessage(
-          syncErr instanceof Error
-            ? syncErr.message
-            : 'Falha temporária ao sincronizar modelos. A conta foi salva e você pode sincronizar novamente.',
+          syncErr instanceof Error ? syncErr.message : t('addModal.syncFailAfterSave'),
         )
         setPhase('sync_failed')
       }
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : 'Falha ao validar a credencial ou conectar com o provedor. Verifique o segredo informado.',
-      )
+      setErrorMessage(err instanceof Error ? err.message : t('addModal.validateFail'))
       setPhase('credential')
     }
   }
@@ -227,11 +223,7 @@ export function AddProviderModal({
       void queryClient.invalidateQueries({ queryKey: ['catalog'] })
       void queryClient.invalidateQueries({ queryKey: providersQueryKeys.list })
     } catch (syncErr) {
-      setErrorMessage(
-        syncErr instanceof Error
-          ? syncErr.message
-          : 'A sincronização de modelos ainda não respondeu. Tente novamente mais tarde.',
-      )
+      setErrorMessage(syncErr instanceof Error ? syncErr.message : t('addModal.syncRetryFail'))
       setPhase('sync_failed')
     }
   }
@@ -244,15 +236,17 @@ export function AddProviderModal({
       onOpenChange={handleClose}
       title={
         phase === 'select'
-          ? 'Adicionar conta de provedor de IA'
-          : `Conectar conta: ${selectedProvider?.name ?? 'Provedor'}`
+          ? t('addModal.titleSelect')
+          : t('addModal.titleConnect', {
+              name: selectedProvider?.name ?? t('addModal.defaultProvider'),
+            })
       }
       description={
         phase === 'select'
-          ? 'Selecione um provedor suportado para adicionar uma nova conta no Connexto AI-HUB.'
+          ? t('addModal.descSelect')
           : isGatewayOnlyProvider
-            ? 'Informe um nome para a conta e a Gateway API Key do Connexto Proxy (X-Gateway-API-Key).'
-            : 'Informe um nome para identificar esta conta e sua chave de API ou token oficial.'
+            ? t('addModal.descGateway')
+            : t('addModal.descCredential')
       }
     >
       <div className="space-y-4 pt-1">
@@ -260,11 +254,11 @@ export function AddProviderModal({
           <div className="space-y-3">
             {availableQuery.isLoading ? (
               <div className="py-8 text-center text-xs text-muted animate-pulse">
-                Carregando provedores disponíveis...
+                {t('addModal.loadingAvailable')}
               </div>
             ) : availableProviders.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted">
-                Nenhum provedor disponível para cadastro no momento.
+                {t('addModal.emptyAvailable')}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2.5 max-h-[380px] overflow-y-auto pr-1 scrollbar-slim">
@@ -292,12 +286,14 @@ export function AddProviderModal({
                           <div className="flex items-center gap-1.5">
                             {accountCount > 0 ? (
                               <span className="rounded bg-cobalt/15 px-2 py-0.5 text-[0.625rem] font-medium text-[#A6C4FF] border border-cobalt/30">
-                                {accountCount === 1 ? '1 conectada' : `${accountCount} conectadas`}
+                                {accountCount === 1
+                                  ? t('addModal.connectedOne')
+                                  : t('addModal.connectedMany', { count: accountCount })}
                               </span>
                             ) : null}
                             <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[0.625rem] font-medium text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500/25">
                               <Plus className="size-2.5" />
-                              Nova conta
+                              {t('addModal.newAccount')}
                             </span>
                           </div>
                         </div>
@@ -340,14 +336,14 @@ export function AddProviderModal({
               className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-primary transition-colors disabled:opacity-50"
             >
               <ArrowLeft className="size-3.5" />
-              Escolher outro provedor
+              {t('addModal.chooseOther')}
             </button>
 
             {errorMessage ? (
               <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
                 <AlertCircle className="size-4 shrink-0 text-red-400 mt-0.5" />
                 <div className="space-y-0.5">
-                  <p className="font-semibold text-red-300">Falha na conexão</p>
+                  <p className="font-semibold text-red-300">{t('addModal.connectionFailedTitle')}</p>
                   <p className="text-red-200/90 leading-relaxed">{errorMessage}</p>
                 </div>
               </div>
@@ -357,7 +353,7 @@ export function AddProviderModal({
               <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
                 <CheckCircle className="size-4 shrink-0 text-emerald-400 mt-0.5" />
                 <div className="space-y-0.5">
-                  <p className="font-semibold text-emerald-300">Conexão verificada</p>
+                  <p className="font-semibold text-emerald-300">{t('addModal.connectionVerifiedTitle')}</p>
                   <p className="text-emerald-200/90 leading-relaxed">{probeSuccessMessage}</p>
                 </div>
               </div>
@@ -368,7 +364,7 @@ export function AddProviderModal({
                 htmlFor="provider-account-name-input"
                 className="block text-xs font-medium text-secondary"
               >
-                Nome da conta
+                {t('addModal.accountNameLabel')}
               </label>
               <input
                 id="provider-account-name-input"
@@ -377,7 +373,9 @@ export function AddProviderModal({
                 disabled={isBusy}
                 value={accountName}
                 onChange={(e) => setAccountName(e.target.value)}
-                placeholder={`Ex: ${selectedProvider?.name ?? 'Provedor'} Trabalho`}
+                placeholder={t('addModal.accountNamePlaceholder', {
+                  name: selectedProvider?.name ?? t('addModal.defaultProvider'),
+                })}
                 className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
               />
             </div>
@@ -391,8 +389,8 @@ export function AddProviderModal({
                   className="block text-xs font-medium text-secondary"
                 >
                   {isGatewayOnlyProvider
-                    ? (selectedProvider?.management_credential_label ?? 'Gateway API Key')
-                    : (selectedProvider?.credential_label ?? 'API Key / Token')}
+                    ? (selectedProvider?.management_credential_label ?? t('addModal.defaultGatewayKey'))
+                    : (selectedProvider?.credential_label ?? t('addModal.defaultCredentialLabel'))}
                 </label>
                 <button
                   type="button"
@@ -407,12 +405,12 @@ export function AddProviderModal({
                   {testingProbe ? (
                     <>
                       <RefreshCw className="size-3 animate-spin text-cobalt" />
-                      <span>Testando...</span>
+                      <span>{t('addModal.testing')}</span>
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="size-3" />
-                      <span>Testar conexão</span>
+                      <span>{t('patchForm.testConnection')}</span>
                     </>
                   )}
                 </button>
@@ -429,7 +427,7 @@ export function AddProviderModal({
                       onChange={(e) => setManagementCredential(e.target.value)}
                       placeholder={
                         selectedProvider?.management_credential_placeholder ??
-                        'Gateway API Key do Connexto Proxy'
+                        t('addModal.gatewayPlaceholder')
                       }
                       className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
                     />
@@ -438,7 +436,7 @@ export function AddProviderModal({
                       disabled={isBusy}
                       onClick={() => setShowMgmtSecret((prev) => !prev)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
-                      aria-label={showMgmtSecret ? 'Ocultar segredo' : 'Exibir segredo'}
+                      aria-label={showMgmtSecret ? t('addModal.hideSecret') : t('addModal.showSecret')}
                     >
                       {showMgmtSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
@@ -453,7 +451,7 @@ export function AddProviderModal({
                       value={credential}
                       onChange={(e) => setCredential(e.target.value)}
                       placeholder={
-                        selectedProvider?.credential_placeholder ?? 'Cole sua chave de autenticação'
+                        selectedProvider?.credential_placeholder ?? t('addModal.credentialPlaceholderDefault')
                       }
                       className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
                     />
@@ -462,7 +460,7 @@ export function AddProviderModal({
                       disabled={isBusy}
                       onClick={() => setShowSecret((prev) => !prev)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
-                      aria-label={showSecret ? 'Ocultar segredo' : 'Exibir segredo'}
+                      aria-label={showSecret ? t('addModal.hideSecret') : t('addModal.showSecret')}
                     >
                       {showSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
@@ -477,8 +475,8 @@ export function AddProviderModal({
                   htmlFor="provider-cursor-gateway-input"
                   className="block text-xs font-medium text-secondary"
                 >
-                  {selectedProvider?.management_credential_label ?? 'Gateway API Key'}{' '}
-                  <span className="font-normal text-muted">(opcional)</span>
+                  {selectedProvider?.management_credential_label ?? t('addModal.defaultGatewayKey')}{' '}
+                  <span className="font-normal text-muted">{t('addModal.optional')}</span>
                 </label>
                 <div className="relative">
                   <input
@@ -490,7 +488,7 @@ export function AddProviderModal({
                     onChange={(e) => setManagementCredential(e.target.value)}
                     placeholder={
                       selectedProvider?.management_credential_placeholder ??
-                      'Chave do gateway do Connexto Proxy (X-Gateway-API-Key)'
+                      t('addModal.cursorGatewayPlaceholder')
                     }
                     className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 pr-10 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
                   />
@@ -499,26 +497,26 @@ export function AddProviderModal({
                     disabled={isBusy}
                     onClick={() => setShowMgmtSecret((prev) => !prev)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
-                    aria-label={showMgmtSecret ? 'Ocultar Gateway API Key' : 'Exibir Gateway API Key'}
+                    aria-label={
+                      showMgmtSecret ? t('addModal.hideGatewayKey') : t('addModal.showGatewayKey')
+                    }
                   >
                     {showMgmtSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
                 <p className="text-[0.6875rem] leading-relaxed text-muted">
-                  Recomendado quando o endpoint for o Connexto Proxy. Após salvar a Gateway API Key,
-                  use <strong className="font-medium text-secondary">Gerenciar provedor</strong> →{' '}
-                  <strong className="font-medium text-secondary">Login web</strong> para autorizar a
-                  coleta de uso.
+                  {t('addModal.cursorGatewayHintLead')}{' '}
+                  <strong className="font-medium text-secondary">{t('addModal.cursorGatewayHintManage')}</strong>{' '}
+                  →{' '}
+                  <strong className="font-medium text-secondary">{t('addModal.cursorGatewayHintWebLogin')}</strong>{' '}
+                  {t('addModal.cursorGatewayHintTail')}
                 </p>
               </div>
             ) : null}
 
             <div className="flex items-center gap-2 rounded-md border border-line/60 bg-[#0D121B] p-2.5 text-[0.6875rem] text-muted">
               <Lock className="size-3.5 shrink-0 text-cobalt" />
-              <span>
-                Criptografia segura em repouso (AES-256-GCM). O segredo nunca é exposto em logs ou
-                respostas de API.
-              </span>
+              <span>{t('addModal.encryptionNote')}</span>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
@@ -528,7 +526,7 @@ export function AddProviderModal({
                 onClick={() => handleClose(false)}
                 className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-secondary hover:bg-white/5 transition-colors disabled:opacity-50"
               >
-                Cancelar
+                {t('addModal.cancel')}
               </button>
               <button
                 type="button"
@@ -544,15 +542,15 @@ export function AddProviderModal({
                   <>
                     <RefreshCw className="size-3.5 animate-spin" />
                     {phase === 'validating'
-                      ? 'Validando...'
+                      ? t('addModal.validating')
                       : phase === 'saving'
-                        ? 'Salvando...'
-                        : 'Sincronizando modelos...'}
+                        ? t('addModal.saving')
+                        : t('addModal.syncingModels')}
                   </>
                 ) : (
                   <>
                     <ShieldCheck className="size-3.5 text-cobalt" />
-                    Validar e adicionar
+                    {t('addModal.validateAndAdd')}
                   </>
                 )}
               </button>
@@ -566,12 +564,11 @@ export function AddProviderModal({
               <CheckCircle className="size-5 shrink-0 text-emerald-400 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-semibold text-emerald-300">
-                  {createdProvider?.name ?? selectedProvider?.name} conectado com sucesso!
+                  {t('addModal.successTitle', {
+                    name: createdProvider?.name ?? selectedProvider?.name ?? t('addModal.defaultProvider'),
+                  })}
                 </p>
-                <p className="text-emerald-200/90 leading-relaxed">
-                  A credencial foi validada, armazenada com segurança e os modelos foram importados
-                  para o catálogo do AI-HUB.
-                </p>
+                <p className="text-emerald-200/90 leading-relaxed">{t('addModal.successBody')}</p>
               </div>
             </div>
 
@@ -579,20 +576,20 @@ export function AddProviderModal({
               <div className="flex items-center justify-between text-secondary">
                 <span className="flex items-center gap-1.5">
                   <Layers className="size-4 text-cobalt" />
-                  Modelos descobertos:
+                  {t('addModal.modelsDiscovered')}
                 </span>
                 <span className="font-semibold text-primary">
                   {syncResult?.counts.discovered ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between text-secondary">
-                <span>Modelos adicionados:</span>
+                <span>{t('addModal.modelsAdded')}</span>
                 <span className="font-semibold text-emerald-400">
                   {syncResult?.counts.added ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between text-secondary">
-                <span>Identidade da conta:</span>
+                <span>{t('addModal.accountIdentity')}</span>
                 <span className="font-mono text-[0.6875rem] text-[#A6C4FF]">
                   {createdProvider?.id ?? selectedProvider?.id}
                 </span>
@@ -608,14 +605,14 @@ export function AddProviderModal({
                 }}
                 className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-secondary hover:bg-white/5 transition-colors"
               >
-                Ver no Catálogo
+                {t('addModal.viewCatalog')}
               </button>
               <button
                 type="button"
                 onClick={() => handleClose(false)}
                 className="rounded-md border border-cobalt/40 bg-accent-deep px-4 py-1.5 text-xs font-semibold text-[#E4EBFC] hover:bg-[#314A78] transition-colors"
               >
-                Concluir
+                {t('addModal.finish')}
               </button>
             </div>
           </div>
@@ -626,12 +623,9 @@ export function AddProviderModal({
             <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
               <AlertCircle className="size-5 shrink-0 text-amber-400 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-semibold text-amber-300">
-                  Conexão cadastrada, sincronização pendente
-                </p>
+                <p className="font-semibold text-amber-300">{t('addModal.syncPendingTitle')}</p>
                 <p className="text-amber-200/90 leading-relaxed">
-                  A conexão com o provedor {selectedProvider?.name} foi criada e a credencial foi
-                  salva. No entanto, a importação inicial dos modelos falhou temporariamente.
+                  {t('addModal.syncPendingBody', { name: selectedProvider?.name ?? t('addModal.defaultProvider') })}
                 </p>
                 {errorMessage ? (
                   <p className="text-amber-300/80 font-mono text-[0.625rem] mt-1">{errorMessage}</p>
@@ -645,7 +639,7 @@ export function AddProviderModal({
                 onClick={() => handleClose(false)}
                 className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-secondary hover:bg-white/5 transition-colors"
               >
-                Fechar
+                {t('addModal.close')}
               </button>
               <button
                 type="button"
@@ -653,7 +647,7 @@ export function AddProviderModal({
                 className="inline-flex items-center gap-1.5 rounded-md border border-cobalt/40 bg-accent-deep px-4 py-1.5 text-xs font-semibold text-[#E4EBFC] hover:bg-[#314A78] transition-colors"
               >
                 <RefreshCw className="size-3.5" />
-                Tentar sincronizar novamente
+                {t('addModal.retrySync')}
               </button>
             </div>
           </div>

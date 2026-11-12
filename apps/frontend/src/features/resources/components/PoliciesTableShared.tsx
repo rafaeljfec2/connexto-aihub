@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { GridPagination } from '../../../shared/ui'
 import { useGridPagination } from '../../../shared/hooks/useGridPagination'
+import { formatNumber } from '../../../shared/i18n/format'
 import { mergePoliciesWithUtilization } from '../lib/summaryMetrics'
 import {
   formatUtilizationDisplay,
@@ -33,9 +35,25 @@ export function PoliciesTableBody({
   subtitle,
   headerAction,
 }: PoliciesTableBodyProps) {
+  const { t } = useTranslation('resources')
   const rows = mergePoliciesWithUtilization(policies, utilization)
   const pagination = useGridPagination(rows)
   const visibleRows = compact ? rows.slice(0, 5) : pagination.pageItems
+
+  const tableHeadings = compact
+    ? ([
+        t('policies.table.policy'),
+        t('policies.table.scope'),
+        t('policies.table.utilization'),
+        t('policies.table.state'),
+      ] as const)
+    : ([
+        t('policies.table.policy'),
+        t('policies.table.scope'),
+        t('policies.table.definedLimit'),
+        t('policies.table.utilization'),
+        t('policies.table.state'),
+      ] as const)
 
   return (
     <section className="resources-panel">
@@ -47,18 +65,15 @@ export function PoliciesTableBody({
         {headerAction}
       </div>
       {isLoading ? (
-        <p className="resources-empty">Carregando políticas…</p>
+        <p className="resources-empty">{t('policies.loading')}</p>
       ) : rows.length === 0 ? (
-        <p className="resources-empty">Nenhuma política de recursos configurada.</p>
+        <p className="resources-empty">{t('policies.empty')}</p>
       ) : (
         <div className="resources-table-scroll scrollbar-slim">
           <table className="resources-table">
             <thead>
               <tr className="border-b border-line">
-                {(compact
-                  ? ['Política', 'Escopo', 'Utilização', 'Estado']
-                  : ['Política', 'Escopo', 'Limite definido', 'Utilização', 'Estado']
-                ).map((heading) => (
+                {tableHeadings.map((heading) => (
                   <th key={heading}>{heading}</th>
                 ))}
               </tr>
@@ -74,20 +89,22 @@ export function PoliciesTableBody({
                       ? 'warn'
                       : 'ok'
                 const stateLabel = !policy.enabled
-                  ? 'Inativa'
+                  ? t('state.inactive')
                   : display?.kind === 'na'
-                    ? 'Inativa'
+                    ? t('state.inactive')
                     : near
                       ? compact
-                        ? 'Próximo do limite'
-                        : 'Atenção'
+                        ? t('state.nearLimit')
+                        : t('state.attention')
                       : compact
-                        ? 'Dentro do limite'
-                        : 'Ativa'
+                        ? t('state.withinLimit')
+                        : t('state.active')
                 const utilizationLabel =
                   display?.kind === 'percent'
                     ? compact
-                      ? `${display.value.toFixed(0)}% do limite`
+                      ? t('utilization.percentOfLimitCompact', {
+                          value: display.value.toFixed(0),
+                        })
                       : formatUtilizationDisplay(display)
                     : '—'
                 return (
@@ -100,7 +117,7 @@ export function PoliciesTableBody({
                     </td>
                     {compact ? null : (
                       <td>
-                        {policy.daily_limit > 0 ? policy.daily_limit.toLocaleString('pt-BR') : '—'}
+                        {policy.daily_limit > 0 ? formatNumber(policy.daily_limit) : '—'}
                       </td>
                     )}
                     <td>{utilizationLabel}</td>
@@ -115,10 +132,7 @@ export function PoliciesTableBody({
         </div>
       )}
       {!compact ? (
-        <p className="resources-measurement-note">
-          Limite e utilização usam os campos de /api/resource-policies e
-          /api/resource-analytics/quota-utilization. Quando o backend não envia um limite, a célula fica em branco.
-        </p>
+        <p className="resources-measurement-note">{t('policies.measurementNote')}</p>
       ) : null}
       {!compact && rows.length > 0 ? (
         <GridPagination

@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { EXECUTION_OUTCOMES } from '../types'
 import type { ExecutionOutcome, ExecutionsUiFilter } from '../types'
 import { cn } from '../../../shared/ui/cn'
@@ -21,26 +22,28 @@ export function ExecutionsFilters({
   onProviderChange,
   onApplyModelFilter,
 }: ExecutionsFiltersProps) {
+  const { t } = useTranslation('executions')
+
   return (
     <div className="executions-filters">
       <label className="executions-search">
         <Search className="size-3.5 text-muted" aria-hidden="true" />
         <Input
           type="search"
-          placeholder="Filter loaded rows (id, model, cause, status…)"
+          placeholder={t('filters.legacy.searchPlaceholder')}
           value={value.search}
           onChange={(event) => onChange({ ...value, search: event.target.value })}
           className="border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
         />
       </label>
 
-      <div className="executions-chips" role="group" aria-label="Outcome filter">
+      <div className="executions-chips" role="group" aria-label={t('filters.legacy.outcomeAriaLabel')}>
         <button
           type="button"
           className={cn('executions-chip', value.outcome === 'all' && 'executions-chip-active')}
           onClick={() => onOutcomeChange('all')}
         >
-          All
+          {t('filters.legacy.all')}
         </button>
         {EXECUTION_OUTCOMES.map((outcome) => (
           <button
@@ -49,7 +52,7 @@ export function ExecutionsFilters({
             className={cn('executions-chip', value.outcome === outcome && 'executions-chip-active')}
             onClick={() => onOutcomeChange(outcome)}
           >
-            {outcome.replace('_', ' ')}
+            {t(`filters.outcomes.${outcome}`)}
           </button>
         ))}
       </div>
@@ -58,9 +61,9 @@ export function ExecutionsFilters({
         className="executions-select"
         value={value.provider_id}
         onChange={(event) => onProviderChange(event.target.value)}
-        aria-label="Provider filter"
+        aria-label={t('filters.legacy.providerAriaLabel')}
       >
-        <option value="">All providers</option>
+        <option value="">{t('filters.legacy.allProviders')}</option>
         {providerOptions.map((providerId) => (
           <option key={providerId} value={providerId}>
             {providerId}
@@ -70,7 +73,7 @@ export function ExecutionsFilters({
 
       <Input
         className="executions-model-input"
-        placeholder="Model ID (API filter)"
+        placeholder={t('filters.legacy.modelPlaceholder')}
         value={value.model_id}
         onChange={(event) => onChange({ ...value, model_id: event.target.value })}
         onKeyDown={(event) => {
@@ -79,7 +82,7 @@ export function ExecutionsFilters({
             onApplyModelFilter()
           }
         }}
-        aria-label="Model ID filter"
+        aria-label={t('filters.legacy.modelAriaLabel')}
       />
 
       <button
@@ -87,7 +90,7 @@ export function ExecutionsFilters({
         className="executions-chip executions-chip-apply"
         onClick={onApplyModelFilter}
       >
-        Apply model filter
+        {t('filters.legacy.applyModelFilter')}
       </button>
     </div>
   )

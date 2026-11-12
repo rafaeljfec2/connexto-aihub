@@ -6,13 +6,21 @@ import {
 } from '../../providers/lib/cursorQuotaMetrics'
 import {
   goPlusChipPercent,
+  formatGoProductLabel,
   goPlusMetersFromSnapshot,
-  productUsageTitle,
 } from '../lib/goPlusMeters'
 import { formatQuotaFetchedAt } from '../lib/formatQuotaDate'
 import type { DataScope, ProviderQuotaMetric, ProviderQuotaSnapshot } from '../types/quota'
+import i18n from '../../../shared/i18n'
+import { formatNumber } from '../../../shared/i18n/format'
 import { OverviewQuotaMetricRow } from './OverviewQuotaMetricRow'
 import { AntigravityQuotaOverview } from './AntigravityQuotaOverview'
+import {
+  overviewDefaultAccountLabel,
+  overviewScopeLabel,
+  overviewStatusLabel,
+  overviewStatusMessage,
+} from '../lib/overviewQuotaLabels'
 
 type ProviderQuotaAccountRowProps = Readonly<{
   snapshots: readonly ProviderQuotaSnapshot[]
@@ -28,43 +36,13 @@ export function accountName(snapshots: readonly ProviderQuotaSnapshot[]): string
     snapshots.find((snapshot) => snapshot.scope === 'subscription') ??
     snapshots.find((snapshot) => snapshot.scope === 'api_key') ??
     snapshots[0]
-  if (primary === undefined) return 'Provedor'
+  if (primary === undefined) return overviewDefaultAccountLabel()
   const product = primary.workspace_name?.trim()
   const base =
     [primary.account_label, primary.provider_name, primary.account_id].find(
       (name) => name.trim().length > 0,
     ) ?? primary.account_id
   return product ? `${base} (${product})` : base
-}
-
-function scopeLabel(scope: DataScope): string {
-  if (scope === 'api_key') return 'Chave API'
-  if (scope === 'account') return 'Conta'
-  if (scope === 'subscription') return 'Assinatura'
-  if (scope === 'workspace') return 'Workspace'
-  return `Escopo ${scope}`
-}
-
-function statusLabel(status: ProviderQuotaSnapshot['status']): string {
-  if (status === 'available') return 'Disponível'
-  if (status === 'rate_limited') return 'Limite da API atingido'
-  if (status === 'timeout') return 'Tempo limite excedido'
-  if (status === 'unconfigured_credential') return 'Credencial ausente'
-  if (status === 'unauthorized') return 'Sem permissão'
-  return 'Sem leitura'
-}
-
-function statusMessage(snapshot: ProviderQuotaSnapshot): string {
-  if (snapshot.status === 'unconfigured_credential' && snapshot.scope === 'account') {
-    return 'Management API Key não configurada'
-  }
-  if (snapshot.status === 'unconfigured_credential') return 'Credencial da chave API não configurada'
-  if (snapshot.status === 'unauthorized') return 'A credencial não tem permissão para esta leitura'
-  if (snapshot.status === 'unsupported') return 'Este provedor não oferece uma leitura oficial configurada'
-  if (snapshot.status === 'rate_limited') return 'O provedor limitou a consulta; tente atualizar depois'
-  if (snapshot.status === 'timeout') return 'A consulta ao provedor excedeu o tempo limite'
-  if (snapshot.status === 'error') return 'Não foi possível consultar os dados oficiais'
-  return 'O provedor não retornou campos do resumo'
 }
 
 function isSummaryMetric(scope: DataScope, metric: string): boolean {
@@ -104,11 +82,7 @@ function availableBalance(snapshot: ProviderQuotaSnapshot): number | undefined {
 }
 
 function formatAvailableBalance(value: number): string {
-  const amount = value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-  return `US$ ${amount}`
+  return formatAccountUsd(value)
 }
 
 function goSummaryLine(snapshots: readonly ProviderQuotaSnapshot[]): string | undefined {
@@ -121,7 +95,8 @@ function goSummaryLine(snapshots: readonly ProviderQuotaSnapshot[]): string | un
   const meters = goPlusMetersFromSnapshot(subscription)
   const percent = goPlusChipPercent(meters)
   if (percent == null) return undefined
-  return `${productUsageTitle(subscription.workspace_name).replace(/ usage$/i, '')} ${percent.toLocaleString('pt-BR')}% used`
+  const title = formatGoProductLabel(subscription.workspace_name)
+  return `${title} ${i18n.t('overview:goPlus.percentUsedSidebar', { percent: formatNumber(percent) })}`
 }
 
 function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }>) {
@@ -137,8 +112,8 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
       data-testid={`quota-scope-${snapshot.account_id}-${snapshot.scope}`}
     >
       <header className="mb-1 flex items-center justify-between gap-2 text-[0.5625rem]">
-        <span className="font-medium text-[#AEBBD0]">{scopeLabel(snapshot.scope)}</span>
-        <span className="text-[#8290A5]">{statusLabel(snapshot.status)}</span>
+        <span className="font-medium text-[#AEBBD0]">{overviewScopeLabel(snapshot.scope)}</span>
+        <span className="text-[#8290A5]">{overviewStatusLabel(snapshot.status)}</span>
       </header>
       {snapshot.status === 'available' && (isAntigravity ? snapshot.quotas.length > 0 : metrics.length > 0) ? (
         isAntigravity ? (
@@ -158,7 +133,9 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
                 className="flex items-baseline justify-between gap-2"
                 data-testid={`quota-monthly-additional-${snapshot.account_id}`}
               >
-                <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">Uso adicional mensal</span>
+                <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">
+                  {i18n.t('overview:quotaRow.monthlyAdditional')}
+                </span>
                 <span className="text-[0.5625rem] text-[#A7B3C3]">
                   {formatAccountUsd(monthlyAdditional.usedUsd)}
                 </span>
@@ -169,7 +146,9 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
                 className="flex items-baseline justify-between gap-2"
                 data-testid={`quota-balance-${snapshot.account_id}`}
               >
-                <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">Saldo disponível</span>
+                <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">
+                  {i18n.t('overview:quotaRow.availableBalance')}
+                </span>
                 <span className="text-[0.5625rem] text-[#A7B3C3]">{formatAvailableBalance(balance)}</span>
               </div>
             ) : null}
@@ -177,11 +156,13 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
         )
       ) : (
         <p className="text-[0.5625rem] text-muted" role="status">
-          {statusMessage(snapshot)}
+          {overviewStatusMessage(snapshot)}
         </p>
       )}
       <p className="mt-1 text-[0.5rem] text-[#68778C]">
-        Consultado em: {formatQuotaFetchedAt(snapshot.source.fetched_at)}
+        {i18n.t('overview:quotaRow.fetchedAt', {
+          at: formatQuotaFetchedAt(snapshot.source.fetched_at),
+        })}
       </p>
     </section>
   )
@@ -242,7 +223,7 @@ export function ProviderQuotaAccountRow({
                 {goLine}
               </span>
               <span className="shrink-0 text-[#8290A5]">
-                {primary ? statusLabel(primary.status) : 'Sem leitura'}
+                {primary ? overviewStatusLabel(primary.status) : overviewStatusLabel('unsupported')}
               </span>
             </div>
           ) : null}
@@ -256,8 +237,11 @@ export function ProviderQuotaAccountRow({
         </div>
       ) : (
         <p className="mt-1 text-[0.5rem] text-[#68778C]">
-          Clique para ver 5h / semanal / mensal
-          {primary ? ` · Consultado em: ${formatQuotaFetchedAt(primary.source.fetched_at)}` : ''}
+          {primary
+            ? i18n.t('overview:quotaRow.goInspectHintWithFetched', {
+                at: formatQuotaFetchedAt(primary.source.fetched_at),
+              })
+            : i18n.t('overview:quotaRow.goInspectHint')}
         </p>
       )}
     </article>

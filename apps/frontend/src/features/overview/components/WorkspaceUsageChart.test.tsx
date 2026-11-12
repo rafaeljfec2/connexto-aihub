@@ -24,7 +24,7 @@ describe('WorkspaceUsageChart', () => {
     render(<WorkspaceUsageChart chart={chart} testIdPrefix="drawer" />)
 
     expect(screen.getByTestId('drawer-chart')).toBeTruthy()
-    expect(screen.getByTestId('drawer-total').textContent).toContain('$17.75')
+    expect(screen.getByTestId('drawer-total').textContent).toMatch(/17[,.]75/)
     expect(screen.getByText('Workspace usage')).toBeTruthy()
     expect(screen.getByText('Go Plus')).toBeTruthy()
     expect(screen.getByTestId('drawer-bar-2026-11-01').className).toContain('is-active')
@@ -36,7 +36,7 @@ describe('WorkspaceUsageChart', () => {
 
     fireEvent.mouseEnter(screen.getByTestId('drawer-bar-2026-11-02'))
     const tooltip = screen.getByTestId('drawer-tooltip')
-    expect(tooltip.textContent).toContain('$5.23')
+    expect(tooltip.textContent).toMatch(/5[,.]23/)
     expect(tooltip.textContent).toContain('novembro')
     expect(tooltip.className).toContain('is-align-start')
   })

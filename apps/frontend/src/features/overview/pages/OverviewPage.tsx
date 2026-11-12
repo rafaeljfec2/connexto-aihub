@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
+import { formatOverviewBackendTag } from '../lib/formatOverviewBackendTag'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { RefreshButton } from '../../../shared/ui'
 import { BackendUnavailableBanner } from '../components/BackendUnavailableBanner'
@@ -10,6 +12,7 @@ import { useOverviewQueries } from '../hooks/useOverviewQueries'
 import '../overviewResponsive.css'
 
 export function OverviewPage() {
+  const { t } = useTranslation('overview')
   const meta = useAppPageMeta()
   const {
     health,
@@ -39,14 +42,7 @@ export function OverviewPage() {
   const dataOrigin = runtimeMeta.data?.data_origin ?? 'live'
   const versionString = runtimeMeta.data?.version ?? 'PREVIEW 01'
 
-  const originTagLabel =
-    dataOrigin === 'demonstrative'
-      ? 'DADOS ILUSTRATIVOS'
-      : dataOrigin === 'partial'
-        ? 'DADOS PARCIAIS'
-        : dataOrigin === 'unavailable'
-          ? 'HISTÓRICO INDISPONÍVEL'
-          : 'DADOS OPERACIONAIS'
+  const originTagLabel = formatOverviewBackendTag(dataOrigin)
 
   return (
     <div className={appPageClassName('overview')}>
@@ -60,6 +56,7 @@ export function OverviewPage() {
           <span className="overview-backend-tag">{originTagLabel}</span>
           <RefreshButton
             className="overview-refresh"
+            label={t('refreshOverview')}
             onRefresh={refetchAll}
             isRefreshing={isRefreshing}
           />
@@ -101,8 +98,8 @@ export function OverviewPage() {
       </div>
 
       <footer className="overview-footnote">
-        <span>ENDPOINTS · /healthz &nbsp; /readyz &nbsp; /diagnostics/providers</span>
-        <span>CONNEXTO AI HUB / {versionString}</span>
+        <span>{t('page.endpointsFootnote')}</span>
+        <span>{t('page.brandFootnote', { version: versionString })}</span>
       </footer>
     </div>
   )

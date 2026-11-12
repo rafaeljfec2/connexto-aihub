@@ -1,3 +1,4 @@
+import i18n from 'i18next'
 import type { GenerationFilterDraft } from '../components/GenerationsFilters'
 
 export function validateGenerationFilterDraft(
@@ -6,7 +7,7 @@ export function validateGenerationFilterDraft(
   if (filters.start_date && filters.end_date && filters.start_date > filters.end_date) {
     return {
       ok: false,
-      message: 'A data inicial deve ser anterior ou igual à data final.',
+      message: i18n.t('executions:validation.startDateAfterEnd'),
     }
   }
   return { ok: true }

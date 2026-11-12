@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { buildProviderUsageDistribution } from '../lib/usageDistribution'
 import type { ProviderUsageDistributionResponse, ProviderUsageResponse } from '../types'
 import { SectionFetchedAt } from './SectionFetchedAt'
@@ -17,23 +18,24 @@ export function UsageDistribution({
   isError,
   fetchedAtMs,
 }: UsageDistributionProps) {
+  const { t } = useTranslation('resources')
   const slices = buildProviderUsageDistribution(distribution?.by_provider ?? [])
 
   return (
-    <section className="resources-panel" aria-label="Distribuição de uso">
+    <section className="resources-panel" aria-label={t('usageDistribution.ariaLabel')}>
       <div className="resources-panel-head">
         <div>
-          <h3 className="resources-panel-title">Distribuição de uso</h3>
-          <p className="resources-panel-subtitle">Composição do consumo informado pelos provedores</p>
+          <h3 className="resources-panel-title">{t('usageDistribution.title')}</h3>
+          <p className="resources-panel-subtitle">{t('usageDistribution.subtitle')}</p>
         </div>
       </div>
 
       {isLoading ? (
-        <p className="resources-empty">Carregando distribuição…</p>
+        <p className="resources-empty">{t('usageDistribution.loading')}</p>
       ) : isError ? (
-        <p className="resources-empty">Distribuição de uso indisponível para o período selecionado.</p>
+        <p className="resources-empty">{t('usageDistribution.unavailable')}</p>
       ) : slices.length === 0 ? (
-        <p className="resources-empty">Nenhum uso por provedor no período selecionado.</p>
+        <p className="resources-empty">{t('usageDistribution.empty')}</p>
       ) : (
         <div className="resources-distribution-bars">
           {slices.map((slice, index) => (
@@ -55,9 +57,14 @@ export function UsageDistribution({
       )}
 
       <p className="resources-measurement-note">
-        A origem e as unidades vêm de /api/resource-analytics/provider-usage/distribution.
+        {t('usageDistribution.measurementSource')}
         {usage
-          ? ` Medição: ${usage.reported_executions} reportadas · ${usage.partial_executions} parciais · ${usage.unavailable_executions} indisponíveis · ${usage.invalid_executions} inválidas.`
+          ? t('usageDistribution.measurementCounts', {
+              reported: usage.reported_executions,
+              partial: usage.partial_executions,
+              unavailable: usage.unavailable_executions,
+              invalid: usage.invalid_executions,
+            })
           : null}
       </p>
 

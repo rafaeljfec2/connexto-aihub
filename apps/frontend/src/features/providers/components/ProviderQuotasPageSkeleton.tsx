@@ -1,41 +1,48 @@
+import { useTranslation } from 'react-i18next'
 import { Panel, PanelHeader, Skeleton as SharedSkeleton } from '../../../shared/ui'
-
-const summaryCards = [
-  ['Provedores monitorados', 'Conexões cadastradas no gateway', 'w-8'],
-  ['Próximos do limite', 'Sinal oficial do provedor', 'w-7'],
-  ['Limite atingido', 'Requer atenção imediata', 'w-7'],
-  ['Sem leitura de franquia', 'Monitoramento não disponível na API', 'w-7'],
-] as const
-
-const tableColumns = [
-  'Provedor',
-  'Franquia monitorada',
-  'Consumo',
-  'Disponível',
-  'Situação',
-  'Ações',
-]
 
 function Skeleton({ className }: Readonly<{ className?: string }>) {
   return <SharedSkeleton className={className} motionSafe />
 }
 
 export function ProviderQuotasPageSkeleton() {
+  const { t } = useTranslation('providers')
+
+  const summaryCards = [
+    [t('governance.monitoredTitle'), t('governance.monitoredSubtitle'), 'w-8'],
+    [t('governance.nearLimitTitle'), t('governance.nearLimitSubtitle'), 'w-7'],
+    [t('governance.atLimitTitle'), t('governance.atLimitSubtitle'), 'w-7'],
+    [t('governance.withoutReadingTitle'), t('governance.withoutReadingSubtitle'), 'w-7'],
+  ] as const
+
+  const tableColumns = [
+    t('table.colProvider'),
+    t('table.colFranchise'),
+    t('table.colConsumption'),
+    t('table.colAvailable'),
+    t('table.colSituation'),
+    t('table.colActions'),
+  ]
+
   return (
     <>
       <span className="sr-only" data-testid="provider-quotas-skeleton-status" role="status">
-        Carregando franquias dos provedores
+        {t('skeleton.loadingSr')}
       </span>
-      <ProviderQuotaSummarySkeleton />
+      <ProviderQuotaSummarySkeleton summaryCards={summaryCards} />
       <div className="providers-layout" data-testid="providers-page-layout">
-        <ProviderQuotaTableSkeleton />
-        <ProviderQuotaDetailsSkeleton />
+        <ProviderQuotaTableSkeleton tableColumns={tableColumns} title={t('table.title')} subtitle={t('table.subtitle')} />
+        <ProviderQuotaDetailsSkeleton t={t} />
       </div>
     </>
   )
 }
 
-function ProviderQuotaSummarySkeleton() {
+function ProviderQuotaSummarySkeleton({
+  summaryCards,
+}: Readonly<{
+  summaryCards: ReadonlyArray<readonly [string, string, string]>
+}>) {
   return (
     <div className="providers-metrics" data-testid="provider-quotas-page-skeleton" aria-hidden="true">
       {summaryCards.map(([label, detail, valueWidth]) => (
@@ -51,13 +58,17 @@ function ProviderQuotaSummarySkeleton() {
   )
 }
 
-function ProviderQuotaTableSkeleton() {
+function ProviderQuotaTableSkeleton({
+  tableColumns,
+  title,
+  subtitle,
+}: Readonly<{ tableColumns: string[]; title: string; subtitle: string }>) {
   return (
     <Panel className="providers-panel min-w-0" aria-hidden="true">
       <PanelHeader
         className="!mb-2 shrink-0"
-        title="Consumo por provedor"
-        subtitle="Cada provedor pode ter unidade e ciclo diferentes · ordenação alfabética"
+        title={title}
+        subtitle={subtitle}
         action={<Skeleton className="h-[34px] w-52 rounded-md" />}
       />
       <div className="providers-table-body">
@@ -141,12 +152,14 @@ function ProviderQuotaPaginationSkeleton() {
   )
 }
 
-function ProviderQuotaDetailsSkeleton() {
+function ProviderQuotaDetailsSkeleton({
+  t,
+}: Readonly<{ t: ReturnType<typeof useTranslation>['t'] }>) {
   return (
     <Panel className="providers-panel min-w-0" aria-hidden="true" data-testid="provider-quota-details-skeleton">
       <div className="providers-detail-head shrink-0">
-        <strong>Detalhe da franquia</strong>
-        <small>INSPEÇÃO DE GOVERNANÇA</small>
+        <strong>{t('detail.detailTitle')}</strong>
+        <small>{t('skeleton.governanceInspection')}</small>
       </div>
       <div className="providers-detail-body">
         <div className="providers-provider-name mt-2 border-b border-line/70 pb-2">
@@ -156,13 +169,13 @@ function ProviderQuotaDetailsSkeleton() {
             <Skeleton className="h-2 w-28" />
           </div>
         </div>
-        <ProviderQuotaCardSkeleton />
+        <ProviderQuotaCardSkeleton consumptionLabel={t('skeleton.franchiseConsumptionLabel')} />
         <div className="mt-1">
-          <ProviderQuotaDetailRowSkeleton label="Leitura principal" />
-          <ProviderQuotaDetailRowSkeleton label="Renovação / reset" />
-          <ProviderQuotaDetailRowSkeleton label="Fonte da medição" />
-          <ProviderQuotaDetailRowSkeleton label="Última atualização" />
-          <ProviderQuotaDetailRowSkeleton label="Situação" />
+          <ProviderQuotaDetailRowSkeleton label={t('skeleton.rowPrimaryReading')} />
+          <ProviderQuotaDetailRowSkeleton label={t('skeleton.rowReset')} />
+          <ProviderQuotaDetailRowSkeleton label={t('skeleton.rowSource')} />
+          <ProviderQuotaDetailRowSkeleton label={t('skeleton.rowUpdatedAt')} />
+          <ProviderQuotaDetailRowSkeleton label={t('skeleton.rowSituation')} />
         </div>
         <div className="providers-source-note space-y-1.5">
           <Skeleton className="h-2 w-full" />
@@ -180,10 +193,10 @@ function ProviderQuotaDetailsSkeleton() {
   )
 }
 
-function ProviderQuotaCardSkeleton() {
+function ProviderQuotaCardSkeleton({ consumptionLabel }: Readonly<{ consumptionLabel: string }>) {
   return (
     <div className="providers-quota-box">
-      <div className="providers-quota-box-label">CONSUMO DA FRANQUIA</div>
+      <div className="providers-quota-box-label">{consumptionLabel}</div>
       <div className="providers-quota-box-main">
         <Skeleton className="h-6 w-14" />
         <Skeleton className="h-3 w-12" />

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { formatNumber } from '../../../shared/i18n/format'
 import { globalQuotaUtilizationPercent } from '../lib/summaryMetrics'
 import {
   admissionsChartEndpoint,
@@ -30,6 +32,7 @@ export function ConsumptionChart({
   isError,
   fetchedAtMs,
 }: ConsumptionChartProps) {
+  const { t } = useTranslation('resources')
   const headlinePercent = globalQuotaUtilizationPercent(quotaUtilization)
   const areaPath = buildAdmissionsAreaPath(daily)
   const linePath = buildAdmissionsLinePath(daily)
@@ -38,11 +41,11 @@ export function ConsumptionChart({
   const hasSeries = daily.length > 0 && areaPath !== null
 
   return (
-    <section className="resources-panel" aria-label="Consumo de recursos">
+    <section className="resources-panel" aria-label={t('consumption.ariaLabel')}>
       <div className="resources-panel-head">
         <div>
-          <h3 className="resources-panel-title">Consumo de recursos</h3>
-          <p className="resources-panel-subtitle">Evolução agregada no período</p>
+          <h3 className="resources-panel-title">{t('consumption.title')}</h3>
+          <p className="resources-panel-subtitle">{t('consumption.subtitle')}</p>
         </div>
         <button type="button" className="resources-select" onClick={onTogglePeriod}>
           {periodLabel} ⌄
@@ -51,22 +54,28 @@ export function ConsumptionChart({
 
       <div className="resources-consumption-hero">
         <strong>
-          {headlinePercent === null ? totalAdmitted.toLocaleString('pt-BR') : `${headlinePercent.toFixed(0)}%`}
+          {headlinePercent === null
+            ? formatNumber(totalAdmitted)
+            : `${headlinePercent.toFixed(0)}%`}
         </strong>
-        <span>{headlinePercent === null ? 'ADMISSÕES NO PERÍODO' : 'DO LIMITE AGREGADO'}</span>
+        <span>
+          {headlinePercent === null
+            ? t('consumption.headlineAdmissions')
+            : t('consumption.headlineAggregateLimit')}
+        </span>
       </div>
 
       {isLoading ? (
-        <p className="resources-empty">Carregando consumo…</p>
+        <p className="resources-empty">{t('consumption.loading')}</p>
       ) : isError ? (
-        <p className="resources-empty">Série de admissões indisponível para o período selecionado.</p>
+        <p className="resources-empty">{t('consumption.seriesUnavailable')}</p>
       ) : hasSeries ? (
         <svg
           className="resources-chart-svg"
           viewBox={consumptionChartViewBox}
           preserveAspectRatio="none"
           role="img"
-          aria-label="Gráfico de consumo de recursos no período"
+          aria-label={t('consumption.chartAriaLabel')}
         >
           <defs>
             <linearGradient id="resources-admissions-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -86,7 +95,7 @@ export function ConsumptionChart({
           ) : null}
         </svg>
       ) : (
-        <p className="resources-empty">Nenhuma admissão no período selecionado.</p>
+        <p className="resources-empty">{t('consumption.noAdmissions')}</p>
       )}
 
       {dayLabels.length > 0 ? (

@@ -1,41 +1,39 @@
+import { useTranslation } from 'react-i18next'
 import { Brain } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CopyTextButton } from '../../../shared/ui'
 import { formatCatalogContextLimit, formatPricingCell } from '../lib/formatCatalogPricing'
 import { catalogProviderLabel } from '../lib/catalogProviderLabel'
+import { catalogListingLabel } from '../lib/catalogListingLabel'
 import type { CatalogModel } from '../types'
 
 type CatalogModelDetailPanelProps = {
   model: CatalogModel | null
 }
 
-function connectorDescription(model: CatalogModel): string {
-  const provider = catalogProviderLabel(model.provider)
-  return `Modelo listado pelo provedor ${provider}. Consulte o provedor para os metadados completos.`
-}
-
 export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps) {
+  const { t } = useTranslation('catalog')
+
   if (!model) {
     return (
       <aside className="catalog-detail-panel">
         <div className="catalog-detail-top">
-          <strong>Detalhes do modelo</strong>
-          <span>SELECIONE UM MODELO</span>
+          <strong>{t('table.detailTitle')}</strong>
+          <span>{t('table.selectModel')}</span>
         </div>
-        <p className="py-8 text-center text-xs text-muted">
-          Selecione uma linha do catálogo para ver os metadados disponíveis.
-        </p>
+        <p className="py-8 text-center text-xs text-muted">{t('detail.selectHint')}</p>
       </aside>
     )
   }
 
   const caps = Object.entries(model.capabilities ?? {})
+  const providerLabel = catalogProviderLabel(model.provider)
 
   return (
     <aside className="catalog-detail-panel">
       <div className="catalog-detail-top">
-        <strong>Detalhes do modelo</strong>
-        <span>SELECIONADO</span>
+        <strong>{t('detail.title')}</strong>
+        <span>{t('detail.selectedBadge')}</span>
       </div>
 
       <div className="catalog-detail-scroll">
@@ -46,70 +44,70 @@ export function CatalogModelDetailPanel({ model }: CatalogModelDetailPanelProps)
           <h2>{model.name}</h2>
           <div className="catalog-detail-idrow">
             <p>{model.model_id}</p>
-            <CopyTextButton
-              text={model.model_id}
-              label={`Copiar identificador ${model.model_id}`}
-            />
+            <CopyTextButton text={model.model_id} label={t('detail.copyIdAria', { id: model.model_id })} />
           </div>
         </div>
 
         <div>
           <div className="catalog-metarow">
-            <span>Provedor</span>
-            <strong>{catalogProviderLabel(model.provider)}</strong>
+            <span>{t('detail.providerLabel')}</span>
+            <strong>{providerLabel}</strong>
           </div>
           <div className="catalog-metarow">
-            <span>Origem</span>
-            <strong>Catálogo do provedor</strong>
+            <span>{t('detail.originLabel')}</span>
+            <strong>{t('detail.originValue')}</strong>
           </div>
           <div className="catalog-metarow">
-            <span>Registro</span>
-            <strong>{model.listing_state || 'Encontrado'}</strong>
+            <span>{t('detail.registryLabel')}</span>
+            <strong>
+              {catalogListingLabel(model) === t('table.listed') ? t('detail.listedFound') : catalogListingLabel(model)}
+            </strong>
           </div>
         </div>
 
         <div className="catalog-detail-metadata">
           <div className="catalog-detail-metadata-head">
-            METADADOS DO MODELO <span>QUANDO DISPONÍVEIS</span>
+            {t('detail.metadataHead')} <span>{t('detail.metadataWhenAvailable')}</span>
           </div>
           <div className="catalog-metadata-grid">
             <div>
-              <small>Janela de contexto</small>
+              <small>{t('detail.contextWindow')}</small>
               <strong>{formatCatalogContextLimit(model.limits?.context ?? undefined)}</strong>
             </div>
             <div>
-              <small>Capacidades</small>
-              <strong>{caps.length > 0 ? `${caps.length} declaradas` : 'Não informadas'}</strong>
+              <small>{t('table.capabilities')}</small>
+              <strong>
+                {caps.length > 0
+                  ? t('detail.capabilitiesDeclared', { count: caps.length })
+                  : t('compare.capabilitiesNotListed')}
+              </strong>
             </div>
             <div>
-              <small>Preço de entrada</small>
+              <small>{t('detail.inputPrice')}</small>
               <strong>{formatPricingCell(model.pricing, 'input')}</strong>
             </div>
             <div>
-              <small>Preço de saída</small>
+              <small>{t('detail.outputPrice')}</small>
               <strong>{formatPricingCell(model.pricing, 'output')}</strong>
             </div>
             <div>
-              <small>Cache leitura</small>
+              <small>{t('detail.cacheRead')}</small>
               <strong>{formatPricingCell(model.pricing, 'cache_read')}</strong>
             </div>
             <div>
-              <small>Cache escrita</small>
+              <small>{t('detail.cacheWrite')}</small>
               <strong>{formatPricingCell(model.pricing, 'cache_write')}</strong>
             </div>
           </div>
         </div>
 
-        <div className="catalog-detail-note">{connectorDescription(model)}</div>
+        <div className="catalog-detail-note">{t('detail.connectorNote', { provider: providerLabel })}</div>
 
         <Link to="/providers" className="catalog-detail-btn">
-          Ver franquias dos provedores ↗
+          {t('detail.viewProviderQuotas')}
         </Link>
 
-        <p className="catalog-detail-foot">
-          Preços refletem o catálogo oficial do provedor (por 1M tokens). Não representam custo de execução
-          registrado pelo Hub.
-        </p>
+        <p className="catalog-detail-foot">{t('detail.pricingFootnote')}</p>
       </div>
     </aside>
   )

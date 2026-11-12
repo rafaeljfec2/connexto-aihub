@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../../shared/i18n/format'
 import type { CursorDailyMetric, CursorUsageNamedCount } from '../types'
 
 export type CursorDailyMetricOption = 'agent' | 'chat' | 'lines'
@@ -136,13 +137,13 @@ const dailyMetricValues: Record<CursorDailyMetricOption, (day: CursorDailyMetric
 export function formatCursorTimestamp(iso: string): string {
   const timestamp = Date.parse(iso)
   if (Number.isNaN(timestamp)) return iso
-  return new Intl.DateTimeFormat('pt-BR', {
+  return formatDateTime(new Date(timestamp), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(timestamp))
+  })
 }
 
 /** Builds a per-day series; days without the requested metric become gaps. */

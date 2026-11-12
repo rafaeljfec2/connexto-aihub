@@ -31,7 +31,7 @@ describe('formatExecution', () => {
   })
 
   it('labels known outcomes', () => {
-    expect(formatOutcomeLabel('failed')).toBe('Failed')
+    expect(formatOutcomeLabel('failed')).toBe('Falha')
   })
 
   it('filters loaded rows by search tokens', () => {

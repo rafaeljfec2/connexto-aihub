@@ -1,22 +1,17 @@
+import { useTranslation } from 'react-i18next'
 import type { PlaygroundRunPhase } from '../types'
 
 type PlaygroundStatusBarProps = {
   phase: PlaygroundRunPhase
 }
 
-const LABELS: Record<PlaygroundRunPhase, string> = {
-  idle: 'Ready',
-  submitting: 'Sending request…',
-  streaming: 'Streaming response…',
-  completed: 'Completed',
-  error: 'Error',
-  cancelled: 'Cancelled',
-}
-
 export function PlaygroundStatusBar({ phase }: PlaygroundStatusBarProps) {
+  const { t } = useTranslation('playground')
+  const labelKey = `status.${phase}` as const
+
   return (
     <div className="playground-status" role="status" aria-live="polite">
-      {LABELS[phase]}
+      {t(labelKey)}
     </div>
   )
 }

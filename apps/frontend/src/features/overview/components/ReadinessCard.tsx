@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { statusClass } from '../lib/statusClass'
 import { Skeleton, StatCard } from '../../../shared/ui'
 
@@ -8,9 +9,11 @@ type ReadinessCardProps = {
 }
 
 export function ReadinessCard({ status, checks, isLoading }: ReadinessCardProps) {
+  const { t } = useTranslation('overview')
+
   return (
     <StatCard>
-      <div className="text-[0.625rem] text-secondary">Database readiness</div>
+      <div className="text-[0.625rem] text-secondary">{t('readiness.database')}</div>
       {isLoading ? (
         <Skeleton className="mt-4 h-7 w-28" />
       ) : status ? (

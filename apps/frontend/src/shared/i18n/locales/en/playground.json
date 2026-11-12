@@ -1,0 +1,41 @@
+{
+  "catalogUnavailable": "Catalog models unavailable. Open Catalog or sync providers before using the playground.",
+  "clearConversation": "Clear conversation",
+  "status": {
+    "idle": "Ready",
+    "submitting": "Sending request…",
+    "streaming": "Streaming response…",
+    "completed": "Completed",
+    "error": "Error",
+    "cancelled": "Cancelled"
+  },
+  "message": {
+    "you": "You",
+    "assistant": "Assistant",
+    "streaming": "Streaming…",
+    "cancelled": "Cancelled",
+    "error": "Error",
+    "emptyList": "No messages yet. Send a prompt to test the selected model."
+  },
+  "composer": {
+    "promptLabel": "Prompt",
+    "placeholder": "Write a prompt to test the selected model…",
+    "send": "Send",
+    "stop": "Stop",
+    "messageLabel": "Message",
+    "stopGeneration": "Stop generation"
+  },
+  "settings": {
+    "title": "Parameters",
+    "temperature": "Temperature",
+    "maxTokens": "Max tokens",
+    "optionalPlaceholder": "Opcional"
+  },
+  "select": {
+    "provider": "Provider",
+    "model": "Model",
+    "selectProviderFirst": "Select a provider before the model.",
+    "selectProvider": "Select provider",
+    "selectModel": "Select model"
+  }
+}

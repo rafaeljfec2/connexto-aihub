@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatCurrencyUsd } from '../../../shared/i18n/format'
 import { formatGoProductLabel } from '../lib/goPlusMeters'
 import {
   formatQuotaCalendarDay,
@@ -12,12 +13,7 @@ type WorkspaceUsageChartProps = Readonly<{
 }>
 
 function formatUsd(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
+  return formatCurrencyUsd(value)
 }
 
 function axisLabels(periodStart: string, periodEnd: string): [string, string, string] {

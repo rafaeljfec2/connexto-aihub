@@ -1,0 +1,15 @@
+{
+  "settingsTitle": "Settings",
+  "settingsLead": "Interface and account preferences.",
+  "interfaceLanguage": "Interface language",
+  "languagePortuguese": "Português (Brasil)",
+  "languageEnglish": "English",
+  "passwordPanelLead": "Password changes and notifications become available when outbound email is configured on the hub.",
+  "resetPasswordLink": "Reset password by email",
+  "profileTitle": "My profile",
+  "profileLead": "Your AI Hub account details.",
+  "emailLabel": "Email",
+  "roleLabel": "Role",
+  "roleAdmin": "Administrator",
+  "idLabel": "ID"
+}

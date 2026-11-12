@@ -1,5 +1,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useId, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatNumber } from '../../../shared/i18n/format'
 import {
   Area,
   AreaChart,
@@ -16,14 +18,14 @@ type OverviewTrafficChartPanelProps = {
   isLoading?: boolean
 }
 
-const DEFAULT_LABELS = ['00:00', '06:00', '12:00', '18:00', 'Agora']
+const DEFAULT_TIME_LABELS = ['00:00', '06:00', '12:00', '18:00'] as const
 
 type ChartPoint = {
   label: string
   count: number
 }
 
-function buildChartData(buckets: TrafficSummary['buckets']): ChartPoint[] {
+function buildChartData(buckets: TrafficSummary['buckets'], nowLabel: string): ChartPoint[] {
   if (buckets.length === 5) {
     return buckets.map((bucket) => ({
       label: bucket.label,
@@ -31,36 +33,37 @@ function buildChartData(buckets: TrafficSummary['buckets']): ChartPoint[] {
     }))
   }
 
-  return DEFAULT_LABELS.map((label) => ({ label, count: 0 }))
+  return [...DEFAULT_TIME_LABELS, nowLabel].map((label) => ({ label, count: 0 }))
 }
 
 export function OverviewTrafficChartPanel({
   traffic,
   isLoading,
 }: OverviewTrafficChartPanelProps) {
+  const { t } = useTranslation('overview')
   const gradientId = useId().replace(/:/g, '')
   const totalRequests = traffic?.total_requests ?? 0
   const trendPercent = traffic?.trend_percentage ?? 0
   const buckets = traffic?.buckets ?? []
   const hasHistory = traffic?.has_sufficient_history === true && buckets.length > 0
-  const chartData = useMemo(() => buildChartData(buckets), [buckets])
+  const chartData = useMemo(() => buildChartData(buckets, t('traffic.nowLabel')), [buckets, t])
 
   return (
     <Panel className="overview-panel overview-traffic-panel">
       <div className="overview-panel-head">
         <div>
-          <h3 className="text-xs font-semibold text-[#E7ECF5]">Volume de requisições</h3>
-          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">Tráfego processado pelo gateway</p>
+          <h3 className="text-xs font-semibold text-[#E7ECF5]">{t('traffic.title')}</h3>
+          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">{t('traffic.subtitle')}</p>
         </div>
         <button type="button" className="overview-panel-link cursor-default" aria-disabled>
-          <span>Últimas 24 horas</span>
+          <span>{t('traffic.rangeLabel')}</span>
           <ChevronDown className="size-3 opacity-70" aria-hidden />
         </button>
       </div>
 
       <div className="overview-chart-summary">
         <strong className="text-lg font-semibold tracking-[-0.03em] text-[#F0F3EC]">
-          {isLoading ? '—' : totalRequests.toLocaleString('pt-BR')}
+          {isLoading ? '—' : formatNumber(totalRequests)}
         </strong>
         {trendPercent !== 0 ? (
           <span className="font-mono text-[0.625rem] text-healthy">
@@ -132,9 +135,7 @@ export function OverviewTrafficChartPanel({
             <div className="overview-chart-empty" role="status">
               <span className="overview-chart-empty-line" />
               <p className="overview-chart-empty-copy">
-                {isLoading
-                  ? 'Carregando série temporal…'
-                  : 'Sem histórico suficiente nas últimas 24 horas'}
+                {isLoading ? t('traffic.loadingSeries') : t('traffic.emptySeries24h')}
               </p>
             </div>
           )}
@@ -142,7 +143,7 @@ export function OverviewTrafficChartPanel({
 
         {!hasHistory ? (
           <div className="overview-chart-labels">
-            {DEFAULT_LABELS.map((label) => (
+            {chartData.map(({ label }) => (
               <span key={label}>{label}</span>
             ))}
           </div>

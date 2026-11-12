@@ -1,5 +1,8 @@
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Panel, PanelHeader } from '../../../shared/ui'
+import { formatDateTime } from '../../../shared/i18n/format'
+import { formatDurationNs } from '../lib/formatExecution'
 import type { ExecutionRecord } from '../types'
 
 type ExecutionDetailPanelProps = {
@@ -17,12 +20,15 @@ export function ExecutionDetailPanel({
   errorMessage,
   selectedId,
 }: ExecutionDetailPanelProps) {
+  const { t } = useTranslation('executions')
+  const emDash = t('format.emDash')
+
   if (isError) {
     return (
       <Panel>
-        <PanelHeader title="Detalhes da execução" subtitle="ERRO DE CARREGAMENTO" />
+        <PanelHeader title={t('detailPanel.title')} subtitle={t('detailPanel.subtitleError')} />
         <p className="py-4 text-xs text-failure" role="alert">
-          {errorMessage ?? 'Falha ao carregar os detalhes da execução.'}
+          {errorMessage ?? t('detailPanel.loadErrorDefault')}
         </p>
       </Panel>
     )
@@ -31,9 +37,9 @@ export function ExecutionDetailPanel({
   if (isLoading) {
     return (
       <Panel>
-        <PanelHeader title="Detalhes da execução" subtitle="CARREGANDO…" />
+        <PanelHeader title={t('detailPanel.title')} subtitle={t('detailPanel.subtitleLoading')} />
         <p className="py-8 text-center text-xs text-muted animate-pulse">
-          Carregando registro detalhado…
+          {t('detailPanel.loadingDetail')}
         </p>
       </Panel>
     )
@@ -42,26 +48,20 @@ export function ExecutionDetailPanel({
   if (!record && !selectedId) {
     return (
       <Panel>
-        <PanelHeader title="Detalhes da execução" subtitle="SELECIONE UM REGISTRO" />
-        <p className="py-8 text-center text-xs text-muted">
-          Clique em uma execução da lista para inspecionar os metadados técnicos.
-        </p>
+        <PanelHeader title={t('detailPanel.title')} subtitle={t('detailPanel.subtitleSelect')} />
+        <p className="py-8 text-center text-xs text-muted">{t('detailPanel.selectPrompt')}</p>
       </Panel>
     )
   }
 
   const isCompleted = record?.outcome === 'completed'
 
-  const durationMs =
-    record?.duration_ns !== undefined
-      ? Math.round(record.duration_ns / 1_000_000)
-      : undefined
-
-  const durationText = durationMs !== undefined ? `${durationMs} ms` : '—'
+  const durationText =
+    record?.duration_ns !== undefined ? formatDurationNs(record.duration_ns) : emDash
 
   const formattedTime = record?.started_at
-    ? new Date(record.started_at).toLocaleTimeString('pt-BR')
-    : '—'
+    ? formatDateTime(record.started_at, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : emDash
 
   const summaryJson = JSON.stringify(
     {
@@ -79,11 +79,11 @@ export function ExecutionDetailPanel({
 
   return (
     <Panel className="space-y-3.5">
-      <PanelHeader title="Detalhes da execução" subtitle="SELECIONADA" />
+      <PanelHeader title={t('detailPanel.title')} subtitle={t('detailPanel.subtitleSelected')} />
 
       <div className="rounded-lg border border-line bg-raised p-3">
         <small className="block font-mono text-[0.5625rem] uppercase tracking-[0.05em] text-muted">
-          REQUEST ID
+          {t('detailPanel.requestId')}
         </small>
         <strong className="mt-1 block break-all font-mono text-xs text-primary">
           {record?.request_id ?? record?.execution_id ?? selectedId}
@@ -92,37 +92,37 @@ export function ExecutionDetailPanel({
 
       <div className="divide-y divide-line/30 text-[0.625rem]">
         <div className="flex justify-between py-2">
-          <span className="text-muted">Resultado</span>
+          <span className="text-muted">{t('detailPanel.fields.outcome')}</span>
           <strong
             className={`font-mono ${
               isCompleted ? 'text-healthy' : 'text-failure'
             }`}
           >
-            {isCompleted ? 'Concluída' : 'Falha'}
+            {isCompleted ? t('table.legacy.completed') : t('table.legacy.failed')}
           </strong>
         </div>
         <div className="flex justify-between py-2">
-          <span className="text-muted">Modelo</span>
+          <span className="text-muted">{t('detailPanel.fields.model')}</span>
           <strong className="font-mono text-primary">
-            {record?.model_id ?? '—'}
+            {record?.model_id ?? emDash}
           </strong>
         </div>
         <div className="flex justify-between py-2">
-          <span className="text-muted">Provedor</span>
+          <span className="text-muted">{t('detailPanel.fields.provider')}</span>
           <strong className="font-mono text-secondary">
-            {record?.provider_id ?? '—'}
+            {record?.provider_id ?? emDash}
           </strong>
         </div>
         <div className="flex justify-between py-2">
-          <span className="text-muted">Horário</span>
+          <span className="text-muted">{t('detailPanel.fields.time')}</span>
           <strong className="font-mono text-secondary">{formattedTime}</strong>
         </div>
         <div className="flex justify-between py-2">
-          <span className="text-muted">Duração</span>
+          <span className="text-muted">{t('detailPanel.fields.duration')}</span>
           <strong className="font-mono text-secondary">{durationText}</strong>
         </div>
         <div className="flex justify-between py-2">
-          <span className="text-muted">Operação</span>
+          <span className="text-muted">{t('detailPanel.fields.operation')}</span>
           <strong className="font-mono text-secondary">responses.create</strong>
         </div>
       </div>
@@ -131,12 +131,12 @@ export function ExecutionDetailPanel({
         to="/catalog"
         className="block w-full rounded-md border border-cobalt/30 bg-accent-deep py-2 text-center text-xs font-semibold text-[#EAF0FC] transition-colors hover:bg-cobalt/30"
       >
-        Explorar catálogo de modelos ↗
+        {t('detailPanel.exploreCatalog')}
       </Link>
 
       <div className="rounded-lg border border-line bg-[#141B25] p-3">
         <small className="mb-1.5 block font-mono text-[0.5625rem] uppercase tracking-[0.05em] text-muted">
-          Resumo do registro (sanitizado)
+          {t('detailPanel.summaryTitle')}
         </small>
         <pre className="max-h-48 overflow-auto font-mono text-[0.625rem] leading-relaxed text-[#B8C7DE]">
           {summaryJson}

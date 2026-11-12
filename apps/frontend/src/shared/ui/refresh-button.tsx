@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from './cn'
 
 export type RefreshButtonProps = {
@@ -24,7 +25,7 @@ export type RefreshButtonProps = {
 export function RefreshButton({
   onRefresh,
   isRefreshing = false,
-  label = 'Atualizar',
+  label,
   iconOnly = false,
   iconClassName = 'size-3.5',
   className,
@@ -34,6 +35,8 @@ export function RefreshButton({
   title,
   'data-testid': dataTestId,
 }: RefreshButtonProps) {
+  const { t } = useTranslation('common')
+  const resolvedLabel = label ?? t('refresh')
   const [isPending, setIsPending] = useState(false)
   const [isMinSpinActive, setIsMinSpinActive] = useState(false)
 
@@ -73,14 +76,14 @@ export function RefreshButton({
       disabled={disabled || isBusy}
       aria-label={ariaLabel}
       aria-busy={isBusy || undefined}
-      title={title ?? label}
+      title={title ?? resolvedLabel}
       data-testid={dataTestId}
     >
       <RefreshCw
         className={cn(iconClassName, 'shrink-0', isBusy && 'animate-spin')}
         aria-hidden
       />
-      {!iconOnly ? <span>{label}</span> : null}
+      {!iconOnly ? <span>{resolvedLabel}</span> : null}
     </button>
   )
 }

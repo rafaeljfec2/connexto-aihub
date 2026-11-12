@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { PageHeader } from '../../shared/ui'
 import { resolvePageMeta } from './pageMeta'
@@ -8,7 +9,8 @@ import { resolvePageMeta } from './pageMeta'
  */
 export function useAppPageMeta() {
   const { pathname } = useLocation()
-  return resolvePageMeta(pathname)
+  const { t } = useTranslation('meta')
+  return resolvePageMeta(pathname, t)
 }
 
 type AppPageHeaderProps = {

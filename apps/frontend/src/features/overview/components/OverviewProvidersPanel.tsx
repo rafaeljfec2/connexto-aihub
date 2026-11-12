@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Panel } from '../../../shared/ui'
 import type { ProviderQuotaSnapshot } from '../types/quota'
-import { accountName, ProviderQuotaAccountRow } from './ProviderQuotaAccountRow'
+import {
+  accountName,
+  ProviderQuotaAccountRow,
+} from './ProviderQuotaAccountRow'
 import { ProviderQuotaDetailDrawer } from './ProviderQuotaDetailDrawer'
+import { overviewDefaultAccountLabel } from '../lib/overviewQuotaLabels'
 
 export type OverviewProvidersPanelProps = Readonly<{
   snapshots?: ProviderQuotaSnapshot[]
@@ -34,6 +39,7 @@ export function OverviewProvidersPanel({
   isLoading = false,
   isError = false,
 }: OverviewProvidersPanelProps) {
+  const { t } = useTranslation('overview')
   const accounts = groupByAccount(snapshots)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
 
@@ -46,18 +52,24 @@ export function OverviewProvidersPanel({
     <Panel className="overview-panel">
       <div className="overview-panel-head">
         <div>
-          <h3 className="text-xs font-semibold text-[#E7ECF5]">Consumo de franquias</h3>
-          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">Resumo bruto por conta</p>
+          <h3 className="text-xs font-semibold text-[#E7ECF5]">{t('providersPanel.title')}</h3>
+          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">{t('providersPanel.subtitle')}</p>
         </div>
         <Link to="/providers" className="overview-panel-link whitespace-nowrap">
-          Ver franquias ↗
+          {t('providersPanel.viewFranchises')}
         </Link>
       </div>
 
       {isLoading && accounts.length === 0 ? <QuotaLoadingState /> : null}
-      {!isLoading && isError && accounts.length === 0 ? <QuotaErrorState /> : null}
-      {!isLoading && !isError && accounts.length === 0 ? <QuotaEmptyState /> : null}
-      {isError && accounts.length > 0 ? <QuotaRefreshWarning /> : null}
+      {!isLoading && isError && accounts.length === 0 ? (
+        <QuotaErrorState message={t('providersPanel.error')} />
+      ) : null}
+      {!isLoading && !isError && accounts.length === 0 ? (
+        <QuotaEmptyState message={t('providersPanel.empty')} />
+      ) : null}
+      {isError && accounts.length > 0 ? (
+        <QuotaRefreshWarning message={t('providersPanel.partialWarning')} />
+      ) : null}
       {!isLoading && accounts.length > 0 ? (
         <div className="max-h-80 min-h-0 flex-1 space-y-2 overflow-y-auto pt-2">
           {accounts.map((account) => (
@@ -76,7 +88,7 @@ export function OverviewProvidersPanel({
         onOpenChange={(open) => {
           if (!open) setSelectedAccountId(null)
         }}
-        accountLabel={selected ? accountName(selected.snapshots) : 'Provedor'}
+        accountLabel={selected ? accountName(selected.snapshots) : overviewDefaultAccountLabel()}
         snapshots={selected?.snapshots ?? []}
       />
     </Panel>
@@ -92,26 +104,26 @@ function QuotaLoadingState() {
   )
 }
 
-function QuotaEmptyState() {
+function QuotaEmptyState({ message }: Readonly<{ message: string }>) {
   return (
     <div className="py-4 text-center text-xs text-muted" data-testid="quota-empty">
-      Nenhuma conta de provedor configurada no momento.
+      {message}
     </div>
   )
 }
 
-function QuotaErrorState() {
+function QuotaErrorState({ message }: Readonly<{ message: string }>) {
   return (
     <p className="py-4 text-center text-xs text-warning" role="alert">
-      Falha ao consultar os dados oficiais do provedor. Tente atualizar.
+      {message}
     </p>
   )
 }
 
-function QuotaRefreshWarning() {
+function QuotaRefreshWarning({ message }: Readonly<{ message: string }>) {
   return (
     <p className="pt-2 text-[0.625rem] text-warning" role="status">
-      Falha ao atualizar; exibindo a última leitura disponível.
+      {message}
     </p>
   )
 }

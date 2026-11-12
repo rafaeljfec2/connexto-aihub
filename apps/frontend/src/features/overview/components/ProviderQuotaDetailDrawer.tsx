@@ -1,4 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { AiBrandIcon, hubProviderIconSlug } from '../../../shared/branding'
 import {
@@ -12,6 +13,7 @@ import { ConsoleBudgetsPanel } from './ConsoleBudgetsPanel'
 import { GoPlusUsagePanel } from './GoPlusUsagePanel'
 import { WorkspaceUsageChart } from './WorkspaceUsageChart'
 import { AntigravityQuotaDrawerSection } from './AntigravityQuotaDrawerSection'
+import { overviewScopeLabel, overviewStatusLabel } from '../lib/overviewQuotaLabels'
 import { CursorUsageDrawerSection } from '../../cursor'
 import { CursorQuotaBreakdownPanel } from '../../providers/components/CursorQuotaBreakdownPanel'
 import '../provider-quota-drawer.css'
@@ -40,10 +42,11 @@ export function ProviderQuotaDetailDrawer({
   accountLabel,
   snapshots,
 }: ProviderQuotaDetailDrawerProps) {
+  const { t } = useTranslation('overview')
   const primary = primarySnapshot(snapshots)
   const goMeters = primary ? goPlusMetersFromSnapshot(primary) : []
   const budgets = primary ? consoleBudgetsFromSnapshot(primary) : []
-  const status = primary?.status === 'available' ? 'Disponível' : 'Sem leitura'
+  const status = primary ? overviewStatusLabel(primary.status) : overviewStatusLabel('unsupported')
 
   return (
     <DialogPrimitive.Root modal={false} open={open} onOpenChange={onOpenChange}>
@@ -65,18 +68,22 @@ export function ProviderQuotaDetailDrawer({
                 />
               ) : null}
               <div className="min-w-0">
-                <p className="provider-quota-drawer-eyebrow">FRANQUIA DO PROVEDOR</p>
+                <p className="provider-quota-drawer-eyebrow">{t('quotaDrawer.eyebrow')}</p>
                 <DialogPrimitive.Title className="provider-quota-drawer-title">
                   {accountLabel}
                 </DialogPrimitive.Title>
                 <DialogPrimitive.Description className="provider-quota-drawer-description">
                   {primary
-                    ? `${primary.scope} · ${status} · Consultado em ${formatQuotaFetchedAt(primary.source.fetched_at)}`
-                    : 'Selecione um provedor para inspecionar a franquia oficial.'}
+                    ? t('quotaDrawer.activeDescription', {
+                        scope: overviewScopeLabel(primary.scope),
+                        status,
+                        at: formatQuotaFetchedAt(primary.source.fetched_at),
+                      })
+                    : t('quotaDrawer.selectHint')}
                 </DialogPrimitive.Description>
               </div>
             </div>
-            <DialogPrimitive.Close className="provider-quota-close" aria-label="Fechar detalhe da franquia">
+            <DialogPrimitive.Close className="provider-quota-close" aria-label={t('quotaDrawer.closeAria')}>
               <X aria-hidden="true" className="size-4" />
             </DialogPrimitive.Close>
           </header>
@@ -99,8 +106,8 @@ export function ProviderQuotaDetailDrawer({
               <p className="text-xs text-muted" role="status">
                 {primary?.error?.message ??
                   (primary?.provider_id === 'antigravity'
-                    ? 'Sem leitura oficial de cotas Antigravity.'
-                    : 'Sem leitura oficial de franquia Go para esta conta.')}
+                    ? t('quotaDrawer.noAntigravityReading')
+                    : t('quotaDrawer.noGoReading'))}
               </p>
             )}
             {primary?.usage_chart && primary.usage_chart.points.length > 0 ? (
@@ -114,7 +121,9 @@ export function ProviderQuotaDetailDrawer({
             ) : null}
             {goMeters.length > 0 ? (
               <p className="mt-3 text-[0.625rem] text-[#68778C]">
-                {productUsageTitle(primary?.workspace_name)} — valores oficiais do provedor, sem estimativa.
+                {t('quotaDrawer.officialValuesFootnote', {
+                  title: productUsageTitle(primary?.workspace_name),
+                })}
               </p>
             ) : null}
           </div>

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatNumber } from '../../../shared/i18n/format'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { formatResetsIn } from '../lib/formatResetsIn'
 import {
@@ -14,6 +16,7 @@ type AntigravityQuotaDrawerSectionProps = Readonly<{
 }>
 
 function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
+  const { t } = useTranslation('overview')
   const [showModels, setShowModels] = useState(false)
 
   return (
@@ -52,7 +55,9 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
 
               <div className="flex items-center gap-2.5">
                 <span className="text-sm font-semibold text-[#CBD5E2]">
-                  {Math.round(limit.remainingPercent)}% restante
+                  {t('antigravity.percentRemaining', {
+                    percent: formatNumber(Math.round(limit.remainingPercent)),
+                  })}
                 </span>
                 <CircularQuotaProgress percent={limit.remainingPercent} size={20} />
               </div>
@@ -80,7 +85,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
                 </div>
                 <span className="text-[0.6875rem] text-[#8290A5] shrink-0">
                   {model.remainingPercent != null
-                    ? `${model.remainingPercent.toLocaleString('pt-BR')}%`
+                    ? `${formatNumber(Math.round(model.remainingPercent))}%`
                     : '100%'}
                 </span>
               </div>
@@ -93,6 +98,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
 }
 
 export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawerSectionProps) {
+  const { t } = useTranslation('overview')
   const families = categorizeAntigravityQuotas(quotas)
   const [showBackground, setShowBackground] = useState(false)
 
@@ -103,7 +109,7 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
     <div className="space-y-4" data-testid="antigravity-drawer-quotas">
       <div className="flex items-baseline justify-between">
         <div>
-          <h3 className="text-xs font-semibold text-primary">Cotas e Franquias Antigravity</h3>
+          <h3 className="text-xs font-semibold text-primary">{t('antigravity.drawerTitle')}</h3>
           <p className="text-[0.6875rem] text-muted">
             Agrupadas por franquia oficial de modelos (pools compartilhados)
           </p>
@@ -131,10 +137,10 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
               {showBackground ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
               <span className="font-medium">{backgroundGroup.title}</span>
               <span className="text-[0.625rem] text-[#68778C]">
-                ({backgroundGroup.totalModelsCount} modelos · 100% restante)
+                {t('antigravity.backgroundModelsLine', { count: backgroundGroup.totalModelsCount })}
               </span>
             </div>
-            <span className="text-[0.625rem]">Preenchimento automático</span>
+            <span className="text-[0.625rem]">{t('antigravity.autofill')}</span>
           </button>
 
           {showBackground ? (
@@ -145,7 +151,7 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
                   className="flex items-center justify-between text-xs py-0.5 px-2 font-mono text-[0.625rem] text-muted"
                 >
                   <span>{model.id}</span>
-                  <span>100% restante</span>
+                  <span>{t('antigravity.hundredPercentRemaining')}</span>
                 </div>
               ))}
             </div>

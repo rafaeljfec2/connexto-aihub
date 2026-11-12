@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LockKeyhole } from 'lucide-react'
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 import { ApiError } from '../../../shared/api/client'
@@ -18,20 +20,13 @@ import {
   operatorSessionQueryKey,
   requiresOperatorLogin,
 } from '../api/operatorSession'
+import { createPassphraseLoginSchema, createUserLoginSchema } from '../lib/authSchemas'
 
-const passphraseSchema = z.object({
-  passphrase: z.string().min(1, 'Enter the operator passphrase'),
-})
-
-const userSchema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(1, 'Enter your password'),
-})
-
-type PassphraseFormValues = z.infer<typeof passphraseSchema>
-type UserFormValues = z.infer<typeof userSchema>
+type PassphraseFormValues = z.infer<ReturnType<typeof createPassphraseLoginSchema>>
+type UserFormValues = z.infer<ReturnType<typeof createUserLoginSchema>>
 
 export function LoginPage() {
+  const { t, i18n } = useTranslation('auth')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
@@ -43,6 +38,9 @@ export function LoginPage() {
   })
 
   const usersMode = sessionQuery.isSuccess && isUsersAuthSystem(sessionQuery.data)
+
+  const passphraseSchema = useMemo(() => createPassphraseLoginSchema(), [i18n.language])
+  const userSchema = useMemo(() => createUserLoginSchema(), [i18n.language])
 
   const passphraseForm = useForm<PassphraseFormValues>({
     resolver: zodResolver(passphraseSchema),
@@ -103,23 +101,23 @@ export function LoginPage() {
           </span>
           <div>
             <h1 className="text-lg font-semibold text-primary">
-              {usersMode ? 'Sign in' : 'Operator sign-in'}
+              {usersMode ? t('signIn') : t('operatorSignIn')}
             </h1>
             <p className="text-xs text-secondary">
-              {usersMode ? 'Use your email and password.' : 'Passphrase required for this deployment.'}
+              {usersMode ? t('useEmailPassword') : t('passphraseRequired')}
             </p>
           </div>
         </div>
 
         {invalidCredentials ? (
           <Banner variant="error" className="mb-4">
-            {usersMode ? 'Invalid email or password. Try again.' : 'Invalid passphrase. Try again.'}
+            {usersMode ? t('invalidCredentialsUser') : t('invalidCredentialsPassphrase')}
           </Banner>
         ) : null}
 
         {loginMutation.error && !invalidCredentials ? (
           <Banner variant="error" className="mb-4">
-            Sign-in failed. Verify hub configuration and try again.
+            {t('signInFailed')}
           </Banner>
         ) : null}
 
@@ -129,7 +127,7 @@ export function LoginPage() {
             onSubmit={userForm.handleSubmit((values) => loginMutation.mutate(values))}
           >
             <FieldLabel>
-              Email
+              {t('email')}
               <Input
                 type="email"
                 autoComplete="email"
@@ -142,7 +140,7 @@ export function LoginPage() {
               ) : null}
             </FieldLabel>
             <FieldLabel>
-              Password
+              {t('password')}
               <Input
                 type="password"
                 autoComplete="current-password"
@@ -155,14 +153,14 @@ export function LoginPage() {
             </FieldLabel>
             <div className="flex items-center justify-between gap-2">
               <Link className="text-xs text-cobalt hover:underline" to="/forgot-password">
-                Forgot password?
+                {t('forgotPassword')}
               </Link>
               <Link className="text-xs text-cobalt hover:underline" to="/signup">
-                Create account
+                {t('createAccount')}
               </Link>
             </div>
             <Button type="submit" variant="primary" size="lg" disabled={loginMutation.isPending}>
-              {loginMutation.isPending ? 'Signing in…' : 'Sign in'}
+              {loginMutation.isPending ? t('signingIn') : t('signIn')}
             </Button>
           </form>
         ) : (
@@ -171,7 +169,7 @@ export function LoginPage() {
             onSubmit={passphraseForm.handleSubmit((values) => loginMutation.mutate(values))}
           >
             <FieldLabel>
-              Passphrase
+              {t('passphrase')}
               <Input
                 type="password"
                 autoComplete="current-password"
@@ -186,7 +184,7 @@ export function LoginPage() {
               ) : null}
             </FieldLabel>
             <Button type="submit" variant="primary" size="lg" disabled={loginMutation.isPending}>
-              {loginMutation.isPending ? 'Signing in…' : 'Sign in'}
+              {loginMutation.isPending ? t('signingIn') : t('signIn')}
             </Button>
           </form>
         )}

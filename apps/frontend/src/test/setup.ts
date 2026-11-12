@@ -1,5 +1,10 @@
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeAll } from 'vitest'
+import { ensureTestI18n } from '../shared/i18n/test'
+
+beforeAll(async () => {
+  await ensureTestI18n('pt-BR')
+})
 
 afterEach(() => {
   cleanup()

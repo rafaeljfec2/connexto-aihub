@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { Banner, Panel, RefreshButton } from '../../../shared/ui'
 import { AddProviderModal } from '../components/AddProviderModal'
@@ -90,6 +91,7 @@ function ProviderHeaderTitle({
   meta,
   hasRefetchError,
 }: Pick<ProviderQuotasPageViewProps, 'meta' | 'hasRefetchError'>) {
+  const { t } = useTranslation('providers')
   return (
     <div className="min-w-0">
       <p className="providers-page-eyebrow">{meta.eyebrow}</p>
@@ -101,7 +103,7 @@ function ProviderHeaderTitle({
           data-testid="providers-refetch-warning"
           role="status"
         >
-          Falha ao atualizar; exibindo os dados carregados anteriormente.
+          {t('page.refetchWarning')}
         </p>
       ) : null}
     </div>
@@ -117,28 +119,29 @@ function ProviderHeaderActions({
   ProviderQuotasPageViewProps,
   'isRefreshing' | 'isBackgroundRefreshing' | 'onRefresh' | 'onAddProvider'
 >) {
+  const { t } = useTranslation('providers')
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
-      <span className="overview-backend-tag">DADOS DO BACKEND</span>
+      <span className="overview-backend-tag">{t('page.backendDataTag')}</span>
       <RefreshButton
         className="providers-primary-action"
         onRefresh={onRefresh}
         isRefreshing={isRefreshing || isBackgroundRefreshing}
         disabled={isRefreshing}
-        aria-label="Atualizar franquias"
+        aria-label={t('page.refreshQuotasAria')}
       />
       {isBackgroundRefreshing ? (
         <span className="sr-only" data-testid="providers-refreshing-status" role="status">
-          Atualizando franquias
+          {t('page.refreshingQuotasSr')}
         </span>
       ) : null}
       <button
         type="button"
         className="providers-primary-action"
         onClick={onAddProvider}
-        aria-label="Adicionar provedor"
+        aria-label={t('page.addProviderAria')}
       >
-        ＋ Adicionar provedor
+        {t('page.addProvider')}
       </button>
     </div>
   )
@@ -176,24 +179,23 @@ function ProviderQuotasInitialError({
   isRefreshing,
   onRetry,
 }: Readonly<{ isRefreshing: boolean; onRetry: () => void }>) {
+  const { t } = useTranslation('providers')
   return (
     <>
       <div className="providers-metrics" data-testid="providers-initial-error">
         <Banner variant="error" className="col-span-full !mb-0" role="alert">
-          Não foi possível carregar as franquias dos provedores.
+          {t('page.initialErrorTitle')}
         </Banner>
       </div>
       <div className="providers-layout">
         <Panel className="providers-panel min-w-0 items-center justify-center lg:col-span-2">
           <div className="max-w-sm space-y-3 text-center">
-            <p className="text-xs text-secondary">
-              Verifique a conexão com o AI Hub e tente novamente. Nenhum valor de quota foi estimado.
-            </p>
+            <p className="text-xs text-secondary">{t('page.initialErrorBody')}</p>
             <RefreshButton
               className="providers-primary-action"
               onRefresh={onRetry}
               isRefreshing={isRefreshing}
-              label="Tentar novamente"
+              label={t('page.retry')}
             />
           </div>
         </Panel>

@@ -1,6 +1,8 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
+import { formatNumber } from '../i18n/format'
 import {
   GRID_PAGE_SIZE_OPTIONS,
   type GridPaginationMeta,
@@ -54,6 +56,7 @@ function computeMenuPosition(trigger: HTMLButtonElement): MenuPosition {
 }
 
 function GridPageSizeSelect({ value, options, onChange }: GridPageSizeSelectProps) {
+  const { t } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -119,7 +122,7 @@ function GridPageSizeSelect({ value, options, onChange }: GridPageSizeSelectProp
             ref={menuRef}
             id={listboxId}
             role="listbox"
-            aria-label="Registros por página"
+            aria-label={t('rowsPerPage')}
             className="fixed z-[200] m-0 list-none overflow-hidden rounded-md border border-line bg-[#171E29] p-1 shadow-[0_10px_28px_rgb(0_0_0_/_0.5)]"
             style={{
               left: menuPosition.left,
@@ -155,7 +158,7 @@ function GridPageSizeSelect({ value, options, onChange }: GridPageSizeSelectProp
   return (
     <>
       <div className="mr-1 flex items-center gap-1.5">
-        <span className="font-mono text-[0.5625rem] text-[#8290A5]">Por página</span>
+        <span className="font-mono text-[0.5625rem] text-[#8290A5]">{t('perPage')}</span>
         <button
           ref={triggerRef}
           type="button"
@@ -163,7 +166,7 @@ function GridPageSizeSelect({ value, options, onChange }: GridPageSizeSelectProp
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listboxId}
-          aria-label="Registros por página"
+          aria-label={t('rowsPerPage')}
           onClick={() => setOpen((current) => !current)}
         >
           <span>{value}</span>
@@ -190,6 +193,8 @@ export function GridPagination({
   pageSizeOptions = GRID_PAGE_SIZE_OPTIONS,
   className,
 }: GridPaginationProps) {
+  const { t } = useTranslation('common')
+
   if (meta.totalItems === 0) {
     return null
   }
@@ -201,10 +206,14 @@ export function GridPagination({
     <div
       className={cn('flex flex-wrap items-center justify-between gap-3', className)}
       role="navigation"
-      aria-label="Paginação"
+      aria-label={t('paginationNav')}
     >
       <span className="font-mono text-[0.5625rem] text-[#8592A7]">
-        {meta.rangeStart}–{meta.rangeEnd} de {meta.totalItems.toLocaleString('pt-BR')}
+        {t('paginationRange', {
+          start: meta.rangeStart,
+          end: meta.rangeEnd,
+          total: formatNumber(meta.totalItems),
+        })}
       </span>
       <div className="flex flex-wrap items-center justify-end gap-1.5">
         <GridPageSizeSelect value={pageSize} options={pageSizeOptions} onChange={onPageSizeChange} />
@@ -213,7 +222,7 @@ export function GridPagination({
           className={navButtonClass}
           disabled={!canGoPrevious}
           onClick={onPreviousPage}
-          aria-label="Página anterior"
+          aria-label={t('pagePrevious')}
         >
           <ChevronLeft className="size-3.5" aria-hidden />
         </button>
@@ -225,7 +234,7 @@ export function GridPagination({
           className={navButtonClass}
           disabled={!canGoNext}
           onClick={onNextPage}
-          aria-label="Próxima página"
+          aria-label={t('pageNext')}
         >
           <ChevronRight className="size-3.5" aria-hidden />
         </button>

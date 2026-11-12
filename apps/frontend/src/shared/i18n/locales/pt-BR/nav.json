@@ -1,0 +1,14 @@
+{
+  "sectionOperation": "OPERAÇÃO",
+  "sectionSystem": "SISTEMA",
+  "overview": "Visão geral",
+  "providers": "Provedores",
+  "catalog": "Modelos",
+  "intelligence": "Inteligência",
+  "executions": "Execuções",
+  "resources": "Recursos",
+  "settings": "Configurações",
+  "profile": "Meu perfil",
+  "logout": "Sair",
+  "loggingOut": "Saindo…"
+}

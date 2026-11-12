@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { GridPanel } from '../../../shared/ui'
@@ -17,14 +18,13 @@ import {
   type CatalogColumnFilters,
 } from '../lib/catalogColumnFilters'
 import { formatCatalogSyncFeedback } from '../lib/syncFeedback'
-import { formatDataOriginTag } from '../../../shared/lib/formatDataOriginTag'
+import { formatCatalogOriginTag } from '../lib/catalogOriginTag'
+import { catalogListingLabel } from '../lib/catalogListingLabel'
+import { formatNumber } from '../../../shared/i18n/format'
 import type { CatalogModel } from '../types'
 
-function listingLabel(model: CatalogModel): string {
-  return model.listing_state || 'Listado'
-}
-
 export function CatalogPage() {
+  const { t } = useTranslation('catalog')
   const meta = useAppPageMeta()
   const [columnFilters, setColumnFilters] = useState<CatalogColumnFilters>(
     defaultCatalogColumnFilters,
@@ -77,7 +77,7 @@ export function CatalogPage() {
   }, [rawModels])
 
   const listingFilterOptions = useMemo(() => {
-    return Array.from(new Set(rawModels.map((model) => listingLabel(model)))).sort()
+    return Array.from(new Set(rawModels.map((model) => catalogListingLabel(model)))).sort()
   }, [rawModels])
 
   const filteredAndSortedModels = useMemo(() => {
@@ -131,9 +131,11 @@ export function CatalogPage() {
     return rawModels.filter((model) => compareSet.has(`${model.provider}:${model.model_id}`))
   }, [rawModels, compareSet])
 
-  const originTag = formatDataOriginTag(runtimeMeta.data?.data_origin, 'catalog')
+  const originTag = formatCatalogOriginTag(runtimeMeta.data?.data_origin)
   const versionLabel = runtimeMeta.data?.version ?? 'PREVIEW 03'
-  const visibleCountLabel = `${String(filteredAndSortedModels.length).padStart(2, '0')} REGISTROS`
+  const visibleCountLabel = t('page.recordsLabel', {
+    count: String(filteredAndSortedModels.length).padStart(2, '0'),
+  })
 
   const handleColumnFilterChange = (patch: Partial<CatalogColumnFilters>) => {
     setColumnFilters((previous) => ({ ...previous, ...patch }))
@@ -147,9 +149,7 @@ export function CatalogPage() {
             <p className="catalog-page-eyebrow">{meta.eyebrow}</p>
             <h1 className="catalog-page-title">{meta.title}</h1>
             {meta.lead ? <p className="catalog-page-lead">{meta.lead}</p> : null}
-            <p className="catalog-pricing-note">
-              Preços por 1M tokens quando informados pelo catálogo oficial do provedor (sem estimativa do Hub).
-            </p>
+            <p className="catalog-pricing-note">{t('page.pricingNoteFull')}</p>
           </div>
           <div className="catalog-headright">
             <span className="overview-backend-tag">{originTag}</span>
@@ -160,7 +160,7 @@ export function CatalogPage() {
               onClick={() => sync.mutate(undefined)}
             >
               <RefreshCw className={`inline size-3.5 ${sync.isPending ? 'animate-spin' : ''}`} />
-              <span>{sync.isPending ? 'Sincronizando…' : 'Sincronizar catálogo'}</span>
+              <span>{sync.isPending ? t('page.syncing') : t('page.syncCatalog')}</span>
             </button>
           </div>
         </div>
@@ -169,7 +169,7 @@ export function CatalogPage() {
           <div className="catalog-alerts">
             {sync.isPending ? (
               <div className="banner banner-info" role="status">
-                Sincronização do catálogo em andamento…
+                {t('sync.inProgress')}
               </div>
             ) : null}
             {syncFeedback ? (
@@ -191,18 +191,18 @@ export function CatalogPage() {
 
         <div className="catalog-toolbar-bar">
           <span className="catalog-result-count">
-            {filteredAndSortedModels.length.toLocaleString('pt-BR')} REGISTROS VISÍVEIS
+            {t('page.visibleRecords', { count: formatNumber(filteredAndSortedModels.length) })}
           </span>
           <div className="catalog-actions">
             <label className="catalog-sort-label">
-              ORDENAR
+              {t('page.sortLabelUpper')}
               <select
                 value={sortBy}
                 onChange={(event) => setSortBy(event.target.value as 'name' | 'provider')}
                 className="catalog-sort"
               >
-                <option value="name">Nome A–Z</option>
-                <option value="provider">Provedor A–Z</option>
+                <option value="name">{t('page.sortName')}</option>
+                <option value="provider">{t('page.sortProvider')}</option>
               </select>
             </label>
             <button
@@ -211,7 +211,8 @@ export function CatalogPage() {
               disabled={compareSet.size < 2}
               onClick={() => setCompareModalOpen(true)}
             >
-              Comparar modelos <b className="ml-1 font-mono">{compareSet.size}/3</b>
+              {t('page.compareModels')}{' '}
+              <b className="ml-1 font-mono">{compareSet.size}/3</b>
             </button>
           </div>
         </div>
@@ -220,7 +221,7 @@ export function CatalogPage() {
       <div className="catalog-layout">
         <GridPanel
           className="catalog-list-panel"
-          title="Modelos disponíveis no catálogo"
+          title={t('page.modelsTitle')}
           countLabel={visibleCountLabel}
           pagination={{
             meta: gridPagination.meta,
@@ -229,8 +230,8 @@ export function CatalogPage() {
             pageSize: gridPagination.pageSize,
             onPageSizeChange: gridPagination.setPageSize,
           }}
-          footnoteLeft="CATÁLOGO SINCRONIZADO"
-          footnoteRight={modelsQuery.isLoading ? 'CARREGANDO…' : 'DADOS DO BACKEND'}
+          footnoteLeft={t('page.footnoteLeft')}
+          footnoteRight={modelsQuery.isLoading ? t('page.loadingFootnote') : t('page.backendDataTag')}
         >
           <CatalogModelsTable
             models={gridPagination.pageItems}
@@ -254,8 +255,8 @@ export function CatalogPage() {
       </div>
 
       <footer className="catalog-bottomnote">
-        <span>API · /v1/catalog/models &nbsp; /v1/catalog/providers &nbsp; /v1/catalog/sync</span>
-        <span>CONNEXTO AI HUB / {versionLabel}</span>
+        <span>{t('page.apiFootnote')}</span>
+        <span>{t('page.brandFootnote', { version: versionLabel })}</span>
       </footer>
 
       <ModelCompareModal

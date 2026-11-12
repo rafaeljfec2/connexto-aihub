@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { FocusScope } from '@radix-ui/react-focus-scope'
+import { useTranslation } from 'react-i18next'
 import { GoPlusUsageSidebarCard } from '../../features/overview/components/GoPlusUsageSidebarCard'
 import type { OperationalConnectionState } from '../../shared/realtime/useOperationalEvents'
 import { cn } from '../../shared/ui/cn'
@@ -21,6 +22,7 @@ export function AppSidebar({
   onToggleCollapsed: _onToggleCollapsed,
   onCloseMobile,
 }: AppSidebarProps) {
+  const { t } = useTranslation('common')
   const sidebarRef = useRef<HTMLElement>(null)
   const restoreFocusRef = useRef<HTMLElement | null>(null)
 
@@ -91,7 +93,7 @@ export function AppSidebar({
               <div>
                 <div className="text-[0.9375rem] font-semibold tracking-[-0.03em]">connexto</div>
                 <div className="mt-0.5 font-mono text-[0.5625rem] uppercase tracking-[0.13em] text-muted">
-                  AI HUB · CONTROL PLANE
+                  {t('shell.brandTag')}
                 </div>
               </div>
             ) : null}
@@ -101,8 +103,8 @@ export function AppSidebar({
             <div className="mx-1 mb-6 flex items-center gap-2.5 rounded-[10px] border border-line bg-white/[0.025] px-3 py-2.5">
               <span className="motion-live size-[7px] shrink-0 rounded-full bg-cobalt" />
               <div>
-                <strong className="block text-[0.6875rem] font-semibold">Workspace principal</strong>
-                <small className="mt-0.5 block text-[0.625rem] text-muted">Instância de desenvolvimento</small>
+                <strong className="block text-[0.6875rem] font-semibold">{t('shell.workspaceTitle')}</strong>
+                <small className="mt-0.5 block text-[0.625rem] text-muted">{t('shell.workspaceSubtitle')}</small>
               </div>
             </div>
           ) : null}

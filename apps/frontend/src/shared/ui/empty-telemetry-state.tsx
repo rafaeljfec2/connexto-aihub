@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 import { Info } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from './cn'
 
 type EmptyTelemetryStateProps = HTMLAttributes<HTMLDivElement> & {
@@ -9,12 +10,16 @@ type EmptyTelemetryStateProps = HTMLAttributes<HTMLDivElement> & {
 }
 
 export function EmptyTelemetryState({
-  title = 'Dados não instrumentados',
-  description = 'Esta métrica requer telemetria que ainda não está instrumentada no gateway atual. Nenhum dado é simulado.',
+  title,
+  description,
   icon,
   className,
   ...props
 }: EmptyTelemetryStateProps) {
+  const { t } = useTranslation('common')
+  const resolvedTitle = title ?? t('emptyTelemetryTitle')
+  const resolvedDescription = description ?? t('emptyTelemetryDescription')
+
   return (
     <div
       className={cn(
@@ -26,9 +31,8 @@ export function EmptyTelemetryState({
       <div className="mb-3 grid size-8 place-items-center rounded-lg border border-line bg-raised text-muted">
         {icon ?? <Info className="size-4 opacity-75" aria-hidden />}
       </div>
-      <h3 className="text-xs font-semibold text-primary">{title}</h3>
-      <p className="mt-1 max-w-sm text-[0.6875rem] leading-relaxed text-secondary">{description}</p>
+      <h3 className="text-xs font-semibold text-primary">{resolvedTitle}</h3>
+      <p className="mt-1 max-w-sm text-[0.6875rem] leading-relaxed text-secondary">{resolvedDescription}</p>
     </div>
   )
 }
-

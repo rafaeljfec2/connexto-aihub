@@ -1,0 +1,41 @@
+{
+  "catalogUnavailable": "Modelos do catálogo indisponíveis. Abra o Catálogo ou sincronize provedores antes de usar o playground.",
+  "clearConversation": "Limpar conversa",
+  "status": {
+    "idle": "Pronto",
+    "submitting": "Enviando requisição…",
+    "streaming": "Transmitindo resposta…",
+    "completed": "Concluído",
+    "error": "Erro",
+    "cancelled": "Cancelado"
+  },
+  "message": {
+    "you": "Você",
+    "assistant": "Assistente",
+    "streaming": "Transmitindo…",
+    "cancelled": "Cancelado",
+    "error": "Erro",
+    "emptyList": "Nenhuma mensagem ainda. Envie um prompt para testar o modelo selecionado."
+  },
+  "composer": {
+    "promptLabel": "Prompt",
+    "placeholder": "Escreva um prompt para testar o modelo selecionado…",
+    "send": "Enviar",
+    "stop": "Parar",
+    "messageLabel": "Mensagem",
+    "stopGeneration": "Parar geração"
+  },
+  "settings": {
+    "title": "Parâmetros",
+    "temperature": "Temperatura",
+    "maxTokens": "Máx. tokens",
+    "optionalPlaceholder": "Opcional"
+  },
+  "select": {
+    "provider": "Provedor",
+    "model": "Modelo",
+    "selectProviderFirst": "Selecione um provedor antes do modelo.",
+    "selectProvider": "Selecionar provedor",
+    "selectModel": "Selecionar modelo"
+  }
+}

@@ -85,7 +85,7 @@ describe('GoPlusUsageSidebarCard', () => {
       expect(screen.getByTestId('go-plus-sidebar-summary')).toBeTruthy()
     })
     expect(screen.getByText('Go Plus')).toBeTruthy()
-    expect(screen.getByText('36% used')).toBeTruthy()
+    expect(screen.getByText('36% usado')).toBeTruthy()
   })
 
   it('shows a weekly percent chip when the sidebar is collapsed', async () => {

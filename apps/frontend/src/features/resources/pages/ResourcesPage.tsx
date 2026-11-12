@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
@@ -36,6 +37,7 @@ import { computeResourcesSummary } from '../lib/summaryMetrics'
 import type { ResourcesTabId } from '../types'
 
 export function ResourcesPage() {
+  const { t } = useTranslation('resources')
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<ResourcesTabId>('overview')
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -49,7 +51,7 @@ export function ResourcesPage() {
     appliedFilter.to === defaultResourcesUiFilter.to &&
     appliedFilter.provider_id === '' &&
     appliedFilter.model_id === ''
-      ? 'Últimos 7 dias'
+      ? t('page.periodDefault')
       : `${range.from} – ${range.to}`
 
   const providersQuery = useQuery({
@@ -156,34 +158,28 @@ export function ResourcesPage() {
 
   const errors = [
     providersQuery.isError
-      ? resourcesErrorMessage(providersQuery.error, 'Provider list unavailable for filters.')
+      ? resourcesErrorMessage(providersQuery.error, t('errors.providersList'))
       : undefined,
     resourcePoliciesQuery.isError
-      ? resourcesErrorMessage(
-          resourcePoliciesQuery.error,
-          'Resource policies are unavailable. Verify admin API access and PostgreSQL mode.',
-        )
+      ? resourcesErrorMessage(resourcePoliciesQuery.error, t('errors.resourcePolicies'))
       : undefined,
     quotaQuery.isError
-      ? resourcesErrorMessage(quotaQuery.error, 'Quota utilization snapshot failed.')
+      ? resourcesErrorMessage(quotaQuery.error, t('errors.quotaUtilization'))
       : undefined,
     concurrencyPoliciesQuery.isError
-      ? resourcesErrorMessage(concurrencyPoliciesQuery.error, 'Concurrency policies failed.')
+      ? resourcesErrorMessage(concurrencyPoliciesQuery.error, t('errors.concurrencyPolicies'))
       : undefined,
     concurrencySnapshotQuery.isError
-      ? resourcesErrorMessage(concurrencySnapshotQuery.error, 'Concurrency snapshot failed.')
+      ? resourcesErrorMessage(concurrencySnapshotQuery.error, t('errors.concurrencySnapshot'))
       : undefined,
     admissionsQuery.isError
-      ? resourcesErrorMessage(admissionsQuery.error, 'Admissions analytics failed.')
+      ? resourcesErrorMessage(admissionsQuery.error, t('errors.admissionsAnalytics'))
       : undefined,
     providerUsageQuery.isError
-      ? resourcesErrorMessage(providerUsageQuery.error, 'Provider usage analytics failed.')
+      ? resourcesErrorMessage(providerUsageQuery.error, t('errors.providerUsage'))
       : undefined,
     providerDistributionQuery.isError
-      ? resourcesErrorMessage(
-          providerDistributionQuery.error,
-          'Provider usage distribution failed.',
-        )
+      ? resourcesErrorMessage(providerDistributionQuery.error, t('errors.providerDistribution'))
       : undefined,
   ].filter((message): message is string => message !== undefined)
 
@@ -211,7 +207,7 @@ export function ResourcesPage() {
         actions={
           <div className="resources-pagehead-actions">
             <Link to="/providers" className="resources-providers-link">
-              Ver franquias por provedor ↗
+              {t('page.providersLink')}
             </Link>
             <RefreshButton
               className="resources-outline-btn"

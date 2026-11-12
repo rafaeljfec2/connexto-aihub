@@ -1,0 +1,226 @@
+{
+  "page": {
+    "generationsTab": "Gerações",
+    "viewsAriaLabel": "Visões de gerações",
+    "apiFootnote": "API · /v1/generations",
+    "searchFootnote": "A BUSCA COBRE APENAS OS RESULTADOS CARREGADOS",
+    "errors": {
+      "loadGenerations": "Não foi possível carregar as gerações.",
+      "loadGenerationDetail": "Não foi possível carregar os detalhes da geração."
+    }
+  },
+  "enrichment": {
+    "degraded": "ENRIQUECIMENTO DEGRADADO",
+    "partial": "ENRIQUECIMENTO PARCIAL",
+    "unavailable": "ENRIQUECIMENTO INDISPONÍVEL"
+  },
+  "filters": {
+    "ariaLabel": "Filtros de gerações",
+    "searchPlaceholder": "Buscar por request, modelo ou provedor…",
+    "searchAriaLabel": "Buscar gerações carregadas",
+    "outcomeAriaLabel": "Filtrar por resultado",
+    "providerAriaLabel": "Filtrar por provedor",
+    "allProviders": "Todos os provedores",
+    "periodAriaLabel": "Período",
+    "period30d": "Últimos 30 dias",
+    "period7d": "Últimos 7 dias",
+    "periodAll": "Todo o período",
+    "periodCustom": "Personalizado",
+    "applyAriaLabel": "Aplicar filtros",
+    "modelLabel": "Modelo",
+    "modelPlaceholder": "Qualquer modelo",
+    "modelAriaLabel": "Filtrar por ID do modelo",
+    "fromLabel": "De",
+    "toLabel": "Até",
+    "startDateAriaLabel": "Data inicial",
+    "endDateAriaLabel": "Data final",
+    "outcomes": {
+      "all": "Todas",
+      "completed": "Concluídas",
+      "failed": "Falhas",
+      "canceled": "Canceladas",
+      "timed_out": "Tempo esgotado"
+    },
+    "legacy": {
+      "searchPlaceholder": "Filtrar linhas carregadas (id, modelo, causa, status…)",
+      "outcomeAriaLabel": "Filtro de resultado",
+      "all": "Todas",
+      "providerAriaLabel": "Filtro de provedor",
+      "allProviders": "Todos os provedores",
+      "modelPlaceholder": "ID do modelo (filtro da API)",
+      "modelAriaLabel": "Filtro de ID do modelo",
+      "applyModelFilter": "Aplicar filtro de modelo"
+    }
+  },
+  "table": {
+    "loading": "Carregando gerações…",
+    "loadError": "Não foi possível carregar as gerações.",
+    "empty": "Nenhuma geração corresponde aos filtros atuais.",
+    "ariaLabel": "Histórico de gerações",
+    "title": "Gerações",
+    "recordsCount": "{{count, number}} REGISTROS · {{originTag}}",
+    "refreshPartialError": "Alguns resultados não puderam ser atualizados.",
+    "caption": "Histórico de gerações do gateway sem conteúdo. A busca cobre resultados carregados.",
+    "columns": {
+      "date": "Data",
+      "model": "Modelo",
+      "provider": "Provedor",
+      "app": "App",
+      "input": "Entrada",
+      "output": "Saída",
+      "reportedCost": "Custo reportado",
+      "listCost": "Custo de lista",
+      "usage": "Uso",
+      "speed": "Velocidade",
+      "routingOverhead": "Overhead de roteamento",
+      "firstToken": "Primeiro token",
+      "finishReason": "Motivo de término",
+      "outcome": "Resultado"
+    },
+    "reportedCostTitle": "OpenCode usage.cost (valor cobrado reportado pelo provedor)",
+    "listCostTitle": "OpenCode usage.opencode.list_cost (preço de lista)",
+    "loadMore": "Carregar mais",
+    "loadingMore": "Carregando…",
+    "rowAriaLabel": "{{model}}, {{provider}}, {{outcome}}",
+    "legacy": {
+      "loading": "Carregando registros de execução…",
+      "loadError": "Falha ao buscar registros de execução.",
+      "empty": "Nenhuma execução corresponde aos critérios ativos.",
+      "time": "Horário",
+      "modelProvider": "Modelo / Provedor",
+      "type": "Tipo",
+      "status": "Status",
+      "duration": "Duração",
+      "completed": "Concluída",
+      "failed": "Falha"
+    }
+  },
+  "activity": {
+    "ariaLabel": "Atividade de gerações",
+    "title": "Atividade de gerações",
+    "totalLabel_one": "{{count}} GERAÇÃO CARREGADA · 30 DIAS",
+    "totalLabel_other": "{{count}} GERAÇÕES CARREGADAS · 30 DIAS",
+    "empty": "Nenhuma geração carregada para exibir atividade no período.",
+    "barTitle_one": "{{day}}: {{count}} geração",
+    "barTitle_other": "{{day}}: {{count}} gerações"
+  },
+  "metrics": {
+    "registered": {
+      "label": "Execuções registradas",
+      "note": "Amostra persistida de chamadas"
+    },
+    "completed": {
+      "label": "Concluídas",
+      "note": "Processadas com sucesso"
+    },
+    "failed": {
+      "label": "Falhas",
+      "note": "Requerem investigação operacional"
+    },
+    "avgLatency": {
+      "label": "Latência média",
+      "note": "Tempo médio de resposta",
+      "unit": "ms"
+    }
+  },
+  "detailPanel": {
+    "title": "Detalhes da execução",
+    "subtitleError": "ERRO DE CARREGAMENTO",
+    "subtitleLoading": "CARREGANDO…",
+    "subtitleSelect": "SELECIONE UM REGISTRO",
+    "subtitleSelected": "SELECIONADA",
+    "loadErrorDefault": "Falha ao carregar os detalhes da execução.",
+    "loadingDetail": "Carregando registro detalhado…",
+    "selectPrompt": "Clique em uma execução da lista para inspecionar os metadados técnicos.",
+    "requestId": "REQUEST ID",
+    "fields": {
+      "outcome": "Resultado",
+      "model": "Modelo",
+      "provider": "Provedor",
+      "time": "Horário",
+      "duration": "Duração",
+      "operation": "Operação"
+    },
+    "exploreCatalog": "Explorar catálogo de modelos ↗",
+    "summaryTitle": "Resumo do registro (sanitizado)"
+  },
+  "drawer": {
+    "eyebrow": "DETALHES DA GERAÇÃO",
+    "selectPrompt": "Selecione uma geração para inspecionar os metadados.",
+    "closeAriaLabel": "Fechar detalhes da geração",
+    "loading": "Carregando detalhes da geração…",
+    "loadErrorDefault": "Não foi possível carregar os detalhes da geração.",
+    "summaryAriaLabel": "Resumo da geração",
+    "sections": {
+      "summary": "Resumo da geração",
+      "overview": "Visão geral",
+      "request": "Requisição",
+      "providerResponses": "Respostas do provedor"
+    },
+    "metrics": {
+      "providerLatency": "Latência do provedor",
+      "throughput": "Taxa de transferência",
+      "reportedCost": "Custo reportado (usage.cost)",
+      "listCost": "Custo de lista (opencode.list_cost)",
+      "tokenFlow": "Tokens entrada → saída"
+    },
+    "fields": {
+      "outcome": "Resultado",
+      "started": "Início",
+      "duration": "Duração",
+      "usageStatus": "Status de uso",
+      "provider": "Provedor",
+      "modelId": "ID do modelo",
+      "canonicalModelId": "ID canônico do modelo",
+      "dataPolicy": "Política de dados",
+      "streaming": "Streaming",
+      "firstToken": "Primeiro token",
+      "finishReason": "Motivo de término",
+      "application": "Aplicação",
+      "executionId": "ID da execução",
+      "requestId": "ID da requisição",
+      "providerSession": "Sessão do provedor",
+      "reportedCost": "Custo reportado (usage.cost)",
+      "listCost": "Custo de lista (opencode.list_cost)",
+      "costSource": "Origem do custo"
+    },
+    "noProviderEvents": "Nenhum evento de resposta do provedor foi registrado para esta geração.",
+    "events": {
+      "routing_selected": "Roteamento selecionado",
+      "upstream_request_started": "Requisição ao provedor iniciada",
+      "upstream_response_received": "Resposta do provedor recebida",
+      "first_output": "Primeira saída observada",
+      "generation_finished": "Geração finalizada",
+      "default": "Evento do provedor observado"
+    }
+  },
+  "format": {
+    "notReported": "Não informado",
+    "emDash": "—",
+    "currencyNotReported": "{{cost}} · moeda não informada",
+    "currencyValue": "{{currency}} {{cost}}",
+    "throughput": "{{value}} tok/s",
+    "duration": {
+      "ns": "{{value}} ns",
+      "micros": "{{value}} µs",
+      "millisFixed": "{{value}} ms",
+      "millis": "{{value}} ms",
+      "seconds": "{{value}} s"
+    },
+    "outcomes": {
+      "completed": "Concluída",
+      "failed": "Falha",
+      "canceled": "Cancelada",
+      "timed_out": "Tempo esgotado"
+    },
+    "usageStatus": {
+      "reported": "Informado",
+      "partial": "Parcial",
+      "invalid": "Inválido",
+      "unavailable": "Indisponível"
+    }
+  },
+  "validation": {
+    "startDateAfterEnd": "A data inicial deve ser anterior ou igual à data final."
+  }
+}

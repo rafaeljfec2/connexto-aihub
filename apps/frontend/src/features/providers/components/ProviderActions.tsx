@@ -1,4 +1,5 @@
 import { Activity, Power, RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 type ProviderActionsProps = {
   enabled: boolean
@@ -17,6 +18,8 @@ export function ProviderActions({
   onValidate,
   onToggleEnabled,
 }: ProviderActionsProps) {
+  const { t } = useTranslation('providers')
+
   return (
     <div className="provider-actions flex flex-wrap items-center gap-1.5">
       <button
@@ -28,12 +31,12 @@ export function ProviderActions({
         {validatePending ? (
           <>
             <RefreshCw className="size-3 animate-spin text-cobalt" />
-            <span>Testando...</span>
+            <span>{t('actions.testing')}</span>
           </>
         ) : (
           <>
             <Activity className="size-3 text-cobalt" />
-            <span>Testar probe</span>
+            <span>{t('actions.testProbe')}</span>
           </>
         )}
       </button>
@@ -51,12 +54,12 @@ export function ProviderActions({
         {togglePending ? (
           <>
             <RefreshCw className="size-3 animate-spin" />
-            <span>Atualizando...</span>
+            <span>{t('actions.updating')}</span>
           </>
         ) : (
           <>
             <Power className="size-3" />
-            <span>{enabled ? 'Desativar provedor' : 'Ativar provedor'}</span>
+            <span>{enabled ? t('actions.disableProvider') : t('actions.enableProvider')}</span>
           </>
         )}
       </button>

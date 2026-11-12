@@ -1,4 +1,5 @@
 import { Filter, Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { FilterChips, Input } from '../../../shared/ui'
 import { catalogProviderLabel } from '../../catalog/lib/catalogProviderLabel'
 import type { GenerationPeriodPreset } from '../lib/generationPeriodPresets'
@@ -26,17 +27,11 @@ type GenerationsFiltersProps = {
   readonly onApply: () => void
 }
 
-const outcomeLabels: Record<ExecutionOutcome | 'all', string> = {
-  all: 'Todas',
-  completed: 'Concluídas',
-  failed: 'Falhas',
-  canceled: 'Canceladas',
-  timed_out: 'Tempo esgotado',
-}
-
-const outcomes = [
-  { id: 'all' as const, label: outcomeLabels.all },
-  ...EXECUTION_OUTCOMES.map((outcome) => ({ id: outcome, label: outcomeLabels[outcome] })),
+const PERIOD_OPTIONS: Array<{ id: GenerationPeriodPreset; labelKey: string }> = [
+  { id: '30d', labelKey: 'filters.period30d' },
+  { id: '7d', labelKey: 'filters.period7d' },
+  { id: 'all', labelKey: 'filters.periodAll' },
+  { id: 'custom', labelKey: 'filters.periodCustom' },
 ]
 
 export function GenerationsFilters({
@@ -51,10 +46,19 @@ export function GenerationsFilters({
   onProviderChange,
   onApply,
 }: GenerationsFiltersProps) {
+  const { t } = useTranslation('executions')
   const showCustomDates = periodPreset === 'custom'
 
+  const outcomes = [
+    { id: 'all' as const, label: t('filters.outcomes.all') },
+    ...EXECUTION_OUTCOMES.map((outcome) => ({
+      id: outcome,
+      label: t(`filters.outcomes.${outcome}`),
+    })),
+  ]
+
   return (
-    <section className="generations-filter-bar" aria-label="Filtros de gerações">
+    <section className="generations-filter-bar" aria-label={t('filters.ariaLabel')}>
       <div className="generations-filter-primary">
         <label className="generations-search">
           <Search aria-hidden="true" className="size-3.5 shrink-0 text-muted" />
@@ -62,8 +66,8 @@ export function GenerationsFilters({
             type="search"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Buscar por request, modelo ou provedor…"
-            aria-label="Buscar gerações carregadas"
+            placeholder={t('filters.searchPlaceholder')}
+            aria-label={t('filters.searchAriaLabel')}
             className="border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
           />
         </label>
@@ -73,16 +77,16 @@ export function GenerationsFilters({
           options={[...outcomes]}
           selectedId={value.outcome}
           onSelect={(outcome) => onOutcomeChange(outcome as GenerationFilterDraft['outcome'])}
-          aria-label="Filtrar por resultado"
+          aria-label={t('filters.outcomeAriaLabel')}
         />
 
         <select
           value={value.provider_id}
           onChange={(event) => onProviderChange(event.target.value)}
           className="generations-compact-select"
-          aria-label="Filtrar por provedor"
+          aria-label={t('filters.providerAriaLabel')}
         >
-          <option value="">Todos os provedores</option>
+          <option value="">{t('filters.allProviders')}</option>
           {providers.map((provider) => (
             <option key={provider} value={provider}>
               {catalogProviderLabel(provider)}
@@ -94,19 +98,20 @@ export function GenerationsFilters({
           value={periodPreset}
           onChange={(event) => onPeriodPresetChange(event.target.value as GenerationPeriodPreset)}
           className="generations-compact-select generations-period-select"
-          aria-label="Período"
+          aria-label={t('filters.periodAriaLabel')}
         >
-          <option value="30d">Últimos 30 dias</option>
-          <option value="7d">Últimos 7 dias</option>
-          <option value="all">Todo o período</option>
-          <option value="custom">Personalizado</option>
+          {PERIOD_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {t(option.labelKey)}
+            </option>
+          ))}
         </select>
 
         <button
           type="button"
           className="generations-filter-apply"
           onClick={onApply}
-          aria-label="Aplicar filtros"
+          aria-label={t('filters.applyAriaLabel')}
         >
           <Filter className="size-3.5" aria-hidden="true" />
         </button>
@@ -115,7 +120,7 @@ export function GenerationsFilters({
       {showCustomDates ? (
         <div className="generations-filter-advanced">
           <label className="generations-filter-field">
-            <span>Modelo</span>
+            <span>{t('filters.modelLabel')}</span>
             <Input
               value={value.model_id}
               onChange={(event) => onDraftChange({ ...value, model_id: event.target.value })}
@@ -124,26 +129,26 @@ export function GenerationsFilters({
                 event.preventDefault()
                 onApply()
               }}
-              placeholder="Qualquer modelo"
-              aria-label="Filtrar por ID do modelo"
+              placeholder={t('filters.modelPlaceholder')}
+              aria-label={t('filters.modelAriaLabel')}
             />
           </label>
           <label className="generations-filter-field">
-            <span>De</span>
+            <span>{t('filters.fromLabel')}</span>
             <Input
               type="date"
               value={value.start_date}
               onChange={(event) => onDraftChange({ ...value, start_date: event.target.value })}
-              aria-label="Data inicial"
+              aria-label={t('filters.startDateAriaLabel')}
             />
           </label>
           <label className="generations-filter-field">
-            <span>Até</span>
+            <span>{t('filters.toLabel')}</span>
             <Input
               type="date"
               value={value.end_date}
               onChange={(event) => onDraftChange({ ...value, end_date: event.target.value })}
-              aria-label="Data final"
+              aria-label={t('filters.endDateAriaLabel')}
             />
           </label>
         </div>

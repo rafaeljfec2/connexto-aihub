@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { formatNumber } from '../../../shared/i18n/format'
 import { Edit2 } from 'lucide-react'
 import { AiBrandIcon } from '../../../shared/branding'
 import { GridPagination, Panel, PanelHeader, ProgressBar } from '../../../shared/ui'
@@ -32,6 +34,7 @@ export function ProviderQuotaTable({
   onSelect,
   onOpenManage,
 }: ProviderQuotaTableProps) {
+  const { t } = useTranslation('providers')
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(
@@ -53,25 +56,23 @@ export function ProviderQuotaTable({
     <Panel className="providers-panel min-w-0">
       <PanelHeader
         className="!mb-2 shrink-0"
-        title="Consumo por provedor"
-        subtitle="Cada provedor pode ter unidade e ciclo diferentes · ordenação alfabética"
+        title={t('table.title')}
+        subtitle={t('table.subtitle')}
         action={
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="⌕  Buscar provedor..."
+            placeholder={t('table.searchPlaceholder')}
             className="providers-search"
-            aria-label="Buscar provedor"
+            aria-label={t('table.searchAria')}
           />
         }
       />
 
       {filtered.length === 0 ? (
         <div className="py-8 text-center text-xs text-muted">
-          {providers.length === 0
-            ? 'Nenhum provedor configurado.'
-            : 'Nenhum provedor corresponde à busca.'}
+          {providers.length === 0 ? t('table.emptyNone') : t('table.emptySearch')}
         </div>
       ) : (
         <div className="providers-table-body">
@@ -79,12 +80,12 @@ export function ProviderQuotaTable({
           <table className="providers-quota-table w-full">
             <thead>
               <tr>
-                <th>Provedor</th>
-                <th>Franquia monitorada</th>
-                <th>Consumo</th>
-                <th>Disponível</th>
-                <th>Situação</th>
-                {onOpenManage ? <th className="text-right">Ações</th> : null}
+                <th>{t('table.colProvider')}</th>
+                <th>{t('table.colFranchise')}</th>
+                <th>{t('table.colConsumption')}</th>
+                <th>{t('table.colAvailable')}</th>
+                <th>{t('table.colSituation')}</th>
+                {onOpenManage ? <th className="text-right">{t('table.colActions')}</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -130,7 +131,11 @@ export function ProviderQuotaTable({
                       {consumption.kind === 'percent' ? (
                         <div>
                           <div className="providers-progress-head">
-                            <span>{`${consumption.percent.toLocaleString('pt-BR')}% usado`}</span>
+                            <span>
+                              {t('table.percentUsed', {
+                                percent: formatNumber(consumption.percent),
+                              })}
+                            </span>
                             <span>{consumption.label}</span>
                           </div>
                           <ProgressBar
@@ -189,10 +194,10 @@ export function ProviderQuotaTable({
                             onOpenManage(provider)
                           }}
                           className="inline-flex items-center gap-1.5 rounded border border-line bg-surface/80 px-2.5 py-1 text-[0.6875rem] font-medium text-secondary hover:border-cobalt hover:bg-raised hover:text-primary transition-all cursor-pointer shadow-xs"
-                          aria-label={`Editar ${provider.name}`}
+                          aria-label={t('table.editAria', { name: provider.name })}
                         >
                           <Edit2 className="size-3 text-cobalt" />
-                          Editar
+                          {t('table.edit')}
                         </button>
                       </td>
                     ) : null}
@@ -218,9 +223,12 @@ export function ProviderQuotaTable({
 
       <footer className="providers-panel-footnote shrink-0">
         <span>
-          {providers.length} PROVEDOR{providers.length === 1 ? '' : 'ES'} · UNIDADES POR FRANQUIA
+          {providers.length === 1
+            ? t('table.footnoteProviders', { count: providers.length })
+            : t('table.footnoteProvidersPlural', { count: providers.length })}
+          {t('table.footnoteUnits')}
         </span>
-        <span>DADOS DO BACKEND</span>
+        <span>{t('table.backendDataTag')}</span>
       </footer>
     </Panel>
   )

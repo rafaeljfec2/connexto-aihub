@@ -1,9 +1,11 @@
+import { formatNumber } from '../../../shared/i18n/format'
+import i18n from '../../../shared/i18n'
 import type { CatalogModelPricing } from '../types'
 
 export type CatalogPricingField = 'input' | 'output' | 'cache_read' | 'cache_write'
 
 export function formatUsdPerMillion(value: number): string {
-  const amount = value.toLocaleString('pt-BR', {
+  const amount = formatNumber(value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
@@ -16,7 +18,7 @@ export function formatPricingCell(
   field: CatalogPricingField,
 ): string {
   if (!pricing) {
-    return 'Não informado'
+    return i18n.t('catalog:pricing.notProvided')
   }
 
   const value = pricing[field]
@@ -29,9 +31,9 @@ export function formatPricingCell(
 
 export function formatCatalogContextLimit(context: number | null | undefined): string {
   if (context == null) {
-    return 'Não informada'
+    return i18n.t('catalog:pricing.contextNotProvided')
   }
-  return context.toLocaleString('pt-BR')
+  return formatNumber(context)
 }
 
 export function hasCatalogPricing(pricing: CatalogModelPricing | null | undefined): boolean {

@@ -6,9 +6,9 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "go -C apps/backend build ./...",
+    "build:backend": "go -C apps/backend build ./...",
     "build:proxy": "pnpm --dir apps/proxy build",
-    "build:release": "pnpm --filter @connexto/frontend build && node scripts/sync-frontend-dist.mjs && go -C apps/backend build -o ../../bin/ai-hub ./cmd/ai-hub/",
+    "build": "pnpm --filter @connexto/frontend build && node scripts/sync-frontend-dist.mjs && go -C apps/backend build -o ../../bin/ai-hub ./cmd/ai-hub/",
     "dev": "turbo run dev --filter=@connexto/frontend --filter=@agent-runtime-gateway/api //#dev:backend",
     "dev:backend": "go -C apps/backend run ./cmd/ai-hub",
     "dev:frontend": "pnpm --filter @connexto/frontend dev",

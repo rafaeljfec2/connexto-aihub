@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { ProgressBar } from '../../../shared/ui'
+import { formatNumber } from '../../../shared/i18n/format'
 import { formatResetsIn } from '../lib/formatResetsIn'
 import type { GoPlusMeterView } from '../lib/goPlusMeters'
 import { productUsageTitle } from '../lib/goPlusMeters'
@@ -18,6 +20,8 @@ export function GoPlusUsagePanel({
   now,
   testIdPrefix = 'go-plus',
 }: GoPlusUsagePanelProps) {
+  const { t } = useTranslation('overview')
+
   if (meters.length === 0) return null
 
   return (
@@ -31,7 +35,7 @@ export function GoPlusUsagePanel({
       <ul className="space-y-2">
         {meters.map((meter) => {
           const resets = meter.resetsAt ? formatResetsIn(meter.resetsAt, now) : undefined
-          const percentLabel = `${meter.percent.toLocaleString('pt-BR')}% used`
+          const percentLabel = t('goPlus.percentUsed', { percent: formatNumber(meter.percent) })
           return (
             <li key={meter.id} data-testid={`${testIdPrefix}-meter-${meter.id}`}>
               <div className="mb-1 flex items-baseline justify-between gap-2 text-[0.5625rem]">

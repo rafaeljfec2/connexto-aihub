@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { RefreshButton } from '../../../shared/ui'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
@@ -38,6 +39,7 @@ function buildDefaultFilters(): GenerationFilterDraft {
 }
 
 export function ExecutionsPage() {
+  const { t } = useTranslation('executions')
   const meta = useAppPageMeta()
   const defaultFilters = useMemo(() => buildDefaultFilters(), [])
   const [search, setSearch] = useState('')
@@ -99,15 +101,15 @@ export function ExecutionsPage() {
   })
   const enrichmentNotice = useMemo(() => {
     const pages = listQuery.data?.pages ?? []
-    if (pages.some((page) => page.degraded)) return 'ENRICHMENT DEGRADED'
+    if (pages.some((page) => page.degraded)) return t('enrichment.degraded')
     if (pages.some((page) => page.generations.some((generation) => generation.enrichment_status === 'partial'))) {
-      return 'ENRICHMENT PARTIAL'
+      return t('enrichment.partial')
     }
     if (pages.some((page) => page.generations.some((generation) => generation.enrichment_status === 'unavailable'))) {
-      return 'ENRICHMENT UNAVAILABLE'
+      return t('enrichment.unavailable')
     }
     return null
-  }, [listQuery.data])
+  }, [listQuery.data, t])
 
   const originTag = formatDataOriginTag(runtimeMeta.data?.data_origin)
 
@@ -179,7 +181,9 @@ export function ExecutionsPage() {
       focusedRowRef.current.focus()
       return
     }
-    document.querySelector<HTMLInputElement>('[aria-label="Buscar gerações carregadas"]')?.focus()
+    document
+      .querySelector<HTMLInputElement>(`[aria-label="${t('filters.searchAriaLabel')}"]`)
+      ?.focus()
   }
 
   return (
@@ -201,9 +205,9 @@ export function ExecutionsPage() {
           </div>
         </header>
 
-        <nav className="generations-tabs" aria-label="Visões de gerações" role="tablist">
+        <nav className="generations-tabs" aria-label={t('page.viewsAriaLabel')} role="tablist">
           <button type="button" role="tab" aria-selected="true" className="generations-tab generations-tab-active">
-            Generations
+            {t('page.generationsTab')}
           </button>
         </nav>
 
@@ -238,7 +242,7 @@ export function ExecutionsPage() {
         isLoading={listQuery.isLoading}
         isError={listQuery.isError}
         errorMessage={
-          listQuery.error ? executionsErrorMessage(listQuery.error, 'Não foi possível carregar as gerações.') : undefined
+          listQuery.error ? executionsErrorMessage(listQuery.error, t('page.errors.loadGenerations')) : undefined
         }
         enrichmentNotice={enrichmentNotice}
         hasNextPage={Boolean(listQuery.hasNextPage)}
@@ -249,8 +253,8 @@ export function ExecutionsPage() {
       />
 
       <footer className="generations-footnote">
-        <span>API · /v1/generations</span>
-        <span>A BUSCA COBRE APENAS OS RESULTADOS CARREGADOS</span>
+        <span>{t('page.apiFootnote')}</span>
+        <span>{t('page.searchFootnote')}</span>
       </footer>
 
       <GenerationDetailsDrawer
@@ -262,7 +266,7 @@ export function ExecutionsPage() {
         isError={detailQuery.isError}
         errorMessage={
           detailQuery.error
-            ? executionsErrorMessage(detailQuery.error, 'Não foi possível carregar os detalhes da geração.')
+            ? executionsErrorMessage(detailQuery.error, t('page.errors.loadGenerationDetail'))
             : undefined
         }
         onRestoreFocus={restoreFocus}

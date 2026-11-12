@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../shared/ui/cn'
 import type { ResourcesTabId } from '../types'
 
@@ -6,25 +7,23 @@ type ResourcesViewTabsProps = {
   onChange: (tab: ResourcesTabId) => void
 }
 
-const tabs: Array<{ id: ResourcesTabId; label: string }> = [
-  { id: 'overview', label: 'Visão geral' },
-  { id: 'policies', label: 'Políticas de recursos' },
-  { id: 'concurrency', label: 'Concorrência' },
-]
+const tabIds: ResourcesTabId[] = ['overview', 'policies', 'concurrency']
 
 export function ResourcesViewTabs({ active, onChange }: ResourcesViewTabsProps) {
+  const { t } = useTranslation('resources')
+
   return (
     <div className="resources-tabs" role="tablist">
-      {tabs.map((tab) => (
+      {tabIds.map((id) => (
         <button
-          key={tab.id}
+          key={id}
           type="button"
           role="tab"
-          aria-selected={active === tab.id}
-          className={cn('resources-tab', active === tab.id && 'is-active')}
-          onClick={() => onChange(tab.id)}
+          aria-selected={active === id}
+          className={cn('resources-tab', active === id && 'is-active')}
+          onClick={() => onChange(id)}
         >
-          {tab.label}
+          {t(`tabs.${id}`)}
         </button>
       ))}
     </div>

@@ -18,7 +18,7 @@ describe('PlaygroundProviderModelSelect', () => {
         onChange={() => undefined}
       />,
     )
-    const modelSelect = screen.getByLabelText('Model') as HTMLSelectElement
+    const modelSelect = screen.getByLabelText('Modelo') as HTMLSelectElement
     expect(modelSelect.disabled).toBe(true)
   })
 })

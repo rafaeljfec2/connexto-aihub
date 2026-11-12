@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Lock, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
+import { createProviderPatchSchema } from '../lib/providerSchemas'
 import {
   clearAntigravityProxyRuntimeSessions,
   clearCursorUsageProxyRuntimeSessions,
@@ -20,21 +21,36 @@ import {
 import { cursorAuthStartSuccessMessage } from '../lib/cursorAuthStartMessage'
 import { messageForCursorCollectReadiness } from '../lib/cursorCollectReadiness'
 import { cursorProxyAuthErrorMessage } from '../lib/mutationErrors'
+import {
+  antigravityClearSessionsFailMessage,
+  antigravityClearSessionsSuccessMessage,
+  antigravityOAuthOpenedMessage,
+  antigravityOAuthPopupBlockedMessage,
+  antigravityOAuthStartFailMessage,
+  antigravityOAuthStatusFailMessage,
+  antigravityOAuthStatusMessage,
+  cursorClearSessionsFailMessage,
+  cursorClearSessionsSuccessMessage,
+  gatewayKeyRequiredBeforeWebLoginMessage,
+  noActiveCursorSessionMessage,
+  preSaveTestFailMessage,
+  proxyStatusProbeFailMessage,
+  testConnectionFailMessage,
+  testConnectionSuccessMessage,
+  webLoginDoneProbeFailMessage,
+  webLoginOpProbeFailMessage,
+  webLoginOpStatusMessage,
+  webLoginSessionStatusMessage,
+} from '../lib/providerPatchMessages'
 import type { AdminProvider } from '../types'
 
-const patchSchema = z.object({
-  name: z.string().optional(),
-  endpoint: z.string().url('Endpoint must be a valid URL'),
-  credential: z.string().optional(),
-  management_credential: z.string().optional(),
-  oauth_redirect_uri: z
-    .string()
-    .url('OAuth redirect URI must be a valid URL')
-    .optional()
-    .or(z.literal('')),
-})
-
-type PatchFormValues = z.infer<typeof patchSchema>
+type PatchFormValues = {
+  name?: string
+  endpoint: string
+  credential?: string
+  management_credential?: string
+  oauth_redirect_uri?: string
+}
 
 type ProviderPatchFormProps = {
   provider: AdminProvider
@@ -45,6 +61,8 @@ type ProviderPatchFormProps = {
 }
 
 export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAction, onSubmit }: ProviderPatchFormProps) {
+  const { t, i18n } = useTranslation('providers')
+  const patchSchema = useMemo(() => createProviderPatchSchema(), [i18n.language])
   const queryClient = useQueryClient()
   const [testingConnection, setTestingConnection] = useState(false)
   const [clearingProxySessions, setClearingProxySessions] = useState(false)
@@ -62,35 +80,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
     setTestResult(null)
     try {
       const summary = await clearAntigravityProxyRuntimeSessions(provider.id)
-      const parts: string[] = []
-      if (summary.mapped_acp_ids_count !== undefined) {
-        parts.push(`Mapeados no gateway: ${summary.mapped_acp_ids_count}`)
-      }
-      if (summary.listed_acp_sessions_count !== undefined) {
-        parts.push(`Listados no ACP: ${summary.listed_acp_sessions_count}`)
-      }
-      if (summary.acp_sessions_closed !== undefined) {
-        parts.push(`Fechados (session/close): ${summary.acp_sessions_closed}`)
-      }
-      if (summary.acp_close_failures !== undefined && summary.acp_close_failures > 0) {
-        parts.push(`Falhas ao fechar: ${summary.acp_close_failures}`)
-      }
-      const detail = parts.length > 0 ? `${parts.join('. ')}. ` : ''
-      const warnBlock =
-        summary.warnings && summary.warnings.length > 0
-          ? ` Avisos: ${summary.warnings.slice(0, 5).join(' | ')}${summary.warnings.length > 5 ? '…' : ''}`
-          : ''
       setTestResult({
         success: true,
-        message: `${detail}Sessões ACP e cache do gateway foram limpos. «Ver status OAuth» pode continuar «autenticado» enquanto o host do proxy tiver tokens Google em disco (ex.: ~/.gemini) — use revogação/remoção no servidor do proxy para encerrar o OAuth de verdade.${warnBlock}`,
+        message: antigravityClearSessionsSuccessMessage(summary),
       })
     } catch (err) {
       setTestResult({
         success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Falha ao limpar sessões no proxy. Verifique o endpoint, a Gateway API Key e se o proxy está acessível.',
+        message: err instanceof Error ? err.message : antigravityClearSessionsFailMessage(),
       })
     } finally {
       setClearingProxySessions(false)
@@ -151,7 +148,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
           } catch {
             setTestResult({
               success: false,
-              message: `Login web concluído (sessão ${s.sessionId}), mas não foi possível confirmar persistência/coleta no proxy.`,
+              message: webLoginDoneProbeFailMessage(s.sessionId),
             })
           }
           return
@@ -160,7 +157,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
           cursorPollStopRef.current = true
           setTestResult({
             success: false,
-            message: `Sessão de login web: ${s.status}. Expira em ${s.expiresAt}.`,
+            message: webLoginSessionStatusMessage(s.status, s.expiresAt),
           })
         }
       } catch {
@@ -184,15 +181,12 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       const summary = await clearCursorUsageProxyRuntimeSessions(provider.id)
       setTestResult({
         success: true,
-        message: `Sessões do coletor Cursor limpas no proxy (namespace: ${summary.namespace ?? 'cursor-usage'}). É necessário novo login web para coletar uso.`,
+        message: cursorClearSessionsSuccessMessage(summary.namespace),
       })
     } catch (err) {
       setTestResult({
         success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Falha ao limpar sessões cursor-usage no proxy. Verifique endpoint e Gateway API Key.',
+        message: err instanceof Error ? err.message : cursorClearSessionsFailMessage(),
       })
     } finally {
       setClearingCursorUsage(false)
@@ -209,7 +203,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         setTestResult(readiness)
         return
       }
-      if (readiness.message.includes('Nenhuma sessão persistida')) {
+      if (readiness.code === 'no_persisted_session') {
         // fall through to active login operation status
       } else {
         setTestResult(readiness)
@@ -218,8 +212,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       if (!activeCursorSessionId) {
         setTestResult({
           success: false,
-          message:
-            'Nenhuma sessão de login ativa neste modal e nada persistido no proxy para coleta. Use «Login web» (mesmo proxy do endpoint, ex. Docker ou pnpm dev).',
+          message: noActiveCursorSessionMessage(),
         })
         return
       }
@@ -231,22 +224,19 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         } catch {
           setTestResult({
             success: false,
-            message: `Login web (operação) autenticado, mas falha ao sondar coleta no proxy.`,
+            message: webLoginOpProbeFailMessage(),
           })
         }
       } else {
         setTestResult({
           success: false,
-          message: `Login web (operação): ${s.status}. Conta proxy: ${s.accountId || '—'}. Expira em ${s.expiresAt}.`,
+          message: webLoginOpStatusMessage(s.status, s.accountId, s.expiresAt),
         })
       }
     } catch (err) {
       setTestResult({
         success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Falha ao consultar status no proxy. Verifique endpoint e Gateway API Key.',
+        message: err instanceof Error ? err.message : proxyStatusProbeFailMessage(),
       })
     } finally {
       setLoadingCursorAuthStatus(false)
@@ -276,8 +266,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       if (!gatewayReady) {
         setTestResult({
           success: false,
-          message:
-            'Informe a Gateway API Key do proxy (campo acima) antes de iniciar o login web.',
+          message: gatewayKeyRequiredBeforeWebLoginMessage(),
         })
         return
       }
@@ -303,22 +292,21 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
     setTestResult(null)
     try {
       const s = await getAntigravityProxyAuthStatus(provider.id)
-      const account = s.account != null && s.account !== '' ? ` Conta: ${s.account}.` : ''
-      const gate = s.viabilityGate ? ` Viabilidade: ${s.viabilityGate}.` : ''
-      const op = s.activeOperation?.status
-        ? ` Operação pendente: ${s.activeOperation.status}${s.activeOperation.operationId ? ` (${s.activeOperation.operationId})` : ''}.`
-        : ''
       setTestResult({
         success: true,
-        message: `OAuth no proxy: ${s.authenticated ? 'autenticado' : 'não autenticado'}.${account}${gate}${op} Última checagem: ${s.lastCheckedAt}.`,
+        message: antigravityOAuthStatusMessage({
+          authenticated: s.authenticated,
+          account: s.account ?? undefined,
+          viabilityGate: s.viabilityGate,
+          operationStatus: s.activeOperation?.status,
+          operationId: s.activeOperation?.operationId,
+          lastCheckedAt: s.lastCheckedAt,
+        }),
       })
     } catch (err) {
       setTestResult({
         success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Falha ao consultar status OAuth no proxy. Verifique endpoint e Gateway API Key.',
+        message: err instanceof Error ? err.message : antigravityOAuthStatusFailMessage(),
       })
     } finally {
       setLoadingAuthStatus(false)
@@ -341,23 +329,18 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       if (!opened) {
         setTestResult({
           success: true,
-          message:
-            'Fluxo OAuth iniciado. O navegador bloqueou nova aba; copie e abra o link: ' + res.auth_url,
+          message: antigravityOAuthPopupBlockedMessage(res.auth_url),
         })
         return
       }
       setTestResult({
         success: true,
-        message:
-          'Fluxo OAuth aberto em nova aba. Após concluir no Google, use "Ver status OAuth" para confirmar.',
+        message: antigravityOAuthOpenedMessage(),
       })
     } catch (err) {
       setTestResult({
         success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Falha ao iniciar OAuth no proxy. Verifique endpoint e Gateway API Key.',
+        message: err instanceof Error ? err.message : antigravityOAuthStartFailMessage(),
       })
     } finally {
       setStartingOAuth(false)
@@ -384,17 +367,12 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       }
       setTestResult({
         success: true,
-        message: isAntigravity
-          ? 'Gateway alcançável e operacional (teste de listagem de modelos). Isso não verifica se o contexto Antigravity/ACP foi encerrado.'
-          : 'Conexão testada com sucesso! O provedor está acessível e operacional.',
+        message: testConnectionSuccessMessage(isAntigravity),
       })
     } catch (err) {
       setTestResult({
         success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Falha no teste de conexão. Verifique a credencial e o endpoint informados.',
+        message: err instanceof Error ? err.message : testConnectionFailMessage(),
       })
     } finally {
       setTestingConnection(false)
@@ -444,10 +422,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
             setTestingConnection(false)
             setTestResult({
               success: false,
-              message:
-                err instanceof Error
-                  ? `Falha no teste de conexão: ${err.message}`
-                  : 'Falha no teste de conexão com o provedor. Credencial rejeitada.',
+              message: preSaveTestFailMessage(err instanceof Error ? err.message : undefined),
             })
             return
           }
@@ -474,11 +449,11 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         <div className={hasManagementKey ? '' : 'sm:col-span-2'}>
           <div className="mb-0.5 flex items-center justify-between gap-2">
             <label htmlFor="provider-name-input" className="text-[0.6875rem] font-medium text-secondary">
-              Name
+              {t('patchForm.nameLabel')}
             </label>
             <span className="flex items-center gap-1 rounded bg-[#0D121B] px-1.5 py-0.5 text-[0.625rem] text-muted border border-line/60">
               <Lock className="size-2.5 text-cobalt" />
-              Nome fixo (não editável)
+              {t('patchForm.nameFixed')}
             </span>
           </div>
           <input
@@ -496,8 +471,8 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
           <div>
             <label htmlFor="provider-management-cred" className="mb-0.5 block text-[0.6875rem] font-medium text-secondary">
               {isAntigravity || isCursor
-                ? 'Gateway API Key (write-only)'
-                : 'Management API Key (write-only)'}
+                ? t('patchForm.gatewayKey')
+                : t('patchForm.managementKeyOpenRouter')}
             </label>
             <input
               id="provider-management-cred"
@@ -506,11 +481,11 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
               placeholder={
                 isAntigravity || isCursor
                   ? provider.management_credential_configured
-                    ? 'Configured — enter to replace'
-                    : 'Gateway API key (X-Gateway-API-Key)'
+                    ? t('patchForm.placeholderConfiguredReplace')
+                    : t('patchForm.placeholderGatewayKey')
                   : provider.management_credential_configured
-                    ? 'Configured — enter to replace'
-                    : 'Not configured'
+                    ? t('patchForm.placeholderConfiguredReplace')
+                    : t('patchForm.placeholderNotConfigured')
               }
               className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20"
               {...register('management_credential')}
@@ -524,7 +499,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         <div>
           <div className="mb-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
             <label htmlFor="provider-endpoint-input" className="text-[0.6875rem] font-medium text-secondary">
-              Endpoint
+              {t('patchForm.endpointLabel')}
             </label>
             {isAntigravity ? (
               <button
@@ -534,7 +509,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <ShieldCheck className="size-3" />
-                Testar conexão
+                {t('patchForm.testConnection')}
               </button>
             ) : null}
           </div>
@@ -552,14 +527,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         {isAntigravity ? (
           <div>
             <label htmlFor="antigravity-oauth-redirect" className="mb-0.5 block text-[0.6875rem] font-medium text-secondary">
-              OAuth redirect URI (opcional)
+              {t('patchForm.oauthRedirectOptional')}
             </label>
             <input
               id="antigravity-oauth-redirect"
               type="url"
               autoComplete="off"
               disabled={isBusy}
-              placeholder="https://seu-proxy.example/v1/providers/antigravity/auth/callback"
+              placeholder={t('patchForm.oauthRedirectPlaceholder')}
               className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
               {...register('oauth_redirect_uri')}
             />
@@ -571,7 +546,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
           <div>
             <div className="mb-0.5 flex items-center justify-between">
               <label htmlFor="provider-credential-patch" className="text-[0.6875rem] font-medium text-secondary">
-                Credential (write-only)
+                {t('patchForm.credentialLabel')}
               </label>
               <button
                 type="button"
@@ -580,7 +555,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <ShieldCheck className="size-3" />
-                Testar conexão
+                {t('patchForm.testConnection')}
               </button>
             </div>
             <input
@@ -588,7 +563,11 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
               type="password"
               autoComplete="new-password"
               disabled={isBusy}
-              placeholder={provider.credential_configured ? 'Configured — enter to replace' : 'Not configured'}
+              placeholder={
+                provider.credential_configured
+                  ? t('patchForm.placeholderConfiguredReplace')
+                  : t('patchForm.placeholderNotConfigured')
+              }
               className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
               {...register('credential')}
             />
@@ -610,10 +589,10 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 {startingOAuth ? (
                   <>
                     <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Iniciando…</span>
+                    <span>{t('patchForm.starting')}</span>
                   </>
                 ) : (
-                  <span>Login OAuth</span>
+                  <span>{t('patchForm.oauthLogin')}</span>
                 )}
               </button>
               <button
@@ -625,10 +604,10 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 {loadingAuthStatus ? (
                   <>
                     <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Consultando…</span>
+                    <span>{t('patchForm.checking')}</span>
                   </>
                 ) : (
-                  <span>Status OAuth</span>
+                  <span>{t('patchForm.oauthStatus')}</span>
                 )}
               </button>
               <button
@@ -640,24 +619,24 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 {clearingProxySessions ? (
                   <>
                     <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Limpando…</span>
+                    <span>{t('patchForm.clearing')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 className="size-3 shrink-0 text-amber-300/80" />
-                    <span>Encerrar sessão</span>
+                    <span>{t('patchForm.endSession')}</span>
                   </>
                 )}
               </button>
             </div>
             <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[0.625rem] text-muted">
               <summary className="cursor-pointer list-none font-medium text-secondary marker:content-none [&::-webkit-details-marker]:hidden">
-                Sobre «Encerrar sessão» e OAuth
+                {t('patchForm.antigravitySessionSummaryTitle')}
               </summary>
               <ul className="mt-1 list-disc space-y-0.5 pl-3.5 leading-snug marker:text-muted">
-                <li>Limpa ACP/cache no gateway neste fluxo.</li>
-                <li>Não apaga tokens OAuth em disco no host do proxy (~/.gemini).</li>
-                <li>«Ver status OAuth» pode seguir autenticado até revogar ou remover tokens lá.</li>
+                <li>{t('patchForm.antigravitySessionBullet1')}</li>
+                <li>{t('patchForm.antigravitySessionBullet2')}</li>
+                <li>{t('patchForm.antigravitySessionBullet3')}</li>
               </ul>
             </details>
           </div>
@@ -675,10 +654,10 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 {startingCursorAuth ? (
                   <>
                     <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Iniciando…</span>
+                    <span>{t('patchForm.starting')}</span>
                   </>
                 ) : (
-                  <span>Login web</span>
+                  <span>{t('patchForm.webLogin')}</span>
                 )}
               </button>
               <button
@@ -690,10 +669,10 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 {loadingCursorAuthStatus ? (
                   <>
                     <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Consultando…</span>
+                    <span>{t('patchForm.checking')}</span>
                   </>
                 ) : (
-                  <span>Ver status</span>
+                  <span>{t('patchForm.checkStatus')}</span>
                 )}
               </button>
               <button
@@ -705,24 +684,24 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 {clearingCursorUsage ? (
                   <>
                     <RefreshCw className="size-3 shrink-0 animate-spin" />
-                    <span>Limpando…</span>
+                    <span>{t('patchForm.clearing')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 className="size-3 shrink-0 text-amber-300/80" />
-                    <span>Limpar sessão</span>
+                    <span>{t('patchForm.clearSession')}</span>
                   </>
                 )}
               </button>
             </div>
             <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[0.625rem] text-muted">
               <summary className="cursor-pointer list-none font-medium text-secondary marker:content-none [&::-webkit-details-marker]:hidden">
-                Sobre login web e coleta de uso
+                {t('patchForm.cursorSessionSummaryTitle')}
               </summary>
               <ul className="mt-1 list-disc space-y-0.5 pl-3.5 leading-snug marker:text-muted">
-                <li>Gateway API Key autentica o Hub no Connexto Proxy.</li>
-                <li>«Login web» abre o sign-in do Cursor no proxy para leitura de uso.</li>
-                <li>«Limpar sessão» remove o estado cursor-usage no proxy; será necessário novo login.</li>
+                <li>{t('patchForm.cursorSessionBullet1')}</li>
+                <li>{t('patchForm.cursorSessionBullet2')}</li>
+                <li>{t('patchForm.cursorSessionBullet3')}</li>
               </ul>
             </details>
           </div>
@@ -765,18 +744,20 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         <button
           type="submit"
           disabled={isBusy}
-          aria-label="Save changes"
+          aria-label={t('patchForm.saveAria')}
           className="flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-cobalt/40 bg-accent-deep px-4 text-[0.6875rem] font-semibold text-[#E4EBFC] shadow-sm hover:bg-[#314A78] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[11rem]"
         >
           {isBusy ? (
             <>
               <RefreshCw className="size-3.5 animate-spin" />
-              <span>{testingConnection ? 'Testando conexão...' : 'Salvando alterações...'}</span>
+              <span>
+                {testingConnection ? t('patchForm.testingConnection') : t('patchForm.saving')}
+              </span>
             </>
           ) : (
             <>
               <ShieldCheck className="size-3.5 text-cobalt" />
-              <span>Salvar alterações</span>
+              <span>{t('patchForm.save')}</span>
             </>
           )}
         </button>
