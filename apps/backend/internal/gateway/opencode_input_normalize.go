@@ -58,37 +58,42 @@ func normalizeOpenCodeGoResponsesInput(body []byte) ([]byte, error) {
 
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(body, &envelope); err != nil {
-		return body, nil
+		return providers.NormalizeOpenCodeGoResponsesPayload(body)
 	}
 
 	rawInput, ok := envelope["input"]
-	if !ok {
-		return body, nil
-	}
-
-	if rawInput[0] == '"' {
-		return body, nil
+	if !ok || len(rawInput) == 0 || rawInput[0] == '"' {
+		return providers.NormalizeOpenCodeGoResponsesPayload(body)
 	}
 
 	var items []json.RawMessage
 	if err := json.Unmarshal(rawInput, &items); err != nil {
-		return body, nil
+		return providers.NormalizeOpenCodeGoResponsesPayload(body)
 	}
 
+	inputChanged := false
 	normalized, changed, err := normalizeOpenCodeInputItems(items)
 	if err != nil {
 		return nil, err
 	}
-	if !changed {
-		return body, nil
+	if changed {
+		normalizedRaw, err := json.Marshal(normalized)
+		if err != nil {
+			return nil, err
+		}
+		envelope["input"] = normalizedRaw
+		inputChanged = true
 	}
 
-	normalizedRaw, err := json.Marshal(normalized)
-	if err != nil {
-		return nil, err
+	candidate := body
+	if inputChanged {
+		marshaled, err := json.Marshal(envelope)
+		if err != nil {
+			return nil, err
+		}
+		candidate = marshaled
 	}
-	envelope["input"] = normalizedRaw
-	return json.Marshal(envelope)
+	return providers.NormalizeOpenCodeGoResponsesPayload(candidate)
 }
 
 func normalizeOpenCodeInputItems(items []json.RawMessage) ([]json.RawMessage, bool, error) {

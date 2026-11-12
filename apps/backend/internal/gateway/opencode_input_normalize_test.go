@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"aihub/internal/providers"
@@ -60,6 +61,17 @@ func TestAdaptResponsesPayloadForProviderSkipsOtherProviders(t *testing.T) {
 	}
 	if string(out) != string(body) {
 		t.Fatalf("cursor payload changed: %s", out)
+	}
+}
+
+func TestNormalizeOpenCodeGoResponsesInputStripsReasoningContext(t *testing.T) {
+	in := []byte(`{"model":"glm-5.3-flash","reasoning":{"effort":"medium","context":{"turns":2}},"input":"hello"}`)
+	out, err := normalizeOpenCodeGoResponsesInput(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "context") {
+		t.Fatalf("reasoning.context not stripped: %s", out)
 	}
 }
 

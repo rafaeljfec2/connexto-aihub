@@ -167,6 +167,11 @@ func (c *Client) OpenTargetResponses(ctx context.Context, target ResponsesTarget
 		return nil, errors.New("provider model identity must not be empty")
 	}
 
+	normalized, err := NormalizeOpenCodeGoResponsesPayload(payload)
+	if err != nil {
+		return nil, fmt.Errorf("normalize OpenCode Go responses payload: %w", err)
+	}
+
 	var requestWritten atomic.Bool
 	trace := &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
 		if info.Err == nil {
@@ -179,7 +184,7 @@ func (c *Client) OpenTargetResponses(ctx context.Context, target ResponsesTarget
 	header.Set("X-Opencode-Session", sessionID)
 
 	response, err := c.do(requestContext, http.MethodPost, responsesPath,
-		bytes.NewReader(payload), header)
+		bytes.NewReader(normalized), header)
 	if err == nil || ctx.Err() != nil || !requestWritten.Load() {
 		return response, err
 	}

@@ -14,6 +14,26 @@ var openRouterStrippedPartTypes = map[string]struct{}{
 	"encrypted_content":      {},
 }
 
+// ScrubNonPortableThinkingInput removes thinking blocks from a Responses input array.
+func ScrubNonPortableThinkingInput(raw json.RawMessage) (json.RawMessage, bool, error) {
+	if len(raw) == 0 || raw[0] == '"' {
+		return raw, false, nil
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return raw, false, nil
+	}
+	scrubbed, changed := scrubOpenRouterInputValue(decoded)
+	if !changed {
+		return raw, false, nil
+	}
+	next, err := json.Marshal(scrubbed)
+	if err != nil {
+		return raw, false, err
+	}
+	return next, true, nil
+}
+
 // NormalizeOpenRouterResponsesPayload strips non-replayable thinking blocks from
 // Responses bodies before they reach OpenRouter upstream routers.
 func NormalizeOpenRouterResponsesPayload(body []byte) ([]byte, error) {

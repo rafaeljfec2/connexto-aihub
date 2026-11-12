@@ -47,11 +47,11 @@ func TestAdaptResponsesPayloadForProviderOpenRouterOnly(t *testing.T) {
 		t.Fatal("openrouter should strip thinking block")
 	}
 
-	otherOut, err := adaptResponsesPayloadForProvider(providers.OpenCodeGoID, in)
+	otherOut, err := adaptResponsesPayloadForProvider(providers.CursorID, in)
 	if err != nil {
-		t.Fatalf("opencode: %v", err)
+		t.Fatalf("cursor: %v", err)
 	}
 	if !strings.Contains(string(otherOut), "redacted_thinking") {
-		t.Fatal("other providers should leave payload unchanged")
+		t.Fatal("unrelated providers should leave payload unchanged")
 	}
 }
