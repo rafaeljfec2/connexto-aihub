@@ -16,6 +16,7 @@ const (
 	ErrorForbidden            = "forbidden"
 	ErrorPayloadTooLarge      = "payload_too_large"
 	ErrorUnsupportedMediaType = "unsupported_media_type"
+	ErrorTooManyRequests      = "too_many_requests"
 )
 
 const errorContentType = "application/json; charset=utf-8"
@@ -73,6 +74,11 @@ func WriteInvalidRequest(w http.ResponseWriter, message string) {
 // WriteInternalError emits an internal error JSON envelope.
 func WriteInternalError(w http.ResponseWriter) {
 	writeError(w, http.StatusInternalServerError, ErrorInternal, "an internal error occurred")
+}
+
+// WriteTooManyRequests emits HTTP 429 when an auth rate limit is exceeded.
+func WriteTooManyRequests(w http.ResponseWriter) {
+	writeError(w, http.StatusTooManyRequests, ErrorTooManyRequests, "too many attempts; try again later")
 }
 
 // WriteMethodNotAllowed emits HTTP 405 without a JSON body.

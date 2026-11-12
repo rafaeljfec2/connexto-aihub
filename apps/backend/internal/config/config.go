@@ -23,6 +23,7 @@ type Config struct {
 	Database    Database
 	Credentials Credentials
 	UI          UI
+	Auth        Auth
 }
 
 // Default returns the baseline configuration used as the starting point for

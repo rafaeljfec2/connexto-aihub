@@ -38,6 +38,14 @@ const (
 	EnvAutoGate0Enforced         = "AIHUB_AUTO_GATE0_ENFORCED"
 	EnvDockerKeepLoopbackDB      = "AIHUB_DOCKER_KEEP_LOOPBACK_DB"
 	EnvDockerRewriteLoopbackProxy = "AIHUB_DOCKER_REWRITE_LOOPBACK_PROXY"
+	EnvBootstrapAdminEmail        = "AIHUB_BOOTSTRAP_ADMIN_EMAIL"
+	EnvBootstrapAdminPassword     = "AIHUB_BOOTSTRAP_ADMIN_PASSWORD"
+	EnvSMTPHost                   = "AIHUB_SMTP_HOST"
+	EnvSMTPPort                   = "AIHUB_SMTP_PORT"
+	EnvSMTPUser                   = "AIHUB_SMTP_USER"
+	EnvSMTPPassword               = "AIHUB_SMTP_PASSWORD"
+	EnvSMTPFrom                   = "AIHUB_SMTP_FROM"
+	EnvPublicAppURL               = "AIHUB_PUBLIC_APP_URL"
 )
 
 // knownEnvKeys lists every variable the application consumes.
@@ -83,6 +91,14 @@ var knownEnvKeys = map[string]struct{}{
 	EnvAutoGate0Enforced:         {},
 	EnvDockerKeepLoopbackDB:      {},
 	EnvDockerRewriteLoopbackProxy: {},
+	EnvBootstrapAdminEmail:        {},
+	EnvBootstrapAdminPassword:     {},
+	EnvSMTPHost:                   {},
+	EnvSMTPPort:                   {},
+	EnvSMTPUser:                   {},
+	EnvSMTPPassword:               {},
+	EnvSMTPFrom:                   {},
+	EnvPublicAppURL:               {},
 }
 
 // LogLevel is a validated log level accepted by the application.

@@ -109,5 +109,9 @@ func applyEnvironment(cfg *Config) error {
 		return err
 	}
 
+	if err := applyAuthEnvironment(&cfg.Auth); err != nil {
+		return err
+	}
+
 	return nil
 }

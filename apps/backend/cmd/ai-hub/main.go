@@ -159,9 +159,14 @@ func run() error {
 		runtime.providerAdmin.BindCatalogManager(catalogModule)
 	}
 
-	operatorGate, err := cfg.BuildOperatorGate()
+	uiAuth, err := buildUIAuthBundle(cfg, runtime.dbPool, logger)
 	if err != nil {
-		return fmt.Errorf("operator ui gate: %w", err)
+		return fmt.Errorf("ui authentication: %w", err)
+	}
+	if cfg.UIUsersAuthEnabled() && uiAuth.Users != nil {
+		if err := uiAuth.Users.BootstrapPrimaryAdmin(context.Background(), cfg.Auth.BootstrapAdminEmail, cfg.BootstrapAdminPassword()); err != nil {
+			return fmt.Errorf("bootstrap admin: %w", err)
+		}
 	}
 
 	router, err := buildGatewayRouterWithGenerations(cfg, logger, providerRegistry, providerModule,
@@ -169,7 +174,7 @@ func run() error {
 		runtime.executionManager, catalogModule, recordsModule, runtime.generationService,
 		readiness, runtime.providerAdmin, runtime.resourceAdmin, runtime.concurrencyAdmin,
 		runtime.analyticsAdmin, runtime.resourceAdmission, runtime.concurrencyGate,
-		runtime.usageMetering, eventHub, operatorGate, runtime.quotaService)
+		runtime.usageMetering, eventHub, uiAuth, runtime.quotaService)
 	if err != nil {
 		return err
 	}

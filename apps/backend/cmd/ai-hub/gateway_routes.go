@@ -19,7 +19,6 @@ import (
 	"aihub/internal/providers"
 	"aihub/internal/records"
 	"aihub/internal/server"
-	"aihub/internal/ui"
 )
 
 func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
@@ -28,11 +27,11 @@ func buildGatewayRouter(cfg config.Config, logger *slog.Logger, registry *provid
 	readiness *health.Registry, providerAdmin *gateway.ProviderAdmin, resourceAdmin *gateway.ResourceAdmin,
 	concurrencyAdmin *gateway.ConcurrencyAdmin, analyticsAdmin *gateway.AnalyticsAdmin,
 	resourceAdmission gateway.ResourceAdmitter, concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
-	eventHub *operational.Hub, operatorGate ui.Gate, quotaService *providers.QuotaService) (http.Handler, error) {
+	eventHub *operational.Hub, uiAuth UIAuthBundle, quotaService *providers.QuotaService) (http.Handler, error) {
 	return buildGatewayRouterWithGenerations(cfg, logger, registry, providerManager, providerService, executionManager,
 		catalogModule, recordsModule, generations.NewService(recordsModule, nil, logger), readiness,
 		providerAdmin, resourceAdmin, concurrencyAdmin, analyticsAdmin, resourceAdmission,
-		concurrencyGate, usageMetering, eventHub, operatorGate, quotaService)
+		concurrencyGate, usageMetering, eventHub, uiAuth, quotaService)
 }
 
 func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, registry *providers.Registry, providerManager *providers.Manager,
@@ -42,12 +41,12 @@ func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, r
 	resourceAdmin *gateway.ResourceAdmin, concurrencyAdmin *gateway.ConcurrencyAdmin,
 	analyticsAdmin *gateway.AnalyticsAdmin, resourceAdmission gateway.ResourceAdmitter,
 	concurrencyGate gateway.ConcurrencyGate, usageMetering *metering.Service,
-	eventHub *operational.Hub, operatorGate ui.Gate, quotaService *providers.QuotaService) (http.Handler, error) {
+	eventHub *operational.Hub, uiAuth UIAuthBundle, quotaService *providers.QuotaService) (http.Handler, error) {
 	policy, err := access.NewPolicy(access.PolicyConfig{
 		APIKey: cfg.Gateway.APIKey, AdminAPIKey: cfg.Gateway.AdminAPIKey,
 		AllowedHosts: cfg.Gateway.AllowedHosts, AllowedHostsExplicit: cfg.Gateway.AllowedHostsSet,
 		AllowedOrigins: cfg.Gateway.AllowedOrigins, MaxBodyBytes: cfg.Gateway.MaxBodyBytes,
-		Operator: operatorGate,
+		Operator: uiAuth.OperatorGate,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build gateway access policy: %w", err)
@@ -87,7 +86,7 @@ func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, r
 	}
 	allRoutes := make([]server.Route, 0, len(routes)+32)
 	allRoutes = append(allRoutes, routes...)
-	allRoutes = append(allRoutes, uiAuthRoutes(operatorGate, logger)...)
+	allRoutes = append(allRoutes, uiAuthRoutes(uiAuth, logger)...)
 	allRoutes = append(allRoutes, runtimeRoutes(cfg, recordsModule, readiness)...)
 	allRoutes = append(allRoutes, operationalEventsRoutes(eventHub, readiness, providerManager.Statuses, logger)...)
 	allRoutes = append(allRoutes, providerAdminRoutes(providerAdmin)...)

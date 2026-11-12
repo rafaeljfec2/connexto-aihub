@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"aihub/internal/analytics"
 	analyticspg "aihub/internal/analytics/pgstore"
 	"aihub/internal/app"
@@ -28,6 +30,7 @@ import (
 
 type persistenceRuntime struct {
 	catalogStore      catalog.SnapshotStore
+	dbPool            *pgxpool.Pool
 	databaseModule    app.Module
 	configModule      app.Module
 	providerService   *providers.Service
@@ -64,6 +67,7 @@ func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *p
 	if err != nil {
 		return persistenceRuntime{}, fmt.Errorf("open database: %w", err)
 	}
+	runtime.dbPool = pool
 	runtime.databaseModule = db.NewModule(pool, logger)
 	runtime.catalogStore = catalog.NewPostgresStore(pool, logger)
 

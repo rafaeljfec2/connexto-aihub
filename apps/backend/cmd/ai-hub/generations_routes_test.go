@@ -111,9 +111,9 @@ func newGenerationsTestRouter(t *testing.T) (http.Handler, string) {
 	logger := observability.NewLogger(io.Discard, slog.LevelInfo, "text")
 	cfg := config.Default()
 	cfg.Gateway.APIKey = "test-gateway-key-1234567890-1234567890"
-	operatorGate, err := cfg.BuildOperatorGate()
+	uiAuth, err := buildUIAuthBundle(cfg, nil, logger)
 	if err != nil {
-		t.Fatalf("build operator gate: %v", err)
+		t.Fatalf("build ui auth: %v", err)
 	}
 
 	recordsModule := records.New(records.Options{
@@ -150,7 +150,7 @@ func newGenerationsTestRouter(t *testing.T) (http.Handler, string) {
 	readiness := health.NewRegistry()
 	eventHub := operational.NewHub(logger)
 	router, err := buildGatewayRouter(cfg, logger, registry, providerManager, nil, nil, nil, recordsModule,
-		readiness, nil, nil, nil, nil, nil, nil, nil, eventHub, operatorGate, nil)
+		readiness, nil, nil, nil, nil, nil, nil, nil, eventHub, uiAuth, nil)
 	if err != nil {
 		t.Fatalf("build gateway router: %v", err)
 	}

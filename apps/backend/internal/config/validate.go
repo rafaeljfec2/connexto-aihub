@@ -77,7 +77,7 @@ func (c Config) Validate() error {
 	errs = append(errs, validateCredentials(c)...)
 	errs = append(errs, validateAdminAPIKey(c)...)
 	errs = append(errs, validateProviderHosts(c)...)
-	errs = append(errs, c.UI.validate(c.Server.Host)...)
+	errs = append(errs, combinedUIValidation(c.UI, c.Server.Host, c)...)
 
 	return errors.Join(errs...)
 }

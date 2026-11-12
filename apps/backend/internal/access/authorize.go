@@ -62,11 +62,20 @@ func healthExempt(r *http.Request) bool {
 }
 
 func uiAuthExempt(r *http.Request) bool {
-	if r.Method == http.MethodPost && r.URL.Path == "/api/ui/login" {
+	if r.Method == http.MethodGet && r.URL.Path == "/api/ui/session" {
 		return true
 	}
 
-	return r.Method == http.MethodGet && r.URL.Path == "/api/ui/session"
+	if r.Method != http.MethodPost {
+		return false
+	}
+
+	switch r.URL.Path {
+	case "/api/ui/login", "/api/ui/refresh", "/api/ui/forgot-password", "/api/ui/reset-password":
+		return true
+	default:
+		return false
+	}
 }
 
 // authenticate selects the credential for the route namespace: the

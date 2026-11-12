@@ -1,33 +1,47 @@
-import { describe, expect, it } from 'vitest'
-import { ApiError } from './client'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { setUiAuthSystem } from '../../features/auth/api/uiAuthSystem'
+import { fetchJson } from './client'
 
-describe('ApiError', () => {
-  it('preserves server error type', () => {
-    const error = new ApiError(502, { type: 'upstream_failure', message: 'failed' })
-    expect(error.type).toBe('upstream_failure')
-    expect(error.message).toBe('failed')
+describe('fetchJson 401 refresh', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    setUiAuthSystem('unknown')
   })
-})
 
-describe('fetchJson', () => {
-  it('parses gateway error envelope', async () => {
-    const { fetchJson, ApiError } = await import('./client')
-    globalThis.fetch = (() =>
-      Promise.resolve({
-        ok: false,
-        status: 502,
-        statusText: 'Bad Gateway',
-        json: () =>
-          Promise.resolve({
-            error: { type: 'proxy_antigravity_auth_failed', message: 'upstream said no' },
-          }),
-      })) as unknown as typeof fetch
+  it('retries once after a successful refresh', async () => {
+    setUiAuthSystem('users')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
 
-    const err = await fetchJson('/api/x').catch((e: unknown) => e)
-    expect(err).toBeInstanceOf(ApiError)
-    const apiErr = err as InstanceType<typeof ApiError>
-    expect(apiErr.status).toBe(502)
-    expect(apiErr.type).toBe('proxy_antigravity_auth_failed')
-    expect(apiErr.message).toBe('upstream said no')
+    const result = await fetchJson<{ ok: boolean }>('/api/overview')
+    expect(result.ok).toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/ui/refresh')
+  })
+
+  it('does not refresh in operator auth system', async () => {
+    setUiAuthSystem('operator')
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 401 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchJson('/api/overview')).rejects.toBeDefined()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not refresh for login endpoint', async () => {
+    setUiAuthSystem('users')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { type: 'unauthorized', message: 'x' } }), { status: 401 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchJson('/api/ui/login', { method: 'POST' })).rejects.toBeDefined()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

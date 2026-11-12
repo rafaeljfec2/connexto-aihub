@@ -111,17 +111,19 @@ func (g Gate) LogoutCookie() string {
 type SessionInfo struct {
 	Authenticated bool   `json:"authenticated"`
 	Mode          string `json:"mode"`
+	System        string `json:"system"`
 }
 
 // Session returns session metadata for the request.
 func (g Gate) Session(r *http.Request) SessionInfo {
+	const systemOperator = "operator"
 	if g.verifySessionCookie(r) {
-		return SessionInfo{Authenticated: true, Mode: "passphrase"}
+		return SessionInfo{Authenticated: true, Mode: "passphrase", System: systemOperator}
 	}
 	if g.LoopbackTrustEnabled() && clientLoopback(r) {
-		return SessionInfo{Authenticated: true, Mode: "loopback_trust"}
+		return SessionInfo{Authenticated: true, Mode: "loopback_trust", System: systemOperator}
 	}
-	return SessionInfo{Authenticated: false, Mode: "none"}
+	return SessionInfo{Authenticated: false, Mode: "none", System: systemOperator}
 }
 
 func (g Gate) verifySessionCookie(r *http.Request) bool {
