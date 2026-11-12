@@ -78,6 +78,10 @@ export function openAiModelObject(model: ComposerModel): Record<string, unknown>
     permission: [],
     root: model.id,
     parent: null,
+    capabilities: {
+      tools: { supported: true },
+      reasoning: { supported: true },
+    },
   };
 }
 

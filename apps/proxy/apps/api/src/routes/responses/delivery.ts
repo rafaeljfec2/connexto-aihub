@@ -179,6 +179,7 @@ export async function streamResponseRun(
     text: fullText,
     toolCalls,
     promptChars: ctx.prepared.promptChars,
+    metadata: ctx.prepared.responseMetadata,
     textStarted: true,
     textOutputIndex: 0,
   })) {
@@ -203,6 +204,7 @@ export async function streamResponseRun(
         text: fullText,
         toolCalls,
         promptChars: ctx.prepared.promptChars,
+        metadata: ctx.prepared.responseMetadata,
       }),
     });
   }
@@ -258,6 +260,7 @@ export async function deliverNonStreamingResponse(
     promptChars: ctx.prepared.promptChars,
     usage: runOutput.usage,
     reasoningEffort: ctx.reasoningEffort,
+    metadata: ctx.prepared.responseMetadata,
   });
 
   if (ctx.prepared.storeResponse) {

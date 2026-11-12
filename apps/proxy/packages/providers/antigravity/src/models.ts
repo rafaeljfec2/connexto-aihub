@@ -15,22 +15,22 @@ const AGENT_MODELS = [
   {
     value: "gemini-3.8-flash",
     name: "Gemini 3.8 Flash",
-    capabilities: { tools: { supported: false }, reasoning: { supported: true } },
+    capabilities: { tools: { supported: true }, reasoning: { supported: true } },
   },
   {
     value: "claude-sonnet-4-6",
     name: "Claude Sonnet 4.6 (Thinking)",
-    capabilities: { tools: { supported: false }, reasoning: { supported: true } },
+    capabilities: { tools: { supported: true }, reasoning: { supported: true } },
   },
   {
     value: "claude-opus-4-6-thinking",
     name: "Claude Opus 4.6 (Thinking)",
-    capabilities: { tools: { supported: false }, reasoning: { supported: true } },
+    capabilities: { tools: { supported: true }, reasoning: { supported: true } },
   },
   {
     value: "gpt-oss-120b-medium",
     name: "GPT-OSS 120B (Medium)",
-    capabilities: { tools: { supported: false }, reasoning: { supported: false } },
+    capabilities: { tools: { supported: true }, reasoning: { supported: false } },
   },
 ] as const;
 
