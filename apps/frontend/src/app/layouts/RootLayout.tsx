@@ -5,10 +5,10 @@ import { AppShell } from './AppShell'
 
 export function RootLayout() {
   const queryClient = useQueryClient()
-  const { connectionState, reconnect } = useOperationalEvents(queryClient, {
+  const { connectionState } = useOperationalEvents(queryClient, {
     readiness: overviewQueryKeys.readiness,
     providerDiagnostics: overviewQueryKeys.providerDiagnostics,
   })
 
-  return <AppShell connectionState={connectionState} onReconnect={reconnect} />
+  return <AppShell connectionState={connectionState} />
 }

@@ -26,10 +26,9 @@ function getInitialSidebarCollapsed(): boolean {
 
 type AppShellProps = {
   connectionState: OperationalConnectionState
-  onReconnect: () => void
 }
 
-export function AppShell({ connectionState, onReconnect }: AppShellProps) {
+export function AppShell({ connectionState }: AppShellProps) {
   const location = useLocation()
   const meta = resolvePageMeta(location.pathname)
   const [collapsed, setCollapsed] = useState<boolean>(getInitialSidebarCollapsed)
