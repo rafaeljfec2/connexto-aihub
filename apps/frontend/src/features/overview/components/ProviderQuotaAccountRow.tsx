@@ -1,5 +1,10 @@
 import { AiBrandIcon, hubProviderIconSlug } from '../../../shared/branding'
 import {
+  cursorMonthlyAdditionalUsage,
+  cursorPrepaidBalanceUsd,
+  formatAccountUsd,
+} from '../../providers/lib/cursorQuotaMetrics'
+import {
   goPlusChipPercent,
   goPlusMetersFromSnapshot,
   productUsageTitle,
@@ -84,6 +89,11 @@ function visibleSnapshots(snapshots: readonly ProviderQuotaSnapshot[]): readonly
 function availableBalance(snapshot: ProviderQuotaSnapshot): number | undefined {
   if (snapshot.scope !== 'account' || snapshot.status !== 'available') return undefined
 
+  const prepaid = cursorPrepaidBalanceUsd(snapshot)
+  if (prepaid !== undefined) {
+    return prepaid
+  }
+
   const credits = snapshot.quotas.find((metric) => metric.metric === 'total_credits')
   const usage = snapshot.quotas.find((metric) => metric.metric === 'total_usage')
   if (credits?.limit == null || usage?.used == null || credits.unit !== 'USD' || usage.unit !== 'USD') {
@@ -117,6 +127,8 @@ function goSummaryLine(snapshots: readonly ProviderQuotaSnapshot[]): string | un
 function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }>) {
   const metrics = summaryMetrics(snapshot)
   const balance = availableBalance(snapshot)
+  const monthlyAdditional =
+    snapshot.provider_id === 'cursor' ? cursorMonthlyAdditionalUsage(snapshot) : undefined
   const isAntigravity = snapshot.provider_id === 'antigravity'
 
   return (
@@ -141,6 +153,17 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
                 metric={metric}
               />
             ))}
+            {monthlyAdditional?.usedUsd != null ? (
+              <div
+                className="flex items-baseline justify-between gap-2"
+                data-testid={`quota-monthly-additional-${snapshot.account_id}`}
+              >
+                <span className="text-[9px] font-medium text-[#CBD5E2]">Uso adicional mensal</span>
+                <span className="text-[9px] text-[#A7B3C3]">
+                  {formatAccountUsd(monthlyAdditional.usedUsd)}
+                </span>
+              </div>
+            ) : null}
             {balance != null ? (
               <div
                 className="flex items-baseline justify-between gap-2"

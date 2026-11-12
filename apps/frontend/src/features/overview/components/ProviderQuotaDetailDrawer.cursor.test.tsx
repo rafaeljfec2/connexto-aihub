@@ -83,4 +83,53 @@ describe('ProviderQuotaDetailDrawer Cursor usage section', () => {
     expect(screen.getByText('gpt-5.1-codex-max')).toBeTruthy()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Atualizar uso do Cursor' }).hasAttribute('disabled')).toBe(false))
   })
+
+  it('renders Cursor weekly product breakdown and monthly additional usage in the drawer', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    clients.push(client)
+    vi.mocked(cursorQueries.getCursorUsageAnalytics).mockResolvedValue(analytics)
+
+    const enrichedSnapshot: ProviderQuotaSnapshot = {
+      ...cursorSnapshot,
+      quotas: [
+        { metric: 'weekly_included_status', label: 'Weekly included status', nature: 'usage', scope: 'weekly_status:metered' },
+        {
+          metric: 'weekly_product_cursor',
+          label: 'Weekly usage · Cursor',
+          nature: 'usage',
+          used: 0.18,
+          consumed_percent: 0.11139,
+          unit: 'USD',
+          scope: 'product:cursor',
+        },
+        {
+          metric: 'monthly_additional_usage',
+          label: 'Monthly additional usage',
+          nature: 'cost',
+          used: 9.22,
+          unit: 'USD',
+          resets_at: '2026-12-01T00:00:00.000Z',
+        },
+        { metric: 'prepaid_available_credits', label: 'Prepaid credits available', nature: 'quota', remaining: 0.79, unit: 'USD' },
+      ],
+    }
+
+    render(
+      <QueryClientProvider client={client}>
+        <ProviderQuotaDetailDrawer
+          open
+          onOpenChange={vi.fn()}
+          accountLabel="Cursor"
+          snapshots={[enrichedSnapshot]}
+        />
+      </QueryClientProvider>,
+    )
+
+    const breakdown = await screen.findByTestId('cursor-drawer-quota-summary')
+    expect(breakdown.textContent).toContain('metered')
+    expect(breakdown.textContent).toContain('Cursor (semanal)')
+    expect(breakdown.textContent).toContain('US$ 9,22')
+    expect(breakdown.textContent).toContain('Sem limite definido')
+    expect(breakdown.textContent).toContain('US$ 0,79')
+  })
 })

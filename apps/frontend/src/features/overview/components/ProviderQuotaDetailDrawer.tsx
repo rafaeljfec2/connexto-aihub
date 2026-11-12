@@ -13,6 +13,7 @@ import { GoPlusUsagePanel } from './GoPlusUsagePanel'
 import { WorkspaceUsageChart } from './WorkspaceUsageChart'
 import { AntigravityQuotaDrawerSection } from './AntigravityQuotaDrawerSection'
 import { CursorUsageDrawerSection } from '../../cursor'
+import { CursorQuotaBreakdownPanel } from '../../providers/components/CursorQuotaBreakdownPanel'
 import '../provider-quota-drawer.css'
 
 type ProviderQuotaDetailDrawerProps = Readonly<{
@@ -84,7 +85,10 @@ export function ProviderQuotaDetailDrawer({
             {primary?.provider_id === 'antigravity' && primary.status === 'available' ? (
               <AntigravityQuotaDrawerSection quotas={primary.quotas} />
             ) : primary?.provider_id === 'cursor' ? (
-              <CursorUsageDrawerSection providerId={primary.account_id} />
+              <>
+                <CursorQuotaBreakdownPanel snapshot={primary} testId="cursor-drawer-quota-summary" />
+                <CursorUsageDrawerSection providerId={primary.account_id} />
+              </>
             ) : goMeters.length > 0 && primary ? (
               <GoPlusUsagePanel
                 meters={goMeters}

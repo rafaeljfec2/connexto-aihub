@@ -544,4 +544,46 @@ describe('franchiseSummary — Cursor', () => {
     })
     expect(availableBalanceDisplay(cursorSnapshot)).toBe('US$ 3,15')
   })
+
+  it('rounds positive sub-1% Cursor weekly usage up to 1% to match upstream dashboard', () => {
+    const subOnePercentSnapshot: ProviderQuotaSnapshot = {
+      account_id: 'cursor-1',
+      account_label: 'Cursor',
+      provider_id: 'cursor',
+      provider_name: 'Cursor',
+      status: 'available',
+      scope: 'account',
+      quotas: [
+        { metric: 'total_usage', label: 'Total account usage', nature: 'cost', used: 0.18, unit: 'USD' },
+        {
+          metric: 'total_credits',
+          label: 'Weekly included budget',
+          nature: 'quota',
+          limit: 161.59,
+          unit: 'USD',
+          consumed_percent: 0.11139,
+        },
+        { metric: 'weekly_used_percent', label: 'Weekly used percent', nature: 'usage', consumed_percent: 0.11139 },
+        { metric: 'prepaid_available_credits', label: 'Prepaid credits', nature: 'quota', remaining: 0.79, unit: 'USD' },
+      ],
+      source: {
+        type: 'provider_api',
+        name: 'cursor_proxy_usage_collect',
+        scope: 'account',
+        fetched_at: '2026-11-11T23:30:00Z',
+      },
+    }
+    expect(franchiseSummary(subOnePercentSnapshot)).toEqual({
+      title: 'Franquia semanal Cursor',
+      value: '1% reportado · US$ 0,18 consumido · Limite US$ 161,59',
+    })
+    expect(consumptionCell(subOnePercentSnapshot)).toEqual({
+      kind: 'percent',
+      label: 'Franquia semanal',
+      percent: 1,
+      barValue: 1,
+      barMax: 100,
+    })
+    expect(availableBalanceDisplay(subOnePercentSnapshot)).toBe('US$ 0,79')
+  })
 })

@@ -8,15 +8,12 @@ import {
 import { categorizeAntigravityQuotas } from '../../overview/lib/antigravityCategories'
 import type { ProviderQuotaSnapshot, ProviderQuotaStatus } from '../../overview/types/quota'
 import type { AdminProvider } from '../types'
+import {
+  cursorPrepaidBalanceUsd,
+  formatAccountUsd,
+  formatCursorWeeklyPercent,
+} from './cursorQuotaMetrics'
 import { providerCredentialConfigured, type ProviderSituation } from './providerPresentation'
-
-/** Account USD summary uses 2 fraction digits (Overview account row fidelity). */
-function formatAccountUsd(value: number): string {
-  return `US$ ${value.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
 
 function formatMetricAmount(value: number, unit?: string): string {
   if (unit === 'USD') return formatAccountUsd(value)
@@ -217,7 +214,7 @@ export function franchiseSummary(snapshot: ProviderQuotaSnapshot | undefined): F
     if (percent != null || usage != null || credits != null) {
       const parts: string[] = []
       if (percent != null) {
-        parts.push(`${Math.round(percent).toLocaleString('pt-BR')}% reportado`)
+        parts.push(`${formatCursorWeeklyPercent(percent).toLocaleString('pt-BR')}% reportado`)
       }
       if (usage != null) {
         parts.push(`${formatMetricAmount(usage.used, usage.unit)} consumido`)
@@ -362,7 +359,7 @@ export function consumptionCell(snapshot: ProviderQuotaSnapshot | undefined): Co
         : undefined)
 
     if (percent != null) {
-      const rounded = Math.round(percent)
+      const rounded = formatCursorWeeklyPercent(percent)
       return {
         kind: 'percent',
         label: 'Franquia semanal',
@@ -414,9 +411,9 @@ export function availableBalanceDisplay(snapshot: ProviderQuotaSnapshot | undefi
     return EMPTY_DASH
   }
 
-  const prepaid = snapshot.quotas.find((metric) => metric.metric === 'prepaid_available_credits')
-  if (prepaid?.remaining != null && prepaid.unit === 'USD') {
-    return formatAccountUsd(prepaid.remaining)
+  const prepaid = cursorPrepaidBalanceUsd(snapshot)
+  if (prepaid != null) {
+    return formatAccountUsd(prepaid)
   }
 
   const credits = snapshot.quotas.find((metric) => metric.metric === 'total_credits')

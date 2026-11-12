@@ -188,12 +188,16 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 	if usage == nil {
 		return []ProviderQuotaMetric{}
 	}
-	metrics := make([]ProviderQuotaMetric, 0, 8)
+	metrics := make([]ProviderQuotaMetric, 0, 12)
 	unit := "USD"
 
 	var weeklyUsedPercent *float64
 	if pct, ok := cursorUsageFloat(usage, "weekly_used_percent"); ok {
 		weeklyUsedPercent = &pct
+	}
+	var weeklyStartsAt *string
+	if startsAt, ok := cursorUsageString(usage, "weekly_period_start"); ok {
+		weeklyStartsAt = &startsAt
 	}
 
 	if used, ok := cursorUsageFloat(usage, "total_usage"); ok {
@@ -219,6 +223,7 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 			Limit:           &limit,
 			Unit:            &unit,
 			ConsumedPercent: weeklyUsedPercent,
+			StartsAt:        weeklyStartsAt,
 		})
 	}
 	if weeklyUsedPercent != nil {
@@ -227,6 +232,7 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 			Label:           "Weekly used percent",
 			Nature:          NatureUsage,
 			ConsumedPercent: weeklyUsedPercent,
+			StartsAt:        weeklyStartsAt,
 		})
 	}
 	if resetsAt, ok := cursorUsageString(usage, "weekly_resets_at"); ok {
@@ -234,7 +240,29 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 			Metric:   "weekly_resets_at",
 			Label:    "Weekly reset",
 			Nature:   NatureUsage,
+			StartsAt: weeklyStartsAt,
 			ResetsAt: &resetsAt,
+		})
+	}
+	if weeklyStatus, ok := cursorUsageString(usage, "weekly_included_status"); ok {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric: "weekly_included_status",
+			Label:  "Weekly included status",
+			Nature: NatureUsage,
+			Scope:  "weekly_status:" + strings.ToLower(strings.TrimSpace(weeklyStatus)),
+		})
+	}
+	metrics = append(metrics, mapCursorWeeklyByProduct(usage, unit)...)
+	if monthlyMetric, ok := mapCursorMonthlyAdditionalUsage(usage, unit); ok {
+		metrics = append(metrics, monthlyMetric)
+	}
+	if creditsUsed, ok := cursorUsageFloat(usage, "monthly_credits_used"); ok {
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric: "monthly_credits_used",
+			Label:  "Monthly credits used",
+			Nature: NatureCost,
+			Used:   &creditsUsed,
+			Unit:   &unit,
 		})
 	}
 	if prepaid, ok := cursorUsageFloat(usage, "prepaid_available_credits"); ok {
@@ -255,6 +283,98 @@ func mapCursorUsageMetrics(usage map[string]interface{}) []ProviderQuotaMetric {
 		})
 	}
 	return metrics
+}
+
+func mapCursorWeeklyByProduct(usage map[string]interface{}, unit string) []ProviderQuotaMetric {
+	raw, ok := usage["weekly_usage_by_product"].([]interface{})
+	if !ok || len(raw) == 0 {
+		return nil
+	}
+	metrics := make([]ProviderQuotaMetric, 0, len(raw))
+	for _, entry := range raw {
+		row, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		product, ok := cursorUsageString(row, "product")
+		if !ok {
+			continue
+		}
+		usedUSD, ok := cursorUsageFloat(row, "used_usd")
+		if !ok {
+			continue
+		}
+		var usedPct *float64
+		if pct, hasPct := cursorUsageFloat(row, "used_percent"); hasPct {
+			usedPct = &pct
+		}
+		normalized := strings.ToLower(strings.TrimSpace(product))
+		metrics = append(metrics, ProviderQuotaMetric{
+			Metric:          "weekly_product_" + normalized,
+			Label:           "Weekly usage · " + formatCursorProductTitle(product),
+			Nature:          NatureUsage,
+			Used:            &usedUSD,
+			ConsumedPercent: usedPct,
+			Unit:            &unit,
+			Scope:           "product:" + normalized,
+		})
+	}
+	return metrics
+}
+
+func mapCursorMonthlyAdditionalUsage(usage map[string]interface{}, unit string) (ProviderQuotaMetric, bool) {
+	monthlyUsed, hasUsed := cursorUsageFloat(usage, "monthly_additional_usage")
+	if !hasUsed {
+		monthlyUsed, hasUsed = cursorUsageFloat(usage, "monthly_spent")
+	}
+	monthlyLimit, hasLimit := cursorUsageFloat(usage, "monthly_limit")
+	if !hasUsed && !hasLimit {
+		return ProviderQuotaMetric{}, false
+	}
+
+	metric := ProviderQuotaMetric{
+		Metric: "monthly_additional_usage",
+		Label:  "Monthly additional usage",
+		Nature: NatureCost,
+		Unit:   &unit,
+	}
+	if hasUsed {
+		metric.Used = &monthlyUsed
+	}
+	if hasLimit {
+		metric.Limit = &monthlyLimit
+	}
+	if startsAt, ok := cursorUsageString(usage, "monthly_period_start"); ok {
+		metric.StartsAt = &startsAt
+	}
+	if resetsAt, ok := cursorUsageString(usage, "monthly_resets_at"); ok {
+		metric.ResetsAt = &resetsAt
+	}
+	if off, ok := cursorUsageBool(usage, "monthly_additional_usage_off"); ok {
+		if off {
+			metric.Scope = "additional_off"
+		} else {
+			metric.Scope = "additional_enabled"
+		}
+	}
+	return metric, true
+}
+
+func formatCursorProductTitle(product string) string {
+	trimmed := strings.TrimSpace(product)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.ToUpper(trimmed[:1]) + strings.ToLower(trimmed[1:])
+}
+
+func cursorUsageBool(usage map[string]interface{}, key string) (bool, bool) {
+	value, ok := usage[key]
+	if !ok {
+		return false, false
+	}
+	flag, ok := value.(bool)
+	return flag, ok
 }
 
 func cursorUsageFloat(usage map[string]interface{}, key string) (float64, bool) {

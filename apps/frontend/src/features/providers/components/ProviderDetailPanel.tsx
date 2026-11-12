@@ -21,6 +21,7 @@ import {
   primaryGoPeriodLabel,
   providerQuotaSituation,
 } from '../lib/quotaPresentation'
+import { CursorQuotaBreakdownPanel } from './CursorQuotaBreakdownPanel'
 import type { AdminProvider } from '../types'
 
 type ProviderDetailPanelProps = Readonly<{
@@ -266,6 +267,8 @@ export function ProviderDetailPanel({
             })}
           </div>
         ) : null}
+
+        <CursorQuotaBreakdownPanel snapshot={snapshot} />
 
         <div className="mt-1">
           <div className="providers-detail-row">

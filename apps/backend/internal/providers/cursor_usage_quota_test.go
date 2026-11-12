@@ -40,6 +40,61 @@ func TestMapCursorUsageMetrics_mapsUsdTotals(t *testing.T) {
 	}
 }
 
+func TestMapCursorUsageMetrics_mapsExpandedUsageStatusFields(t *testing.T) {
+	usage := map[string]interface{}{
+		"usage_availability":           "available",
+		"weekly_included_status":       "metered",
+		"total_usage":                  0.18,
+		"total_credits":                161.59,
+		"weekly_period_start":          "2026-11-09T21:45:07.488Z",
+		"weekly_resets_at":             "2026-11-16T21:45:07.488Z",
+		"weekly_used_percent":          0.1113930317,
+		"prepaid_available_credits":    0.79,
+		"monthly_additional_usage":     9.22,
+		"monthly_credits_used":         0.0,
+		"monthly_additional_usage_off": false,
+		"monthly_period_start":         "2026-11-01T00:00:00.000Z",
+		"monthly_resets_at":            "2026-12-01T00:00:00.000Z",
+		"weekly_usage_by_product": []interface{}{
+			map[string]interface{}{
+				"product":      "cursor",
+				"used_cents":   18.0,
+				"used_usd":     0.18,
+				"used_percent": 0.1113930317,
+			},
+		},
+	}
+
+	metrics := mapCursorUsageMetrics(usage)
+
+	creditsMetric, ok := findQuotaMetric(metrics, "total_credits")
+	if !ok || creditsMetric.StartsAt == nil || *creditsMetric.StartsAt != "2026-11-09T21:45:07.488Z" {
+		t.Fatalf("total_credits StartsAt = %+v, want weekly_period_start", creditsMetric)
+	}
+	statusMetric, ok := findQuotaMetric(metrics, "weekly_included_status")
+	if !ok || statusMetric.Scope != "weekly_status:metered" {
+		t.Fatalf("weekly_included_status = %+v, want scope weekly_status:metered", statusMetric)
+	}
+	productMetric, ok := findQuotaMetric(metrics, "weekly_product_cursor")
+	if !ok || productMetric.Used == nil || *productMetric.Used != 0.18 || productMetric.Scope != "product:cursor" {
+		t.Fatalf("weekly_product_cursor = %+v", productMetric)
+	}
+	monthlyMetric, ok := findQuotaMetric(metrics, "monthly_additional_usage")
+	if !ok || monthlyMetric.Used == nil || *monthlyMetric.Used != 9.22 || monthlyMetric.Limit != nil {
+		t.Fatalf("monthly_additional_usage = %+v, want used 9.22 and nil limit", monthlyMetric)
+	}
+	if monthlyMetric.ResetsAt == nil || *monthlyMetric.ResetsAt != "2026-12-01T00:00:00.000Z" {
+		t.Fatalf("monthly_additional_usage ResetsAt = %+v", monthlyMetric.ResetsAt)
+	}
+	if monthlyMetric.Scope != "additional_enabled" {
+		t.Fatalf("monthly_additional_usage Scope = %q, want additional_enabled", monthlyMetric.Scope)
+	}
+	creditsUsed, ok := findQuotaMetric(metrics, "monthly_credits_used")
+	if !ok || creditsUsed.Used == nil || *creditsUsed.Used != 0 {
+		t.Fatalf("monthly_credits_used = %+v, want used 0", creditsUsed)
+	}
+}
+
 func findQuotaMetric(metrics []ProviderQuotaMetric, name string) (ProviderQuotaMetric, bool) {
 	for _, metric := range metrics {
 		if metric.Metric == name {
