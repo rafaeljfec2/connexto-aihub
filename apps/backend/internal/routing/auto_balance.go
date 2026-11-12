@@ -178,7 +178,7 @@ func (b *awrrState) selectSWRR(pools []AutoPoolID, weights map[AutoPoolID]float6
 }
 
 // SelectModelInPool chooses a model inside the pool using bands, profile, and tie order.
-func SelectModelInPool(pool AutoPoolID, candidates []Target, understanding RequestUnderstanding) (Target, []string) {
+func SelectModelInPool(pool AutoPoolID, candidates []Target, snapshot Snapshot, understanding RequestUnderstanding) (Target, []string) {
 	inPool := make([]Target, 0, len(candidates))
 	for _, t := range candidates {
 		if PoolIDForTarget(t) == pool {
@@ -207,8 +207,13 @@ func SelectModelInPool(pool AutoPoolID, candidates []Target, understanding Reque
 	if understanding.OptimizationProfile == ProfileEfficiency {
 		ordered = deprioritizeGeminiShortCalls(ordered, understanding)
 	}
-	if understanding.OptimizationProfile == ProfileIntelligence {
-		reasons = append(reasons, "intelligence_profile_no_evidence")
+
+	if isHeavyRequestShape(understanding) {
+		if picked, ok := preferReasoningInAdminOrder(ordered, snapshot); ok {
+			reasons = append(reasons, "reasoning_preferred")
+			return picked, reasons
+		}
+		reasons = append(reasons, "reasoning_preference_unmatched")
 	}
 
 	return ordered[0], reasons

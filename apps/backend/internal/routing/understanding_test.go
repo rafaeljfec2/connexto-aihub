@@ -181,3 +181,43 @@ func TestUnderstandRequest_ToolsAndSchemaCapabilities(t *testing.T) {
 	}
 }
 
+func TestUnderstandRequest_ReasoningEffortAndInputItemCount(t *testing.T) {
+	body := []byte(`{
+		"model": "aihub/auto",
+		"input": [
+			{"type": "input_text", "text": "a"},
+			{"type": "input_text", "text": "b"}
+		],
+		"reasoning": {"effort": "high"}
+	}`)
+	structural, err := routing.ValidateStructure(body)
+	if err != nil {
+		t.Fatalf("ValidateStructure failed: %v", err)
+	}
+	understanding, parseErr := routing.UnderstandRequest(body, structural)
+	if parseErr != nil {
+		t.Fatalf("UnderstandRequest failed: %v", parseErr)
+	}
+	if understanding.ReasoningEffort != routing.ReasoningEffortHigh {
+		t.Fatalf("ReasoningEffort = %q, want high", understanding.ReasoningEffort)
+	}
+	if understanding.InputItemCount != 2 {
+		t.Fatalf("InputItemCount = %d, want 2", understanding.InputItemCount)
+	}
+}
+
+func TestUnderstandRequest_MediumEffortCaptured(t *testing.T) {
+	body := []byte(`{"model":"aihub/auto","input":"x","reasoning":{"effort":"medium"}}`)
+	structural, err := routing.ValidateStructure(body)
+	if err != nil {
+		t.Fatalf("ValidateStructure failed: %v", err)
+	}
+	understanding, parseErr := routing.UnderstandRequest(body, structural)
+	if parseErr != nil {
+		t.Fatalf("UnderstandRequest failed: %v", parseErr)
+	}
+	if understanding.ReasoningEffort != routing.ReasoningEffortMedium {
+		t.Fatalf("ReasoningEffort = %q, want medium", understanding.ReasoningEffort)
+	}
+}
+

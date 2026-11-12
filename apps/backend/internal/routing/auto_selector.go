@@ -40,12 +40,19 @@ func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Sn
 		return reject(decision, RejectNoEligibleModel, criteria)
 	}
 
+	bandB, ctxReasons := FilterAutoContextWindow(bandB, understanding, snapshot)
+	bandReasons = append(bandReasons, ctxReasons...)
+	if len(bandB) == 0 {
+		criteria := append(bandReasons, "context_window", "profile:"+string(profile))
+		return reject(decision, RejectNoEligibleModel, criteria)
+	}
+
 	poolID, poolReasons := SelectPoolAWRR(bandB, quota)
 	if poolID == "" {
 		return reject(decision, RejectNoEligibleModel, append(poolReasons, "profile:"+string(profile)))
 	}
 
-	selected, modelReasons := SelectModelInPool(poolID, bandB, understanding)
+	selected, modelReasons := SelectModelInPool(poolID, bandB, snapshot, understanding)
 	if selected.ModelID == "" {
 		return reject(decision, RejectNoEligibleModel, append(modelReasons, "profile:"+string(profile)))
 	}

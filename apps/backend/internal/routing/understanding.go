@@ -14,20 +14,33 @@ const (
 	ProfileIntelligence OptimizationProfile = "intelligence"
 )
 
+// ReasoningEffort is the structural reasoning.effort field when present.
+type ReasoningEffort string
+
+const (
+	ReasoningEffortLow    ReasoningEffort = "low"
+	ReasoningEffortMedium ReasoningEffort = "medium"
+	ReasoningEffortHigh   ReasoningEffort = "high"
+	ReasoningEffortXHigh  ReasoningEffort = "xhigh"
+)
+
 // RequestUnderstanding holds deterministic features extracted from a responses payload.
 type RequestUnderstanding struct {
 	IsVirtual            bool
 	VirtualTarget        string
 	IsStreaming          bool
 	EstimatedInputTokens int
+	InputItemCount       int
+	ReasoningEffort      ReasoningEffort
 	OptimizationProfile  OptimizationProfile
 	Requirements         RequirementStatus
 }
 
 type understandingEnvelope struct {
-	Stream  *bool           `json:"stream"`
-	Profile *string         `json:"optimization_profile"`
-	Input   json.RawMessage `json:"input"`
+	Stream    *bool           `json:"stream"`
+	Profile   *string         `json:"optimization_profile"`
+	Input     json.RawMessage `json:"input"`
+	Reasoning json.RawMessage `json:"reasoning"`
 }
 
 // UnderstandRequest performs deterministic structural feature extraction on the request.
@@ -81,8 +94,49 @@ func UnderstandRequest(body []byte, structural StructuralRequest) (RequestUnders
 		VirtualTarget:        virtualTarget,
 		IsStreaming:          isStreaming,
 		EstimatedInputTokens: estimatedTokens,
+		InputItemCount:       countInputItems(env.Input),
+		ReasoningEffort:      parseReasoningEffort(env.Reasoning),
 		OptimizationProfile:  profile,
 		Requirements:         requirements,
 	}, nil
+}
+
+func countInputItems(raw json.RawMessage) int {
+	if len(raw) == 0 {
+		return 0
+	}
+	if raw[0] == '"' {
+		return 1
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return 0
+	}
+	return len(items)
+}
+
+func parseReasoningEffort(raw json.RawMessage) ReasoningEffort {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return ""
+	}
+	var object struct {
+		Effort *string `json:"effort"`
+	}
+	if err := json.Unmarshal(raw, &object); err != nil || object.Effort == nil {
+		return ""
+	}
+	switch strings.ToLower(strings.TrimSpace(*object.Effort)) {
+	case "low":
+		return ReasoningEffortLow
+	case "medium":
+		return ReasoningEffortMedium
+	case "high":
+		return ReasoningEffortHigh
+	case "xhigh":
+		return ReasoningEffortXHigh
+	default:
+		return ReasoningEffort(strings.ToLower(strings.TrimSpace(*object.Effort)))
+	}
 }
 
