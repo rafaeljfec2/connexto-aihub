@@ -81,6 +81,7 @@ type StructuralRequest struct {
 // AdminProviderFacts are configuration facts without credential material.
 type AdminProviderFacts struct {
 	ID            string
+	Type          string
 	Known         bool
 	Enabled       bool
 	HasCredential bool

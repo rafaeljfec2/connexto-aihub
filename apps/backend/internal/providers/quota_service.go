@@ -84,6 +84,14 @@ func (s *QuotaService) Close() {
 	}
 }
 
+// InvalidateAccount removes cached quota state for a deleted provider account.
+func (s *QuotaService) InvalidateAccount(accountID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.cache, accountID)
+	delete(s.refreshing, accountID)
+}
+
 // GetSnapshotsOptions carries optional parameters for snapshot retrieval.
 type GetSnapshotsOptions struct {
 	ForceRefresh bool

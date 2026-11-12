@@ -171,6 +171,44 @@ func pressureAntigravityModel(snap *providers.ProviderQuotaSnapshot, modelID str
 	return state
 }
 
+func pressureAntigravityAccountPool(snap *providers.ProviderQuotaSnapshot, now time.Time, staleTTL time.Duration) QuotaPressureState {
+	accountID := snap.AccountID
+	if accountID == "" {
+		accountID = snap.ProviderID
+	}
+	pool := AccountPoolID(accountID)
+	state := QuotaPressureState{PoolID: pool}
+	age, _ := snapshotAge(snap, now)
+	state.Age = age
+	state.Stale = snap.Stale || age > staleTTL
+
+	worstFraction := 2.0
+	for _, m := range snap.Quotas {
+		if m.RemainingFraction != nil && *m.RemainingFraction < worstFraction {
+			worstFraction = *m.RemainingFraction
+		}
+	}
+	if worstFraction > 1.0 {
+		state.ReasonCodes = append(state.ReasonCodes, "quota_unknown")
+		return state
+	}
+	p := 1 - worstFraction
+	if p < 0 {
+		p = 0
+	}
+	if p > 1 {
+		p = 1
+	}
+	state.Pressure = &p
+	w := clampWeight(p)
+	state.Weight = &w
+	state.Exhausted = worstFraction <= 0.01
+	if worstFraction < 0.10 {
+		state.ReserveBreached = true
+	}
+	return state
+}
+
 // EffectivePoolWeight applies reserve policy and provisional debits (advisory).
 func EffectivePoolWeight(state QuotaPressureState, provisionalPenalty float64) (float64, bool) {
 	if state.Weight == nil {

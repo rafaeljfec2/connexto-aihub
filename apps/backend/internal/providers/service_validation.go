@@ -1,10 +1,14 @@
 package providers
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"aihub/internal/config"
 )
@@ -68,4 +72,49 @@ func validateCredential(credential string) error {
 		return fmt.Errorf("%w: credential must be 1 to %d characters", ErrInvalid, maxCredentialLength)
 	}
 	return nil
+}
+
+func (s *Service) generateUniqueID(ctx context.Context, name, providerType string) (string, error) {
+	base := slugifyProviderName(name)
+	if base == "" {
+		base = slugifyProviderName(providerType)
+	}
+	if base == "" {
+		base = "provider"
+	}
+	if len(base) > 54 {
+		base = strings.TrimRight(base[:54], "-")
+	}
+
+	candidate := base
+	for suffix := 2; suffix <= 999; suffix++ {
+		_, err := s.repo.Get(ctx, candidate)
+		if errors.Is(err, ErrNotFound) {
+			return candidate, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		candidate = base + "-" + strconv.Itoa(suffix)
+	}
+	return "", fmt.Errorf("%w: could not allocate unique provider id", ErrConflict)
+}
+
+func slugifyProviderName(value string) string {
+	var b strings.Builder
+	lastHyphen := true
+	for _, r := range strings.ToLower(strings.TrimSpace(value)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastHyphen = false
+			continue
+		}
+		if unicode.IsSpace(r) || r == '-' || r == '_' || r == '.' || r == '/' {
+			if !lastHyphen {
+				b.WriteByte('-')
+				lastHyphen = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }

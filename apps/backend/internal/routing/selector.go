@@ -23,9 +23,11 @@ func SelectDeterministic(ctx RoutingContext, snapshot Snapshot, eligibility Elig
 	explicitModelID := explicitModelID(ctx)
 
 	if !hasExplicitProvider && strings.HasPrefix(explicitModelID, "antigravity:") {
-		explicitProvider = providers.AntigravityID
-		hasExplicitProvider = true
-	} else if hasExplicitProvider && explicitProvider == providers.AntigravityID {
+		explicitProvider = firstAntigravityProviderID(snapshot)
+		if explicitProvider != "" {
+			hasExplicitProvider = true
+		}
+	} else if hasExplicitProvider && providerTypeOf(snapshot, explicitProvider) == providers.TypeAntigravity {
 		explicitModelID = resolveAntigravityModelID(snapshot, explicitProvider, explicitModelID)
 	}
 
@@ -76,7 +78,7 @@ func selectExplicitProviderAndModel(
 		decision.Criteria = []string{"rule:explicit_provider_and_model"}
 		return decision
 	}
-	if providerID == providers.AntigravityID && !strings.HasPrefix(modelID, "antigravity:") {
+	if providerTypeOf(snapshot, providerID) == providers.TypeAntigravity && !strings.HasPrefix(modelID, "antigravity:") {
 		alt := Target{ProviderID: providerID, ModelID: "antigravity:" + modelID}
 		if containsTarget(eligibility.Eligible, alt) {
 			decision.Selected = &alt
@@ -163,9 +165,66 @@ func selectExplicitModelOnly(
 		if !eligibility.Coverage.CompleteFreshCoverageForEligible {
 			return reject(decision, RejectRoutingUnavailable, nil)
 		}
+		if sameProviderType(snapshot, matches) {
+			return selectSameProviderAccountAWRR(decision, snapshot, matches)
+		}
 
 		return reject(decision, RejectRoutingAmbiguous, nil)
 	}
+}
+
+func firstAntigravityProviderID(snapshot Snapshot) string {
+	var count int
+	var only string
+	for id := range snapshot.Admin {
+		if providerTypeOf(snapshot, id) == providers.TypeAntigravity {
+			count++
+			only = id
+		}
+	}
+	if count == 1 {
+		return only
+	}
+	if count > 1 {
+		return ""
+	}
+	return providers.AntigravityID
+}
+
+func sameProviderType(snapshot Snapshot, matches []Target) bool {
+	if len(matches) < 2 {
+		return false
+	}
+	firstType := providerTypeOf(snapshot, matches[0].ProviderID)
+	for _, m := range matches[1:] {
+		if providerTypeOf(snapshot, m.ProviderID) != firstType {
+			return false
+		}
+	}
+	return true
+}
+
+func selectSameProviderAccountAWRR(decision RoutingDecision, snapshot Snapshot, matches []Target) RoutingDecision {
+	resolver := func(t Target) AutoPoolID {
+		return AccountPoolID(t.ProviderID)
+	}
+	poolID, poolReasons := SelectPoolAWRRWithResolver(matches, snapshot.AutoQuota, resolver)
+	if poolID == "" {
+		return reject(decision, RejectRoutingAmbiguous, poolReasons)
+	}
+	for i := range matches {
+		if resolver(matches[i]) == poolID {
+			target := matches[i]
+			ProvisionalDebit(poolID)
+			decision.Selected = &target
+			decision.Origin = OriginExplicitModel
+			decision.SelectedPool = string(poolID)
+			decision.RoutingReasonCode = "awrr_account_tiebreak"
+			decision.Criteria = append([]string{"rule:explicit_model_awrr_tiebreak", "pool:" + string(poolID)}, poolReasons...)
+			return decision
+		}
+	}
+	return reject(decision, RejectRoutingAmbiguous, poolReasons)
 }
 
 func selectCompatibilityDefault(decision RoutingDecision, snapshot Snapshot, eligibility EligibilityResult) RoutingDecision {

@@ -137,6 +137,7 @@ func (a *ProviderAdmin) Create() http.Handler {
 
 		record, err := a.service.Create(r.Context(), providers.CreateInput{
 			ID:                   id,
+			TemplateID:           request.TemplateID,
 			Name:                 request.Name,
 			Type:                 request.Type,
 			Endpoint:             request.Endpoint,
@@ -637,6 +638,22 @@ func (a *ProviderAdmin) Enable() http.Handler {
 // Disable handles POST /api/providers/{id}/disable.
 func (a *ProviderAdmin) Disable() http.Handler {
 	return a.stateChange(a.service.Disable)
+}
+
+// Delete handles DELETE /api/providers/{id}.
+func (a *ProviderAdmin) Delete() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if err := a.service.Delete(r.Context(), id); err != nil {
+			a.writeError(w, err)
+			return
+		}
+		if a.catalogManager != nil {
+			a.catalogManager.RemoveProvider(id)
+		}
+		a.notifyProviderStatus()
+		w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 func (a *ProviderAdmin) stateChange(change func(context.Context, string) (providers.Record, error)) http.Handler {

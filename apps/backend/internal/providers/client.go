@@ -59,11 +59,12 @@ const (
 // purpose: the spike validated a single adapter shape; abstractions enter when
 // a second provider does.
 type Client struct {
-	mu         sync.RWMutex
-	baseURL    string
-	apiKey     string
-	enabled    bool
-	httpClient *http.Client
+	mu                sync.RWMutex
+	baseURL           string
+	apiKey            string
+	enabled           bool
+	logicalProviderID string
+	httpClient        *http.Client
 }
 
 // Settings is the runtime configuration of the adapter. Changing it never
@@ -73,7 +74,9 @@ type Settings struct {
 	APIKey        string
 	ManagementKey string
 	Enabled       bool
-	// LogicalProviderID is the registry id for Connexto Proxy adapters (cursor, antigravity).
+	// ProviderType identifies the adapter protocol type (opencode-go, openrouter, cursor, antigravity).
+	ProviderType string
+	// LogicalProviderID is the registry id for the configured account (e.g. cursor, cursor-work).
 	LogicalProviderID string
 	// InferenceOptional is true when upstream execution does not require a separate inference API key
 	// (gateway authentication only); the adapter stays enabled while disabled=false.
@@ -112,8 +115,21 @@ func (c *Client) Reconfigure(settings Settings) error {
 	c.baseURL = strings.TrimRight(settings.BaseURL, "/")
 	c.apiKey = settings.APIKey
 	c.enabled = settings.Enabled
+	if settings.LogicalProviderID != "" {
+		c.logicalProviderID = settings.LogicalProviderID
+	}
 
 	return nil
+}
+
+func (c *Client) expectedProviderID() string {
+	c.mu.RLock()
+	id := c.logicalProviderID
+	c.mu.RUnlock()
+	if id != "" {
+		return id
+	}
+	return OpenCodeGoID
 }
 
 // Enabled reports whether a credential is configured. A disabled client
@@ -144,7 +160,7 @@ func (c *Client) OpenResponses(ctx context.Context, body io.Reader, contentType,
 // OpenTargetResponses forwards a prepared payload for an explicit provider
 // target. Target metadata never rewrites the payload.
 func (c *Client) OpenTargetResponses(ctx context.Context, target ResponsesTarget, payload []byte, contentType, sessionID string) (*http.Response, error) {
-	if target.ProviderID != OpenCodeGoID {
+	if target.ProviderID != c.expectedProviderID() {
 		return nil, errors.New("provider target does not match OpenCode Go")
 	}
 	if target.ModelID != "" && strings.TrimSpace(target.ModelID) == "" {

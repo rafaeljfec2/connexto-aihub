@@ -43,7 +43,8 @@ export type AvailableProvidersResponse = {
 }
 
 export type CreateProviderInput = {
-  id: string
+  id?: string
+  template_id?: string
   name?: string
   type?: string
   endpoint?: string

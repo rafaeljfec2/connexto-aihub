@@ -10,9 +10,13 @@ import (
 // ProbeFunc checks that an upstream accepts the endpoint and credential.
 type ProbeFunc func(ctx context.Context, endpoint, credential string) error
 
+// AdapterFactory builds a runtime Adapter for a persisted provider record.
+type AdapterFactory func(record Record) (Adapter, error)
+
 // CreateInput is the administrative input for a new configuration.
 type CreateInput struct {
 	ID                   string
+	TemplateID           string
 	Name                 string
 	Type                 string
 	Endpoint             string
@@ -38,6 +42,8 @@ type Service struct {
 	cipher               *CredentialCipher
 	registry             *Registry
 	probes               map[string]ProbeFunc
+	factories            map[string]AdapterFactory
+	onDeleteObservers    []func(string)
 	allowedHosts         map[string]struct{}
 	allowedHTTPAddresses map[string]struct{}
 	defaultEndpoints     map[string]string
@@ -48,6 +54,21 @@ type Service struct {
 // credential is only ever sent to these hosts.
 func NewService(repo Repository, cipher *CredentialCipher, registry *Registry, probe ProbeFunc, allowedHosts []string) *Service {
 	return NewServiceWithProbes(repo, cipher, registry, map[string]ProbeFunc{TypeOpenCodeGo: probe}, allowedHosts)
+}
+
+// SetAdapterFactory registers a runtime adapter constructor for a provider type.
+func (s *Service) SetAdapterFactory(providerType string, factory AdapterFactory) {
+	if s.factories == nil {
+		s.factories = make(map[string]AdapterFactory)
+	}
+	s.factories[providerType] = factory
+}
+
+// RegisterDeleteObserver registers a callback invoked after a provider account is deleted.
+func (s *Service) RegisterDeleteObserver(fn func(string)) {
+	if fn != nil {
+		s.onDeleteObservers = append(s.onDeleteObservers, fn)
+	}
 }
 
 // SetDefaultEndpoint configures the baseline URL for an available provider.
@@ -165,10 +186,11 @@ func (s *Service) AvailableProvider(id string) (AvailableProvider, bool) {
 
 // Create stores a new configuration and applies it to the bound runtime adapter.
 func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error) {
-	if input.ID == "" {
-		return Record{}, ErrInvalid
+	templateKey := strings.TrimSpace(input.TemplateID)
+	if templateKey == "" {
+		templateKey = strings.TrimSpace(input.ID)
 	}
-	if avail, ok := s.AvailableProvider(input.ID); ok {
+	if avail, ok := s.AvailableProvider(templateKey); ok {
 		if input.Name == "" {
 			input.Name = avail.Name
 		}
@@ -178,6 +200,13 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Record, error)
 		if input.Endpoint == "" {
 			input.Endpoint = avail.DefaultEndpoint
 		}
+	}
+	if strings.TrimSpace(input.ID) == "" {
+		generatedID, err := s.generateUniqueID(ctx, input.Name, input.Type)
+		if err != nil {
+			return Record{}, err
+		}
+		input.ID = generatedID
 	}
 	if err := s.validateIdentity(input.ID, input.Name, input.Type); err != nil {
 		return Record{}, err
@@ -264,6 +293,20 @@ func (s *Service) Enable(ctx context.Context, id string) (Record, error) {
 // running; new requests are refused by the bound runtime.
 func (s *Service) Disable(ctx context.Context, id string) (Record, error) {
 	return s.setEnabled(ctx, id, false)
+}
+
+// Delete removes a provider configuration, unbinds its runtime adapter, and notifies observers.
+func (s *Service) Delete(ctx context.Context, id string) error {
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	if s.registry != nil {
+		s.registry.Unbind(id)
+	}
+	for _, observer := range s.onDeleteObservers {
+		observer(id)
+	}
+	return nil
 }
 
 // Validate checks the stored endpoint and credential and reports the result to
@@ -420,9 +463,20 @@ func (s *Service) buildChanges(id string, input UpdateInput) (Changes, error) {
 }
 
 // apply pushes the persisted configuration to the runtime bound to its id.
-// Configurations without a binding are administrative only.
+// If no adapter is bound yet and an AdapterFactory is registered for record.Type,
+// a dedicated adapter is instantiated and bound automatically.
 func (s *Service) apply(ctx context.Context, record Record) error {
 	_, bound := s.registry.Resolve(record.ID)
+	if !bound {
+		if factory, ok := s.factories[record.Type]; ok && factory != nil {
+			adapter, err := factory(record)
+			if err != nil {
+				return fmt.Errorf("build provider %s adapter: %w", record.ID, err)
+			}
+			s.registry.Bind(record.ID, adapter)
+			bound = true
+		}
+	}
 	if !bound {
 		return nil
 	}
@@ -438,10 +492,11 @@ func (s *Service) apply(ctx context.Context, record Record) error {
 	}
 
 	settings := Settings{
-		BaseURL:         record.Endpoint,
-		APIKey:          credential,
-		ManagementKey:   managementKey,
-		Enabled:         record.Enabled,
+		BaseURL:           record.Endpoint,
+		APIKey:            credential,
+		ManagementKey:     managementKey,
+		Enabled:           record.Enabled,
+		ProviderType:      record.Type,
 		LogicalProviderID: record.ID,
 	}
 	switch record.Type {

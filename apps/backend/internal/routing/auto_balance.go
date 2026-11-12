@@ -16,7 +16,12 @@ var autoBalancer = &awrrState{poolCurrent: make(map[AutoPoolID]float64)}
 
 // SelectPoolAWRR picks one pool using smooth weighted round-robin with dynamic weights.
 func SelectPoolAWRR(candidates []Target, quota AutoQuotaView) (AutoPoolID, []string) {
-	pools := uniquePools(candidates, quota)
+	return SelectPoolAWRRWithResolver(candidates, quota, PoolIDForTarget)
+}
+
+// SelectPoolAWRRWithResolver picks one pool using smooth weighted round-robin with a custom pool resolver.
+func SelectPoolAWRRWithResolver(candidates []Target, quota AutoQuotaView, resolve func(Target) AutoPoolID) (AutoPoolID, []string) {
+	pools := uniquePoolsWithResolver(candidates, resolve)
 	if len(pools) == 0 {
 		return "", []string{"quota_unknown_all"}
 	}
@@ -47,10 +52,14 @@ func SelectPoolAWRR(candidates []Target, quota AutoQuotaView) (AutoPoolID, []str
 }
 
 func uniquePools(candidates []Target, quota AutoQuotaView) []AutoPoolID {
+	return uniquePoolsWithResolver(candidates, PoolIDForTarget)
+}
+
+func uniquePoolsWithResolver(candidates []Target, resolve func(Target) AutoPoolID) []AutoPoolID {
 	seen := make(map[AutoPoolID]struct{})
 	out := make([]AutoPoolID, 0, 4)
 	for _, t := range candidates {
-		id := PoolIDForTarget(t)
+		id := resolve(t)
 		if id == "" {
 			continue
 		}

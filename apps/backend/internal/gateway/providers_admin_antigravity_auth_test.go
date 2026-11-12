@@ -26,8 +26,8 @@ func TestProviderAdminAntigravityAuthStatusAndStartProxiesToConnextoProxy(t *tes
 				t.Errorf("start: missing gateway key")
 			}
 			b, _ := io.ReadAll(r.Body)
-			if string(b) != "{}" {
-				t.Errorf("start body = %q, want {}", string(b))
+			if string(b) != `{"accountId":"antigravity"}` {
+				t.Errorf("start body = %q, want {\"accountId\":\"antigravity\"}", string(b))
 			}
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"operationId":"00000000-0000-4000-8000-000000000001","status":"pending","authUrl":"https://oauth.example/start","state":"state-token","expiresAt":"2026-11-06T13:00:00Z"}`))

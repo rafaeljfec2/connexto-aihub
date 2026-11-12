@@ -80,6 +80,8 @@ UPDATE providers SET enabled = $2, updated_at = now()
 WHERE id = $1 AND name IS NOT NULL
 RETURNING ` + managedColumns
 
+	deleteManaged = `DELETE FROM providers WHERE id = $1 AND name IS NOT NULL`
+
 	selectSealed = `SELECT credential_ciphertext FROM providers WHERE id = $1 AND name IS NOT NULL`
 
 	selectSealedManagement = `SELECT management_credential_ciphertext FROM providers WHERE id = $1 AND name IS NOT NULL`
@@ -145,6 +147,18 @@ func (s *Store) Update(ctx context.Context, id string, changes providers.Changes
 // SetEnabled changes the enabled flag.
 func (s *Store) SetEnabled(ctx context.Context, id string, enabled bool) (providers.Record, error) {
 	return scanRecord(s.pool.QueryRow(ctx, setEnabled, id, enabled))
+}
+
+// Delete removes a managed provider configuration.
+func (s *Store) Delete(ctx context.Context, id string) error {
+	tag, err := s.pool.Exec(ctx, deleteManaged, id)
+	if err != nil {
+		return fmt.Errorf("delete provider: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return providers.ErrNotFound
+	}
+	return nil
 }
 
 // SealedCredential returns the stored ciphertext, or nil when none exists.

@@ -63,6 +63,7 @@ type Repository interface {
 	List(ctx context.Context) ([]Record, error)
 	Update(ctx context.Context, id string, changes Changes) (Record, error)
 	SetEnabled(ctx context.Context, id string, enabled bool) (Record, error)
+	Delete(ctx context.Context, id string) error
 	// SealedCredential returns the stored ciphertext, or nil when none exists.
 	SealedCredential(ctx context.Context, id string) ([]byte, error)
 	// SealedManagementCredential returns the separately protected administrative credential.

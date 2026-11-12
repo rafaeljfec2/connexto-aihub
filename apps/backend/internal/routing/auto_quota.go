@@ -34,6 +34,14 @@ type AutoQuotaView struct {
 	ByTarget map[string]QuotaPressureState
 }
 
+// AccountPoolID returns the per-account AW-RR pool identifier.
+func AccountPoolID(accountID string) AutoPoolID {
+	if accountID == "" {
+		return ""
+	}
+	return AutoPoolID("pool:account:" + accountID)
+}
+
 // PoolIDForTarget resolves the consumption pool for an allowlist target.
 func PoolIDForTarget(t Target) AutoPoolID {
 	switch t.ProviderID {
@@ -67,20 +75,36 @@ func BuildAutoQuotaView(snapshots []providers.ProviderQuotaSnapshot, now time.Ti
 
 	for i := range snapshots {
 		snap := snapshots[i]
+		accountID := snap.AccountID
+		if accountID == "" {
+			accountID = snap.ProviderID
+		}
 		switch snap.ProviderID {
 		case providers.OpenCodeGoID:
+			if accountID != "" {
+				view.Pools[AccountPoolID(accountID)] = pressureOpenCodePool(&snap, now, staleTTL)
+			}
 			if openCode == nil {
 				openCode = &snap
 			}
 		case providers.OpenRouterID:
+			if accountID != "" {
+				view.Pools[AccountPoolID(accountID)] = pressureOpenRouterPool(&snap, now, staleTTL)
+			}
 			if openRouter == nil {
 				openRouter = &snap
 			}
 		case providers.CursorID:
+			if accountID != "" {
+				view.Pools[AccountPoolID(accountID)] = pressureCursorPool(&snap, now, staleTTL)
+			}
 			if cursor == nil {
 				cursor = &snap
 			}
 		case providers.AntigravityID:
+			if accountID != "" {
+				view.Pools[AccountPoolID(accountID)] = pressureAntigravityAccountPool(&snap, now, staleTTL)
+			}
 			if antigravity == nil {
 				antigravity = &snap
 			}

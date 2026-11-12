@@ -29,11 +29,12 @@ const (
 // OpenRouterClient implements the OpenAI Responses API through OpenRouter.
 // Requests remain opaque so provider-specific model IDs and fields are kept.
 type OpenRouterClient struct {
-	mu         sync.RWMutex
-	baseURL    string
-	apiKey     string
-	enabled    bool
-	httpClient *http.Client
+	mu                sync.RWMutex
+	baseURL           string
+	apiKey            string
+	enabled           bool
+	logicalProviderID string
+	httpClient        *http.Client
 }
 
 // NewOpenRouterClient builds an adapter with a bounded shared provider transport.
@@ -45,10 +46,11 @@ func NewOpenRouterClient(settings Settings, httpClient *http.Client) (*OpenRoute
 		httpClient = &http.Client{Transport: newTransport()}
 	}
 	return &OpenRouterClient{
-		baseURL:    strings.TrimRight(settings.BaseURL, "/"),
-		apiKey:     settings.APIKey,
-		enabled:    settings.Enabled,
-		httpClient: httpClient,
+		baseURL:           strings.TrimRight(settings.BaseURL, "/"),
+		apiKey:            settings.APIKey,
+		enabled:           settings.Enabled,
+		logicalProviderID: settings.LogicalProviderID,
+		httpClient:        httpClient,
 	}, nil
 }
 
@@ -62,7 +64,20 @@ func (c *OpenRouterClient) Reconfigure(settings Settings) error {
 	c.baseURL = strings.TrimRight(settings.BaseURL, "/")
 	c.apiKey = settings.APIKey
 	c.enabled = settings.Enabled
+	if settings.LogicalProviderID != "" {
+		c.logicalProviderID = settings.LogicalProviderID
+	}
 	return nil
+}
+
+func (c *OpenRouterClient) expectedProviderID() string {
+	c.mu.RLock()
+	id := c.logicalProviderID
+	c.mu.RUnlock()
+	if id != "" {
+		return id
+	}
+	return OpenRouterID
 }
 
 // Enabled is false when disabled or when no protected credential was loaded.
@@ -84,7 +99,7 @@ func (c *OpenRouterClient) ListModels(ctx context.Context) (*http.Response, erro
 
 // OpenTargetResponses forwards a stateless Responses request without rewriting it.
 func (c *OpenRouterClient) OpenTargetResponses(ctx context.Context, target ResponsesTarget, payload []byte, contentType, _ string) (*http.Response, error) {
-	if target.ProviderID != OpenRouterID {
+	if target.ProviderID != c.expectedProviderID() {
 		return nil, errors.New("provider target does not match OpenRouter")
 	}
 	if target.ModelID != "" && strings.TrimSpace(target.ModelID) == "" {

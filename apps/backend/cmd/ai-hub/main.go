@@ -139,6 +139,21 @@ func run() error {
 		SyncTimeout:         cfg.Catalog.SyncTimeout,
 		AutoRefreshInterval: catalogAutoRefreshInterval(cfg.Catalog.StaleAfter),
 	})
+	catalogModule.SetProviderIDsLister(providerRegistry.ProviderIDs)
+	catalogModule.SetSourceResolver(func(providerID string) (catalog.SourceFunc, bool) {
+		adapter, ok := providerRegistry.Resolve(providerID)
+		if !ok {
+			return nil, false
+		}
+		type descriptorFetcher interface {
+			FetchModelDescriptors(context.Context) ([]providers.ModelDescriptor, error)
+		}
+		fetcher, ok := adapter.(descriptorFetcher)
+		if !ok {
+			return nil, false
+		}
+		return fetcher.FetchModelDescriptors, true
+	})
 
 	if runtime.providerAdmin != nil {
 		runtime.providerAdmin.BindCatalogManager(catalogModule)

@@ -5,11 +5,11 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle,
-  Edit2,
   Eye,
   EyeOff,
   Layers,
   Lock,
+  Plus,
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
@@ -20,7 +20,6 @@ import {
   listAvailableProviders,
   providersQueryKeys,
   syncProviderModels,
-  updateProvider,
   validateProvider,
 } from '../api/queries'
 import type { AdminProvider, AvailableProvider, SyncModelsResponse } from '../types'
@@ -44,6 +43,7 @@ export function AddProviderModal({
   const navigate = useNavigate()
 
   const [selectedProvider, setSelectedProvider] = useState<AvailableProvider | null>(null)
+  const [accountName, setAccountName] = useState('')
   const [credential, setCredential] = useState('')
   const [managementCredential, setManagementCredential] = useState('')
   const [showSecret, setShowSecret] = useState(false)
@@ -53,6 +53,7 @@ export function AddProviderModal({
   const [probeSuccessMessage, setProbeSuccessMessage] = useState<string | null>(null)
   const [testingProbe, setTestingProbe] = useState(false)
   const [syncResult, setSyncResult] = useState<SyncModelsResponse | null>(null)
+  const [createdProvider, setCreatedProvider] = useState<AdminProvider | null>(null)
 
   const availableQuery = useQuery({
     queryKey: providersQueryKeys.available,
@@ -62,11 +63,24 @@ export function AddProviderModal({
   })
 
   const availableProviders = availableQuery.data?.providers ?? []
-  const configuredIds = new Set(existingProviders.map((p) => p.id))
-  const isEditing = selectedProvider ? configuredIds.has(selectedProvider.id) : false
+
+  function suggestAccountName(provider: AvailableProvider): string {
+    const existingNames = new Set(existingProviders.map((p) => p.name.trim().toLowerCase()))
+    if (!existingNames.has(provider.name.trim().toLowerCase())) {
+      return provider.name
+    }
+    for (let i = 2; i < 1000; i += 1) {
+      const candidate = `${provider.name} ${i}`
+      if (!existingNames.has(candidate.toLowerCase())) {
+        return candidate
+      }
+    }
+    return `${provider.name} Nova`
+  }
 
   function handleReset() {
     setSelectedProvider(null)
+    setAccountName('')
     setCredential('')
     setManagementCredential('')
     setShowSecret(false)
@@ -76,6 +90,7 @@ export function AddProviderModal({
     setProbeSuccessMessage(null)
     setTestingProbe(false)
     setSyncResult(null)
+    setCreatedProvider(null)
   }
 
   function handleClose(nextOpen: boolean) {
@@ -87,6 +102,7 @@ export function AddProviderModal({
 
   function handleSelectProvider(provider: AvailableProvider) {
     setSelectedProvider(provider)
+    setAccountName(suggestAccountName(provider))
     setPhase('credential')
     setErrorMessage(null)
     setProbeSuccessMessage(null)
@@ -129,7 +145,7 @@ export function AddProviderModal({
   }
 
   async function handleValidateAndSave() {
-    if (!selectedProvider) return
+    if (!selectedProvider || !accountName.trim()) return
     if (isGatewayOnlyProvider) {
       if (!managementCredential.trim()) return
     } else if (!credential.trim()) {
@@ -140,7 +156,7 @@ export function AddProviderModal({
     setPhase('validating')
 
     try {
-      // 1. Validate the credential with the provider upstream probe
+      // 1. Validate the credential against the provider template endpoint
       if (isGatewayOnlyProvider) {
         await validateProvider(selectedProvider.id, {
           management_credential: managementCredential.trim(),
@@ -149,32 +165,24 @@ export function AddProviderModal({
         await validateProvider(selectedProvider.id, { credential: credential.trim() })
       }
 
-      // 2. Persist the connection with the encrypted credential
+      // 2. Persist the new account with the encrypted credential
       setPhase('saving')
-      let savedProvider: AdminProvider
       const mgmtPayload =
         managementCredential.trim().length > 0
           ? { management_credential: managementCredential.trim() }
           : {}
-      if (isEditing) {
-        savedProvider = await updateProvider(selectedProvider.id, {
-          ...(isGatewayOnlyProvider
-            ? { management_credential: managementCredential.trim() }
-            : { credential: credential.trim(), ...mgmtPayload }),
-        })
-      } else {
-        savedProvider = await createProvider({
-          id: selectedProvider.id,
-          name: selectedProvider.name,
-          type: selectedProvider.connection_type,
-          endpoint: selectedProvider.default_endpoint,
-          ...(isGatewayOnlyProvider
-            ? { management_credential: managementCredential.trim() }
-            : { credential: credential.trim(), ...mgmtPayload }),
-          enabled: true,
-        })
-      }
+      const savedProvider = await createProvider({
+        template_id: selectedProvider.id,
+        name: accountName.trim(),
+        type: selectedProvider.connection_type,
+        endpoint: selectedProvider.default_endpoint,
+        ...(isGatewayOnlyProvider
+          ? { management_credential: managementCredential.trim() }
+          : { credential: credential.trim(), ...mgmtPayload }),
+        enabled: true,
+      })
 
+      setCreatedProvider(savedProvider)
       onProviderAdded?.(savedProvider)
 
       // Invalidate queries so lists update in background
@@ -182,10 +190,10 @@ export function AddProviderModal({
       void queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
       void queryClient.invalidateQueries({ queryKey: ['catalog'] })
 
-      // 3. Automatically synchronize models
+      // 3. Automatically synchronize models for the new account
       setPhase('syncing')
       try {
-        const synced = await syncProviderModels(selectedProvider.id)
+        const synced = await syncProviderModels(savedProvider.id)
         setSyncResult(synced)
         setPhase('completed')
         void queryClient.invalidateQueries({ queryKey: ['catalog'] })
@@ -193,7 +201,7 @@ export function AddProviderModal({
         setErrorMessage(
           syncErr instanceof Error
             ? syncErr.message
-            : 'Falha temporária ao sincronizar modelos. A conexão foi salva e você pode sincronizar novamente.',
+            : 'Falha temporária ao sincronizar modelos. A conta foi salva e você pode sincronizar novamente.',
         )
         setPhase('sync_failed')
       }
@@ -208,11 +216,12 @@ export function AddProviderModal({
   }
 
   async function handleRetrySync() {
-    if (!selectedProvider) return
+    const targetId = createdProvider?.id ?? selectedProvider?.id
+    if (!targetId) return
     setErrorMessage(null)
     setPhase('syncing')
     try {
-      const synced = await syncProviderModels(selectedProvider.id)
+      const synced = await syncProviderModels(targetId)
       setSyncResult(synced)
       setPhase('completed')
       void queryClient.invalidateQueries({ queryKey: ['catalog'] })
@@ -235,21 +244,15 @@ export function AddProviderModal({
       onOpenChange={handleClose}
       title={
         phase === 'select'
-          ? 'Adicionar ou configurar provedor de IA'
-          : isEditing
-            ? `Atualizar credencial: ${selectedProvider?.name ?? 'Provedor'}`
-            : `Conectar ${selectedProvider?.name ?? 'Provedor'}`
+          ? 'Adicionar conta de provedor de IA'
+          : `Conectar conta: ${selectedProvider?.name ?? 'Provedor'}`
       }
       description={
         phase === 'select'
-          ? 'Selecione um dos provedores de IA suportados para conectar ou atualizar a credencial no Connexto AI-HUB.'
-          : isEditing
-            ? isGatewayOnlyProvider
-              ? 'Informe a nova Gateway API Key (chave do proxy) para substituir a credencial de gateway salva.'
-              : 'Informe sua nova chave de API ou token do provedor para substituir a credencial salva.'
-            : isGatewayOnlyProvider
-              ? 'Informe a Gateway API Key do Connexto Proxy (X-Gateway-API-Key). A autenticação do Antigravity permanece no runtime do proxy.'
-              : 'Informe sua chave de API ou token de autenticação oficial do provedor.'
+          ? 'Selecione um provedor suportado para adicionar uma nova conta no Connexto AI-HUB.'
+          : isGatewayOnlyProvider
+            ? 'Informe um nome para a conta e a Gateway API Key do Connexto Proxy (X-Gateway-API-Key).'
+            : 'Informe um nome para identificar esta conta e sua chave de API ou token oficial.'
       }
     >
       <div className="space-y-4 pt-1">
@@ -266,7 +269,9 @@ export function AddProviderModal({
             ) : (
               <div className="grid grid-cols-1 gap-2.5 max-h-[380px] overflow-y-auto pr-1 scrollbar-slim">
                 {availableProviders.map((provider) => {
-                  const isConfigured = configuredIds.has(provider.id)
+                  const accountCount = existingProviders.filter(
+                    (p) => p.type === provider.connection_type,
+                  ).length
                   return (
                     <button
                       key={provider.id}
@@ -284,16 +289,17 @@ export function AddProviderModal({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <h4 className="text-sm font-semibold text-primary">{provider.name}</h4>
-                          {isConfigured ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-cobalt/15 px-2 py-0.5 text-[10px] font-medium text-[#A6C4FF] border border-cobalt/30 group-hover:bg-cobalt/25">
-                              <Edit2 className="size-2.5" />
-                              Configurado · Editar
+                          <div className="flex items-center gap-1.5">
+                            {accountCount > 0 ? (
+                              <span className="rounded bg-cobalt/15 px-2 py-0.5 text-[10px] font-medium text-[#A6C4FF] border border-cobalt/30">
+                                {accountCount === 1 ? '1 conectada' : `${accountCount} conectadas`}
+                              </span>
+                            ) : null}
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500/25">
+                              <Plus className="size-2.5" />
+                              Nova conta
                             </span>
-                          ) : (
-                            <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/30">
-                              Disponível
-                            </span>
-                          )}
+                          </div>
                         </div>
                         <p className="mt-1 text-xs text-secondary leading-relaxed">
                           {provider.description}
@@ -356,6 +362,25 @@ export function AddProviderModal({
                 </div>
               </div>
             ) : null}
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="provider-account-name-input"
+                className="block text-xs font-medium text-secondary"
+              >
+                Nome da conta
+              </label>
+              <input
+                id="provider-account-name-input"
+                type="text"
+                autoComplete="off"
+                disabled={isBusy}
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder={`Ex: ${selectedProvider?.name ?? 'Provedor'} Trabalho`}
+                className="w-full rounded-md border border-line bg-[#09090b] px-3 py-2 text-sm text-primary outline-none transition-colors placeholder:text-muted focus:border-cobalt focus:ring-2 focus:ring-cobalt/15 disabled:opacity-50"
+              />
+            </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -509,6 +534,7 @@ export function AddProviderModal({
                 type="button"
                 disabled={
                   isBusy ||
+                  !accountName.trim() ||
                   (isGatewayOnlyProvider ? !managementCredential.trim() : !credential.trim())
                 }
                 onClick={() => void handleValidateAndSave()}
@@ -526,7 +552,7 @@ export function AddProviderModal({
                 ) : (
                   <>
                     <ShieldCheck className="size-3.5 text-cobalt" />
-                    {isEditing ? 'Validar e atualizar' : 'Validar e adicionar'}
+                    Validar e adicionar
                   </>
                 )}
               </button>
@@ -540,12 +566,11 @@ export function AddProviderModal({
               <CheckCircle className="size-5 shrink-0 text-emerald-400 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-semibold text-emerald-300">
-                  {selectedProvider?.name} {isEditing ? 'atualizado' : 'conectado'} com sucesso!
+                  {createdProvider?.name ?? selectedProvider?.name} conectado com sucesso!
                 </p>
                 <p className="text-emerald-200/90 leading-relaxed">
-                  {isEditing
-                    ? 'A credencial foi validada, atualizada com segurança e os modelos foram sincronizados no catálogo do AI-HUB.'
-                    : 'A credencial foi validada, armazenada com segurança e os modelos foram importados para o catálogo do AI-HUB.'}
+                  A credencial foi validada, armazenada com segurança e os modelos foram importados
+                  para o catálogo do AI-HUB.
                 </p>
               </div>
             </div>
@@ -567,9 +592,9 @@ export function AddProviderModal({
                 </span>
               </div>
               <div className="flex items-center justify-between text-secondary">
-                <span>Identidade do provedor:</span>
+                <span>Identidade da conta:</span>
                 <span className="font-mono text-[11px] text-[#A6C4FF]">
-                  {selectedProvider?.id}
+                  {createdProvider?.id ?? selectedProvider?.id}
                 </span>
               </div>
             </div>

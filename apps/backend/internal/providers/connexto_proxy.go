@@ -32,6 +32,7 @@ type ConnextoProxyClient struct {
 	apiKey            string
 	gatewayKey        string
 	enabled           bool
+	providerType      string
 	logicalProviderID string
 	inferenceOptional bool
 	httpClient        *http.Client
@@ -56,8 +57,16 @@ func NewConnextoProxyClient(settings Settings, httpClient *http.Client) (*Connex
 	if logicalID == "" {
 		logicalID = CursorID
 	}
+	providerType := settings.ProviderType
+	if providerType == "" {
+		if logicalID == AntigravityID {
+			providerType = TypeAntigravity
+		} else {
+			providerType = TypeCursor
+		}
+	}
 	inferenceOptional := settings.InferenceOptional
-	if logicalID == AntigravityID {
+	if providerType == TypeAntigravity {
 		inferenceOptional = true
 	}
 	return &ConnextoProxyClient{
@@ -65,6 +74,7 @@ func NewConnextoProxyClient(settings Settings, httpClient *http.Client) (*Connex
 		apiKey:            settings.APIKey,
 		gatewayKey:        settings.ManagementKey,
 		enabled:           settings.Enabled,
+		providerType:      providerType,
 		logicalProviderID: logicalID,
 		inferenceOptional: inferenceOptional,
 		httpClient:        httpClient,
@@ -89,12 +99,31 @@ func (c *ConnextoProxyClient) Reconfigure(settings Settings) error {
 	if settings.LogicalProviderID != "" {
 		c.logicalProviderID = settings.LogicalProviderID
 	}
-	if settings.LogicalProviderID == AntigravityID {
+	if settings.ProviderType != "" {
+		c.providerType = settings.ProviderType
+	} else if c.providerType == "" {
+		if c.logicalProviderID == AntigravityID {
+			c.providerType = TypeAntigravity
+		} else {
+			c.providerType = TypeCursor
+		}
+	}
+	if c.providerType == TypeAntigravity {
 		c.inferenceOptional = true
 	} else {
 		c.inferenceOptional = settings.InferenceOptional
 	}
 	return nil
+}
+
+func (c *ConnextoProxyClient) effectiveProviderTypeLocked() string {
+	if c.providerType != "" {
+		return c.providerType
+	}
+	if c.logicalProviderID == AntigravityID {
+		return TypeAntigravity
+	}
+	return TypeCursor
 }
 
 // Enabled is false when disabled. For Cursor, a non-empty inference API key is required.
@@ -107,7 +136,7 @@ func (c *ConnextoProxyClient) Enabled() bool {
 	if !c.enabled {
 		return false
 	}
-	if c.logicalProviderID == AntigravityID {
+	if c.effectiveProviderTypeLocked() == TypeAntigravity {
 		return strings.TrimSpace(c.apiKey) != "" || antigravityGatewayConfigured(c.gatewayKey)
 	}
 	return c.apiKey != ""
@@ -153,8 +182,9 @@ func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target Re
 	c.mu.RLock()
 	inferenceKey := strings.TrimSpace(c.apiKey)
 	inferenceOptional := c.inferenceOptional
+	providerType := c.effectiveProviderTypeLocked()
 	c.mu.RUnlock()
-	if logicalID != AntigravityID && !inferenceOptional && inferenceKey == "" {
+	if providerType != TypeAntigravity && !inferenceOptional && inferenceKey == "" {
 		return nil, ErrNoCredential
 	}
 
@@ -168,7 +198,7 @@ func (c *ConnextoProxyClient) OpenTargetResponses(ctx context.Context, target Re
 		connextoProxyResponses, bytes.NewReader(payload), contentType)
 	if err == nil {
 		sanitizeConnextoProxyErrorResponse(response)
-		if logicalID == AntigravityID {
+		if providerType == TypeAntigravity {
 			if noticeErr := classifyAntigravityQuotaNotice(response); noticeErr != nil {
 				return nil, noticeErr
 			}
@@ -216,7 +246,7 @@ func NewConnextoProxyHTTPClient() *http.Client {
 
 func (c *ConnextoProxyClient) do(ctx context.Context, method, path string, body io.Reader, contentType string) (*http.Response, error) {
 	c.mu.RLock()
-	baseURL, apiKey := c.baseURL, c.apiKey
+	baseURL, apiKey, logicalID := c.baseURL, c.apiKey, c.logicalProviderID
 	gwKey := c.resolveGatewayKey()
 	c.mu.RUnlock()
 
@@ -226,6 +256,9 @@ func (c *ConnextoProxyClient) do(ctx context.Context, method, path string, body 
 	}
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
+	}
+	if logicalID != "" {
+		request.Header.Set("X-Account-ID", logicalID)
 	}
 	if gwKey != "" {
 		request.Header.Set("X-Gateway-API-Key", gwKey)

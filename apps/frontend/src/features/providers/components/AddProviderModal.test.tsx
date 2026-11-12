@@ -81,7 +81,7 @@ describe('AddProviderModal', () => {
     vi.mocked(queries.listAvailableProviders).mockResolvedValue({ providers: mockAvailable })
   })
 
-  it('renders available providers and marks already configured ones as editable', async () => {
+  it('renders available providers and shows connected count per provider type', async () => {
     renderWithClient(
       <AddProviderModal
         open={true}
@@ -92,8 +92,8 @@ describe('AddProviderModal', () => {
 
     await screen.findByText('Cursor')
     expect(screen.getByText('OpenRouter')).toBeDefined()
-    expect(screen.getByText('Configurado · Editar')).toBeDefined()
-    expect(screen.getByText('Disponível')).toBeDefined()
+    expect(screen.getByText('1 conectada')).toBeDefined()
+    expect(screen.getAllByText('Nova conta').length).toBeGreaterThanOrEqual(2)
 
     const cursorIcon = document.querySelector('img[data-ai-icon-slug="cursor"]')
     const openrouterIcon = document.querySelector('img[data-ai-icon-slug="openrouter"]')
@@ -118,7 +118,8 @@ describe('AddProviderModal', () => {
     fireEvent.click(cursorButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Conectar Cursor')).toBeDefined()
+      expect(screen.getByText('Conectar conta: Cursor')).toBeDefined()
+      expect(screen.getByLabelText('Nome da conta')).toBeDefined()
       expect(screen.getByText('API Key / Token do Cursor')).toBeDefined()
       expect(screen.getByPlaceholderText('Informe seu token ou chave do Cursor')).toBeDefined()
     })
@@ -186,7 +187,7 @@ describe('AddProviderModal', () => {
 
     await waitFor(() => {
       expect(queries.createProvider).toHaveBeenCalledWith({
-        id: 'cursor',
+        template_id: 'cursor',
         name: 'Cursor',
         type: 'cursor',
         endpoint: 'http://127.0.0.1:9090/v1',
@@ -247,7 +248,7 @@ describe('AddProviderModal', () => {
         credential: 'cur_secret_token_123',
       })
       expect(queries.createProvider).toHaveBeenCalledWith({
-        id: 'cursor',
+        template_id: 'cursor',
         name: 'Cursor',
         type: 'cursor',
         endpoint: 'http://127.0.0.1:9090/v1',
@@ -261,25 +262,25 @@ describe('AddProviderModal', () => {
     })
   })
 
-  it('allows editing an already configured provider and calls updateProvider', async () => {
+  it('allows adding a second account for an already configured provider', async () => {
     vi.mocked(queries.validateProvider).mockResolvedValue({ status: 'reachable' })
-    vi.mocked(queries.updateProvider).mockResolvedValue({
-      id: 'openrouter',
-      name: 'OpenRouter',
+    vi.mocked(queries.createProvider).mockResolvedValue({
+      id: 'openrouter-trabalho',
+      name: 'OpenRouter Trabalho',
       type: 'openrouter',
       endpoint: 'https://openrouter.ai/api/v1',
       enabled: true,
       credential_configured: true,
-      created_at: '2026-11-04T00:00:00Z',
+      created_at: '2026-11-05T00:00:00Z',
       updated_at: '2026-11-05T00:00:00Z',
     })
     vi.mocked(queries.syncProviderModels).mockResolvedValue({
-      provider: 'openrouter',
+      provider: 'openrouter-trabalho',
       outcome: 'success',
       counts: {
         discovered: 12,
-        added: 2,
-        updated: 10,
+        added: 12,
+        updated: 0,
         unchanged: 0,
         missing: 0,
       },
@@ -303,24 +304,34 @@ describe('AddProviderModal', () => {
     fireEvent.click(button)
 
     await waitFor(() => {
-      expect(screen.getByText('Atualizar credencial: OpenRouter')).toBeDefined()
+      expect(screen.getByText('Conectar conta: OpenRouter')).toBeDefined()
     })
 
-    const input = screen.getByPlaceholderText('sk-or-v1-...')
-    fireEvent.change(input, { target: { value: 'sk-or-v1-new-secret' } })
+    const nameInput = screen.getByLabelText('Nome da conta') as HTMLInputElement
+    expect(nameInput.value).toBe('OpenRouter 2')
+    fireEvent.change(nameInput, { target: { value: 'OpenRouter Trabalho' } })
 
-    const submitBtn = screen.getByRole('button', { name: /Validar e atualizar/i })
+    const input = screen.getByPlaceholderText('sk-or-v1-...')
+    fireEvent.change(input, { target: { value: 'sk-or-v1-work-secret' } })
+
+    const submitBtn = screen.getByRole('button', { name: /Validar e adicionar/i })
     fireEvent.click(submitBtn)
 
     await waitFor(() => {
       expect(queries.validateProvider).toHaveBeenCalledWith('openrouter', {
-        credential: 'sk-or-v1-new-secret',
+        credential: 'sk-or-v1-work-secret',
       })
-      expect(queries.updateProvider).toHaveBeenCalledWith('openrouter', {
-        credential: 'sk-or-v1-new-secret',
+      expect(queries.createProvider).toHaveBeenCalledWith({
+        template_id: 'openrouter',
+        name: 'OpenRouter Trabalho',
+        type: 'openrouter',
+        endpoint: 'https://openrouter.ai/api/v1',
+        credential: 'sk-or-v1-work-secret',
+        enabled: true,
       })
-      expect(queries.syncProviderModels).toHaveBeenCalledWith('openrouter')
-      expect(screen.getByText('OpenRouter atualizado com sucesso!')).toBeDefined()
+      expect(queries.syncProviderModels).toHaveBeenCalledWith('openrouter-trabalho')
+      expect(screen.getByText('OpenRouter Trabalho conectado com sucesso!')).toBeDefined()
+      expect(onProviderAdded).toHaveBeenCalled()
     })
   })
 })

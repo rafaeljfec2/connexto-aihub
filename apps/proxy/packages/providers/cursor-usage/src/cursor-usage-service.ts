@@ -370,12 +370,30 @@ export class CursorUsageService {
         })()
       `;
 
-      const evalResult = (await this.hostBridgeClient.executeInSession(
+      let evalResult = await this.evaluateUsageWithRetry(
         active.sessionId,
         accountId,
-        "evaluate",
         evalScript,
-      )) as { ok?: boolean; data?: unknown; error?: string } | undefined;
+      );
+
+      // An existing auth session may still be mid-redirect or closed by the user;
+      // fall back to a clean headless collect session using the persistent profile.
+      if ((!evalResult || !evalResult.ok || !evalResult.data) && !createdForCollect) {
+        const launched = await this.hostBridgeClient.createSession({
+          principalId: accountId,
+          target: "cursor",
+          targetUrl: "https://grok.com/dashboard",
+          headless: true,
+        });
+        createdForCollect = true;
+        activeSessionId = launched.sessionId;
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        evalResult = await this.evaluateUsageWithRetry(
+          launched.sessionId,
+          accountId,
+          evalScript,
+        );
+      }
 
       if (evalResult && evalResult.ok && evalResult.data) {
         const usage = normalizeCursorUsagePayload(evalResult.data);
@@ -418,6 +436,42 @@ export class CursorUsageService {
           .catch(() => undefined);
       }
     }
+  }
+
+  private async evaluateUsageWithRetry(
+    sessionId: string,
+    accountId: string,
+    evalScript: string,
+  ): Promise<{ ok?: boolean; data?: unknown; error?: string } | undefined> {
+    if (!this.hostBridgeClient) {
+      return undefined;
+    }
+    const maxAttempts = 4;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const result = (await this.hostBridgeClient.executeInSession(
+          sessionId,
+          accountId,
+          "evaluate",
+          evalScript,
+        )) as { ok?: boolean; data?: unknown; error?: string } | undefined;
+        if (result && result.ok && result.data) {
+          return result;
+        }
+      } catch (err) {
+        if (err instanceof BridgeSessionNotFoundError) {
+          return undefined;
+        }
+        const message = err instanceof Error ? err.message : String(err);
+        if (attempt === maxAttempts && /timeout/i.test(message)) {
+          throw err;
+        }
+      }
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+    return undefined;
   }
 
   public async startAuth(accountId: string): Promise<CursorUsageAuthStartResult> {

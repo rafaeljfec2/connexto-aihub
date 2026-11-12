@@ -83,6 +83,10 @@ func (r *loopbackProxyRewriteRepository) SetEnabled(ctx context.Context, id stri
 	return r.rewriteRecord(updated), nil
 }
 
+func (r *loopbackProxyRewriteRepository) Delete(ctx context.Context, id string) error {
+	return r.next.Delete(ctx, id)
+}
+
 func (r *loopbackProxyRewriteRepository) SealedCredential(ctx context.Context, id string) ([]byte, error) {
 	return r.next.SealedCredential(ctx, id)
 }

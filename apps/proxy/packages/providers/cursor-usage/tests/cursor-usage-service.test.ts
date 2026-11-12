@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BrowserContext } from "playwright-core";
 import { CursorUsageService } from "../src/cursor-usage-service.js";
+import { HostBrowserBridgeClient } from "../src/host-bridge-client.js";
 import { PlaywrightBrowserPool } from "../src/playwright-browser.js";
 import {
   InMemorySessionStore,
@@ -217,6 +218,71 @@ describe("CursorUsageService", () => {
 
     expect(status.status).toBe("authenticated");
     expect(captureStorageState).toHaveBeenCalledWith(started.sessionId);
+  });
+  it("falls back to a headless bridge session when existing auth session evaluate fails", async () => {
+    vi.useFakeTimers();
+    try {
+      const executeInSession = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, error: "no_matched_endpoint" })
+        .mockResolvedValueOnce({ ok: false, error: "no_matched_endpoint" })
+        .mockResolvedValueOnce({ ok: false, error: "no_matched_endpoint" })
+        .mockResolvedValueOnce({ ok: false, error: "no_matched_endpoint" })
+        .mockResolvedValueOnce({
+          ok: true,
+          data: {
+            usageStatus: {
+              availability: "available",
+              weeklyIncludedUsage: { usedCents: 100, budgetCents: 1000 },
+            },
+          },
+        });
+      const createSession = vi.fn().mockResolvedValue({
+        sessionId: "headless-collect-1",
+        principalId: "cursor",
+        target: "cursor",
+        status: "authenticated",
+        createdAt: new Date().toISOString(),
+      });
+      const closeSession = vi.fn().mockResolvedValue(undefined);
+
+      const bridgeClient = Object.create(
+        HostBrowserBridgeClient.prototype,
+      ) as HostBrowserBridgeClient;
+      bridgeClient.listSessions = vi.fn().mockResolvedValue([
+        {
+          sessionId: "auth-session-1",
+          principalId: "cursor",
+          target: "cursor",
+          status: "authenticated",
+          connected: true,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      bridgeClient.createSession = createSession;
+      bridgeClient.executeInSession = executeInSession;
+      bridgeClient.closeSession = closeSession;
+
+      const service = new CursorUsageService({
+        browserPool: createStubPool(),
+        hostBridgeClient: bridgeClient,
+      });
+
+      const collectPromise = service.collectUsage("cursor");
+      await vi.runAllTimersAsync();
+      const result = await collectPromise;
+
+      expect(result.status).toBe("available");
+      expect(createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          principalId: "cursor",
+          headless: true,
+        }),
+      );
+      expect(closeSession).toHaveBeenCalledWith("headless-collect-1", "cursor");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

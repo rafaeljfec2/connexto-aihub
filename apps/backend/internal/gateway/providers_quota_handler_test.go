@@ -41,6 +41,10 @@ func (f *fakeQuotaRepoForHandler) SetEnabled(ctx context.Context, id string, ena
 	return providers.Record{}, errors.New("unimplemented")
 }
 
+func (f *fakeQuotaRepoForHandler) Delete(ctx context.Context, id string) error {
+	return errors.New("unimplemented")
+}
+
 func (f *fakeQuotaRepoForHandler) SealedCredential(ctx context.Context, id string) ([]byte, error) {
 	return f.creds[id], nil
 }

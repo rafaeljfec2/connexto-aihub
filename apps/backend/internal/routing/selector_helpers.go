@@ -7,6 +7,13 @@ import (
 	"aihub/internal/providers"
 )
 
+func providerTypeOf(snapshot Snapshot, providerID string) string {
+	if admin, ok := snapshot.Admin[providerID]; ok && strings.TrimSpace(admin.Type) != "" {
+		return admin.Type
+	}
+	return providerID
+}
+
 func providerKnown(snapshot Snapshot, providerID string) bool {
 	admin, adminKnown := snapshot.Admin[providerID]
 	_, runtimeKnown := snapshot.Runtime[providerID]
@@ -55,9 +62,14 @@ func resolveAntigravityModelID(snapshot Snapshot, providerID, modelID string) st
 	if modelPresentOnProvider(snapshot, providerID, modelID) {
 		return modelID
 	}
-	if (providerID == providers.AntigravityID || providerID == "") && !strings.HasPrefix(modelID, "antigravity:") {
+	isAntigravity := providerID == "" || providerTypeOf(snapshot, providerID) == providers.TypeAntigravity
+	if isAntigravity && !strings.HasPrefix(modelID, "antigravity:") {
 		prefixed := "antigravity:" + modelID
-		if modelPresentOnProvider(snapshot, providers.AntigravityID, prefixed) {
+		targetProvider := providerID
+		if targetProvider == "" {
+			targetProvider = providers.AntigravityID
+		}
+		if modelPresentOnProvider(snapshot, targetProvider, prefixed) {
 			return prefixed
 		}
 	}
@@ -65,11 +77,12 @@ func resolveAntigravityModelID(snapshot Snapshot, providerID, modelID string) st
 }
 
 func modelPresentOnProvider(snapshot Snapshot, providerID, modelID string) bool {
+	isAntigravity := providerTypeOf(snapshot, providerID) == providers.TypeAntigravity
 	for _, view := range snapshot.Models {
 		if view.Entry.ProviderID != providerID {
 			continue
 		}
-		if view.Entry.ModelID == modelID || (providerID == providers.AntigravityID && view.Entry.ModelID == "antigravity:"+modelID) {
+		if view.Entry.ModelID == modelID || (isAntigravity && view.Entry.ModelID == "antigravity:"+modelID) {
 			return view.Presence != catalog.PresenceMissing
 		}
 	}
@@ -82,7 +95,8 @@ func modelPresentUnderOtherProvider(snapshot Snapshot, explicitProviderID, model
 		if view.Entry.ProviderID == explicitProviderID {
 			continue
 		}
-		matches := view.Entry.ModelID == modelID || (view.Entry.ProviderID == providers.AntigravityID && view.Entry.ModelID == "antigravity:"+modelID)
+		isAntigravity := providerTypeOf(snapshot, view.Entry.ProviderID) == providers.TypeAntigravity
+		matches := view.Entry.ModelID == modelID || (isAntigravity && view.Entry.ModelID == "antigravity:"+modelID)
 		if !matches {
 			continue
 		}

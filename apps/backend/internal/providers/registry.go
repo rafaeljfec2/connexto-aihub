@@ -61,6 +61,15 @@ func (r *Registry) Bind(providerID string, adapter Adapter) {
 	r.adapters[providerID] = adapter
 }
 
+// Unbind detaches the runtime adapter bound to a provider id.
+func (r *Registry) Unbind(providerID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.adapters, providerID)
+	delete(r.runtimeVersions, providerID)
+}
+
 // Resolve returns the adapter bound to a provider id.
 func (r *Registry) Resolve(providerID string) (Adapter, bool) {
 	r.mu.RLock()

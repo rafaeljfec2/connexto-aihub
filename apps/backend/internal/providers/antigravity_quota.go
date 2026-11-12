@@ -20,6 +20,17 @@ const (
 	defaultAntigravityTimeout  = 10 * time.Second
 )
 
+type quotaAccountContextKey struct{}
+
+func withQuotaAccountID(ctx context.Context, accountID string) context.Context {
+	return context.WithValue(ctx, quotaAccountContextKey{}, accountID)
+}
+
+func quotaAccountIDFromContext(ctx context.Context) string {
+	id, _ := ctx.Value(quotaAccountContextKey{}).(string)
+	return strings.TrimSpace(id)
+}
+
 // AntigravityQuotaAdapter queries the Connexto Proxy for Antigravity quotas.
 type AntigravityQuotaAdapter struct {
 	httpClient   *http.Client
@@ -146,6 +157,14 @@ func (a *AntigravityQuotaAdapter) FetchQuota(ctx context.Context, endpoint, cred
 		}
 	}
 
+	accountID := quotaAccountIDFromContext(ctx)
+	if accountID != "" {
+		q := parsed.Query()
+		q.Set("accountId", accountID)
+		parsed.RawQuery = q.Encode()
+		reqURL = parsed.String()
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		snapshot.Status = QuotaStatusError
@@ -158,6 +177,9 @@ func (a *AntigravityQuotaAdapter) FetchQuota(ctx context.Context, endpoint, cred
 
 	req.Header.Set("X-Gateway-API-Key", credential)
 	req.Header.Set("Accept", "application/json")
+	if accountID != "" {
+		req.Header.Set("X-Account-ID", accountID)
+	}
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {

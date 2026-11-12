@@ -105,6 +105,16 @@ func (r *inMemoryProviders) SetEnabled(_ context.Context, id string, enabled boo
 	return record, nil
 }
 
+func (r *inMemoryProviders) Delete(_ context.Context, id string) error {
+	if _, ok := r.records[id]; !ok {
+		return providers.ErrNotFound
+	}
+	delete(r.records, id)
+	delete(r.sealed, id)
+	delete(r.sealedManagement, id)
+	return nil
+}
+
 func (r *inMemoryProviders) SealedCredential(_ context.Context, id string) ([]byte, error) {
 	if _, ok := r.records[id]; !ok {
 		return nil, providers.ErrNotFound

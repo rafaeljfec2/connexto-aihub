@@ -177,6 +177,7 @@ func buildAdminFactsForRouting(ctx context.Context, registry *providers.Registry
 		hasCred := adapter.Enabled()
 		if service != nil {
 			if record, err := service.Get(ctx, id); err == nil {
+				fact.Type = record.Type
 				switch record.Type {
 				case providers.TypeAntigravity:
 					mgmt, _ := service.ManagementCredentialPresent(ctx, record.ID)

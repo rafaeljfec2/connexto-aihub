@@ -23,7 +23,7 @@ func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Sn
 		return reject(decision, RejectRoutingUnavailable, []string{"gate0_unsatisfied", "profile:" + string(profile)})
 	}
 
-	allowlisted := FilterEligibleToAutoAllowlist(eligibility.Eligible)
+	allowlisted := FilterEligibleToAutoAllowlistForSnapshot(eligibility.Eligible, snapshot)
 	if len(allowlisted) == 0 {
 		return reject(decision, classifyZeroEligible(eligibility.Evaluated), []string{"allowlist_miss", "profile:" + string(profile)})
 	}

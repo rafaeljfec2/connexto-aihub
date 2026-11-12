@@ -53,3 +53,19 @@ func FilterEligibleToAutoAllowlist(eligible []Target) []Target {
 	}
 	return out
 }
+
+// FilterEligibleToAutoAllowlistForSnapshot keeps allowlisted pairs matching either exact
+// ProviderID or the account's ProviderType from snapshot.Admin.
+func FilterEligibleToAutoAllowlistForSnapshot(eligible []Target, snapshot Snapshot) []Target {
+	if len(eligible) == 0 {
+		return nil
+	}
+	out := make([]Target, 0, len(eligible))
+	for _, t := range eligible {
+		pType := providerTypeOf(snapshot, t.ProviderID)
+		if IsAutoAllowlistTarget(t) || IsAutoAllowlistTarget(Target{ProviderID: pType, ModelID: t.ModelID}) {
+			out = append(out, t)
+		}
+	}
+	return out
+}

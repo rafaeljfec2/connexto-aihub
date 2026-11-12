@@ -141,7 +141,7 @@ type quotaFetch func(context.Context, string, string) (ProviderQuotaSnapshot, er
 
 func (s *QuotaService) queryWithCredential(ctx context.Context, record Record, fetch quotaFetch,
 	credential string, scope DataScope, source string) ProviderQuotaSnapshot {
-	subCtx, cancel := context.WithTimeout(ctx, accountQueryTimeout)
+	subCtx, cancel := context.WithTimeout(withQuotaAccountID(ctx, record.ID), accountQueryTimeout)
 	defer cancel()
 	snapshot, err := fetch(subCtx, record.Endpoint, credential)
 	if err != nil {

@@ -39,6 +39,8 @@ type Manager struct {
 	logger              *slog.Logger
 	statuses            func() []providers.Status
 	sources             map[string]SourceFunc
+	sourceResolver      func(string) (SourceFunc, bool)
+	dynamicIDs          func() []string
 	store               SnapshotStore
 	staleAfter          time.Duration
 	syncTimeout         time.Duration
@@ -208,6 +210,9 @@ func (m *Manager) Sync(ctx context.Context, providerID string) (SyncResult, erro
 	}
 
 	source, ok := m.sources[providerID]
+	if !ok && m.sourceResolver != nil {
+		source, ok = m.sourceResolver(providerID)
+	}
 	if !ok {
 		return SyncResult{}, ErrProviderNotFound
 	}
@@ -304,10 +309,47 @@ func (m *Manager) Sync(ctx context.Context, providerID string) (SyncResult, erro
 	return result, nil
 }
 
+// SetSourceResolver attaches a dynamic catalog source resolver for accounts created at runtime.
+func (m *Manager) SetSourceResolver(resolver func(string) (SourceFunc, bool)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sourceResolver = resolver
+}
+
+// SetProviderIDsLister attaches a dynamic lister of bound provider account IDs.
+func (m *Manager) SetProviderIDsLister(lister func() []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dynamicIDs = lister
+}
+
+// RemoveProvider clears in-memory catalog entries and sync state for a deleted provider account.
+func (m *Manager) RemoveProvider(providerID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key := range m.entries {
+		if key.ProviderID == providerID {
+			delete(m.entries, key)
+		}
+	}
+	delete(m.syncStates, providerID)
+}
+
 // ProviderIDs returns the sorted provider ids participating in synchronization.
 func (m *Manager) ProviderIDs() []string {
-	ids := make([]string, 0, len(m.sources))
+	seen := make(map[string]struct{}, len(m.sources))
 	for providerID := range m.sources {
+		seen[providerID] = struct{}{}
+	}
+	if m.dynamicIDs != nil {
+		for _, providerID := range m.dynamicIDs() {
+			if providerID != "" {
+				seen[providerID] = struct{}{}
+			}
+		}
+	}
+	ids := make([]string, 0, len(seen))
+	for providerID := range seen {
 		ids = append(ids, providerID)
 	}
 

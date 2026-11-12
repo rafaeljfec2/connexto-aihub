@@ -54,6 +54,8 @@ func buildProviderConfiguration(cfg config.Config, pool *pgxpool.Pool, registry 
 	service.SetDefaultEndpoint(providers.OpenCodeGoID, cfg.Provider.OpenCodeGo.BaseURL)
 	service.SetDefaultEndpoint(providers.OpenRouterID, providers.OpenRouterEndpoint)
 
+	registerAdapterFactories(service)
+
 	module := providers.NewConfigModuleSet(service, []providers.BootstrapInput{
 		{
 			ID: providers.OpenCodeGoID, Name: "OpenCode Go", Type: providers.TypeOpenCodeGo,
@@ -88,6 +90,7 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 		{Method: http.MethodGet, Pattern: "/api/providers", Handler: admin.List()},
 		{Method: http.MethodGet, Pattern: "/api/providers/{id}", Handler: admin.Get()},
 		{Method: http.MethodPatch, Pattern: "/api/providers/{id}", Handler: admin.Update()},
+		{Method: http.MethodDelete, Pattern: "/api/providers/{id}", Handler: admin.Delete()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/validate", Handler: admin.Validate()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/runtime/sessions/clear", Handler: admin.ClearAntigravityProxyRuntimeSessions()},
 		{Method: http.MethodPost, Pattern: "/api/providers/{id}/proxy/cursor/runtime/sessions/clear", Handler: admin.ClearCursorUsageProxyRuntimeSessions()},
@@ -104,4 +107,36 @@ func providerAdminRoutes(admin *gateway.ProviderAdmin) []server.Route {
 		{Method: http.MethodGet, Pattern: "/api/ui/providers/quotas", Handler: admin.Quotas()},
 		{Method: http.MethodGet, Pattern: "/api/ui/providers/cursor/usage-analytics", Handler: admin.CursorUsageAnalytics()},
 	}
+}
+
+func registerAdapterFactories(service *providers.Service) {
+	sharedProxyTransport := providers.NewConnextoProxyHTTPClient()
+	service.SetAdapterFactory(providers.TypeOpenCodeGo, func(record providers.Record) (providers.Adapter, error) {
+		return providers.NewClient(config.ProviderOpenCodeGo{BaseURL: record.Endpoint}, nil)
+	})
+	service.SetAdapterFactory(providers.TypeOpenRouter, func(record providers.Record) (providers.Adapter, error) {
+		return providers.NewOpenRouterClient(providers.Settings{
+			BaseURL:           record.Endpoint,
+			Enabled:           record.Enabled,
+			ProviderType:      record.Type,
+			LogicalProviderID: record.ID,
+		}, nil)
+	})
+	service.SetAdapterFactory(providers.TypeCursor, func(record providers.Record) (providers.Adapter, error) {
+		return providers.NewConnextoProxyClient(providers.Settings{
+			BaseURL:           record.Endpoint,
+			Enabled:           record.Enabled,
+			ProviderType:      record.Type,
+			LogicalProviderID: record.ID,
+		}, sharedProxyTransport)
+	})
+	service.SetAdapterFactory(providers.TypeAntigravity, func(record providers.Record) (providers.Adapter, error) {
+		return providers.NewConnextoProxyClient(providers.Settings{
+			BaseURL:           record.Endpoint,
+			Enabled:           record.Enabled,
+			ProviderType:      record.Type,
+			LogicalProviderID: record.ID,
+			InferenceOptional: true,
+		}, sharedProxyTransport)
+	})
 }

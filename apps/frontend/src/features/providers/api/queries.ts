@@ -1,4 +1,4 @@
-import { fetchJson } from '../../../shared/api/client'
+import { ApiError, fetchJson, type ApiErrorBody } from '../../../shared/api/client'
 import type { ProviderQuotasResponse } from '../../overview/types/quota'
 import type {
   AdminProvider,
@@ -28,6 +28,27 @@ export async function createProvider(input: CreateProviderInput): Promise<AdminP
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
+}
+
+export async function deleteProvider(id: string): Promise<void> {
+  const response = await fetch(`/api/providers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  })
+  if (!response.ok) {
+    let body: ApiErrorBody = { type: 'request_failed', message: response.statusText }
+    try {
+      const raw = (await response.json()) as ApiErrorBody | { error?: ApiErrorBody }
+      if ('error' in raw && raw.error && typeof raw.error.type === 'string') {
+        body = raw.error
+      } else if ('type' in raw && typeof raw.type === 'string') {
+        body = raw as ApiErrorBody
+      }
+    } catch {
+      // keep default body
+    }
+    throw new ApiError(response.status, body)
+  }
 }
 
 export async function getProviderQuotas(): Promise<ProviderQuotasResponse> {

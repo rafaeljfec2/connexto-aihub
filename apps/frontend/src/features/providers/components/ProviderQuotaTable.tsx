@@ -39,7 +39,9 @@ export function ProviderQuotaTable({
       providers.filter((provider) => {
         const query = search.toLowerCase().trim()
         return (
-          provider.name.toLowerCase().includes(query) || provider.id.toLowerCase().includes(query)
+          provider.name.toLowerCase().includes(query) ||
+          provider.id.toLowerCase().includes(query) ||
+          provider.type.toLowerCase().includes(query)
         )
       }),
     [providers, search],

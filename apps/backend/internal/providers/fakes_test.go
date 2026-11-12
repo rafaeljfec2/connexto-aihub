@@ -159,6 +159,19 @@ func (r *memoryRepository) SetEnabled(_ context.Context, id string, enabled bool
 	return record, nil
 }
 
+func (r *memoryRepository) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.records[id]; !ok {
+		return providers.ErrNotFound
+	}
+	delete(r.records, id)
+	delete(r.sealed, id)
+	delete(r.sealedManagement, id)
+	return nil
+}
+
 func (r *memoryRepository) SealedCredential(_ context.Context, id string) ([]byte, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

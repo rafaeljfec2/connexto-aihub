@@ -43,19 +43,16 @@ func (c *ConnextoProxyClient) FetchModelDescriptors(ctx context.Context) ([]Mode
 	descriptors := make([]ModelDescriptor, 0, len(envelope.Data))
 	seen := make(map[string]struct{}, len(envelope.Data))
 	c.mu.RLock()
-	logicalID := c.logicalProviderID
+	providerType := c.effectiveProviderTypeLocked()
 	c.mu.RUnlock()
-	if logicalID == "" {
-		logicalID = CursorID
-	}
 
 	for _, raw := range envelope.Data {
 		descriptor, err := connextoProxyDescriptor(raw)
 		if err != nil {
 			return nil, &DecodeError{StatusCode: response.StatusCode, Err: err}
 		}
-		switch logicalID {
-		case AntigravityID:
+		switch providerType {
+		case TypeAntigravity:
 			if !connextoProxyModelBelongsToAntigravity(descriptor.ID, raw) {
 				continue
 			}
@@ -199,11 +196,8 @@ func (c *ConnextoProxyClient) filterModelsListResponse(response *http.Response) 
 		return response, nil
 	}
 	c.mu.RLock()
-	logicalID := c.logicalProviderID
+	providerType := c.effectiveProviderTypeLocked()
 	c.mu.RUnlock()
-	if logicalID == "" {
-		logicalID = CursorID
-	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxModelsResponseBytes+1))
 	if response.Body != nil {
 		_ = response.Body.Close()
@@ -240,8 +234,8 @@ func (c *ConnextoProxyClient) filterModelsListResponse(response *http.Response) 
 		}
 		_ = json.Unmarshal(raw, &idProbe)
 		isAnt := IsAntigravityCatalogModel(idProbe.OwnedBy, idProbe.ID)
-		switch logicalID {
-		case AntigravityID:
+		switch providerType {
+		case TypeAntigravity:
 			if isAnt {
 				filtered = append(filtered, raw)
 			}

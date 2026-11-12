@@ -21,6 +21,7 @@ type providerResponse struct {
 type createProviderRequest struct {
 	ID                   string `json:"id"`
 	ProviderID           string `json:"provider_id"`
+	TemplateID           string `json:"template_id"`
 	Name                 string `json:"name"`
 	Type                 string `json:"type"`
 	Endpoint             string `json:"endpoint"`

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { overviewQueryKeys } from '../../overview'
 import {
+  deleteProvider,
   disableProvider,
   enableProvider,
   providersQueryKeys,
@@ -38,5 +39,15 @@ export function useProviderMutations(providerId: string) {
     onSuccess: invalidate,
   })
 
-  return { validate, enable, disable, patch }
+  const remove = useMutation({
+    mutationFn: () => deleteProvider(providerId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: providersQueryKeys.list })
+      await queryClient.invalidateQueries({ queryKey: providersQueryKeys.quotas })
+      await queryClient.invalidateQueries({ queryKey: ['catalog'] })
+      await queryClient.invalidateQueries({ queryKey: overviewQueryKeys.providerDiagnostics })
+    },
+  })
+
+  return { validate, enable, disable, patch, remove }
 }

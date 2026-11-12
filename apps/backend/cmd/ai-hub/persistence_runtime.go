@@ -85,6 +85,7 @@ func buildPersistenceRuntime(cfg config.Config, logger *slog.Logger, registry *p
 	}, logger)
 	runtime.providerAdmin.BindQuotaService(quotaService)
 	runtime.quotaService = quotaService
+	providerConfig.service.RegisterDeleteObserver(quotaService.InvalidateAccount)
 	usageAnalyticsService := providers.NewCursorUsageAnalyticsService(providerConfig.service, nil, logger)
 	runtime.providerAdmin.BindCursorUsageAnalytics(usageAnalyticsService)
 	resourceService := resources.NewService(resourcespg.New(pool))

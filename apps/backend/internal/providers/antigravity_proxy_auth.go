@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -70,13 +71,14 @@ func (s *Service) GetAntigravityProxyAuthStatus(ctx context.Context, id string) 
 		return nil, ErrNoGatewayKey
 	}
 	base := strings.TrimRight(strings.TrimSpace(record.Endpoint), "/")
-	statusURL := base + "/providers/antigravity/auth/status"
+	statusURL := base + "/providers/antigravity/auth/status?accountId=" + url.QueryEscape(record.ID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrProxyAntigravityAuthFailed, err)
 	}
 	req.Header.Set("X-Gateway-API-Key", gatewayKey)
+	req.Header.Set("X-Account-ID", record.ID)
 
 	client := &http.Client{Timeout: proxyAntigravityAuthStatusTimeout}
 	resp, err := client.Do(req)
@@ -120,14 +122,15 @@ func (s *Service) StartAntigravityProxyAuth(ctx context.Context, id string, body
 	base := strings.TrimRight(strings.TrimSpace(record.Endpoint), "/")
 	startURL := base + "/providers/antigravity/auth/start"
 
-	var payload []byte
+	payloadMap := map[string]string{
+		"accountId": record.ID,
+	}
 	if body != nil && body.RedirectURI != nil && strings.TrimSpace(*body.RedirectURI) != "" {
-		payload, err = json.Marshal(map[string]string{"redirectUri": strings.TrimSpace(*body.RedirectURI)})
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrProxyAntigravityAuthFailed, err)
-		}
-	} else {
-		payload = []byte("{}")
+		payloadMap["redirectUri"] = strings.TrimSpace(*body.RedirectURI)
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrProxyAntigravityAuthFailed, err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, startURL, bytes.NewReader(payload))
@@ -136,6 +139,7 @@ func (s *Service) StartAntigravityProxyAuth(ctx context.Context, id string, body
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Gateway-API-Key", gatewayKey)
+	req.Header.Set("X-Account-ID", record.ID)
 
 	client := &http.Client{Timeout: proxyAntigravityAuthStartTimeout}
 	resp, err := client.Do(req)

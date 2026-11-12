@@ -42,6 +42,12 @@ func ExtractProviderReportedPricing(providerID string, metadata json.RawMessage)
 	case providers.OpenRouterID:
 		return extractOpenRouterPricing(metadata)
 	default:
+		if p, ok := extractOpenRouterPricing(metadata); ok {
+			return p, true
+		}
+		if p, ok := extractOpenCodeGoPricing(metadata); ok {
+			return p, true
+		}
 		return ProviderReportedPricing{}, false
 	}
 }
