@@ -1,6 +1,5 @@
-import { RefreshCw } from 'lucide-react'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
-import { Banner, Panel } from '../../../shared/ui'
+import { Banner, Panel, RefreshButton } from '../../../shared/ui'
 import { AddProviderModal } from '../components/AddProviderModal'
 import { ProviderDetailPanel } from '../components/ProviderDetailPanel'
 import { ProviderGovernanceMetrics } from '../components/ProviderGovernanceMetrics'
@@ -121,19 +120,13 @@ function ProviderHeaderActions({
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
       <span className="overview-backend-tag">DADOS DO BACKEND</span>
-      <button
-        type="button"
+      <RefreshButton
         className="providers-primary-action"
-        onClick={onRefresh}
+        onRefresh={onRefresh}
+        isRefreshing={isRefreshing || isBackgroundRefreshing}
         disabled={isRefreshing}
         aria-label="Atualizar franquias"
-      >
-        <RefreshCw
-          className={`mr-1 inline size-3.5 ${isBackgroundRefreshing ? 'motion-safe:animate-spin' : ''}`}
-          aria-hidden
-        />
-        Atualizar
-      </button>
+      />
       {isBackgroundRefreshing ? (
         <span className="sr-only" data-testid="providers-refreshing-status" role="status">
           Atualizando franquias
@@ -196,18 +189,12 @@ function ProviderQuotasInitialError({
             <p className="text-xs text-secondary">
               Verifique a conexão com o AI Hub e tente novamente. Nenhum valor de quota foi estimado.
             </p>
-            <button
-              type="button"
+            <RefreshButton
               className="providers-primary-action"
-              onClick={onRetry}
-              disabled={isRefreshing}
-            >
-              <RefreshCw
-                className={`size-3.5 ${isRefreshing ? 'motion-safe:animate-spin' : ''}`}
-                aria-hidden
-              />
-              Tentar novamente
-            </button>
+              onRefresh={onRetry}
+              isRefreshing={isRefreshing}
+              label="Tentar novamente"
+            />
           </div>
         </Panel>
       </div>

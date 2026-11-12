@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw } from 'lucide-react'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { listProviders, providersQueryKeys } from '../../providers'
 import { Banner } from '../../../shared/ui/banner'
-import { Button } from '../../../shared/ui/button'
+import { RefreshButton } from '../../../shared/ui'
 import {
   getAdmissionsAnalytics,
   getConcurrencySnapshot,
@@ -204,10 +203,16 @@ export function ResourcesPage() {
             >
               Ver franquias por provedor ↗
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => void handleRefresh()}>
-              <RefreshCw className="size-3.5" aria-hidden />
-              Refresh
-            </Button>
+            <RefreshButton
+              className="overview-refresh"
+              onRefresh={handleRefresh}
+              isRefreshing={
+                admissionsQuery.isFetching ||
+                providerUsageQuery.isFetching ||
+                providerDistributionQuery.isFetching ||
+                providersQuery.isFetching
+              }
+            />
           </div>
         }
       />

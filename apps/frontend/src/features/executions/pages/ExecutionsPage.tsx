@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { RefreshButton } from '../../../shared/ui'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { catalogQueryKeys, listCatalogProviders } from '../../catalog'
@@ -193,15 +193,11 @@ export function ExecutionsPage() {
           </div>
           <div className="generations-headright">
             <span className="overview-backend-tag">{originTag}</span>
-            <button
-              type="button"
-              className="overview-refresh cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => void listQuery.refetch()}
-              disabled={listQuery.isFetching}
-            >
-              <RefreshCw className={`inline size-3.5 ${listQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden />
-              <span>Atualizar</span>
-            </button>
+            <RefreshButton
+              className="overview-refresh"
+              onRefresh={() => listQuery.refetch()}
+              isRefreshing={listQuery.isFetching}
+            />
           </div>
         </header>
 

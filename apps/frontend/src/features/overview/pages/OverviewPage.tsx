@@ -1,6 +1,6 @@
-import { RefreshCw } from 'lucide-react'
 import { useAppPageMeta } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
+import { RefreshButton } from '../../../shared/ui'
 import { BackendUnavailableBanner } from '../components/BackendUnavailableBanner'
 import { OverviewProvidersPanel } from '../components/OverviewProvidersPanel'
 import { OverviewRecentExecutionsPanel } from '../components/OverviewRecentExecutionsPanel'
@@ -58,15 +58,11 @@ export function OverviewPage() {
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <span className="overview-backend-tag">{originTagLabel}</span>
-          <button
-            type="button"
-            className="overview-refresh cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={() => void refetchAll()}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`inline size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden />
-            <span>Atualizar</span>
-          </button>
+          <RefreshButton
+            className="overview-refresh"
+            onRefresh={refetchAll}
+            isRefreshing={isRefreshing}
+          />
         </div>
       </header>
 

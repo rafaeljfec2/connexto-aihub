@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { RefreshButton } from '../../../shared/ui'
 import { useCursorUsageQueries } from '../hooks/useCursorUsageQueries'
 import {
   buildCursorDailySeries,
@@ -61,15 +61,14 @@ function CursorUsageDrawerContent({
     <section className="cursor-drawer-usage" data-testid="cursor-drawer-usage">
       <div className="flex items-start justify-between gap-2">
         <DrawerHeading />
-        <button
-          type="button"
+        <RefreshButton
           className="providers-primary-action !p-2"
           aria-label="Atualizar uso do Cursor"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-        >
-          <RefreshCw className={`size-3 ${isRefreshing ? 'motion-safe:animate-spin' : ''}`} aria-hidden />
-        </button>
+          onRefresh={onRefresh}
+          isRefreshing={isRefreshing}
+          iconOnly
+          iconClassName="size-3"
+        />
       </div>
       <div className="cursor-drawer-usage-metrics">
         <UsageMetric label="Requisições do agente" value={summary.agentRequests} secondaryLabel="Chat" secondary={summary.chatRequests} />
