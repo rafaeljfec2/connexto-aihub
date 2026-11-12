@@ -52,6 +52,9 @@ func TestModelsRouteAggregatesAllProvidersWithoutSelector(t *testing.T) {
 	if !strings.Contains(body, "deepseek-v4.1-flash") || !strings.Contains(body, "anthropic/claude-sonnet-4.5") || !strings.Contains(body, "aihub/auto") {
 		t.Fatalf("aggregated models response = %s", body)
 	}
+	if !strings.Contains(body, `"id":"aihub/auto"`) || !strings.Contains(body, `"capabilities":{"tools":{"supported":true},"reasoning":{"supported":true}}`) {
+		t.Fatalf("aihub/auto missing agent capabilities in models list: %s", body)
+	}
 	routedResponse := serveModels(handler, providers.OpenRouterID)
 	if !strings.Contains(routedResponse.Body.String(), "anthropic/claude-sonnet-4.5") {
 		t.Fatalf("OpenRouter models response = %d %s", routedResponse.Code, routedResponse.Body.String())
