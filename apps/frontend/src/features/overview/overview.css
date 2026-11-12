@@ -33,6 +33,19 @@
 
   .overview-stats > article {
     @apply min-h-[64px] !p-3;
+    animation: motion-rise 360ms ease-out both;
+  }
+
+  .overview-stats > article:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .overview-stats > article:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .overview-stats > article:nth-child(4) {
+    animation-delay: 120ms;
   }
 
   .overview-stats > article > div:nth-child(2) {

@@ -42,7 +42,7 @@ export function ResetPasswordPage() {
 
   return (
     <div className="grid min-h-svh place-items-center bg-graphite px-4 py-10">
-      <Panel className="w-full max-w-md border-line/80 bg-surface/90 p-8 shadow-xl">
+      <Panel className="motion-enter w-full max-w-md border-line/80 bg-surface/90 p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-lg border border-cobalt/30 bg-accent-deep text-cobalt">
             <KeyRound className="size-5" aria-hidden />

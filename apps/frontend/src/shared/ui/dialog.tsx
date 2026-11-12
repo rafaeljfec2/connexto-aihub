@@ -32,10 +32,10 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/70" />
+        <DialogPrimitive.Overlay className="motion-dialog-overlay fixed inset-0 z-50 bg-black/70" />
         <DialogPrimitive.Content
           className={cn(
-            'fixed left-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[min(100%,32rem)] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-line bg-[#171E29] shadow-2xl outline-none sm:max-h-[min(92vh,42rem)]',
+            'motion-dialog fixed left-1/2 z-50 flex max-h-[calc(100dvh-1rem)] w-[min(100%,32rem)] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-line bg-[#171E29] shadow-2xl outline-none sm:max-h-[min(92vh,42rem)]',
             align === 'center'
               ? 'top-1/2 -translate-y-1/2'
               : 'top-[max(0.5rem,min(5vh,2rem))]',

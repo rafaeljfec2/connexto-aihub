@@ -79,7 +79,7 @@ export function AppShell({ connectionState, onReconnect }: AppShellProps) {
             viewportFit ? 'py-2 lg:py-3' : 'py-3 lg:py-4',
           )}
         >
-          <div className={mainContentClassName}>
+          <div key={location.pathname} className={cn(mainContentClassName, 'motion-page')}>
             <Outlet />
           </div>
         </main>

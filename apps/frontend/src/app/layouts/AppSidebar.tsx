@@ -64,7 +64,7 @@ export function AppSidebar({
       {mobileOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="motion-fade fixed inset-0 z-40 bg-black/60 lg:hidden"
           aria-label="Close navigation"
           onClick={onCloseMobile}
         />
@@ -99,7 +99,7 @@ export function AppSidebar({
 
           {!collapsed ? (
             <div className="mx-1 mb-6 flex items-center gap-2.5 rounded-[10px] border border-line bg-white/[0.025] px-3 py-2.5">
-              <span className="size-[7px] shrink-0 rounded-full bg-cobalt shadow-[0_0_0_4px_rgba(120,150,232,0.12)]" />
+              <span className="motion-live size-[7px] shrink-0 rounded-full bg-cobalt" />
               <div>
                 <strong className="block text-[0.6875rem] font-semibold">Workspace principal</strong>
                 <small className="mt-0.5 block text-[0.625rem] text-muted">Instância de desenvolvimento</small>
