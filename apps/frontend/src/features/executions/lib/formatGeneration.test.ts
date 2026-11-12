@@ -30,6 +30,7 @@ const generation: Generation = {
     time_to_first_token_ns: null,
     output_stream_duration_ns: 1_000_000_000,
     finish_reason: null,
+    client_app: null,
   },
   enrichment_status: 'available',
 }

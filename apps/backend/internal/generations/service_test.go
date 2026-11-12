@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,4 +75,48 @@ func waitForRetainedRecord(t *testing.T, service *records.Service, executionID s
 		time.Sleep(time.Millisecond)
 	}
 	t.Fatal("execution record was not retained")
+}
+
+type captureRepository struct {
+	inserted []TelemetryInput
+}
+
+func (r *captureRepository) Insert(_ context.Context, input TelemetryInput) error {
+	r.inserted = append(r.inserted, input)
+	return nil
+}
+
+func (r *captureRepository) List(context.Context, []string) (map[string]Enrichment, error) {
+	return map[string]Enrichment{}, nil
+}
+
+func (r *captureRepository) DeleteExcept(context.Context, []string) error { return nil }
+
+func TestSafeClientApp(t *testing.T) {
+	if got := SafeClientApp("  ai-hub-playground  "); got == nil || *got != "ai-hub-playground" {
+		t.Fatalf("SafeClientApp trimmed = %v, want ai-hub-playground", got)
+	}
+	if got := SafeClientApp("bad\napp"); got != nil {
+		t.Fatalf("SafeClientApp control char = %v, want nil", got)
+	}
+	if got := SafeClientApp("   "); got != nil {
+		t.Fatalf("SafeClientApp empty = %v, want nil", got)
+	}
+	long := strings.Repeat("a", 150)
+	if got := SafeClientApp(long); got == nil || len(*got) != 128 {
+		t.Fatalf("SafeClientApp long len = %v, want 128", got)
+	}
+}
+
+func TestRecordBestEffortSanitizesClientApp(t *testing.T) {
+	repo := &captureRepository{}
+	service := NewService(nil, repo, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	service.RecordBestEffort(context.Background(), TelemetryInput{
+		ExecutionID: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		ProviderID:  "cursor",
+		ClientApp:   "  codex_cli_rs  ",
+	})
+	if len(repo.inserted) != 1 || repo.inserted[0].ClientApp != "codex_cli_rs" {
+		t.Fatalf("inserted = %+v, want sanitized ClientApp", repo.inserted)
+	}
 }

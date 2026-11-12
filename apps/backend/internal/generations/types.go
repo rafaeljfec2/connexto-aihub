@@ -35,6 +35,7 @@ type Telemetry struct {
 	OutputStreamDurationNS *int64
 	FinishReason           *string
 	ProviderSessionID      *string
+	ClientApp              *string
 }
 
 // ProviderEvent is an ordered, content-free gateway event.
@@ -80,6 +81,7 @@ type TelemetryInput struct {
 	ProviderID   string
 	ModelID      string
 	SessionID    string
+	ClientApp    string
 	FinishReason *string
 	Result       execution.Result
 }

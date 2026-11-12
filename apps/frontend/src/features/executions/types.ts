@@ -19,6 +19,7 @@ export type GenerationTelemetry = {
   readonly time_to_first_token_ns: number | null
   readonly output_stream_duration_ns: number | null
   readonly finish_reason: string | null
+  readonly client_app: string | null
 }
 
 export type GenerationProviderEvent = {

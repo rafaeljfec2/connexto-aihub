@@ -99,6 +99,11 @@ func (s *Service) RecordBestEffort(ctx context.Context, input TelemetryInput) {
 	} else {
 		input.SessionID = ""
 	}
+	if clientApp := SafeClientApp(input.ClientApp); clientApp != nil {
+		input.ClientApp = *clientApp
+	} else {
+		input.ClientApp = ""
+	}
 	if err := s.repository.Insert(writeContext, input); err != nil {
 		s.logEnrichmentFailure("generation_telemetry_persist_failed")
 	}

@@ -34,6 +34,7 @@ const generation = {
     time_to_first_token_ns: null,
     output_stream_duration_ns: null,
     finish_reason: null,
+    client_app: 'codex_cli_rs',
   },
   provider_responses: [],
 }
@@ -85,6 +86,7 @@ describe('ExecutionsPage generations experience', () => {
     })
     expect(await screen.findByRole('tab', { name: 'Generations' })).toBeTruthy()
     expect(await screen.findByText('vendor/model')).toBeTruthy()
+    expect(await screen.findByText('codex_cli_rs')).toBeTruthy()
   })
 
   it('starts without a selected generation or an open detail drawer', async () => {

@@ -21,6 +21,7 @@ export async function streamResponses(params: StreamResponsesParams): Promise<vo
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-AIHub-App': 'ai-hub-playground',
   }
   if (params.settings.providerId) {
     headers['X-AIHub-Provider'] = params.settings.providerId

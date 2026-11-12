@@ -92,7 +92,7 @@ export function GenerationDetailsDrawer({
                 </DetailSection>
 
                 <DetailSection title="Request">
-                  <DetailRow label="Application" value="Not reported" />
+                  <DetailRow label="Application" value={current.telemetry.client_app ?? 'Not reported'} />
                   <DetailRow label="Execution ID" value={current.execution_id} mono />
                   <DetailRow label="Request ID" value={current.request_id ?? 'Not reported'} mono />
                   <DetailRow label="Provider session" value={detail?.provider_session_id ?? 'Not reported'} mono />

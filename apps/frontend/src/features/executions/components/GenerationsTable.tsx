@@ -112,7 +112,9 @@ export function GenerationsTable({
                   <td className="font-mono text-muted">{formatGenerationTime(generation.started_at)}</td>
                   <td><span className="generation-model">{generation.model_id ?? 'Not reported'}</span></td>
                   <td><span className="generation-provider">{catalogProviderLabel(generation.provider_id)}</span></td>
-                  <td className="generation-muted">Not reported</td>
+                  <td className={generation.telemetry.client_app ? undefined : 'generation-muted'}>
+                    {generation.telemetry.client_app ?? 'Not reported'}
+                  </td>
                   <td className="text-right font-mono">{formatGenerationTokens(generation.usage.input_tokens)}</td>
                   <td className="text-right font-mono">{formatGenerationTokens(generation.usage.output_tokens)}</td>
                   <td className="generation-cost" title="OpenCode usage.cost (charged amount reported by provider)">

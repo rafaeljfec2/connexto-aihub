@@ -31,12 +31,13 @@ func (s *Store) Insert(ctx context.Context, input generations.TelemetryInput) er
 
 	if _, err := tx.Exec(ctx, `
 INSERT INTO generation_telemetry (
-    execution_id, provider_session_id, streaming,
+    execution_id, provider_session_id, client_app, streaming,
     provider_latency_ns, routing_overhead_ns, time_to_first_token_ns,
     output_stream_duration_ns, finish_reason
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (execution_id) DO UPDATE SET
     provider_session_id = EXCLUDED.provider_session_id,
+    client_app = EXCLUDED.client_app,
     streaming = EXCLUDED.streaming,
     provider_latency_ns = EXCLUDED.provider_latency_ns,
     routing_overhead_ns = EXCLUDED.routing_overhead_ns,
@@ -44,9 +45,9 @@ ON CONFLICT (execution_id) DO UPDATE SET
     output_stream_duration_ns = EXCLUDED.output_stream_duration_ns,
     finish_reason = EXCLUDED.finish_reason,
     recorded_at = now()`,
-		input.ExecutionID, generations.SafeSessionID(input.SessionID), input.Result.Streaming,
-		input.Result.ProviderLatencyNS, input.Result.RoutingOverheadNS, input.Result.TimeToFirstTokenNS,
-		input.Result.OutputStreamDurationNS, input.FinishReason,
+		input.ExecutionID, generations.SafeSessionID(input.SessionID), generations.SafeClientApp(input.ClientApp),
+		input.Result.Streaming, input.Result.ProviderLatencyNS, input.Result.RoutingOverheadNS,
+		input.Result.TimeToFirstTokenNS, input.Result.OutputStreamDurationNS, input.FinishReason,
 	); err != nil {
 		return err
 	}

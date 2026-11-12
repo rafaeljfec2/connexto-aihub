@@ -18,7 +18,7 @@ func (s *Store) List(ctx context.Context, executionIDs []string) (map[string]gen
 SELECT requested.execution_id,
        t.execution_id IS NOT NULL,
        u.execution_id IS NOT NULL,
-       t.provider_session_id, t.streaming,
+       t.provider_session_id, t.client_app, t.streaming,
        t.provider_latency_ns, t.routing_overhead_ns,
        t.time_to_first_token_ns, t.output_stream_duration_ns, t.finish_reason,
        u.input_tokens, u.output_tokens, u.provider_reported_cost, u.provider_list_cost,
@@ -32,12 +32,12 @@ SELECT requested.execution_id,
 	for rows.Next() {
 		var executionID string
 		var hasTelemetry, hasUsage bool
-		var sessionID, finishReason, currency, usageStatus, usageSource pgtype.Text
+		var sessionID, clientApp, finishReason, currency, usageStatus, usageSource pgtype.Text
 		var streaming pgtype.Bool
 		var providerLatency, routingOverhead, firstToken, outputDuration pgtype.Int8
 		var inputTokens, outputTokens pgtype.Int8
 		var reportedCost, listCost pgtype.Numeric
-		if err := rows.Scan(&executionID, &hasTelemetry, &hasUsage, &sessionID, &streaming,
+		if err := rows.Scan(&executionID, &hasTelemetry, &hasUsage, &sessionID, &clientApp, &streaming,
 			&providerLatency, &routingOverhead, &firstToken, &outputDuration, &finishReason,
 			&inputTokens, &outputTokens, &reportedCost, &listCost, &currency, &usageStatus, &usageSource); err != nil {
 			rows.Close()
@@ -55,6 +55,7 @@ SELECT requested.execution_id,
 				OutputStreamDurationNS: int64Value(outputDuration),
 				FinishReason:           textValue(finishReason),
 				ProviderSessionID:      textValue(sessionID),
+				ClientApp:              textValue(clientApp),
 			}
 		}
 		if hasUsage {

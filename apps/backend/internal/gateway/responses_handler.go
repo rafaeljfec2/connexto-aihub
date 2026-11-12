@@ -89,6 +89,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestID := observability.CorrelationIDFrom(r.Context())
+	clientApp := clientAppFromRequest(r)
 	providerID := providers.OpenCodeGoID
 	modelID := requestedModelID(payload)
 	executionPayload := payload
@@ -222,6 +223,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ProviderID:   providerID,
 			ModelID:      modelID,
 			SessionID:    sessionID,
+			ClientApp:    clientApp,
 			FinishReason: capture.ExtractFinishReason(captured),
 			Result:       result,
 		})

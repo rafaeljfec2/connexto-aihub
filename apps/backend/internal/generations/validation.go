@@ -44,13 +44,8 @@ func validText(value string, minimum, maximum int) bool {
 }
 
 func safeSessionID(value string) *string {
-	if value == "" || len(value) > 256 || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
+	if value == "" || len(value) > 256 || strings.TrimSpace(value) != value || !validText(value, 1, 256) {
 		return nil
-	}
-	for _, char := range value {
-		if char < 0x20 || char == 0x7f {
-			return nil
-		}
 	}
 	return &value
 }
@@ -58,6 +53,25 @@ func safeSessionID(value string) *string {
 // SafeSessionID returns a validated bounded identifier suitable for detail storage.
 func SafeSessionID(value string) *string {
 	return safeSessionID(value)
+}
+
+// SafeClientApp normalizes and bounds an originating client application name to 128 UTF-8 bytes.
+func SafeClientApp(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || !validText(trimmed, 1, len(trimmed)) {
+		return nil
+	}
+	if len(trimmed) > 128 {
+		end := 128
+		for end > 0 && !utf8.RuneStart(trimmed[end]) {
+			end--
+		}
+		trimmed = strings.TrimSpace(trimmed[:end])
+		if trimmed == "" {
+			return nil
+		}
+	}
+	return &trimmed
 }
 
 func knownEvent(kind execution.EventKind) bool {

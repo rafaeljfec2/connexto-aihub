@@ -25,6 +25,7 @@ type generationTelemetryDTO struct {
 	TimeToFirstTokenNS     *int64  `json:"time_to_first_token_ns"`
 	OutputStreamDurationNS *int64  `json:"output_stream_duration_ns"`
 	FinishReason           *string `json:"finish_reason"`
+	ClientApp              *string `json:"client_app"`
 }
 
 type generationListDTO struct {
@@ -167,6 +168,7 @@ func newGenerationListDTO(generation generations.Generation) generationListDTO {
 			TimeToFirstTokenNS:     generation.Telemetry.TimeToFirstTokenNS,
 			OutputStreamDurationNS: generation.Telemetry.OutputStreamDurationNS,
 			FinishReason:           generation.Telemetry.FinishReason,
+			ClientApp:              generation.Telemetry.ClientApp,
 		},
 	}
 }
