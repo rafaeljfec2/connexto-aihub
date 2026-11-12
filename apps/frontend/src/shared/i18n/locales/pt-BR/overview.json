@@ -188,9 +188,14 @@
     "hundredPercentRemaining": "100% restante",
     "backgroundModelsLine": "({{count}} modelos · 100% restante)",
     "drawerTitle": "Cotas e Franquias Antigravity",
+    "drawerSubtitle": "Agrupadas por franquia oficial de modelos (pools compartilhados)",
+    "reportedModels": "{{count}} modelo(s) reportado(s)",
+    "includedModels": "{{count}} modelo(s) incluído(s)",
+    "franchiseModelsHeading": "Modelos atendidos por esta franquia",
     "autofill": "Preenchimento automático",
     "modelsCount": "{{count}} modelo(s)",
-    "modelsCountShort": "{{count}} modelos"
+    "modelsCountShort": "{{count}} modelos",
+    "percentOnly": "{{percent}}%"
   },
   "diagnostics": {
     "sectionTitle": "Diagnóstico de provedores",

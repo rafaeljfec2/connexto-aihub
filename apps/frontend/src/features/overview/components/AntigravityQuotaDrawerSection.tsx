@@ -32,7 +32,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
           className="flex items-center gap-1 text-[0.6875rem] text-muted hover:text-[#CBD5E2] transition-colors"
           aria-expanded={showModels}
         >
-          <span>{family.totalModelsCount} modelo(s) incluído(s)</span>
+          <span>{t('antigravity.includedModels', { count: family.totalModelsCount })}</span>
           {showModels ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
         </button>
       </div>
@@ -69,7 +69,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
       {showModels ? (
         <div className="mt-2 space-y-1.5 pt-2 border-t border-line/30">
           <p className="text-[0.625rem] uppercase tracking-wider font-medium text-[#8290A5]">
-            Modelos atendidos por esta franquia
+            {t('antigravity.franchiseModelsHeading')}
           </p>
           <div className="space-y-1">
             {family.limits.flatMap((limit) => limit.models).map((model) => (
@@ -85,8 +85,10 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
                 </div>
                 <span className="text-[0.6875rem] text-[#8290A5] shrink-0">
                   {model.remainingPercent != null
-                    ? `${formatNumber(Math.round(model.remainingPercent))}%`
-                    : '100%'}
+                    ? t('antigravity.percentOnly', {
+                        percent: formatNumber(Math.round(model.remainingPercent)),
+                      })
+                    : t('antigravity.percentOnly', { percent: formatNumber(100) })}
                 </span>
               </div>
             ))}
@@ -110,12 +112,10 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
       <div className="flex items-baseline justify-between">
         <div>
           <h3 className="text-xs font-semibold text-primary">{t('antigravity.drawerTitle')}</h3>
-          <p className="text-[0.6875rem] text-muted">
-            Agrupadas por franquia oficial de modelos (pools compartilhados)
-          </p>
+          <p className="text-[0.6875rem] text-muted">{t('antigravity.drawerSubtitle')}</p>
         </div>
         <span className="text-[0.625rem] text-muted font-mono">
-          {quotas.length} modelo(s) reportado(s)
+          {t('antigravity.reportedModels', { count: quotas.length })}
         </span>
       </div>
 

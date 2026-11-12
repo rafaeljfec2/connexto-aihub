@@ -188,9 +188,14 @@
     "hundredPercentRemaining": "100% remaining",
     "backgroundModelsLine": "({{count}} models · 100% remaining)",
     "drawerTitle": "Antigravity quotas",
+    "drawerSubtitle": "Grouped by official model quota families (shared pools)",
+    "reportedModels": "{{count}} model(s) reported",
+    "includedModels": "{{count}} model(s) included",
+    "franchiseModelsHeading": "Models covered by this quota family",
     "autofill": "Autofill",
     "modelsCount": "{{count}} model(s)",
-    "modelsCountShort": "{{count}} models"
+    "modelsCountShort": "{{count}} models",
+    "percentOnly": "{{percent}}%"
   },
   "diagnostics": {
     "sectionTitle": "Provider diagnostics",
