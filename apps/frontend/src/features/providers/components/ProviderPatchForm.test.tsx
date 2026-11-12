@@ -248,4 +248,17 @@ describe('ProviderPatchForm', () => {
     expect(screen.queryByLabelText('Management API Key (write-only)')).toBeNull()
   })
 
+  it('renders optional dangerAction in the footer alongside Save changes', () => {
+    renderPatchForm(
+      <ProviderPatchForm
+        provider={antigravityProvider}
+        isPending={false}
+        dangerAction={<button type="button">Remover conta</button>}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Remover conta' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
+  })
 })

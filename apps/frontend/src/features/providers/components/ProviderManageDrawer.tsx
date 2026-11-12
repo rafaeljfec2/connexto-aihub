@@ -34,6 +34,44 @@ export function ProviderManageDrawer({
     remove.isError ? remove.error : undefined,
   ])
 
+  const dangerAction = !confirmDelete ? (
+    <button
+      type="button"
+      disabled={actionsDisabled}
+      onClick={() => setConfirmDelete(true)}
+      className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-red-500/35 bg-red-500/10 px-3 text-[11px] font-medium text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer disabled:opacity-50 sm:w-auto"
+    >
+      <Trash2 className="size-3.5" />
+      Remover conta
+    </button>
+  ) : (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        disabled={actionsDisabled}
+        onClick={() => setConfirmDelete(false)}
+        className="h-8 rounded-md border border-line px-2.5 text-[11px] font-medium text-secondary hover:bg-white/5 cursor-pointer disabled:opacity-50"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        disabled={actionsDisabled}
+        onClick={() => {
+          remove.mutate(undefined, {
+            onSuccess: () => {
+              setConfirmDelete(false)
+              onClose()
+            },
+          })
+        }}
+        className="h-8 rounded-md border border-red-500/50 bg-red-600 px-3 text-[11px] font-semibold text-white hover:bg-red-500 cursor-pointer disabled:opacity-50"
+      >
+        {remove.isPending ? 'Removendo...' : 'Confirmar remoção'}
+      </button>
+    </div>
+  )
+
   return (
     <Dialog
       open={open}
@@ -42,45 +80,49 @@ export function ProviderManageDrawer({
       }}
       title={`Gerenciar provedor: ${provider.name}`}
       description={`Identificador técnico: ${provider.id}`}
-      contentClassName="w-[min(100%,28rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[min(92vh,42rem)]"
+      contentClassName="w-[min(100%-1rem,44rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[94dvh]"
       bodyScroll
     >
-      <div className="min-w-0 space-y-2 pt-0">
-        <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised p-2">
-          <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
-            Ações operacionais
-          </h3>
-          <ProviderActions
-            enabled={provider.enabled}
-            validatePending={validate.isPending}
-            togglePending={enable.isPending || disable.isPending}
-            actionsDisabled={actionsDisabled}
-            onValidate={() => validate.mutate()}
-            onToggleEnabled={() =>
-              provider.enabled ? disable.mutate() : enable.mutate()
-            }
-          />
+      <div className="min-w-0 space-y-2.5 pt-0">
+        <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised px-2.5 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+              Ações operacionais
+            </h3>
+            <ProviderActions
+              enabled={provider.enabled}
+              validatePending={validate.isPending}
+              togglePending={enable.isPending || disable.isPending}
+              actionsDisabled={actionsDisabled}
+              onValidate={() => validate.mutate()}
+              onToggleEnabled={() =>
+                provider.enabled ? disable.mutate() : enable.mutate()
+              }
+            />
+          </div>
 
           {actionError ? (
-            <p className="mt-1 text-[10px] text-failure" role="alert">
+            <p className="mt-1.5 text-[10px] text-failure" role="alert">
               {actionError}
             </p>
           ) : null}
         </div>
 
-        <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised p-2">
-          <h3 className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-            Credenciais e configuração
-          </h3>
-          <p className="mb-1.5 text-[10px] text-muted leading-snug">
-            Os segredos salvos nunca são exibidos novamente pela interface. Preencha apenas
-            quando desejar atualizar a credencial.
-          </p>
+        <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised px-3 py-2.5">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+              Credenciais e configuração
+            </h3>
+            <p className="text-[10px] text-muted">
+              Segredos salvos nunca são exibidos; preencha apenas para atualizar.
+            </p>
+          </div>
           <ProviderPatchForm
             key={`${provider.id}-${provider.updated_at}`}
             provider={provider}
             isPending={patch.isPending}
             errorMessage={patch.isError ? mutationErrorMessage(patch.error) : undefined}
+            dangerAction={dangerAction}
             onSubmit={(payload) => {
               patch.mutate(payload, {
                 onSuccess: () => {
@@ -89,56 +131,6 @@ export function ProviderManageDrawer({
               })
             }}
           />
-        </div>
-
-        <div className="min-w-0 overflow-x-hidden rounded-md border border-red-500/25 bg-red-500/[0.04] p-2">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-[10px] font-semibold uppercase tracking-wide text-red-300">
-                Zona de risco
-              </h3>
-              <p className="text-[10px] text-muted leading-snug">
-                Remove esta conta e seus modelos sincronizados do AI-HUB.
-              </p>
-            </div>
-            {!confirmDelete ? (
-              <button
-                type="button"
-                disabled={actionsDisabled}
-                onClick={() => setConfirmDelete(true)}
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-red-500/35 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="size-3" />
-                Remover conta
-              </button>
-            ) : (
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={actionsDisabled}
-                  onClick={() => setConfirmDelete(false)}
-                  className="rounded border border-line px-2 py-1 text-[10px] font-medium text-secondary hover:bg-white/5 cursor-pointer disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={actionsDisabled}
-                  onClick={() => {
-                    remove.mutate(undefined, {
-                      onSuccess: () => {
-                        setConfirmDelete(false)
-                        onClose()
-                      },
-                    })
-                  }}
-                  className="rounded border border-red-500/50 bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-red-500 cursor-pointer disabled:opacity-50"
-                >
-                  {remove.isPending ? 'Removendo...' : 'Confirmar remoção'}
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </Dialog>
