@@ -205,10 +205,14 @@ func SelectModelInPool(pool AutoPoolID, candidates []Target, snapshot Snapshot, 
 
 	ordered := orderByAdminTie(bandA)
 	if understanding.OptimizationProfile == ProfileEfficiency {
-		ordered = deprioritizeGeminiShortCalls(ordered, understanding)
+		var applied bool
+		ordered, applied = deprioritizeGeminiShortCalls(ordered, understanding)
+		if applied {
+			reasons = append(reasons, "efficiency_fast_path")
+		}
 	}
 
-	if isHeavyRequestShape(understanding) {
+	if understanding.OptimizationProfile != ProfileEfficiency && isHeavyRequestShape(understanding) {
 		if picked, ok := preferReasoningInAdminOrder(ordered, snapshot); ok {
 			reasons = append(reasons, "reasoning_preferred")
 			return picked, reasons
@@ -242,19 +246,24 @@ func orderByAdminTie(candidates []Target) []Target {
 	return out
 }
 
-func deprioritizeGeminiShortCalls(ordered []Target, u RequestUnderstanding) []Target {
+func deprioritizeGeminiShortCalls(ordered []Target, u RequestUnderstanding) ([]Target, bool) {
 	if u.EstimatedInputTokens >= 30000 || u.IsStreaming {
-		return ordered
+		return ordered, false
 	}
 	gemini := Target{ProviderID: "antigravity", ModelID: "antigravity:gemini-3.8-flash"}
 	var tail []Target
 	var front []Target
-	for _, t := range ordered {
+	geminiIndex := -1
+	for i, t := range ordered {
 		if t == gemini {
+			geminiIndex = i
 			tail = append(tail, t)
 			continue
 		}
 		front = append(front, t)
 	}
-	return append(front, tail...)
+	if geminiIndex < 0 || geminiIndex == len(ordered)-1 {
+		return ordered, false
+	}
+	return append(front, tail...), true
 }

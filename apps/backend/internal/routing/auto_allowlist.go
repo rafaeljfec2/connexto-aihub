@@ -10,10 +10,7 @@ var AutoMVPAllowlist = []Target{
 	{ProviderID: providers.OpenCodeGoID, ModelID: "claude-haiku-5-5"},
 	{ProviderID: providers.OpenCodeGoID, ModelID: "gpt-6-luna"},
 	{ProviderID: providers.CursorID, ModelID: "composer-2.5"},
-	{ProviderID: providers.AntigravityID, ModelID: "antigravity:claude-opus-4-6-thinking"},
-	{ProviderID: providers.AntigravityID, ModelID: "antigravity:claude-sonnet-4-6"},
 	{ProviderID: providers.AntigravityID, ModelID: "antigravity:gemini-3.8-flash"},
-	{ProviderID: providers.AntigravityID, ModelID: "antigravity:gpt-oss-120b-medium"},
 }
 
 // AutoAdminTieOrder is the full deterministic order inside Band A/B (discovery §G).
@@ -25,9 +22,6 @@ var AutoAdminTieOrder = []Target{
 	{ProviderID: providers.OpenCodeGoID, ModelID: "claude-haiku-5-5"},
 	{ProviderID: providers.CursorID, ModelID: "composer-2.5"},
 	{ProviderID: providers.AntigravityID, ModelID: "antigravity:gemini-3.8-flash"},
-	{ProviderID: providers.AntigravityID, ModelID: "antigravity:claude-sonnet-4-6"},
-	{ProviderID: providers.AntigravityID, ModelID: "antigravity:claude-opus-4-6-thinking"},
-	{ProviderID: providers.AntigravityID, ModelID: "antigravity:gpt-oss-120b-medium"},
 }
 
 // IsAutoAllowlistTarget reports whether t is one of the ten MVP ids.

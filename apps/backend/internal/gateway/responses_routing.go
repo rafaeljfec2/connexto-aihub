@@ -103,13 +103,6 @@ func routeResponses(
 	eligibility := routing.EvaluateEligibility(routeCtx, snapshot, understanding.Requirements)
 	decision = routing.SelectDeterministic(routeCtx, snapshot, eligibility)
 	if decision.Rejection != "" {
-		if status, gate := routing.MapAutoGate0HTTPStatus(decision.Criteria); gate {
-			return routing.Target{}, nil, decision, routingHTTPError{
-				status:  status,
-				typ:     string(decision.Rejection),
-				message: "auto routing is blocked until Gate 0 is satisfied for all ten models",
-			}
-		}
 		return routing.Target{}, nil, decision, mapRoutingRejection(decision.Rejection, explicitProvider, eligibility)
 	}
 

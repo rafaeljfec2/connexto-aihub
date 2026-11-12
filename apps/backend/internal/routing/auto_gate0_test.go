@@ -2,7 +2,6 @@ package routing_test
 
 import (
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -11,48 +10,13 @@ import (
 	"aihub/internal/routing"
 )
 
-func TestSelectDeterministic_VirtualAuto_Gate0EnforcedBlocks(t *testing.T) {
-	prev := routing.AutoGate0Enforced
-	t.Cleanup(func() { routing.AutoGate0Enforced = prev })
-	routing.AutoGate0Enforced = true
-
-	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
-	snapshot := routing.Snapshot{CapturedAt: now, AutoQuota: routing.BuildAutoQuotaView(nil, now, 2*time.Minute)}
-	ctx := routing.RoutingContext{
-		RequestID: "req-gate0",
-		Structural: routing.StructuralRequest{
-			ModelPresent: true,
-			ModelID:      routing.VirtualModelAuto,
-		},
-		Understanding: routing.RequestUnderstanding{OptimizationProfile: routing.ProfileBalanced},
-	}
-	eligibility := routing.EligibilityResult{
-		Eligible: []routing.Target{{ProviderID: providers.OpenCodeGoID, ModelID: "gpt-6-luna"}},
-	}
-
-	decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
-	if decision.Rejection != routing.RejectRoutingUnavailable {
-		t.Fatalf("rejection = %q, want routing_unavailable", decision.Rejection)
-	}
-	joined := strings.Join(decision.Criteria, ",")
-	if !strings.Contains(joined, "gate0_unsatisfied") {
-		t.Fatalf("criteria %v missing gate0_unsatisfied", decision.Criteria)
-	}
-	if decision.Selected != nil {
-		t.Fatalf("expected no selection under gate0, got %+v", decision.Selected)
-	}
-
-	status, mapped := routing.MapAutoGate0HTTPStatus(decision.Criteria)
-	if !mapped || status != 503 {
-		t.Fatalf("MapAutoGate0HTTPStatus = (%d, %v), want (503, true)", status, mapped)
+func TestAutoGate0Satisfied_AllowlistApproved(t *testing.T) {
+	if !routing.AutoGate0Satisfied() {
+		t.Fatal("expected Gate 0 satisfied for all allowlist models after 2026-11-12 battery")
 	}
 }
 
 func TestSelectDeterministic_VirtualAuto_ExcludesBlockedAntigravityHomologation(t *testing.T) {
-	prev := routing.AutoGate0Enforced
-	t.Cleanup(func() { routing.AutoGate0Enforced = prev })
-	routing.AutoGate0Enforced = false
-
 	blocked := []string{
 		"antigravity:claude-opus-4-6-thinking",
 		"antigravity:claude-sonnet-4-6",
@@ -111,8 +75,8 @@ func TestSelectDeterministic_VirtualAuto_ExcludesBlockedAntigravityHomologation(
 
 	eligibility := routing.EvaluateEligibility(ctx, snapshot, ctx.Understanding.Requirements)
 	allowlisted := routing.FilterEligibleToAutoAllowlist(eligibility.Eligible)
-	if len(allowlisted) < 7 {
-		t.Fatalf("expected at least 7 allowlisted eligible models, got %d: %+v", len(allowlisted), allowlisted)
+	if len(allowlisted) < len(routing.AutoMVPAllowlist) {
+		t.Fatalf("expected %d allowlisted eligible models, got %d: %+v", len(routing.AutoMVPAllowlist), len(allowlisted), allowlisted)
 	}
 
 	decision := routing.SelectDeterministic(ctx, snapshot, eligibility)
@@ -131,10 +95,6 @@ func TestSelectDeterministic_VirtualAuto_ExcludesBlockedAntigravityHomologation(
 }
 
 func TestSelectDeterministic_VirtualAuto_BandBBeforePoolAvoidsDeadAntigravityPool(t *testing.T) {
-	prev := routing.AutoGate0Enforced
-	t.Cleanup(func() { routing.AutoGate0Enforced = prev })
-	routing.AutoGate0Enforced = false
-
 	now := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
 	snapshot := routing.Snapshot{
 		CapturedAt: now,

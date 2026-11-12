@@ -164,3 +164,36 @@ func TestSelectModelInPool_HeavyShapeUnmatchedFallback(t *testing.T) {
 	}
 }
 
+func TestSelectModelInPool_EfficiencySkipsReasoningPreference(t *testing.T) {
+	now := time.Now().UTC()
+	snapshot := routing.Snapshot{
+		Models: []catalog.View{
+			viewWithContext(providers.OpenCodeGoID, "gpt-6-luna", 1_000_000, map[string]catalog.CapabilityClaim{
+				"text_generation": {State: catalog.CapabilitySupported},
+			}, now),
+			viewWithContext(providers.OpenCodeGoID, "deepseek-v4.1-flash", 1_000_000, map[string]catalog.CapabilityClaim{
+				"text_generation": {State: catalog.CapabilitySupported},
+				"reasoning":       {State: catalog.CapabilitySupported},
+			}, now),
+		},
+	}
+	candidates := []routing.Target{
+		{ProviderID: providers.OpenCodeGoID, ModelID: "gpt-6-luna"},
+		{ProviderID: providers.OpenCodeGoID, ModelID: "deepseek-v4.1-flash"},
+	}
+	understanding := routing.RequestUnderstanding{
+		OptimizationProfile:  routing.ProfileEfficiency,
+		ReasoningEffort:      routing.ReasoningEffortHigh,
+		EstimatedInputTokens: 100,
+	}
+	selected, reasons := routing.SelectModelInPool(routing.PoolOpenCodeShared, candidates, snapshot, understanding)
+	if selected.ModelID != "gpt-6-luna" {
+		t.Fatalf("selected = %+v, want gpt-6-luna (no reasoning steer on efficiency)", selected)
+	}
+	for _, r := range reasons {
+		if r == "reasoning_preferred" || r == "reasoning_preference_unmatched" {
+			t.Fatalf("efficiency must not apply reasoning preference, got %q", r)
+		}
+	}
+}
+

@@ -15,7 +15,10 @@ func TestDeprioritizeGeminiShortCalls_PutsGeminiLast(t *testing.T) {
 		EstimatedInputTokens: 100,
 		IsStreaming:          false,
 	}
-	out := deprioritizeGeminiShortCalls(ordered, understanding)
+	out, applied := deprioritizeGeminiShortCalls(ordered, understanding)
+	if !applied {
+		t.Fatal("expected efficiency_fast_path deprioritization")
+	}
 	if out[0] == gemini {
 		t.Fatalf("expected gemini at tail, order=%+v", out)
 	}

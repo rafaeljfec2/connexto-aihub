@@ -146,8 +146,14 @@ func TestResponsesRoutingVirtualAutoInjectsHeadersAndSubstitutesPayload(t *testi
 		t.Errorf("expected X-AIHub-Routing-Profile = 'balanced', got %q", profile)
 	}
 	reason := response.Header().Get("X-AIHub-Routing-Reason")
-	if reason == "" {
-		t.Errorf("expected X-AIHub-Routing-Reason header, got empty")
+	allowedReasons := map[string]bool{
+		"awrr_pool_select":                 true,
+		"reasoning_preferred":              true,
+		"reasoning_preference_unmatched":   true,
+		"efficiency_fast_path":             true,
+	}
+	if !allowedReasons[reason] {
+		t.Errorf("expected controlled X-AIHub-Routing-Reason, got %q", reason)
 	}
 
 	// Verify upstream did NOT receive the virtual model string

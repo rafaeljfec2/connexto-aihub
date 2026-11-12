@@ -1,15 +1,7 @@
 package routing
 
-import (
-	"net/http"
-	"strings"
-)
-
 // AutoShadowMode compares old vs new selector without changing execution.
 var AutoShadowMode bool
-
-// AutoGate0Enforced blocks aihub/auto when Gate 0 is unsatisfied (opt-in via AIHUB_AUTO_GATE0_ENFORCED).
-var AutoGate0Enforced = false
 
 // selectVirtualAuto resolves aihub/auto using allowlist, bands, and AW-RR.
 func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Snapshot, eligibility EligibilityResult) RoutingDecision {
@@ -17,10 +9,6 @@ func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Sn
 	profile := understanding.OptimizationProfile
 	if profile == "" {
 		profile = ProfileBalanced
-	}
-
-	if AutoGate0Enforced && !AutoGate0Satisfied() {
-		return reject(decision, RejectRoutingUnavailable, []string{"gate0_unsatisfied", "profile:" + string(profile)})
 	}
 
 	allowlisted := FilterEligibleToAutoAllowlistForSnapshot(eligibility.Eligible, snapshot)
@@ -62,7 +50,7 @@ func selectVirtualAuto(decision RoutingDecision, ctx RoutingContext, snapshot Sn
 	decision.Selected = &selected
 	decision.Origin = OriginVirtualAuto
 	decision.AppliedProfile = profile
-	decision.RoutingReasonCode = "awrr_pool_select"
+	decision.RoutingReasonCode = resolveAutoRoutingReason(modelReasons)
 	decision.SelectedPool = string(poolID)
 	if st, ok := quota.Pools[poolID]; ok && st.Pressure != nil {
 		p := *st.Pressure
@@ -129,15 +117,18 @@ func selectVirtualAutoLegacy(decision RoutingDecision, snapshot Snapshot, eligib
 	}
 }
 
-// MapAutoGate0HTTPStatus maps gate rejection to 503 when enforced.
-func MapAutoGate0HTTPStatus(criteria []string) (int, bool) {
-	if !AutoGate0Enforced || AutoGate0Satisfied() {
-		return 0, false
+func resolveAutoRoutingReason(modelReasons []string) string {
+	priority := []string{
+		"reasoning_preferred",
+		"reasoning_preference_unmatched",
+		"efficiency_fast_path",
 	}
-	for _, c := range criteria {
-		if strings.Contains(c, "gate0_unsatisfied") {
-			return http.StatusServiceUnavailable, true
+	for _, code := range priority {
+		for _, r := range modelReasons {
+			if r == code {
+				return code
+			}
 		}
 	}
-	return 0, false
+	return "awrr_pool_select"
 }

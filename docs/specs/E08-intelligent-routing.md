@@ -17,7 +17,7 @@ For a request, a consistent provider/runtime snapshot, a catalog snapshot, and t
 
 E08 uses deterministic rules only for the operational MVP (E08.2–E08.5). The catalog has no quality, cost, latency, or quota ranking in that phase, so the selector abstains with routing_ambiguous when more than one candidate remains after the documented compatibility rule. It never chooses the first sorted model as an arbitrary winner.
 
-Later increments (E08.6–E08.8) may add task classification and optimization profiles **only** with verifiable signals and without breaking explicit user constraints or eligibility facts documented here.
+Increments E08.6–E08.8 are accepted for the `aihub/auto` path as of 2026-11-12 ([AUTO-SPEC](AUTO-SPEC.md)); they use structural understanding and quota-aware pool selection only—no prompt classifiers and no latency/cost scoring.
 
 ## 2.1 Evolutionary architecture (product vision)
 
@@ -155,9 +155,9 @@ The gateway remains responsible for HTTP errors and writing the response. execut
 | E08.3 | Deterministic Selector: precedence, compatibility rule, unique-candidate selection, ambiguity | **Accepted** 2026-11-03 — see `docs/decisions/e08.3-formal-acceptance-2026-11-03.md` |
 | E08.4 | Responses Gateway integration, typed error mapping, structural validation, request preparation | **Accepted** (local) — see AI Memory `decisions/e08.4-formal-acceptance-independent-review-2026-11-03.md` and `docs/decisions/e08.4-gateway-routing-integration.md` |
 | E08.5 | Content-free routing decision events and end-to-end tests | **Accepted** (local) — see `docs/decisions/e08.5-formal-acceptance-2026-11-03.md` |
-| E08.6 | Task classification from bounded structural metadata (no LLM classifier in initial E08.6 contract without separate approval) | **Future vision — not authorized by this SPEC** |
-| E08.7 | Optimization Profiles (Efficiency, Balance, Intelligence) as explicit preference inputs | **Future vision — not authorized** |
-| E08.8 | Runtime-aware intelligent routing using verifiable signals and profiles atop eligibility | **Future vision — not authorized** |
+| E08.6 | Deterministic structural request understanding for `aihub/auto` (no LLM classifier, no prompt text) | **Accepted** 2026-11-12 — see [AUTO-SPEC](AUTO-SPEC.md) §4 |
+| E08.7 | Optimization profiles `balanced`, `efficiency`, `intelligence` on the auto path | **Accepted** 2026-11-12 — see [AUTO-SPEC](AUTO-SPEC.md) §5 |
+| E08.8 | Allowlist + contract bands + AW-RR pool selection + in-pool profile policy (scoring formula cut) | **Accepted** 2026-11-12 — `auto_selector.go`, [AUTO-SPEC](AUTO-SPEC.md) §6 |
 
 E08.2 returns an ordered eligible set and explicit reasons without ranking policy. E08.3 selects only when the contract yields one unambiguous candidate. E08.6–E08.8 must not alter execution lifecycle contracts or E06 schema v1 without separate approval. The deterministic selector remains the baseline when no classifier runs.
 

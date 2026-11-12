@@ -8,8 +8,8 @@ import (
 )
 
 func TestAutoAllowlist_CountAndMembership(t *testing.T) {
-	if len(routing.AutoMVPAllowlist) != 10 {
-		t.Fatalf("allowlist len = %d, want 10", len(routing.AutoMVPAllowlist))
+	if len(routing.AutoMVPAllowlist) != 7 {
+		t.Fatalf("allowlist len = %d, want 7", len(routing.AutoMVPAllowlist))
 	}
 	unknown := routing.Target{ProviderID: providers.OpenRouterID, ModelID: "not-in-list"}
 	if routing.IsAutoAllowlistTarget(unknown) {

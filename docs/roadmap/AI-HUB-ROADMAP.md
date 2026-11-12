@@ -16,7 +16,7 @@ specific evidence and limitations of each increment.
 | Phase B — PostgreSQL foundation | Implemented and validated | PostgreSQL pool, embedded migrations, persistence configuration, migration serialization, and isolated integration-test harness. See [ADR-020](../adr/ADR-020-postgresql-persistence-foundation.md) and [workspace guide](../development-workspace.md). |
 | C1 — Provider administration | Implemented | PostgreSQL-backed provider configuration, sealed credentials, administration routes, runtime enable/disable and validation. Provider credentials are not returned by the API. |
 | C2 — Multi-provider runtime | Implemented and accepted | Provider-ID-bound OpenCode Go and OpenRouter runtimes, persistence recovery, catalog and runtime diagnostics. A later acceptance decision records all 15 targeted PostgreSQL integration tests passing. |
-| E08 — Intelligent routing | E08.1–E08.5 accepted | Deterministic routing, eligibility, Responses integration, explainable decisions and end-to-end coverage. E08.6–E08.8 are deferred and unauthorized. |
+| E08 — Intelligent routing | **Accepted** (E08.1–E08.8 through Auto v1.1) | MVP deterministic routing plus `aihub/auto` (structural understanding, profiles, AW-RR pool selector). Gate 0 satisfied for seven-model allowlist. See [E08.6–E08.8 acceptance](../decisions/e08.6-8-formal-acceptance-2026-11-12.md). |
 | E09 — Resource management | Closed | Resource admission, quota and concurrency policies, usage analytics, and provider usage metering are integrated. Ten audit findings were addressed and the closure was published in commit 9338c538. |
 
 The detailed runtime overview is in [architecture](../architecture.md).
@@ -49,21 +49,17 @@ Keep these evidence types distinct when describing delivery:
   databases were removed by the test harness. Six live/external tests remained
   skipped.
 
-## E08 — Deterministic routing boundary
+## E08 — Intelligent routing (closed 2026-11-12)
 
-E08.1–E08.5 are accepted. For the MVP:
+E08.1–E08.5 remain the deterministic baseline for explicit model selection.
+E08.6–E08.8 are accepted for the `aihub/auto` virtual model per
+[AUTO-SPEC v1.1.0](../specs/AUTO-SPEC.md) with documented contract cuts (no
+latency/cost scoring, no pre-commit model swap, no prompt classifiers).
 
-- Respect explicit provider and model selection.
-- Base eligibility on reliable catalog and runtime availability data.
-- Keep routing decisions deterministic and explainable.
-- Do not silently switch providers after an execution failure.
-- Do not add an LLM classifier, learning, or automatic optimization.
-
-E08.6–E08.8 remain deferred and are not authorized. Revisit them only through a
-separate product decision and approved specification. See
-[E08 MVP closure](../decisions/e08-mvp-closure-2026-11-03.md),
-[E08.6 assessment](../decisions/e08.6-scope-assessment-2026-11-03.md), and
-[ADR-022](../adr/ADR-022-deterministic-intelligent-routing.md).
+- Gate 0: [seven-model allowlist](../decisions/e08-auto-gate0-allowlist-reduction-2026-11-12.md), evidence in
+  [Gate 0 battery](../../reports/llm-homologation/gate0-battery-2026-11-12.md).
+- Historical MVP closure: [e08-mvp-closure-2026-11-03.md](../decisions/e08-mvp-closure-2026-11-03.md).
+- Architecture: [ADR-022](../adr/ADR-022-deterministic-intelligent-routing.md), [ADR-023](../decisions/adr-023-auto-aihub-virtual-model.md).
 
 ## Next authorized development front: Frontend MVP
 

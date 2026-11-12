@@ -35,7 +35,6 @@ const (
 	EnvRecordsMaxStorageBytes    = "AIHUB_RECORDS_MAX_STORAGE_BYTES"
 	EnvRecordsSegmentBytes       = "AIHUB_RECORDS_SEGMENT_BYTES"
 	EnvRecordsRetentionInterval  = "AIHUB_RECORDS_RETENTION_INTERVAL"
-	EnvAutoGate0Enforced         = "AIHUB_AUTO_GATE0_ENFORCED"
 	EnvDockerKeepLoopbackDB      = "AIHUB_DOCKER_KEEP_LOOPBACK_DB"
 	EnvDockerRewriteLoopbackProxy = "AIHUB_DOCKER_REWRITE_LOOPBACK_PROXY"
 	EnvBootstrapAdminEmail        = "AIHUB_BOOTSTRAP_ADMIN_EMAIL"
@@ -88,7 +87,6 @@ var knownEnvKeys = map[string]struct{}{
 	EnvUISessionTTL:              {},
 	EnvUISecureCookies:           {},
 	EnvServeEmbeddedUI:           {},
-	EnvAutoGate0Enforced:         {},
 	EnvDockerKeepLoopbackDB:      {},
 	EnvDockerRewriteLoopbackProxy: {},
 	EnvBootstrapAdminEmail:        {},

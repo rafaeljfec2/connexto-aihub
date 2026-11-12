@@ -1,48 +1,31 @@
 # Intelligent Routing (E08) — status audit
 
-**Date:** 2026-11-09
+**Date:** 2026-11-12 (supersedes 2026-11-09 audit)
 
-**Repository:** `connexto-aihub` @ `60d0d963e0950f7c63894c7e6d8857ab6085766d` (`main`)
-
-**Related:** [E08 SPEC](../specs/E08-intelligent-routing.md), [MVP closure](e08-mvp-closure-2026-11-03.md), [E08.6 assessment](e08.6-scope-assessment-2026-11-03.md), [ADR-022](../adr/ADR-022-deterministic-intelligent-routing.md)
+**Related:** [E08 SPEC](../specs/E08-intelligent-routing.md), [AUTO-SPEC v1.1.0](../specs/AUTO-SPEC.md), [E08.6–E08.8 acceptance](e08.6-8-formal-acceptance-2026-11-12.md)
 
 ## Phase verdict
 
 | Layer | Status |
 | --- | --- |
-| E08.1–E08.5 (deterministic Intelligent Routing MVP) | **Accepted** (2026-11-03); **implemented on `main`**; wired on `POST /v1/responses` |
-| E08.6–E08.8 (classification, optimization profiles, ranked selection) | **Unauthorized** — vision only |
-| Next roadmap development front | **Frontend MVP** — not E08.6 |
+| E08.1–E08.5 (deterministic Intelligent Routing MVP) | **Accepted** (2026-11-03); implemented on `main` |
+| E08.6–E08.8 (`aihub/auto` structural understanding, profiles, pool selector) | **Accepted** (2026-11-12) |
+| E08 epic (product scope AUTO-SPEC v1.1.0) | **Closed** — Gate 0 green for seven-model allowlist |
+| Next roadmap development front | **Frontend MVP** |
 
 ## Implementation snapshot
 
-- **Packages:** `internal/routing/*` (eligibility, selector, snapshot, validate, observability) and `internal/gateway/responses_routing.go`.
-- **Wiring:** `cmd/ai-hub/gateway_routes.go` passes `ResponsesRouting` into the Responses handler.
-- **Verification (2026-11-09):** `go test ./... -count=1` — 1100 tests PASS; `go test ./internal/routing/...` — 59 tests PASS.
+- **Auto path:** `internal/routing/auto_*.go`, Gateway headers in `responses_handler.go`.
+- **Gate 0:** `AutoGate0Satisfied()` true; evidence `reports/llm-homologation/gate0-battery-2026-11-12.md`.
+- **Verification:** `go test ./internal/routing/... -count=1`; gateway VirtualAuto integration test.
 
-## Post-closure code changes (still MVP contract)
+## Allowlist note
 
-- Cursor/Codex capability projection fix (`820eb74`).
-- OpenCode Responses input normalization and `image_input` catalog enrichment.
-- Antigravity model prefix handling in `SelectDeterministic`.
+Three Antigravity models were removed from `AutoMVPAllowlist` after sustained HTTP 429 on retest. They remain catalog models but are not Auto candidates until re-homologated.
 
-No ranking among multiple eligible candidates was added.
+## Documentation
 
-## Documentation and memory
-
-- Authoritative MVP closure remains `e08-mvp-closure-2026-11-03.md`.
-- Pinned AI Memory closure page still references unpublished git at `ea198436`; **outdated** — E08 is on `main` as of this audit.
-- Operator report (PT-BR): `reports/levantamento-intelligent-routing-2026-11-09.md`.
-- AI Memory audit page: `decisions/intelligent-routing-status-audit-2026-11-09.md`.
-
-## Common misreadings
-
-1. **`reports/llm-homologation-remediation.md` §11** — gate for Auto/cost-driven product routing and homologation; **not** absence of E08.2–E08.5.
-2. **Unified Quota Management Stage 2** — future quota-signal routing; separate spec from E08.6+.
-3. **`AI-Hub-Product-Architecture-Kickoff.md`** — historical; superseded for E08 delivery by architecture and roadmap.
-
-## Recommendations (planning only)
-
-- Do not start E08.6 without an approved mini-SPEC; E08.7 likely required to consume task metadata.
-- Revisit Auto/quota routing only through explicit product authorization.
-- Use this document and the PT-BR report for operational status checks until the next increment is approved.
+- Formal acceptance: `e08.6-8-formal-acceptance-2026-11-12.md`
+- Allowlist reduction: `e08-auto-gate0-allowlist-reduction-2026-11-12.md`
+- Operator report (PT-BR): `reports/llm-homologation/gate0-battery-2026-11-12.md`
+- Roadmap: `docs/roadmap/AI-HUB-ROADMAP.md` (E08 row updated)
