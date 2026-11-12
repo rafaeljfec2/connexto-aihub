@@ -207,7 +207,7 @@ export function ExecutionsPage() {
           </button>
         </nav>
 
-        <GenerationsActivityPanel />
+        <GenerationsActivityPanel generations={visibleGenerations} />
       </div>
 
       <GenerationsFilters

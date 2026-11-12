@@ -115,35 +115,82 @@
   letter-spacing: 0.06em;
 }
 
-.generations-activity-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  height: 88px;
-  padding-top: 4px;
+.generations-activity-chart-frame {
+  position: relative;
+  height: 5.5rem;
+  border-bottom: 1px solid rgb(180 194 218 / 14%);
+  padding-top: 0.25rem;
 }
 
-.generations-activity-bar-wrap {
+.generations-activity-gridlines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.generations-activity-gridlines span {
+  display: block;
+  width: 100%;
+  border-top: 1px dashed rgb(180 194 218 / 8%);
+}
+
+.generations-activity-chart {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.375rem;
+  height: 100%;
+}
+
+.generations-activity-bar-col {
   display: flex;
   min-width: 0;
+  height: 100%;
   flex: 1;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-end;
 }
 
 .generations-activity-bar {
   width: 100%;
-  max-width: 28px;
+  border-top: 1px solid rgb(175 194 242 / 42%);
   border-radius: 4px 4px 0 0;
-  background: linear-gradient(180deg, rgb(120 150 232 / 72%), rgb(120 150 232 / 28%));
+  background: linear-gradient(180deg, rgb(120 150 232 / 78%), rgb(120 150 232 / 18%));
+  transition: filter 0.15s ease, border-color 0.15s ease;
 }
 
-.generations-activity-bar-wrap span {
+.generations-activity-bar:hover {
+  border-top-color: rgb(175 194 242 / 78%);
+  filter: brightness(1.18);
+}
+
+.generations-activity-bar-empty {
+  border-top-color: transparent;
+  border-radius: 2px;
+  background: rgb(180 194 218 / 12%);
+}
+
+.generations-activity-empty {
+  display: flex;
+  height: 5.5rem;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px dashed rgb(180 194 218 / 10%);
+  color: #7d8a9d;
+  font-size: 0.6875rem;
+}
+
+.generations-activity-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4375rem;
   color: #7d8a9d;
   font-family: var(--font-mono);
-  font-size: 0.4375rem;
-  letter-spacing: 0.04em;
+  font-size: 0.5rem;
+  letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
