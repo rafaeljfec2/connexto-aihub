@@ -57,6 +57,18 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     title: 'Aprendizagem & decisões',
     lead: 'Entenda como o contexto orienta a escolha de modelos — e quais evidências sustentam cada decisão.',
   },
+  '/profile': {
+    crumb: 'Meu perfil',
+    eyebrow: 'ACCOUNT',
+    title: 'Meu perfil',
+    lead: 'Dados da sua conta no AI Hub.',
+  },
+  '/settings': {
+    crumb: 'Configurações',
+    eyebrow: 'ACCOUNT / SETTINGS',
+    title: 'Configurações',
+    lead: 'Preferências da interface e da conta.',
+  },
 }
 
 export function resolvePageMeta(pathname: string): AppPageMeta {

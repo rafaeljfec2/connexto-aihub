@@ -7,6 +7,7 @@ import { IntelligencePage } from '../features/intelligence'
 import { OverviewPage } from '../features/overview'
 import { PlaygroundPage } from '../features/playground'
 import { ProvidersPage } from '../features/providers'
+import { ProfilePage, SettingsPage } from '../features/account'
 import { RootLayout } from './layouts/RootLayout'
 
 const router = createBrowserRouter([
@@ -28,6 +29,8 @@ const router = createBrowserRouter([
       { path: 'intelligence', element: <IntelligencePage /> },
       { path: 'executions', element: <ExecutionsPage /> },
       { path: 'resources', element: <ResourcesPage /> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: 'settings', element: <SettingsPage /> },
     ],
   },
 ])

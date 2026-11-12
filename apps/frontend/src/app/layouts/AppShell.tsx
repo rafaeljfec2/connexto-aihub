@@ -69,9 +69,7 @@ export function AppShell({ connectionState, onReconnect }: AppShellProps) {
       >
         <AppTopBar
           crumb={meta.crumb}
-          connectionState={connectionState}
           sidebarCollapsed={collapsed}
-          onReconnect={onReconnect}
           onOpenMobileNav={() => setMobileOpen(true)}
           onToggleSidebar={handleToggleCollapsed}
         />
