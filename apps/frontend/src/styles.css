@@ -28,23 +28,23 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
-  --width-app-content-max: 88rem;
+  --width-app-content-max: 92rem;
 }
 
 @layer base {
   html {
-    font-size: 16px;
+    font-size: 15.5px;
   }
 
   @media (min-width: 1280px) {
     html {
-      font-size: 16.5px;
+      font-size: 16px;
     }
   }
 
   @media (min-width: 1536px) {
     html {
-      font-size: 17.5px;
+      font-size: 16.75px;
     }
   }
 
