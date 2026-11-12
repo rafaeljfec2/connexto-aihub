@@ -220,4 +220,3 @@ func TestUnderstandRequest_MediumEffortCaptured(t *testing.T) {
 		t.Fatalf("ReasoningEffort = %q, want medium", understanding.ReasoningEffort)
 	}
 }
-

@@ -279,8 +279,10 @@ export function prepareResponsesRequest(
   const workspaceMutationDone =
     workspaceMutationRequired &&
     hasRequiredResponseLocalToolCall(record.input, tools, latestUserText);
+  const implicitAgent = responsesImplicitAgent(record, model, tools.length);
+  const agentTurn = tools.length > 0 || implicitAgent;
   const transcript: string[] = [
-    tools.length ? RESPONSES_TOOL_SYSTEM_DIRECTIVE : SYSTEM_DIRECTIVE,
+    agentTurn ? RESPONSES_TOOL_SYSTEM_DIRECTIVE : SYSTEM_DIRECTIVE,
   ];
   appendResponsesToolInventory(transcript, tools, record.tool_choice, toolContext);
   appendResponsesWorkspaceMutationRequirement(
@@ -310,7 +312,7 @@ export function prepareResponsesRequest(
     cursorModel,
     prompt: {
       text: prompt,
-      mode: tools.length ? "agent" : "ask",
+      mode: agentTurn ? "agent" : "ask",
       ...(images.length ? { images } : {}),
     },
     stream: record.stream === true,
@@ -338,4 +340,55 @@ export function prepareResponsesRequest(
     responseInputItems: normalizedResponseInputItems(record.input),
     toolContext,
   };
+}
+
+// responsesImplicitAgent keeps Codex code mode on the agent directive when the
+// client does not send classic function tools. aihub/auto is that mode unless
+// tool_choice is none. After the gateway rewrites the model id, the same turn
+// is still recognized from Codex instructions, environment_context, or a
+// custom tool that did not survive tool parsing.
+function responsesImplicitAgent(
+  record: Record<string, unknown>,
+  model: string,
+  parsedToolCount: number,
+): boolean {
+  if (record.tool_choice === "none" || parsedToolCount > 0) {
+    return false;
+  }
+  if (model === "aihub/auto") {
+    return true;
+  }
+  if (rawToolsIncludeType(record.tools, "custom")) {
+    return true;
+  }
+  if (
+    typeof record.instructions === "string" &&
+    record.instructions.includes("You are Codex")
+  ) {
+    return true;
+  }
+  return inputContainsMarker(record.input, "environment_context");
+}
+
+function rawToolsIncludeType(tools: unknown, toolType: string): boolean {
+  if (!Array.isArray(tools)) {
+    return false;
+  }
+  return tools.some(
+    (tool) => isRecord(tool) && tool.type === toolType,
+  );
+}
+
+function inputContainsMarker(input: unknown, marker: string): boolean {
+  if (typeof input === "string") {
+    return input.includes(marker);
+  }
+  if (input === undefined || input === null) {
+    return false;
+  }
+  try {
+    return JSON.stringify(input).includes(marker);
+  } catch {
+    return false;
+  }
 }

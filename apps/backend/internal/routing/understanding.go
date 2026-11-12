@@ -139,4 +139,3 @@ func parseReasoningEffort(raw json.RawMessage) ReasoningEffort {
 		return ReasoningEffort(strings.ToLower(strings.TrimSpace(*object.Effort)))
 	}
 }
-
