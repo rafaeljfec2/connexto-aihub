@@ -109,20 +109,12 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 
 	antigravity := IsAntigravityCatalogModel(model.OwnedBy, model.ID)
 
-	var toolsSupported, reasoningSupported bool
-	if antigravity {
-		toolsSupported = model.Capabilities.Tools != nil && model.Capabilities.Tools.Supported != nil && *model.Capabilities.Tools.Supported
-		reasoningSupported = model.Capabilities.Reasoning != nil && model.Capabilities.Reasoning.Supported != nil && *model.Capabilities.Reasoning.Supported
-	} else {
-		// OpenAI-minimal proxy catalogs omit capabilities; Cursor agent models support tools and reasoning.
-		toolsSupported = true
-		reasoningSupported = true
-		if model.Capabilities.Tools != nil && model.Capabilities.Tools.Supported != nil {
-			toolsSupported = *model.Capabilities.Tools.Supported
-		}
-		if model.Capabilities.Reasoning != nil && model.Capabilities.Reasoning.Supported != nil {
-			reasoningSupported = *model.Capabilities.Reasoning.Supported
-		}
+	var toolsSupported, reasoningSupported *bool
+	if model.Capabilities.Tools != nil {
+		toolsSupported = model.Capabilities.Tools.Supported
+	}
+	if model.Capabilities.Reasoning != nil {
+		reasoningSupported = model.Capabilities.Reasoning.Supported
 	}
 
 	inputModalities := connextoProxyDefaultInputModalities()
@@ -153,9 +145,9 @@ func connextoProxyDescriptor(raw json.RawMessage) (ModelDescriptor, error) {
 		OutputModalitiesPresent: true,
 		LimitContext:            limitCtx,
 		LimitOutput:             limitOut,
-		ToolsSupported:          boolPtr(toolsSupported),
-		ReasoningSupported:      boolPtr(reasoningSupported),
-		StructuredOutput:        boolPtr(true),
+		ToolsSupported:          toolsSupported,
+		ReasoningSupported:      reasoningSupported,
+		StructuredOutput:        nil,
 		Raw:                     bytes.Clone(raw),
 	}
 	return descriptor, nil

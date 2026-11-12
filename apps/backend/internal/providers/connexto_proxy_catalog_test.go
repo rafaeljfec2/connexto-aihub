@@ -36,11 +36,14 @@ func TestConnextoProxyFetchModelDescriptorsPreservesOriginalIDs(t *testing.T) {
 	if descriptors[0].Name != "composer-2.5" {
 		t.Fatalf("model name mismatch: %s", descriptors[0].Name)
 	}
-	if descriptors[0].ToolsSupported == nil || !*descriptors[0].ToolsSupported {
-		t.Fatalf("ToolsSupported = %v, want explicit true", descriptors[0].ToolsSupported)
+	if descriptors[0].ToolsSupported != nil {
+		t.Fatalf("ToolsSupported = %v, want nil without upstream declaration", descriptors[0].ToolsSupported)
 	}
-	if descriptors[0].ReasoningSupported == nil || !*descriptors[0].ReasoningSupported {
-		t.Fatalf("ReasoningSupported = %v, want explicit true", descriptors[0].ReasoningSupported)
+	if descriptors[0].ReasoningSupported != nil {
+		t.Fatalf("ReasoningSupported = %v, want nil without upstream declaration", descriptors[0].ReasoningSupported)
+	}
+	if descriptors[0].StructuredOutput != nil {
+		t.Fatalf("StructuredOutput = %v, want nil without upstream declaration", descriptors[0].StructuredOutput)
 	}
 	if !descriptors[0].InputModalitiesPresent {
 		t.Fatalf("InputModalitiesPresent = false, want true for E08 image_input routing")
@@ -162,7 +165,8 @@ func TestConnextoProxyFetchModelDescriptorsCursorExcludesAntigravity(t *testing.
 func TestConnextoProxyFetchModelDescriptorsAntigravityOnlyNamespace(t *testing.T) {
 	mockCatalog := `{"object":"list","data":[` +
 		`{"id":"composer-2.5","owned_by":"cursor"},` +
-		`{"id":"antigravity:gemini-3.8-flash","owned_by":"antigravity","name":"Antigravity Gemini"}` +
+		`{"id":"antigravity:gemini-3.8-flash","owned_by":"antigravity","name":"Antigravity Gemini",` +
+		`"capabilities":{"tools":{"supported":false},"reasoning":{"supported":true}}}` +
 		`]}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -187,8 +191,8 @@ func TestConnextoProxyFetchModelDescriptorsAntigravityOnlyNamespace(t *testing.T
 	if len(descriptors) != 1 || descriptors[0].ID != "antigravity:gemini-3.8-flash" {
 		t.Fatalf("got %+v, want only antigravity model", descriptors)
 	}
-	if descriptors[0].ToolsSupported != nil && *descriptors[0].ToolsSupported {
-		t.Fatal("Antigravity without capability flags should not claim tools")
+	if descriptors[0].ToolsSupported == nil || *descriptors[0].ToolsSupported {
+		t.Fatalf("ToolsSupported = %v, want explicit false from upstream", descriptors[0].ToolsSupported)
 	}
 }
 
@@ -218,8 +222,8 @@ func TestConnextoProxyFetchModelDescriptorsAssignsLimits(t *testing.T) {
 	if cursorDescriptors[0].LimitOutput == nil || *cursorDescriptors[0].LimitOutput != 16384 {
 		t.Fatalf("composer-2.5 LimitOutput = %v, want 16384", cursorDescriptors[0].LimitOutput)
 	}
-	if cursorDescriptors[0].StructuredOutput == nil || !*cursorDescriptors[0].StructuredOutput {
-		t.Fatalf("composer-2.5 StructuredOutput = %v, want true", cursorDescriptors[0].StructuredOutput)
+	if cursorDescriptors[0].StructuredOutput != nil {
+		t.Fatalf("composer-2.5 StructuredOutput = %v, want nil without upstream declaration", cursorDescriptors[0].StructuredOutput)
 	}
 
 	antigravityClient, err := providers.NewConnextoProxyClient(providers.Settings{
