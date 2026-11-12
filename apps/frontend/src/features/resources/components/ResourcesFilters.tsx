@@ -15,9 +15,9 @@ export function ResourcesFilters({
   onApply,
 }: ResourcesFiltersProps) {
   return (
-    <div className="mb-3 flex flex-wrap items-end gap-2 rounded-[10px] border border-line bg-surface/60 p-3">
+    <div className="resources-filters">
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">From</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">De</span>
         <Input
           type="date"
           value={draft.from}
@@ -26,7 +26,7 @@ export function ResourcesFilters({
         />
       </label>
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">To</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">Até</span>
         <Input
           type="date"
           value={draft.to}
@@ -35,13 +35,13 @@ export function ResourcesFilters({
         />
       </label>
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">Provider filter</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">Provedor</span>
         <select
           value={draft.provider_id}
           onChange={(event) => onChange({ ...draft, provider_id: event.target.value })}
-          className="h-8 min-w-[160px] rounded-md border border-line bg-[#171E29] px-2 text-xs text-secondary"
+          className="resources-filters-select"
         >
-          <option value="">All providers</option>
+          <option value="">Todos os provedores</option>
           {providerOptions.map((id) => (
             <option key={id} value={id}>
               {id}
@@ -50,11 +50,11 @@ export function ResourcesFilters({
         </select>
       </label>
       <label className="grid gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase text-muted">Model id</span>
+        <span className="font-mono text-[0.5625rem] uppercase text-muted">Modelo</span>
         <Input
           value={draft.model_id}
           onChange={(event) => onChange({ ...draft, model_id: event.target.value })}
-          placeholder="Optional"
+          placeholder="Opcional"
           className="h-8 w-[160px] text-xs"
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
@@ -68,7 +68,7 @@ export function ResourcesFilters({
         className="h-8 rounded-md border border-line px-3 text-[0.6875rem] text-secondary hover:bg-white/[0.03]"
         onClick={onApply}
       >
-        Apply range
+        Aplicar período
       </button>
     </div>
   )

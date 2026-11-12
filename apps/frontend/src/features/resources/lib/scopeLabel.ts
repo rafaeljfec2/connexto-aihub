@@ -10,6 +10,9 @@ export function formatScopeLabel(scope: ResourceScope, providerId?: string, mode
     const provider = providerId ?? '—'
     return `${base} · ${provider}/${model}`
   }
+  if (scope === 'global') {
+    return 'WORKSPACE'
+  }
   return base
 }
 
@@ -20,15 +23,15 @@ export function policyDisplayName(
   modelId?: string,
 ): string {
   if (scope === 'global') {
-    return `Global quota #${policyId}`
+    return `Limite do workspace #${policyId}`
   }
   if (scope === 'provider' && providerId) {
-    return `Provider quota · ${providerId}`
+    return `Limite do provedor · ${providerId}`
   }
   if (scope === 'model') {
-    return `Model quota · ${providerId ?? '?'}/${modelId ?? '?'}`
+    return `Limite do modelo · ${providerId ?? '?'}/${modelId ?? '?'}`
   }
-  return `Policy #${policyId}`
+  return `Política #${policyId}`
 }
 
 export function concurrencyPolicyDisplayName(
@@ -38,13 +41,13 @@ export function concurrencyPolicyDisplayName(
   modelId?: string,
 ): string {
   if (scope === 'global') {
-    return `Global concurrency #${policyId}`
+    return `Concorrência do workspace #${policyId}`
   }
   if (scope === 'provider' && providerId) {
-    return `Provider concurrency · ${providerId}`
+    return providerId
   }
   if (scope === 'model') {
-    return `Model concurrency · ${providerId ?? '?'}/${modelId ?? '?'}`
+    return `Concorrência do modelo · ${providerId ?? '?'}/${modelId ?? '?'}`
   }
-  return `Concurrency policy #${policyId}`
+  return `Política de concorrência #${policyId}`
 }

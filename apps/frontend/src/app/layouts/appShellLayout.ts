@@ -17,7 +17,7 @@ export const APP_SHELL_TOP_BAR_CLASS = 'app-shell-topbar'
  * Routes that fill the viewport without scrolling the main column (dashboard-style).
  * All other AppShell routes scroll inside the content frame.
  */
-export const APP_SHELL_VIEWPORT_FIT_PATHS = ['/', '/providers', '/catalog'] as const
+export const APP_SHELL_VIEWPORT_FIT_PATHS = ['/', '/providers', '/catalog', '/resources'] as const
 
 export type AppShellViewportFitPath = (typeof APP_SHELL_VIEWPORT_FIT_PATHS)[number]
 

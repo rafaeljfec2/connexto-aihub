@@ -8,13 +8,14 @@ import {
 
 describe('appShellLayout', () => {
   it('declares viewport-fit paths', () => {
-    expect(APP_SHELL_VIEWPORT_FIT_PATHS).toEqual(['/', '/providers', '/catalog'])
+    expect(APP_SHELL_VIEWPORT_FIT_PATHS).toEqual(['/', '/providers', '/catalog', '/resources'])
   })
 
   it('detects viewport-fit routes', () => {
     expect(isAppShellViewportFitPath('/')).toBe(true)
     expect(isAppShellViewportFitPath('/providers')).toBe(true)
     expect(isAppShellViewportFitPath('/catalog')).toBe(true)
+    expect(isAppShellViewportFitPath('/resources')).toBe(true)
     expect(isAppShellViewportFitPath('/executions')).toBe(false)
   })
 

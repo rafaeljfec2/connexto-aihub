@@ -45,11 +45,10 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     lead: 'Inspecione cada geração processada pelo gateway.',
   },
   '/resources': {
-    crumb: 'Resources',
+    crumb: 'Recursos',
     eyebrow: 'GOVERNANCE / RESOURCES',
-    title: 'Policies & concurrency',
-    lead:
-      'Cross-gateway quota policies, concurrency occupancy, and provider-reported usage from E09 admin APIs.',
+    title: 'Políticas e concorrência',
+    lead: 'Visão transversal dos limites internos do gateway. Franquias individuais ficam em Provedores.',
   },
   '/intelligence': {
     crumb: 'Inteligência',

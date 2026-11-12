@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { listProviders, providersQueryKeys } from '../../providers'
 import { Banner } from '../../../shared/ui/banner'
@@ -16,14 +15,16 @@ import {
   listResourcePolicies,
   resourcesQueryKeys,
 } from '../api/queries'
-import { AdmissionsDailyChart } from '../components/AdmissionsDailyChart'
-import { ConcurrencySection } from '../components/ConcurrencySection'
+import { ConsumptionChart } from '../components/ConsumptionChart'
+import { ConcurrencyPanel } from '../components/ConcurrencyPanel'
 import { DataSourceFootnote } from '../components/DataSourceFootnote'
-import { ProviderUsageSection } from '../components/ProviderUsageSection'
-import { QuotaPoliciesTable } from '../components/QuotaPoliciesTable'
+import { PoliciesHighlightTable } from '../components/PoliciesHighlightTable'
+import { PoliciesTable } from '../components/PoliciesTable'
 import { ResourcesFilters } from '../components/ResourcesFilters'
-import { ResourcesSummaryMetrics } from '../components/ResourcesSummaryMetrics'
-import { ResourcesTabNav } from '../components/ResourcesTabNav'
+import { ResourcesMetricGrid } from '../components/ResourcesMetricGrid'
+import { ResourcesPageHead } from '../components/ResourcesPageHead'
+import { ResourcesViewTabs } from '../components/ResourcesViewTabs'
+import { UsageDistribution } from '../components/UsageDistribution'
 import {
   defaultResourcesUiFilter,
   resourcesRangeFromUi,
@@ -37,11 +38,19 @@ import type { ResourcesTabId } from '../types'
 export function ResourcesPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<ResourcesTabId>('overview')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [draftFilter, setDraftFilter] = useState(defaultResourcesUiFilter)
   const [appliedFilter, setAppliedFilter] = useState(defaultResourcesUiFilter)
 
   const scopeFilter = useMemo(() => toAnalyticsScopeFilter(appliedFilter), [appliedFilter])
   const range = useMemo(() => resourcesRangeFromUi(appliedFilter), [appliedFilter])
+  const periodLabel =
+    appliedFilter.from === defaultResourcesUiFilter.from &&
+    appliedFilter.to === defaultResourcesUiFilter.to &&
+    appliedFilter.provider_id === '' &&
+    appliedFilter.model_id === ''
+      ? 'Últimos 7 dias'
+      : `${range.from} – ${range.to}`
 
   const providersQuery = useQuery({
     queryKey: providersQueryKeys.list,
@@ -123,7 +132,7 @@ export function ResourcesPage() {
   const policiesLoading = resourcePoliciesQuery.isPending || quotaQuery.isPending
   const concurrencyLoading =
     concurrencyPoliciesQuery.isPending || concurrencySnapshotQuery.isPending
-  const providerUsageLoading =
+  const distributionLoading =
     providerUsageQuery.isPending || providerDistributionQuery.isPending
 
   const summaryMetricsLoading =
@@ -140,6 +149,10 @@ export function ResourcesPage() {
   )
   const concurrencySnapshotFetchedAtMs = maxDataUpdatedAt(concurrencySnapshotQuery.dataUpdatedAt)
   const concurrencyPoliciesFetchedAtMs = maxDataUpdatedAt(concurrencyPoliciesQuery.dataUpdatedAt)
+  const distributionFetchedAtMs = maxDataUpdatedAt(
+    providerUsageQuery.dataUpdatedAt,
+    providerDistributionQuery.dataUpdatedAt,
+  )
 
   const errors = [
     providersQuery.isError
@@ -193,18 +206,15 @@ export function ResourcesPage() {
   }
 
   return (
-    <div className={appPageClassName('space-y-4', 'pb-6')}>
-      <AppPageHeader
+    <div className={appPageClassName('resources-page')}>
+      <ResourcesPageHead
         actions={
-          <div className="flex items-center gap-2">
-            <Link
-              to="/providers"
-              className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-accent-light transition-colors hover:bg-white/[0.04] hover:text-primary"
-            >
+          <div className="resources-pagehead-actions">
+            <Link to="/providers" className="resources-providers-link">
               Ver franquias por provedor ↗
             </Link>
             <RefreshButton
-              className="overview-refresh"
+              className="resources-outline-btn"
               onRefresh={handleRefresh}
               isRefreshing={
                 admissionsQuery.isFetching ||
@@ -218,103 +228,94 @@ export function ResourcesPage() {
       />
 
       {uniqueErrors.length > 0 ? (
-          <Banner variant="error" className="mb-3" role="alert">
-            <ul className="list-disc space-y-1 pl-4">
-              {uniqueErrors.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </Banner>
-        ) : null}
+        <Banner variant="error" role="alert">
+          <ul className="list-disc space-y-1 pl-4">
+            {uniqueErrors.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        </Banner>
+      ) : null}
 
-        <ResourcesSummaryMetrics {...summary} isLoading={summaryMetricsLoading} />
+      <ResourcesMetricGrid {...summary} isLoading={summaryMetricsLoading} />
 
+      <ResourcesViewTabs active={activeTab} onChange={setActiveTab} />
+
+      {filtersOpen ? (
         <ResourcesFilters
           draft={draftFilter}
           providerOptions={providerOptions}
           onChange={setDraftFilter}
           onApply={() => setAppliedFilter(draftFilter)}
         />
+      ) : null}
 
-        <ResourcesTabNav active={activeTab} onChange={setActiveTab} />
-
-        {activeTab === 'overview' ? (
-          <div className="grid gap-3">
-            <div className="grid gap-3 lg:grid-cols-[1.12fr_0.88fr]">
-              {admissionsQuery.isSuccess && admissionsQuery.data ? (
-                <AdmissionsDailyChart
-                  daily={admissionsQuery.data.daily}
-                  totalAdmitted={admissionsQuery.data.total_admitted}
-                  fetchedAtMs={admissionsQuery.dataUpdatedAt}
-                />
-              ) : (
-                <div className="rounded-[10px] border border-line bg-surface p-4 text-[0.625rem] text-muted">
-                  {admissionsQuery.isPending
-                    ? 'Loading admissions analytics…'
-                    : 'Admissions series unavailable for the selected range.'}
-                </div>
-              )}
-              <QuotaPoliciesTable
-                policies={resourcePolicies}
-                utilization={quotaUtilization}
-                compact
-                isLoading={policiesLoading}
-                fetchedAtMs={policiesFetchedAtMs}
-              />
-            </div>
-            <ConcurrencySection
-              policies={concurrencyPolicies}
-              snapshots={concurrencySnapshots}
-              isLoading={concurrencyLoading}
-              snapshotFetchedAtMs={concurrencySnapshotFetchedAtMs}
-              policiesFetchedAtMs={concurrencyPoliciesFetchedAtMs}
+      <div className="resources-stage">
+      {activeTab === 'overview' ? (
+        <div className="resources-overview">
+          <div className="resources-overview-grid">
+            <ConsumptionChart
+              daily={admissionsQuery.data?.daily ?? []}
+              totalAdmitted={admissionsQuery.data?.total_admitted ?? 0}
+              quotaUtilization={quotaUtilization}
+              periodLabel={periodLabel}
+              onTogglePeriod={() => setFiltersOpen((open) => !open)}
+              isLoading={admissionsQuery.isPending}
+              isError={admissionsQuery.isError}
+              fetchedAtMs={admissionsQuery.dataUpdatedAt}
+            />
+            <UsageDistribution
+              distribution={providerDistributionQuery.data}
+              usage={providerUsageQuery.data}
+              isLoading={distributionLoading}
+              isError={providerDistributionQuery.isError || providerUsageQuery.isError}
+              fetchedAtMs={distributionFetchedAtMs}
             />
           </div>
-        ) : null}
-
-        {activeTab === 'policies' ? (
-          <QuotaPoliciesTable
+          <PoliciesHighlightTable
             policies={resourcePolicies}
             utilization={quotaUtilization}
             isLoading={policiesLoading}
             fetchedAtMs={policiesFetchedAtMs}
+            onViewPolicies={() => setActiveTab('policies')}
           />
-        ) : null}
+        </div>
+      ) : null}
 
-        {activeTab === 'concurrency' ? (
-          <ConcurrencySection
-            policies={concurrencyPolicies}
-            snapshots={concurrencySnapshots}
-            isLoading={concurrencyLoading}
-            snapshotFetchedAtMs={concurrencySnapshotFetchedAtMs}
-            policiesFetchedAtMs={concurrencyPoliciesFetchedAtMs}
-          />
-        ) : null}
-
-        {activeTab === 'provider-usage' ? (
-          <ProviderUsageSection
-            usage={providerUsageQuery.data}
-            distribution={providerDistributionQuery.data}
-            isLoading={providerUsageLoading}
-            isError={providerUsageQuery.isError}
-            isDistributionError={providerDistributionQuery.isError}
-            usageFetchedAtMs={providerUsageQuery.dataUpdatedAt}
-            distributionFetchedAtMs={providerDistributionQuery.dataUpdatedAt}
-          />
-        ) : null}
-
-        <DataSourceFootnote
-          sources={[
-            '/api/resource-policies',
-            '/api/resource-analytics/quota-utilization',
-            '/api/concurrency-policies',
-            '/api/resource-analytics/concurrency',
-            '/api/resource-analytics/admissions',
-            '/api/resource-analytics/provider-usage',
-            '/api/resource-analytics/provider-usage/distribution',
-          ]}
-          updatedAt={latestUpdatedAt}
+      {activeTab === 'policies' ? (
+        <div className="h-full min-h-0">
+        <PoliciesTable
+          policies={resourcePolicies}
+          utilization={quotaUtilization}
+          isLoading={policiesLoading}
+          fetchedAtMs={policiesFetchedAtMs}
         />
+        </div>
+      ) : null}
+
+      {activeTab === 'concurrency' ? (
+        <ConcurrencyPanel
+          policies={concurrencyPolicies}
+          snapshots={concurrencySnapshots}
+          isLoading={concurrencyLoading}
+          snapshotFetchedAtMs={concurrencySnapshotFetchedAtMs}
+          policiesFetchedAtMs={concurrencyPoliciesFetchedAtMs}
+        />
+      ) : null}
+      </div>
+
+      <DataSourceFootnote
+        sources={[
+          '/api/resource-policies',
+          '/api/resource-analytics/quota-utilization',
+          '/api/concurrency-policies',
+          '/api/resource-analytics/concurrency',
+          '/api/resource-analytics/admissions',
+          '/api/resource-analytics/provider-usage',
+          '/api/resource-analytics/provider-usage/distribution',
+        ]}
+        updatedAt={latestUpdatedAt}
+      />
     </div>
   )
 }

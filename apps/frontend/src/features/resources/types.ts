@@ -132,7 +132,7 @@ export type ProviderUsageDistributionResponse = {
   by_model: ProviderUsageModelRow[]
 }
 
-export type ResourcesTabId = 'overview' | 'policies' | 'concurrency' | 'provider-usage'
+export type ResourcesTabId = 'overview' | 'policies' | 'concurrency'
 
 export type ResourcesUiFilter = AnalyticsDateRange & {
   provider_id: string

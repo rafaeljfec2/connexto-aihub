@@ -346,4 +346,5 @@
 @import "./features/executions/executions.css";
 @import "./features/catalog/catalog.css";
 @import "./features/playground/playground.css";
+@import "./features/resources/resources.css";
 @import "./motion.css";
