@@ -26,7 +26,7 @@ export function GoPlusUsagePanel({
       data-testid={`${testIdPrefix}-panel`}
     >
       <header className="flex items-center justify-between gap-2">
-        <h4 className="text-[10px] font-semibold text-[#E7ECF5]">{productUsageTitle(workspaceName)}</h4>
+        <h4 className="text-[0.625rem] font-semibold text-[#E7ECF5]">{productUsageTitle(workspaceName)}</h4>
       </header>
       <ul className="space-y-2">
         {meters.map((meter) => {
@@ -34,7 +34,7 @@ export function GoPlusUsagePanel({
           const percentLabel = `${meter.percent.toLocaleString('pt-BR')}% used`
           return (
             <li key={meter.id} data-testid={`${testIdPrefix}-meter-${meter.id}`}>
-              <div className="mb-1 flex items-baseline justify-between gap-2 text-[9px]">
+              <div className="mb-1 flex items-baseline justify-between gap-2 text-[0.5625rem]">
                 <span className="min-w-0 truncate font-medium text-[#CBD5E2]">
                   {meter.label} · {percentLabel}
                 </span>

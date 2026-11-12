@@ -27,7 +27,7 @@ export function EmptyTelemetryState({
         {icon ?? <Info className="size-4 opacity-75" aria-hidden />}
       </div>
       <h3 className="text-xs font-semibold text-primary">{title}</h3>
-      <p className="mt-1 max-w-sm text-[11px] leading-relaxed text-secondary">{description}</p>
+      <p className="mt-1 max-w-sm text-[0.6875rem] leading-relaxed text-secondary">{description}</p>
     </div>
   )
 }

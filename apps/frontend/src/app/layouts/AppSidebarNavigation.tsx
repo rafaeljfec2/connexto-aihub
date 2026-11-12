@@ -62,7 +62,7 @@ function NavSection({
   return (
     <>
       {!collapsed ? (
-        <p className="px-2.5 pb-2 font-mono text-[10px] uppercase tracking-[0.11em] text-muted">
+        <p className="px-2.5 pb-2 font-mono text-[0.625rem] uppercase tracking-[0.11em] text-muted">
           {label}
         </p>
       ) : null}

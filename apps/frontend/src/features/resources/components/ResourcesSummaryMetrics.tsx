@@ -75,8 +75,8 @@ function MetricCard({
   return (
     <div className="flex items-center justify-between rounded-[9px] border border-line bg-surface px-3.5 py-2.5">
       <div>
-        <span className="block text-[10px] text-[#A0ADBF]">{label}</span>
-        <small className="mt-0.5 block text-[9px] text-[#8290A5]">{detail}</small>
+        <span className="block text-[0.625rem] text-[#A0ADBF]">{label}</span>
+        <small className="mt-0.5 block text-[0.5625rem] text-[#8290A5]">{detail}</small>
       </div>
       <strong className={cn('text-xl font-semibold tracking-[-0.04em] text-[#EDF2FA]', valueClassName)}>
         {value}

@@ -47,7 +47,7 @@ export function OverviewProvidersPanel({
       <div className="overview-panel-head">
         <div>
           <h3 className="text-xs font-semibold text-[#E7ECF5]">Consumo de franquias</h3>
-          <p className="mt-0.5 text-[10px] text-[#8D9AAF]">Resumo bruto por conta</p>
+          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">Resumo bruto por conta</p>
         </div>
         <Link to="/providers" className="overview-panel-link whitespace-nowrap">
           Ver franquias ↗
@@ -110,7 +110,7 @@ function QuotaErrorState() {
 
 function QuotaRefreshWarning() {
   return (
-    <p className="pt-2 text-[10px] text-warning" role="status">
+    <p className="pt-2 text-[0.625rem] text-warning" role="status">
       Falha ao atualizar; exibindo a última leitura disponível.
     </p>
   )

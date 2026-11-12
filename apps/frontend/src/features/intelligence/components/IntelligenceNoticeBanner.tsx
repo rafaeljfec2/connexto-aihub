@@ -11,14 +11,14 @@ export function IntelligenceNoticeBanner() {
           <strong className="text-xs font-semibold text-primary">
             Learning Engine (E10) em planejamento · Roteamento determinístico e aihub/auto ativos
           </strong>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-secondary">
-            O E08 e a seleção do modelo virtual <code className="font-mono text-[10px] text-accent-light">aihub/auto</code> por prioridade administrativa operam de forma determinística no Gateway. Avaliação adaptativa por contexto e ranking histórico pertencem ao E10 e ainda não estão ativos.
+          <p className="mt-0.5 text-[0.6875rem] leading-relaxed text-secondary">
+            O E08 e a seleção do modelo virtual <code className="font-mono text-[0.625rem] text-accent-light">aihub/auto</code> por prioridade administrativa operam de forma determinística no Gateway. Avaliação adaptativa por contexto e ranking histórico pertencem ao E10 e ainda não estão ativos.
           </p>
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-mono text-[9px] uppercase tracking-wider text-muted">STATUS DO MÓDULO</span>
-        <span className="inline-flex rounded-full border border-warning/25 bg-warning/10 px-2 py-0.5 font-mono text-[9px] font-medium text-warning">
+        <span className="font-mono text-[0.5625rem] uppercase tracking-wider text-muted">STATUS DO MÓDULO</span>
+        <span className="inline-flex rounded-full border border-warning/25 bg-warning/10 px-2 py-0.5 font-mono text-[0.5625rem] font-medium text-warning">
           AGUARDANDO E10
         </span>
       </div>

@@ -120,7 +120,7 @@ export function ProviderDetailPanel({
           />
           <div>
             <strong className="block text-xs font-semibold text-[#E7ECF5]">{provider.name}</strong>
-            <small className="mt-0.5 block text-[9px] text-muted">
+            <small className="mt-0.5 block text-[0.5625rem] text-muted">
               {providerConnectionSubtitle(provider)}
               {snapshot?.workspace_name ? ` · ${snapshot.workspace_name}` : ''}
             </small>
@@ -138,7 +138,7 @@ export function ProviderDetailPanel({
             <div className="space-y-2.5 my-2.5" data-testid="antigravity-quota-bars">
               {antigravityBars.map((bar) => (
                 <div key={bar.id} className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center justify-between text-[0.6875rem]">
                     <span className="text-[#AEBBD0] font-medium">{bar.label}</span>
                     <span className="font-semibold text-[#E7ECF5]">
                       {bar.percent.toLocaleString('pt-BR')}% restante
@@ -202,9 +202,9 @@ export function ProviderDetailPanel({
             className="mt-2 rounded-lg border border-line/60 bg-[#171E29]/90 p-2 space-y-1.5"
             data-testid="antigravity-detail-families"
           >
-            <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-semibold text-[#8290A5]">
+            <div className="flex items-center justify-between text-[0.5625rem] uppercase tracking-wider font-semibold text-[#8290A5]">
               <span>Franquias por Família</span>
-              <span className="font-mono text-[8px] text-muted">
+              <span className="font-mono text-[0.5rem] text-muted">
                 {snapshot?.quotas.length ?? 0} modelos
               </span>
             </div>
@@ -213,16 +213,16 @@ export function ProviderDetailPanel({
                 key={family.id}
                 className="space-y-1 rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
               >
-                <div className="flex items-center justify-between text-[10px] font-medium text-[#CBD5E2]">
+                <div className="flex items-center justify-between text-[0.625rem] font-medium text-[#CBD5E2]">
                   <span>{family.title}</span>
-                  <span className="text-[9px] text-[#8290A5]">
+                  <span className="text-[0.5625rem] text-[#8290A5]">
                     {family.totalModelsCount} modelo(s)
                   </span>
                 </div>
                 {family.limits.map((limit, idx) => (
                   <div
                     key={`${limit.windowType}-${idx}`}
-                    className="flex items-center justify-between text-[9px]"
+                    className="flex items-center justify-between text-[0.5625rem]"
                   >
                     <span className="text-[#AEBBD0]">{limit.windowLabel}</span>
                     <span className="font-semibold text-[#CBD5E2]">
@@ -240,9 +240,9 @@ export function ProviderDetailPanel({
             className="mt-2 rounded-lg border border-line/60 bg-[#171E29]/90 p-2 space-y-1.5"
             data-testid="opencode-detail-meters"
           >
-            <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-semibold text-[#8290A5]">
+            <div className="flex items-center justify-between text-[0.5625rem] uppercase tracking-wider font-semibold text-[#8290A5]">
               <span>Janelas de franquia</span>
-              <span className="font-mono text-[8px] text-muted">
+              <span className="font-mono text-[0.5rem] text-muted">
                 {goMeters.length} métrica(s)
               </span>
             </div>
@@ -256,7 +256,7 @@ export function ProviderDetailPanel({
               return (
                 <div
                   key={meter.id}
-                  className="flex items-center justify-between text-[9px] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
+                  className="flex items-center justify-between text-[0.5625rem] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
                 >
                   <span className="text-[#AEBBD0]">{label}</span>
                   <span className="font-semibold text-[#CBD5E2]">

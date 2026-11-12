@@ -9,7 +9,7 @@ export function UtilizationStateBadge({ variant, children }: UtilizationStateBad
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded px-1.5 py-1 font-mono text-[9px] whitespace-nowrap',
+        'inline-flex items-center gap-1.5 rounded px-1.5 py-1 font-mono text-[0.5625rem] whitespace-nowrap',
         variant === 'ok' && 'bg-healthy/10 text-healthy',
         variant === 'warn' && 'bg-warning/10 text-warning',
         variant === 'muted' && 'bg-white/[0.04] text-muted',

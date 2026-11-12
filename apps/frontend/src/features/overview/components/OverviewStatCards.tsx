@@ -59,11 +59,11 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : isOperational ? (
-            <span className="text-[23px] font-medium tracking-[-0.02em] text-[#F0F3EC]">
+            <span className="text-[1.4375rem] font-medium tracking-[-0.02em] text-[#F0F3EC]">
               Operacional
             </span>
           ) : (
-            <span className="text-[23px] font-medium tracking-[-0.02em] text-[#D88186]">
+            <span className="text-[1.4375rem] font-medium tracking-[-0.02em] text-[#D88186]">
               Degradado
             </span>
           )
@@ -91,7 +91,7 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : (
-            <div className="flex items-baseline gap-1 text-[28px] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+            <div className="flex items-baseline gap-1 text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
               <span>{String(attentionCount).padStart(2, '0')}</span>
               <span className="text-base font-normal text-[#74877A]">
                 / {String(totalMonitored).padStart(2, '0')}
@@ -109,7 +109,7 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : (
-            <span className="text-[28px] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+            <span className="text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
               {modelCount !== undefined ? modelCount : '—'}
             </span>
           )
@@ -117,7 +117,7 @@ export function OverviewStatCards({
         note={
           <Link
             to="/catalog"
-            className="inline-flex items-center gap-1 text-[10px] text-accent-light hover:text-primary hover:underline"
+            className="inline-flex items-center gap-1 text-[0.625rem] text-accent-light hover:text-primary hover:underline"
           >
             Explorar catálogo ↗
           </Link>
@@ -131,7 +131,7 @@ export function OverviewStatCards({
           isLoading ? (
             <span className="text-base text-muted animate-pulse">Carregando…</span>
           ) : (
-            <span className="text-[28px] font-medium tracking-[-0.04em] text-[#F0F3EC]">
+            <span className="text-[1.75rem] font-medium tracking-[-0.04em] text-[#F0F3EC]">
               {formatRequestsCount(totalRequests)}
             </span>
           )

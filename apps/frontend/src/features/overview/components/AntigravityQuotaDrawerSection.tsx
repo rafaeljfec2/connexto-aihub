@@ -26,7 +26,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
         <button
           type="button"
           onClick={() => setShowModels((prev) => !prev)}
-          className="flex items-center gap-1 text-[11px] text-muted hover:text-[#CBD5E2] transition-colors"
+          className="flex items-center gap-1 text-[0.6875rem] text-muted hover:text-[#CBD5E2] transition-colors"
           aria-expanded={showModels}
         >
           <span>{family.totalModelsCount} modelo(s) incluído(s)</span>
@@ -46,7 +46,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
               <div>
                 <p className="text-xs font-medium text-[#AEBBD0]">{limit.windowLabel}</p>
                 {resetLabel ? (
-                  <p className="text-[11px] text-[#68778C]">{resetLabel}</p>
+                  <p className="text-[0.6875rem] text-[#68778C]">{resetLabel}</p>
                 ) : null}
               </div>
 
@@ -63,7 +63,7 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
 
       {showModels ? (
         <div className="mt-2 space-y-1.5 pt-2 border-t border-line/30">
-          <p className="text-[10px] uppercase tracking-wider font-medium text-[#8290A5]">
+          <p className="text-[0.625rem] uppercase tracking-wider font-medium text-[#8290A5]">
             Modelos atendidos por esta franquia
           </p>
           <div className="space-y-1">
@@ -75,10 +75,10 @@ function FamilyCard({ family }: { family: AntigravityFamilyGroup }) {
                 <div className="min-w-0 pr-2">
                   <span className="font-medium text-[#CBD5E2]">{model.name}</span>
                   {model.id !== model.name ? (
-                    <span className="ml-1.5 font-mono text-[10px] text-muted truncate">{model.id}</span>
+                    <span className="ml-1.5 font-mono text-[0.625rem] text-muted truncate">{model.id}</span>
                   ) : null}
                 </div>
-                <span className="text-[11px] text-[#8290A5] shrink-0">
+                <span className="text-[0.6875rem] text-[#8290A5] shrink-0">
                   {model.remainingPercent != null
                     ? `${model.remainingPercent.toLocaleString('pt-BR')}%`
                     : '100%'}
@@ -104,11 +104,11 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
       <div className="flex items-baseline justify-between">
         <div>
           <h3 className="text-xs font-semibold text-primary">Cotas e Franquias Antigravity</h3>
-          <p className="text-[11px] text-muted">
+          <p className="text-[0.6875rem] text-muted">
             Agrupadas por franquia oficial de modelos (pools compartilhados)
           </p>
         </div>
-        <span className="text-[10px] text-muted font-mono">
+        <span className="text-[0.625rem] text-muted font-mono">
           {quotas.length} modelo(s) reportado(s)
         </span>
       </div>
@@ -130,11 +130,11 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
             <div className="flex items-center gap-1.5">
               {showBackground ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
               <span className="font-medium">{backgroundGroup.title}</span>
-              <span className="text-[10px] text-[#68778C]">
+              <span className="text-[0.625rem] text-[#68778C]">
                 ({backgroundGroup.totalModelsCount} modelos · 100% restante)
               </span>
             </div>
-            <span className="text-[10px]">Preenchimento automático</span>
+            <span className="text-[0.625rem]">Preenchimento automático</span>
           </button>
 
           {showBackground ? (
@@ -142,7 +142,7 @@ export function AntigravityQuotaDrawerSection({ quotas }: AntigravityQuotaDrawer
               {backgroundGroup.limits.flatMap((l) => l.models).map((model) => (
                 <div
                   key={model.id}
-                  className="flex items-center justify-between text-xs py-0.5 px-2 font-mono text-[10px] text-muted"
+                  className="flex items-center justify-between text-xs py-0.5 px-2 font-mono text-[0.625rem] text-muted"
                 >
                   <span>{model.id}</span>
                   <span>100% restante</span>

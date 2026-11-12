@@ -38,7 +38,7 @@ export function IntelligenceStatCards() {
             className="rounded-[10px] border border-line bg-surface p-2.5 transition-colors hover:border-line/80 sm:p-3"
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted sm:text-[10px]">
+              <span className="font-mono text-[0.5625rem] uppercase tracking-[0.08em] text-muted sm:text-[0.625rem]">
                 {card.label}
               </span>
               <Icon className="size-3.5 text-muted/70" aria-hidden />
@@ -46,7 +46,7 @@ export function IntelligenceStatCards() {
             <div className="mt-1 font-display text-sm font-bold text-primary sm:text-base">
               {card.value}
             </div>
-            <div className="mt-0.5 text-[10px] leading-tight text-muted/90">
+            <div className="mt-0.5 text-[0.625rem] leading-tight text-muted/90">
               {card.note}
             </div>
           </div>

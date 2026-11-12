@@ -47,7 +47,7 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
                 <tr key={`${model.provider}:${model.model_id}`}>
                   <td className="font-semibold text-[#EEF2F8]">
                     <div>{model.name}</div>
-                    <div className="font-mono text-[9px] text-[#8190A5]">{model.model_id}</div>
+                    <div className="font-mono text-[0.5625rem] text-[#8190A5]">{model.model_id}</div>
                   </td>
                   <td>{model.provider}</td>
                   <td className="font-mono text-[#8290A5]">
@@ -67,7 +67,7 @@ export function ModelCompareModal({ models, open, onClose }: ModelCompareModalPr
                         {caps.map((capability) => (
                           <span
                             key={capability}
-                            className="rounded bg-raised px-1.5 py-0.5 font-mono text-[9px] text-accent-light"
+                            className="rounded bg-raised px-1.5 py-0.5 font-mono text-[0.5625rem] text-accent-light"
                           >
                             {capability}
                           </span>

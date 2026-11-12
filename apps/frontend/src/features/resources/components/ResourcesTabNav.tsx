@@ -24,7 +24,7 @@ export function ResourcesTabNav({ active, onChange }: ResourcesTabNavProps) {
           role="tab"
           aria-selected={active === tab.id}
           className={cn(
-            'border-b-2 px-3 py-2 text-[11px] transition-colors',
+            'border-b-2 px-3 py-2 text-[0.6875rem] transition-colors',
             active === tab.id
               ? 'border-cobalt text-[#E6EDFA]'
               : 'border-transparent text-[#8E9BB0] hover:text-secondary',

@@ -100,23 +100,23 @@ export function AppTopBar({
             )}
           </Button>
         ) : null}
-        <p className="truncate text-[11px] text-[#94A1B3]">
+        <p className="truncate text-[0.6875rem] text-[#94A1B3]">
           Workspace <span className="mx-2 text-[#58677B]">/</span>{' '}
           <b className="font-medium text-[#E0E7F1]">{crumb}</b>
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-3 lg:gap-4">
-        <div className="hidden items-center gap-2 rounded-[7px] border border-line bg-white/[0.025] px-2.5 py-1.5 text-[10px] text-[#BEC8D6] sm:flex">
+        <div className="hidden items-center gap-2 rounded-[7px] border border-line bg-white/[0.025] px-2.5 py-1.5 text-[0.625rem] text-[#BEC8D6] sm:flex">
           <span className="size-1.5 rounded-full bg-cobalt" />
           {environmentLabel}
           <ChevronDown className="size-3 text-[#8592A7]" aria-hidden />
         </div>
-        <span className="hidden font-mono text-[10px] tracking-[0.05em] text-[#8A98AB] md:inline">
+        <span className="hidden font-mono text-[0.625rem] tracking-[0.05em] text-[#8A98AB] md:inline">
           {originLabel}
         </span>
         <span
           className={cn(
-            'inline-flex items-center gap-1.5 font-mono text-[10px]',
+            'inline-flex items-center gap-1.5 font-mono text-[0.625rem]',
             live ? 'text-healthy' : connectionState === 'connecting' ? 'text-warning' : 'text-failure',
           )}
         >

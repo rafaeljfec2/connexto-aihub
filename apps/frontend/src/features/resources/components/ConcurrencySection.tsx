@@ -45,18 +45,18 @@ export function ConcurrencySection({
           }
         />
         <div className="mb-1 flex items-baseline gap-2">
-          <strong className="text-[22px] font-semibold tracking-[-0.04em]">
+          <strong className="text-[1.375rem] font-semibold tracking-[-0.04em]">
             {totalActive}
             {totalLimit > 0 ? (
               <span className="text-xs font-normal text-[#8290A5]"> / {totalLimit}</span>
             ) : null}
           </strong>
           {utilizationPercent !== null ? (
-            <span className="font-mono text-[9px] text-[#8FA0B6]">
+            <span className="font-mono text-[0.5625rem] text-[#8FA0B6]">
               {utilizationPercent}% IN USE
             </span>
           ) : (
-            <span className="font-mono text-[9px] text-[#8FA0B6]">NO ENABLED LIMITS</span>
+            <span className="font-mono text-[0.5625rem] text-[#8FA0B6]">NO ENABLED LIMITS</span>
           )}
         </div>
         {totalLimit > 0 ? (
@@ -79,7 +79,7 @@ export function ConcurrencySection({
                 className="rounded-[7px] border border-line/50 bg-[#171E29] p-2.5"
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <strong className="text-[10px] text-[#E1E8F2]">
+                  <strong className="text-[0.625rem] text-[#E1E8F2]">
                     {concurrencyPolicyDisplayName(
                       snapshot.scope,
                       snapshot.policy_id,
@@ -87,7 +87,7 @@ export function ConcurrencySection({
                       snapshot.model_id,
                     )}
                   </strong>
-                  <span className="font-mono text-[9px] text-[#9AA8BB]">
+                  <span className="font-mono text-[0.5625rem] text-[#9AA8BB]">
                     {snapshot.active_count} / {snapshot.concurrency_limit}
                   </span>
                 </div>
@@ -101,9 +101,9 @@ export function ConcurrencySection({
             )
           })}
         {isLoading ? (
-          <p className="text-[10px] text-muted">Loading concurrency snapshot…</p>
+          <p className="text-[0.625rem] text-muted">Loading concurrency snapshot…</p>
         ) : enabledSnapshots.length === 0 ? (
-            <p className="text-[10px] text-muted">No enabled concurrency limits for the current filter.</p>
+            <p className="text-[0.625rem] text-muted">No enabled concurrency limits for the current filter.</p>
           ) : null}
         </div>
         <SectionFetchedAt updatedAtMs={snapshotFetchedAtMs} />
@@ -115,9 +115,9 @@ export function ConcurrencySection({
           subtitle="GET /api/concurrency-policies"
         />
         {isLoading ? (
-          <p className="text-[10px] text-muted">Loading concurrency policies…</p>
+          <p className="text-[0.625rem] text-muted">Loading concurrency policies…</p>
         ) : policies.length === 0 ? (
-          <p className="text-[10px] text-muted">No concurrency policies configured.</p>
+          <p className="text-[0.625rem] text-muted">No concurrency policies configured.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse">
@@ -126,7 +126,7 @@ export function ConcurrencySection({
                   {['Policy', 'Scope', 'Limit', 'In use', 'State'].map((heading) => (
                     <th
                       key={heading}
-                      className="px-2 py-2 text-left font-mono text-[9px] uppercase text-[#8290A5]"
+                      className="px-2 py-2 text-left font-mono text-[0.5625rem] uppercase text-[#8290A5]"
                     >
                       {heading}
                     </th>
@@ -140,7 +140,7 @@ export function ConcurrencySection({
                     snapshot !== undefined && isConcurrencySaturated(snapshot)
                   return (
                     <tr key={policy.id} className="border-b border-line/40">
-                      <td className="px-2 py-2.5 text-[10px] font-medium text-[#E1E8F2]">
+                      <td className="px-2 py-2.5 text-[0.625rem] font-medium text-[#E1E8F2]">
                         {concurrencyPolicyDisplayName(
                           policy.scope,
                           policy.id,
@@ -148,13 +148,13 @@ export function ConcurrencySection({
                           policy.model_id,
                         )}
                       </td>
-                      <td className="px-2 py-2.5 font-mono text-[9px] text-[#9AA8BB]">
+                      <td className="px-2 py-2.5 font-mono text-[0.5625rem] text-[#9AA8BB]">
                         {formatScopeLabel(policy.scope, policy.provider_id, policy.model_id)}
                       </td>
-                      <td className="px-2 py-2.5 text-[10px] text-secondary">
+                      <td className="px-2 py-2.5 text-[0.625rem] text-secondary">
                         {policy.concurrency_limit}
                       </td>
-                      <td className="px-2 py-2.5 text-[10px] text-secondary">
+                      <td className="px-2 py-2.5 text-[0.625rem] text-secondary">
                         {snapshot ? `${snapshot.active_count} (${snapshot.available} free)` : '—'}
                       </td>
                       <td className="px-2 py-2.5">

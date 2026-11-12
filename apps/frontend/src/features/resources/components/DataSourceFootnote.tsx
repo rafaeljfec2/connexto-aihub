@@ -10,7 +10,7 @@ export function DataSourceFootnote({ sources, updatedAt }: DataSourceFootnotePro
       : '—'
 
   return (
-    <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-[9px] text-[#758196]">
+    <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 font-mono text-[0.5625rem] text-[#758196]">
       <span>API · {sources.join(' · ')}</span>
       <span>Snapshot fetched {timeLabel} UTC</span>
     </footer>

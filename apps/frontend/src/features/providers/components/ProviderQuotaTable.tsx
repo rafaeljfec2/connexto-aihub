@@ -113,10 +113,10 @@ export function ProviderQuotaTable({
                           className="providers-provider-icon"
                         />
                         <div>
-                          <strong className="block text-[11px] font-semibold text-[#E1E8F3]">
+                          <strong className="block text-[0.6875rem] font-semibold text-[#E1E8F3]">
                             {provider.name}
                           </strong>
-                          <small className="mt-[3px] block text-[9px] text-[#909DB0]">
+                          <small className="mt-[3px] block text-[0.5625rem] text-[#909DB0]">
                             {providerConnectionSubtitle(provider)}
                           </small>
                         </div>
@@ -188,7 +188,7 @@ export function ProviderQuotaTable({
                             e.stopPropagation()
                             onOpenManage(provider)
                           }}
-                          className="inline-flex items-center gap-1.5 rounded border border-line bg-surface/80 px-2.5 py-1 text-[11px] font-medium text-secondary hover:border-cobalt hover:bg-raised hover:text-primary transition-all cursor-pointer shadow-xs"
+                          className="inline-flex items-center gap-1.5 rounded border border-line bg-surface/80 px-2.5 py-1 text-[0.6875rem] font-medium text-secondary hover:border-cobalt hover:bg-raised hover:text-primary transition-all cursor-pointer shadow-xs"
                           aria-label={`Editar ${provider.name}`}
                         >
                           <Edit2 className="size-3 text-cobalt" />

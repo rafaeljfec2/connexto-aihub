@@ -20,7 +20,7 @@ export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
         <TooltipPrimitive.Content
           side={side}
           className={cn(
-            'z-50 rounded-md border border-line bg-raised px-2 py-1 text-[11px] text-primary shadow-sm',
+            'z-50 rounded-md border border-line bg-raised px-2 py-1 text-[0.6875rem] text-primary shadow-sm',
           )}
         >
           {content}

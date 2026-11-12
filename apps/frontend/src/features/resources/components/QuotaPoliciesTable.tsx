@@ -37,9 +37,9 @@ export function QuotaPoliciesTable({
         subtitle="GET /api/resource-policies + /api/resource-analytics/quota-utilization"
       />
       {isLoading ? (
-        <p className="text-[10px] text-muted">Loading quota policies…</p>
+        <p className="text-[0.625rem] text-muted">Loading quota policies…</p>
       ) : rows.length === 0 ? (
-        <p className="text-[10px] text-muted">No resource policies configured.</p>
+        <p className="text-[0.625rem] text-muted">No resource policies configured.</p>
       ) : (
         <div className="grid-table-scroll scrollbar-slim overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left">
@@ -48,7 +48,7 @@ export function QuotaPoliciesTable({
                 {['Policy', 'Scope', 'Limit', 'Utilization', 'State'].map((heading) => (
                   <th
                     key={heading}
-                    className="px-2 py-2 font-mono text-[9px] uppercase tracking-[0.03em] text-[#8290A5]"
+                    className="px-2 py-2 font-mono text-[0.5625rem] uppercase tracking-[0.03em] text-[#8290A5]"
                   >
                     {heading}
                   </th>
@@ -75,19 +75,19 @@ export function QuotaPoliciesTable({
                         : 'Within limit'
                 return (
                   <tr key={policy.id} className="border-b border-line/40">
-                    <td className="px-2 py-2.5 text-[10px] font-medium text-[#E1E8F2]">
+                    <td className="px-2 py-2.5 text-[0.625rem] font-medium text-[#E1E8F2]">
                       {policyDisplayName(policy.scope, policy.id, policy.provider_id, policy.model_id)}
                     </td>
-                    <td className="px-2 py-2.5 font-mono text-[9px] text-[#9AA8BB]">
+                    <td className="px-2 py-2.5 font-mono text-[0.5625rem] text-[#9AA8BB]">
                       {formatScopeLabel(policy.scope, policy.provider_id, policy.model_id)}
                     </td>
-                    <td className="px-2 py-2.5 text-[10px] text-secondary">
+                    <td className="px-2 py-2.5 text-[0.625rem] text-secondary">
                       {policy.daily_limit > 0 ? policy.daily_limit.toLocaleString('en-US') : '—'}
                     </td>
-                    <td className="px-2 py-2.5 text-[10px] text-secondary">
+                    <td className="px-2 py-2.5 text-[0.625rem] text-secondary">
                       {display ? formatUtilizationDisplay(display) : '—'}
                       {usageRow && display?.kind === 'percent' ? (
-                        <span className="mt-0.5 block text-[9px] text-muted">
+                        <span className="mt-0.5 block text-[0.5625rem] text-muted">
                           {usageRow.admitted_count} admitted · {usageRow.remaining_requests} remaining
                         </span>
                       ) : null}

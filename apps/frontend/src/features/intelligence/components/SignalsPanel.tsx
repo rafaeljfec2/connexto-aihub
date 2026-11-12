@@ -37,11 +37,11 @@ export function SignalsPanel() {
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold text-primary">Sinais disponíveis para evoluir o E10</h2>
-          <p className="mt-0.5 text-[10px] text-muted">
+          <p className="mt-0.5 text-[0.625rem] text-muted">
             Tokens reportados quando disponíveis; ausência não é estimada nem tratada como zero.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-line bg-raised/80 px-2 py-0.5 font-mono text-[9px] text-muted">
+        <span className="shrink-0 rounded-full border border-line bg-raised/80 px-2 py-0.5 font-mono text-[0.5625rem] text-muted">
           EVIDÊNCIAS
         </span>
       </div>
@@ -56,12 +56,12 @@ export function SignalsPanel() {
               <span className={`size-1.5 shrink-0 rounded-full ${s.pending ? 'bg-warning' : 'bg-healthy'}`} />
               <div className="min-w-0">
                 <div className="text-xs font-medium text-primary">{s.title}</div>
-                <div className="text-[10px] text-muted">{s.sub}</div>
+                <div className="text-[0.625rem] text-muted">{s.sub}</div>
               </div>
             </div>
             <span
               className={cn(
-                'shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase',
+                'shrink-0 rounded px-1.5 py-0.5 font-mono text-[0.5625rem] font-medium uppercase',
                 s.pending
                   ? 'border border-warning/25 bg-warning/10 text-warning'
                   : 'border border-healthy/25 bg-healthy/10 text-healthy'

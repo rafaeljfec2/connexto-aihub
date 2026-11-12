@@ -21,7 +21,7 @@ export function PanelHeader({ title, subtitle, action, className, ...props }: Pa
     <div className={cn('mb-3 flex items-start justify-between gap-3', className)} {...props}>
       <div>
         <h2 className="text-xs font-semibold text-[#E7ECF5]">{title}</h2>
-        {subtitle ? <p className="mt-1 text-[10px] text-muted">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 text-[0.625rem] text-muted">{subtitle}</p> : null}
       </div>
       {action}
     </div>

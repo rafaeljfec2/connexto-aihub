@@ -136,7 +136,7 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
       className="border-t border-[rgb(180_194_218_/_0.08)] pt-1.5 first:border-t-0 first:pt-0"
       data-testid={`quota-scope-${snapshot.account_id}-${snapshot.scope}`}
     >
-      <header className="mb-1 flex items-center justify-between gap-2 text-[9px]">
+      <header className="mb-1 flex items-center justify-between gap-2 text-[0.5625rem]">
         <span className="font-medium text-[#AEBBD0]">{scopeLabel(snapshot.scope)}</span>
         <span className="text-[#8290A5]">{statusLabel(snapshot.status)}</span>
       </header>
@@ -158,8 +158,8 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
                 className="flex items-baseline justify-between gap-2"
                 data-testid={`quota-monthly-additional-${snapshot.account_id}`}
               >
-                <span className="text-[9px] font-medium text-[#CBD5E2]">Uso adicional mensal</span>
-                <span className="text-[9px] text-[#A7B3C3]">
+                <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">Uso adicional mensal</span>
+                <span className="text-[0.5625rem] text-[#A7B3C3]">
                   {formatAccountUsd(monthlyAdditional.usedUsd)}
                 </span>
               </div>
@@ -169,18 +169,18 @@ function ScopeSummary({ snapshot }: Readonly<{ snapshot: ProviderQuotaSnapshot }
                 className="flex items-baseline justify-between gap-2"
                 data-testid={`quota-balance-${snapshot.account_id}`}
               >
-                <span className="text-[9px] font-medium text-[#CBD5E2]">Saldo disponível</span>
-                <span className="text-[9px] text-[#A7B3C3]">{formatAvailableBalance(balance)}</span>
+                <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">Saldo disponível</span>
+                <span className="text-[0.5625rem] text-[#A7B3C3]">{formatAvailableBalance(balance)}</span>
               </div>
             ) : null}
           </div>
         )
       ) : (
-        <p className="text-[9px] text-muted" role="status">
+        <p className="text-[0.5625rem] text-muted" role="status">
           {statusMessage(snapshot)}
         </p>
       )}
-      <p className="mt-1 text-[8px] text-[#68778C]">
+      <p className="mt-1 text-[0.5rem] text-[#68778C]">
         Consultado em: {formatQuotaFetchedAt(snapshot.source.fetched_at)}
       </p>
     </section>
@@ -235,9 +235,9 @@ export function ProviderQuotaAccountRow({
           className="overview-provider-icon"
         />
         <div className="min-w-0 flex-1">
-          <span className="block truncate text-[11px] font-semibold text-[#E1E8F3]">{name}</span>
+          <span className="block truncate text-[0.6875rem] font-semibold text-[#E1E8F3]">{name}</span>
           {isGoAccount ? (
-            <div className="mt-0.5 flex items-center justify-between gap-2 text-[9px]">
+            <div className="mt-0.5 flex items-center justify-between gap-2 text-[0.5625rem]">
               <span className="truncate text-[#AEBBD0]" data-testid={`go-plus-summary-${firstSnapshot.account_id}`}>
                 {goLine}
               </span>
@@ -255,7 +255,7 @@ export function ProviderQuotaAccountRow({
           ))}
         </div>
       ) : (
-        <p className="mt-1 text-[8px] text-[#68778C]">
+        <p className="mt-1 text-[0.5rem] text-[#68778C]">
           Clique para ver 5h / semanal / mensal
           {primary ? ` · Consultado em: ${formatQuotaFetchedAt(primary.source.fetched_at)}` : ''}
         </p>

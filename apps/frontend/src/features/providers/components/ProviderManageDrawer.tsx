@@ -39,7 +39,7 @@ export function ProviderManageDrawer({
       type="button"
       disabled={actionsDisabled}
       onClick={() => setConfirmDelete(true)}
-      className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-red-500/35 bg-red-500/10 px-3 text-[11px] font-medium text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer disabled:opacity-50 sm:w-auto"
+      className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-red-500/35 bg-red-500/10 px-3 text-[0.6875rem] font-medium text-red-300 hover:bg-red-500/20 transition-colors cursor-pointer disabled:opacity-50 sm:w-auto"
     >
       <Trash2 className="size-3.5" />
       Remover conta
@@ -50,7 +50,7 @@ export function ProviderManageDrawer({
         type="button"
         disabled={actionsDisabled}
         onClick={() => setConfirmDelete(false)}
-        className="h-8 rounded-md border border-line px-2.5 text-[11px] font-medium text-secondary hover:bg-white/5 cursor-pointer disabled:opacity-50"
+        className="h-8 rounded-md border border-line px-2.5 text-[0.6875rem] font-medium text-secondary hover:bg-white/5 cursor-pointer disabled:opacity-50"
       >
         Cancelar
       </button>
@@ -65,7 +65,7 @@ export function ProviderManageDrawer({
             },
           })
         }}
-        className="h-8 rounded-md border border-red-500/50 bg-red-600 px-3 text-[11px] font-semibold text-white hover:bg-red-500 cursor-pointer disabled:opacity-50"
+        className="h-8 rounded-md border border-red-500/50 bg-red-600 px-3 text-[0.6875rem] font-semibold text-white hover:bg-red-500 cursor-pointer disabled:opacity-50"
       >
         {remove.isPending ? 'Removendo...' : 'Confirmar remoção'}
       </button>
@@ -86,7 +86,7 @@ export function ProviderManageDrawer({
       <div className="min-w-0 space-y-2.5 pt-0">
         <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised px-2.5 py-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+            <h3 className="text-[0.625rem] font-semibold uppercase tracking-wide text-primary">
               Ações operacionais
             </h3>
             <ProviderActions
@@ -102,7 +102,7 @@ export function ProviderManageDrawer({
           </div>
 
           {actionError ? (
-            <p className="mt-1.5 text-[10px] text-failure" role="alert">
+            <p className="mt-1.5 text-[0.625rem] text-failure" role="alert">
               {actionError}
             </p>
           ) : null}
@@ -110,10 +110,10 @@ export function ProviderManageDrawer({
 
         <div className="min-w-0 overflow-x-hidden rounded-md border border-line bg-raised px-3 py-2.5">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+            <h3 className="text-[0.625rem] font-semibold uppercase tracking-wide text-primary">
               Credenciais e configuração
             </h3>
-            <p className="text-[10px] text-muted">
+            <p className="text-[0.625rem] text-muted">
               Segredos salvos nunca são exibidos; preencha apenas para atualizar.
             </p>
           </div>

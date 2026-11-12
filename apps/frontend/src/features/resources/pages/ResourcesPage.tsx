@@ -248,7 +248,7 @@ export function ResourcesPage() {
                   fetchedAtMs={admissionsQuery.dataUpdatedAt}
                 />
               ) : (
-                <div className="rounded-[10px] border border-line bg-surface p-4 text-[10px] text-muted">
+                <div className="rounded-[10px] border border-line bg-surface p-4 text-[0.625rem] text-muted">
                   {admissionsQuery.isPending
                     ? 'Loading admissions analytics…'
                     : 'Admissions series unavailable for the selected range.'}

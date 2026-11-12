@@ -61,7 +61,7 @@ export function StatCard({
         </div>
       ) : null}
 
-      {note ? <div className="text-[10px] text-muted">{note}</div> : null}
+      {note ? <div className="text-[0.625rem] text-muted">{note}</div> : null}
 
       {children}
     </article>

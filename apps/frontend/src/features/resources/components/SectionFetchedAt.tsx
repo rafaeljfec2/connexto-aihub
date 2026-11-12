@@ -10,7 +10,7 @@ export function SectionFetchedAt({ updatedAtMs }: SectionFetchedAtProps) {
   }
 
   return (
-    <p className="mt-2 font-mono text-[9px] text-[#758196]">
+    <p className="mt-2 font-mono text-[0.5625rem] text-[#758196]">
       Snapshot fetched {formatFetchedAtUtc(updatedAtMs)} UTC
     </p>
   )

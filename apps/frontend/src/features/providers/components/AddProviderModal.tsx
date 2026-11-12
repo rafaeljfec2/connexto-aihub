@@ -291,11 +291,11 @@ export function AddProviderModal({
                           <h4 className="text-sm font-semibold text-primary">{provider.name}</h4>
                           <div className="flex items-center gap-1.5">
                             {accountCount > 0 ? (
-                              <span className="rounded bg-cobalt/15 px-2 py-0.5 text-[10px] font-medium text-[#A6C4FF] border border-cobalt/30">
+                              <span className="rounded bg-cobalt/15 px-2 py-0.5 text-[0.625rem] font-medium text-[#A6C4FF] border border-cobalt/30">
                                 {accountCount === 1 ? '1 conectada' : `${accountCount} conectadas`}
                               </span>
                             ) : null}
-                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500/25">
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[0.625rem] font-medium text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500/25">
                               <Plus className="size-2.5" />
                               Nova conta
                             </span>
@@ -305,7 +305,7 @@ export function AddProviderModal({
                           {provider.description}
                         </p>
                         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                          <span className="rounded bg-[#0D121B] px-2 py-0.5 text-[10px] text-muted border border-line/60">
+                          <span className="rounded bg-[#0D121B] px-2 py-0.5 text-[0.625rem] text-muted border border-line/60">
                             {provider.credential_type === 'none' && provider.management_credential_label
                               ? provider.management_credential_label
                               : provider.credential_label}
@@ -313,7 +313,7 @@ export function AddProviderModal({
                           {provider.capabilities?.map((cap) => (
                             <span
                               key={cap}
-                              className="rounded bg-[#0D121B] px-1.5 py-0.5 text-[10px] text-muted"
+                              className="rounded bg-[#0D121B] px-1.5 py-0.5 text-[0.625rem] text-muted"
                             >
                               {cap}
                             </span>
@@ -402,7 +402,7 @@ export function AddProviderModal({
                     (isGatewayOnlyProvider ? !managementCredential.trim() : !credential.trim())
                   }
                   onClick={() => void handleQuickTestConnection()}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                 >
                   {testingProbe ? (
                     <>
@@ -504,7 +504,7 @@ export function AddProviderModal({
                     {showMgmtSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] leading-relaxed text-muted">
+                <p className="text-[0.6875rem] leading-relaxed text-muted">
                   Recomendado quando o endpoint for o Connexto Proxy. Após salvar a Gateway API Key,
                   use <strong className="font-medium text-secondary">Gerenciar provedor</strong> →{' '}
                   <strong className="font-medium text-secondary">Login web</strong> para autorizar a
@@ -513,7 +513,7 @@ export function AddProviderModal({
               </div>
             ) : null}
 
-            <div className="flex items-center gap-2 rounded-md border border-line/60 bg-[#0D121B] p-2.5 text-[11px] text-muted">
+            <div className="flex items-center gap-2 rounded-md border border-line/60 bg-[#0D121B] p-2.5 text-[0.6875rem] text-muted">
               <Lock className="size-3.5 shrink-0 text-cobalt" />
               <span>
                 Criptografia segura em repouso (AES-256-GCM). O segredo nunca é exposto em logs ou
@@ -593,7 +593,7 @@ export function AddProviderModal({
               </div>
               <div className="flex items-center justify-between text-secondary">
                 <span>Identidade da conta:</span>
-                <span className="font-mono text-[11px] text-[#A6C4FF]">
+                <span className="font-mono text-[0.6875rem] text-[#A6C4FF]">
                   {createdProvider?.id ?? selectedProvider?.id}
                 </span>
               </div>
@@ -634,7 +634,7 @@ export function AddProviderModal({
                   salva. No entanto, a importação inicial dos modelos falhou temporariamente.
                 </p>
                 {errorMessage ? (
-                  <p className="text-amber-300/80 font-mono text-[10px] mt-1">{errorMessage}</p>
+                  <p className="text-amber-300/80 font-mono text-[0.625rem] mt-1">{errorMessage}</p>
                 ) : null}
               </div>
             </div>

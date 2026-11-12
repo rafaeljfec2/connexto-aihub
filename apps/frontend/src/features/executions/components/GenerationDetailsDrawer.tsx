@@ -111,14 +111,14 @@ export function GenerationDetailsDrawer({
                             <strong>{eventLabel(event.type)}</strong>
                             <small>{event.provider_id} · {formatGenerationTime(event.observed_at)}</small>
                           </div>
-                          <span className="font-mono text-[9px] text-muted">
+                          <span className="font-mono text-[0.5625rem] text-muted">
                             {event.duration_ns === null ? '—' : formatOptionalDuration(event.duration_ns)}
                           </span>
                         </li>
                       ))}
                     </ol>
                   ) : (
-                    <p className="text-[10px] text-muted">No provider response events were recorded for this generation.</p>
+                    <p className="text-[0.625rem] text-muted">No provider response events were recorded for this generation.</p>
                   )}
                 </DetailSection>
               </>

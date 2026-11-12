@@ -97,7 +97,7 @@ function ProviderHeaderTitle({
       {meta.lead ? <p className="providers-page-lead">{meta.lead}</p> : null}
       {hasRefetchError ? (
         <p
-          className="mt-2 text-[10px] text-warning"
+          className="mt-2 text-[0.625rem] text-warning"
           data-testid="providers-refetch-warning"
           role="status"
         >

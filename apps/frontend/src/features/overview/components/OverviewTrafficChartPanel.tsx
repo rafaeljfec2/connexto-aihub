@@ -50,7 +50,7 @@ export function OverviewTrafficChartPanel({
       <div className="overview-panel-head">
         <div>
           <h3 className="text-xs font-semibold text-[#E7ECF5]">Volume de requisições</h3>
-          <p className="mt-0.5 text-[10px] text-[#8D9AAF]">Tráfego processado pelo gateway</p>
+          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">Tráfego processado pelo gateway</p>
         </div>
         <button type="button" className="overview-panel-link cursor-default" aria-disabled>
           <span>Últimas 24 horas</span>
@@ -63,7 +63,7 @@ export function OverviewTrafficChartPanel({
           {isLoading ? '—' : totalRequests.toLocaleString('pt-BR')}
         </strong>
         {trendPercent !== 0 ? (
-          <span className="font-mono text-[10px] text-healthy">
+          <span className="font-mono text-[0.625rem] text-healthy">
             {trendPercent > 0 ? `+${trendPercent.toFixed(1)}%` : `${trendPercent.toFixed(1)}%`}
           </span>
         ) : null}

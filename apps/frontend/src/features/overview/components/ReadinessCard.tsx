@@ -10,7 +10,7 @@ type ReadinessCardProps = {
 export function ReadinessCard({ status, checks, isLoading }: ReadinessCardProps) {
   return (
     <StatCard>
-      <div className="text-[10px] text-secondary">Database readiness</div>
+      <div className="text-[0.625rem] text-secondary">Database readiness</div>
       {isLoading ? (
         <Skeleton className="mt-4 h-7 w-28" />
       ) : status ? (

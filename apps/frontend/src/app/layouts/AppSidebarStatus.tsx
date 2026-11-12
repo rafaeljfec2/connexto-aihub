@@ -40,8 +40,8 @@ export function AppSidebarStatus({ collapsed, connectionState }: AppSidebarStatu
         <span className={cn('size-2 shrink-0 rounded-full', status.dotClass)} />
         {!collapsed ? (
           <div>
-            <span className="block text-[11px] text-[#BEC8D6]">{status.label}</span>
-            <small className="mt-0.5 block font-mono text-[9px] uppercase text-[#8290A5]">{detail}</small>
+            <span className="block text-[0.6875rem] text-[#BEC8D6]">{status.label}</span>
+            <small className="mt-0.5 block font-mono text-[0.5625rem] uppercase text-[#8290A5]">{detail}</small>
           </div>
         ) : null}
       </div>

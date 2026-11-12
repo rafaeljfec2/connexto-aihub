@@ -35,11 +35,11 @@ export function GoPlusUsageSidebarCard({ collapsed }: GoPlusUsageSidebarCardProp
         title={chipPercent != null ? `${title} ${chipPercent}% used` : 'Go: sem leitura'}
       >
         {chipPercent != null ? (
-          <span className="rounded-md border border-line bg-white/[0.04] px-1.5 py-1 font-mono text-[9px] text-[#C5D0E0]">
+          <span className="rounded-md border border-line bg-white/[0.04] px-1.5 py-1 font-mono text-[0.5625rem] text-[#C5D0E0]">
             {chipPercent.toLocaleString('pt-BR')}%
           </span>
         ) : (
-          <span className="font-mono text-[9px] text-muted">—</span>
+          <span className="font-mono text-[0.5625rem] text-muted">—</span>
         )}
       </div>
     )
@@ -52,13 +52,13 @@ export function GoPlusUsageSidebarCard({ collapsed }: GoPlusUsageSidebarCardProp
           className="rounded-lg border border-line/80 bg-white/[0.025] px-2.5 py-2"
           data-testid="go-plus-sidebar-summary"
         >
-          <p className="text-[10px] font-semibold text-[#E7ECF5]">{title}</p>
-          <p className="mt-0.5 text-[9px] text-[#AEBBD0]">
+          <p className="text-[0.625rem] font-semibold text-[#E7ECF5]">{title}</p>
+          <p className="mt-0.5 text-[0.5625rem] text-[#AEBBD0]">
             {chipPercent.toLocaleString('pt-BR')}% used
           </p>
         </div>
       ) : (
-        <p className="px-0.5 text-[10px] text-muted" role="status">
+        <p className="px-0.5 text-[0.625rem] text-muted" role="status">
           Go: sem leitura
         </p>
       )}

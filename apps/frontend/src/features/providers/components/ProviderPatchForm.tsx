@@ -473,10 +473,10 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">
         <div className={hasManagementKey ? '' : 'sm:col-span-2'}>
           <div className="mb-0.5 flex items-center justify-between gap-2">
-            <label htmlFor="provider-name-input" className="text-[11px] font-medium text-secondary">
+            <label htmlFor="provider-name-input" className="text-[0.6875rem] font-medium text-secondary">
               Name
             </label>
-            <span className="flex items-center gap-1 rounded bg-[#0D121B] px-1.5 py-0.5 text-[10px] text-muted border border-line/60">
+            <span className="flex items-center gap-1 rounded bg-[#0D121B] px-1.5 py-0.5 text-[0.625rem] text-muted border border-line/60">
               <Lock className="size-2.5 text-cobalt" />
               Nome fixo (não editável)
             </span>
@@ -487,14 +487,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
             readOnly
             disabled
             aria-readonly="true"
-            className="w-full rounded-md border border-line/40 bg-[#0D121B]/80 px-2 py-1 text-[11px] text-muted cursor-not-allowed outline-none select-none"
+            className="w-full rounded-md border border-line/40 bg-[#0D121B]/80 px-2 py-1 text-[0.6875rem] text-muted cursor-not-allowed outline-none select-none"
             {...register('name')}
           />
         </div>
 
         {hasManagementKey ? (
           <div>
-            <label htmlFor="provider-management-cred" className="mb-0.5 block text-[11px] font-medium text-secondary">
+            <label htmlFor="provider-management-cred" className="mb-0.5 block text-[0.6875rem] font-medium text-secondary">
               {isAntigravity || isCursor
                 ? 'Gateway API Key (write-only)'
                 : 'Management API Key (write-only)'}
@@ -512,7 +512,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                     ? 'Configured — enter to replace'
                     : 'Not configured'
               }
-              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20"
+              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20"
               {...register('management_credential')}
             />
             {errors.management_credential ? (
@@ -523,7 +523,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
 
         <div>
           <div className="mb-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-            <label htmlFor="provider-endpoint-input" className="text-[11px] font-medium text-secondary">
+            <label htmlFor="provider-endpoint-input" className="text-[0.6875rem] font-medium text-secondary">
               Endpoint
             </label>
             {isAntigravity ? (
@@ -531,7 +531,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleTestConnection()}
-                className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:opacity-50 cursor-pointer"
+                className="inline-flex shrink-0 items-center gap-1 text-[0.6875rem] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <ShieldCheck className="size-3" />
                 Testar conexão
@@ -543,7 +543,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
             type="url"
             autoComplete="off"
             disabled={isBusy}
-            className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
             {...register('endpoint')}
           />
           {errors.endpoint ? <span className="mt-1 block text-xs text-failure">{errors.endpoint.message}</span> : null}
@@ -551,7 +551,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
 
         {isAntigravity ? (
           <div>
-            <label htmlFor="antigravity-oauth-redirect" className="mb-0.5 block text-[11px] font-medium text-secondary">
+            <label htmlFor="antigravity-oauth-redirect" className="mb-0.5 block text-[0.6875rem] font-medium text-secondary">
               OAuth redirect URI (opcional)
             </label>
             <input
@@ -560,7 +560,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
               autoComplete="off"
               disabled={isBusy}
               placeholder="https://seu-proxy.example/v1/providers/antigravity/auth/callback"
-              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
+              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
               {...register('oauth_redirect_uri')}
             />
             {errors.oauth_redirect_uri ? (
@@ -570,14 +570,14 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
         ) : (
           <div>
             <div className="mb-0.5 flex items-center justify-between">
-              <label htmlFor="provider-credential-patch" className="text-[11px] font-medium text-secondary">
+              <label htmlFor="provider-credential-patch" className="text-[0.6875rem] font-medium text-secondary">
                 Credential (write-only)
               </label>
               <button
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleTestConnection()}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-cobalt hover:text-[#7DA4FF] transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <ShieldCheck className="size-3" />
                 Testar conexão
@@ -589,7 +589,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
               autoComplete="new-password"
               disabled={isBusy}
               placeholder={provider.credential_configured ? 'Configured — enter to replace' : 'Not configured'}
-              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[11px] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
+              className="w-full rounded-md border border-line bg-[#09090b] px-2 py-1 text-[0.6875rem] text-primary outline-none focus:border-cobalt focus:ring-1 focus:ring-cobalt/20 disabled:opacity-50"
               {...register('credential')}
             />
             {errors.credential ? (
@@ -605,7 +605,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleAntigravityAuthStart()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[9px] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[10px]"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[0.5625rem] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[0.625rem]"
               >
                 {startingOAuth ? (
                   <>
@@ -620,7 +620,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleAntigravityAuthStatus()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[10px]"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[0.5625rem] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[0.625rem]"
               >
                 {loadingAuthStatus ? (
                   <>
@@ -635,7 +635,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleClearAntigravitySessions()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/50 bg-[#141a24] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-amber-200/90 shadow-sm transition-colors [text-wrap:balance] hover:border-amber-500/25 hover:bg-amber-500/5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[10px]"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/50 bg-[#141a24] px-1 py-0.5 text-center text-[0.5625rem] font-medium leading-tight text-amber-200/90 shadow-sm transition-colors [text-wrap:balance] hover:border-amber-500/25 hover:bg-amber-500/5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[0.625rem]"
               >
                 {clearingProxySessions ? (
                   <>
@@ -650,7 +650,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 )}
               </button>
             </div>
-            <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[10px] text-muted">
+            <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[0.625rem] text-muted">
               <summary className="cursor-pointer list-none font-medium text-secondary marker:content-none [&::-webkit-details-marker]:hidden">
                 Sobre «Encerrar sessão» e OAuth
               </summary>
@@ -670,7 +670,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleCursorAuthStart()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[9px] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[10px]"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-cobalt/55 bg-cobalt/18 px-1 py-0.5 text-center text-[0.5625rem] font-semibold leading-tight text-[#B8D4FF] shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/70 hover:bg-cobalt/25 hover:text-[#D4E6FF] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[0.625rem]"
               >
                 {startingCursorAuth ? (
                   <>
@@ -685,7 +685,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleCursorAuthStatus()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[10px]"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/55 bg-[#0D121B] px-1 py-0.5 text-center text-[0.5625rem] font-medium leading-tight text-secondary shadow-sm transition-colors [text-wrap:balance] hover:border-cobalt/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[0.625rem]"
               >
                 {loadingCursorAuthStatus ? (
                   <>
@@ -700,7 +700,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleClearCursorUsageSessions()}
-                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/50 bg-[#141a24] px-1 py-0.5 text-center text-[9px] font-medium leading-tight text-amber-200/90 shadow-sm transition-colors [text-wrap:balance] hover:border-amber-500/25 hover:bg-amber-500/5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[10px]"
+                className="inline-flex h-8 min-h-[2rem] w-full min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-line/50 bg-[#141a24] px-1 py-0.5 text-center text-[0.5625rem] font-medium leading-tight text-amber-200/90 shadow-sm transition-colors [text-wrap:balance] hover:border-amber-500/25 hover:bg-amber-500/5 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-row sm:gap-1 sm:px-2 sm:text-[0.625rem]"
               >
                 {clearingCursorUsage ? (
                   <>
@@ -715,7 +715,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
                 )}
               </button>
             </div>
-            <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[10px] text-muted">
+            <details className="group mt-1 w-full min-w-0 rounded border border-line/40 bg-[#0D121B]/40 px-2 py-1 text-[0.625rem] text-muted">
               <summary className="cursor-pointer list-none font-medium text-secondary marker:content-none [&::-webkit-details-marker]:hidden">
                 Sobre login web e coleta de uso
               </summary>
@@ -731,7 +731,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
 
       {testResult ? (
         <div
-          className={`flex max-h-24 min-w-0 max-w-full items-start gap-1.5 overflow-y-auto rounded-md border px-2 py-1.5 text-[10px] leading-snug ${
+          className={`flex max-h-24 min-w-0 max-w-full items-start gap-1.5 overflow-y-auto rounded-md border px-2 py-1.5 text-[0.625rem] leading-snug ${
             testResult.success
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
               : 'border-red-500/30 bg-red-500/10 text-red-200'
@@ -752,7 +752,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
       ) : null}
 
       {errorMessage ? (
-        <div className="flex max-h-24 min-w-0 max-w-full items-start gap-1.5 overflow-y-auto rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[10px] leading-snug text-red-200">
+        <div className="flex max-h-24 min-w-0 max-w-full items-start gap-1.5 overflow-y-auto rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[0.625rem] leading-snug text-red-200">
           <AlertCircle className="size-3.5 shrink-0 text-red-400 mt-px" />
           <p className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words" title={errorMessage}>
             {errorMessage}
@@ -766,7 +766,7 @@ export function ProviderPatchForm({ provider, isPending, errorMessage, dangerAct
           type="submit"
           disabled={isBusy}
           aria-label="Save changes"
-          className="flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-cobalt/40 bg-accent-deep px-4 text-[11px] font-semibold text-[#E4EBFC] shadow-sm hover:bg-[#314A78] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[11rem]"
+          className="flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-md border border-cobalt/40 bg-accent-deep px-4 text-[0.6875rem] font-semibold text-[#E4EBFC] shadow-sm hover:bg-[#314A78] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[11rem]"
         >
           {isBusy ? (
             <>

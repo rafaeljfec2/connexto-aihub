@@ -36,9 +36,9 @@ export function EvolutionTimelinePanel() {
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xs font-semibold text-primary">Evolução do módulo</h2>
-          <p className="mt-0.5 text-[10px] text-muted">Separação estrita entre capacidade entregue e roadmap futuro.</p>
+          <p className="mt-0.5 text-[0.625rem] text-muted">Separação estrita entre capacidade entregue e roadmap futuro.</p>
         </div>
-        <span className="shrink-0 rounded-full border border-warning/25 bg-warning/10 px-2 py-0.5 font-mono text-[9px] font-medium text-warning">
+        <span className="shrink-0 rounded-full border border-warning/25 bg-warning/10 px-2 py-0.5 font-mono text-[0.5625rem] font-medium text-warning">
           ROADMAP
         </span>
       </div>
@@ -54,11 +54,11 @@ export function EvolutionTimelinePanel() {
                 : 'border-line/70 bg-graphite/60'
             )}
           >
-            <div className="font-mono text-[9px] uppercase tracking-wider text-muted">
+            <div className="font-mono text-[0.5625rem] uppercase tracking-wider text-muted">
               {p.num} · {p.label}
             </div>
             <div className="mt-0.5 text-xs font-semibold text-primary">{p.title}</div>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-muted">{p.desc}</p>
+            <p className="mt-0.5 text-[0.625rem] leading-relaxed text-muted">{p.desc}</p>
           </div>
         ))}
       </div>

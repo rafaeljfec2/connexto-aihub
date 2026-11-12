@@ -82,7 +82,7 @@ export function ExecutionDetailPanel({
       <PanelHeader title="Detalhes da execução" subtitle="SELECIONADA" />
 
       <div className="rounded-lg border border-line bg-raised p-3">
-        <small className="block font-mono text-[9px] uppercase tracking-[0.05em] text-muted">
+        <small className="block font-mono text-[0.5625rem] uppercase tracking-[0.05em] text-muted">
           REQUEST ID
         </small>
         <strong className="mt-1 block break-all font-mono text-xs text-primary">
@@ -90,7 +90,7 @@ export function ExecutionDetailPanel({
         </strong>
       </div>
 
-      <div className="divide-y divide-line/30 text-[10px]">
+      <div className="divide-y divide-line/30 text-[0.625rem]">
         <div className="flex justify-between py-2">
           <span className="text-muted">Resultado</span>
           <strong
@@ -135,10 +135,10 @@ export function ExecutionDetailPanel({
       </Link>
 
       <div className="rounded-lg border border-line bg-[#141B25] p-3">
-        <small className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.05em] text-muted">
+        <small className="mb-1.5 block font-mono text-[0.5625rem] uppercase tracking-[0.05em] text-muted">
           Resumo do registro (sanitizado)
         </small>
-        <pre className="max-h-48 overflow-auto font-mono text-[10px] leading-relaxed text-[#B8C7DE]">
+        <pre className="max-h-48 overflow-auto font-mono text-[0.625rem] leading-relaxed text-[#B8C7DE]">
           {summaryJson}
         </pre>
       </div>

@@ -40,10 +40,10 @@ export function CursorQuotaBreakdownPanel({
       className="mt-2 rounded-lg border border-line/60 bg-[#171E29]/90 p-2 space-y-1.5"
       data-testid={testId}
     >
-      <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-semibold text-[#8290A5]">
+      <div className="flex items-center justify-between text-[0.5625rem] uppercase tracking-wider font-semibold text-[#8290A5]">
         <span>Detalhamento Cursor</span>
         {weeklyStatus ? (
-          <span className="font-mono text-[8px] text-muted">{weeklyStatus}</span>
+          <span className="font-mono text-[0.5rem] text-muted">{weeklyStatus}</span>
         ) : null}
       </div>
 
@@ -52,7 +52,7 @@ export function CursorQuotaBreakdownPanel({
           {byProduct.map((entry) => (
             <div
               key={entry.product}
-              className="flex items-center justify-between text-[9px] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
+              className="flex items-center justify-between text-[0.5625rem] rounded bg-[#0f1722]/50 p-1.5 border border-line/30"
             >
               <span className="text-[#AEBBD0]">{entry.label} (semanal)</span>
               <span className="font-semibold text-[#CBD5E2]">
@@ -65,7 +65,7 @@ export function CursorQuotaBreakdownPanel({
       ) : null}
 
       {monthly ? (
-        <div className="space-y-1 rounded bg-[#0f1722]/50 p-1.5 border border-line/30 text-[9px]">
+        <div className="space-y-1 rounded bg-[#0f1722]/50 p-1.5 border border-line/30 text-[0.5625rem]">
           <div className="flex items-center justify-between">
             <span className="text-[#AEBBD0]">Uso adicional mensal</span>
             <span className="font-semibold text-[#CBD5E2]">
@@ -88,7 +88,7 @@ export function CursorQuotaBreakdownPanel({
       ) : null}
 
       {prepaidBalance !== undefined ? (
-        <div className="flex items-center justify-between text-[9px] rounded bg-[#0f1722]/50 p-1.5 border border-line/30">
+        <div className="flex items-center justify-between text-[0.5625rem] rounded bg-[#0f1722]/50 p-1.5 border border-line/30">
           <span className="text-[#AEBBD0]">Créditos pré-pagos</span>
           <span className="font-semibold text-[#CBD5E2]">{formatAccountUsd(prepaidBalance)}</span>
         </div>

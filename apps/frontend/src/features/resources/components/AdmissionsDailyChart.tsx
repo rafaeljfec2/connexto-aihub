@@ -18,13 +18,13 @@ export function AdmissionsDailyChart({ daily, totalAdmitted, fetchedAtMs }: Admi
         subtitle="Allowed admissions per UTC day (GET /api/resource-analytics/admissions)"
       />
       <div className="mb-1 flex items-baseline gap-2">
-        <strong className="text-[22px] font-semibold tracking-[-0.04em]">
+        <strong className="text-[1.375rem] font-semibold tracking-[-0.04em]">
           {totalAdmitted.toLocaleString('en-US')}
         </strong>
-        <span className="font-mono text-[9px] text-[#8FA0B6]">TOTAL ADMITTED</span>
+        <span className="font-mono text-[0.5625rem] text-[#8FA0B6]">TOTAL ADMITTED</span>
       </div>
       {daily.length === 0 ? (
-        <p className="text-[10px] text-muted">No admissions in the selected period.</p>
+        <p className="text-[0.625rem] text-muted">No admissions in the selected period.</p>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(36px,1fr))] items-end gap-1.5 pt-2">
           {daily.map((row) => {
@@ -39,7 +39,7 @@ export function AdmissionsDailyChart({ daily, totalAdmitted, fetchedAtMs }: Admi
                   role="img"
                   aria-label={`${label} admitted ${row.admitted_count}`}
                 />
-                <span className="font-mono text-[8px] text-[#758196]">{label.slice(5)}</span>
+                <span className="font-mono text-[0.5rem] text-[#758196]">{label.slice(5)}</span>
               </div>
             )
           })}

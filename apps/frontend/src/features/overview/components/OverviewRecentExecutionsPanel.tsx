@@ -18,7 +18,7 @@ export function OverviewRecentExecutionsPanel({
       <div className="overview-panel-head">
         <div>
           <h3 className="text-xs font-semibold text-[#E7ECF5]">Execuções recentes</h3>
-          <p className="mt-0.5 text-[10px] text-[#8D9AAF]">Amostra das últimas chamadas processadas</p>
+          <p className="mt-0.5 text-[0.625rem] text-[#8D9AAF]">Amostra das últimas chamadas processadas</p>
         </div>
         <Link to="/executions" className="overview-panel-link">
           Ver todas ↗
@@ -64,7 +64,7 @@ export function OverviewRecentExecutionsPanel({
                   <td className="model">{execution.model_id ?? '—'}</td>
                   <td className="capitalize">{execution.provider_id ?? '—'}</td>
                   <td>
-                    <span className={isSuccess ? 'overview-done-badge' : 'font-mono text-[9px] text-failure'}>
+                    <span className={isSuccess ? 'overview-done-badge' : 'font-mono text-[0.5625rem] text-failure'}>
                       {isSuccess ? 'CONCLUÍDA' : 'FALHA'}
                     </span>
                   </td>

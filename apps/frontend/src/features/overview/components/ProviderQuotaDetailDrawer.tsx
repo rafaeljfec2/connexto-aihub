@@ -113,7 +113,7 @@ export function ProviderQuotaDetailDrawer({
               <ConsoleBudgetsPanel budgets={budgets} testIdPrefix="go-plus-drawer-budget" />
             ) : null}
             {goMeters.length > 0 ? (
-              <p className="mt-3 text-[10px] text-[#68778C]">
+              <p className="mt-3 text-[0.625rem] text-[#68778C]">
                 {productUsageTitle(primary?.workspace_name)} — valores oficiais do provedor, sem estimativa.
               </p>
             ) : null}

@@ -10,7 +10,7 @@ type StatusCardProps = {
 export function StatusCard({ title, status, isLoading }: StatusCardProps) {
   return (
     <StatCard>
-      <div className="flex items-center justify-between text-[10px] text-secondary">
+      <div className="flex items-center justify-between text-[0.625rem] text-secondary">
         <span>{title}</span>
       </div>
       {isLoading ? (

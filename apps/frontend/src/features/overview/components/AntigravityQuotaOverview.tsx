@@ -22,9 +22,9 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
     <div className="space-y-2" data-testid={`antigravity-overview-${accountId}`}>
       {visibleFamilies.map((family: AntigravityFamilyGroup) => (
         <div key={family.id} className="space-y-1">
-          <div className="flex items-center justify-between text-[10px] font-semibold text-[#CBD5E2]">
+          <div className="flex items-center justify-between text-[0.625rem] font-semibold text-[#CBD5E2]">
             <span>{family.title}</span>
-            <span className="text-[9px] font-normal text-[#8290A5]">
+            <span className="text-[0.5625rem] font-normal text-[#8290A5]">
               {family.totalModelsCount} modelo(s)
             </span>
           </div>
@@ -35,13 +35,13 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
               return (
                 <div
                   key={`${limit.windowType}-${idx}`}
-                  className="flex items-center justify-between text-[9px]"
+                  className="flex items-center justify-between text-[0.5625rem]"
                   data-testid={`antigravity-pool-${family.id}-${limit.windowType}`}
                 >
                   <div className="min-w-0 pr-1">
                     <span className="block font-medium text-[#AEBBD0]">{limit.windowLabel}</span>
                     {resetLabel ? (
-                      <span className="block text-[8px] text-[#68778C]">{resetLabel}</span>
+                      <span className="block text-[0.5rem] text-[#68778C]">{resetLabel}</span>
                     ) : null}
                   </div>
 
@@ -59,7 +59,7 @@ export function AntigravityQuotaOverview({ accountId, quotas }: AntigravityQuota
       ))}
 
       {backgroundGroup ? (
-        <div className="flex items-center justify-between text-[8px] text-[#8290A5] pt-0.5 border-t border-line/20">
+        <div className="flex items-center justify-between text-[0.5rem] text-[#8290A5] pt-0.5 border-t border-line/20">
           <span>{backgroundGroup.title} ({backgroundGroup.totalModelsCount} modelos)</span>
           <span className="text-[#AEBBD0]">100% restante</span>
         </div>

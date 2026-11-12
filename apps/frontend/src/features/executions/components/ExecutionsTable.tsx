@@ -64,7 +64,7 @@ export function ExecutionsTable({
       <div className="grid-table-scroll scrollbar-slim overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-line font-mono text-[9px] uppercase tracking-[0.04em] text-muted">
+            <tr className="border-b border-line font-mono text-[0.5625rem] uppercase tracking-[0.04em] text-muted">
               <th scope="col" className="px-3 py-2.5">
                 Horário
               </th>
@@ -112,12 +112,12 @@ export function ExecutionsTable({
                   <td className="px-3 py-3 font-mono text-muted">{time}</td>
                   <td className="px-3 py-3">
                     <div className="font-semibold text-primary">{record.model_id ?? '—'}</div>
-                    <div className="text-[10px] text-secondary">{record.provider_id ?? '—'}</div>
+                    <div className="text-[0.625rem] text-secondary">{record.provider_id ?? '—'}</div>
                   </td>
-                  <td className="px-3 py-3 font-mono text-[10px] text-muted">responses.create</td>
+                  <td className="px-3 py-3 font-mono text-[0.625rem] text-muted">responses.create</td>
                   <td className="px-3 py-3">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 font-mono text-[9px] ${
+                      className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 font-mono text-[0.5625rem] ${
                         isSuccess
                           ? 'bg-healthy/10 text-healthy'
                           : 'bg-failure/10 text-failure'

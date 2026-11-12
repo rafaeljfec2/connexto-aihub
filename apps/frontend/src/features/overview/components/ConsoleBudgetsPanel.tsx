@@ -28,7 +28,7 @@ export function ConsoleBudgetsPanel({
       data-testid={`${testIdPrefix}-panel`}
       aria-label="Console budgets"
     >
-      <h4 className="text-[10px] font-semibold text-[#E7ECF5]">Console budgets</h4>
+      <h4 className="text-[0.625rem] font-semibold text-[#E7ECF5]">Console budgets</h4>
       <ul className="space-y-2">
         {budgets.map((budget) => {
           const used = budget.used != null ? formatQuotaValue(budget.used, budget.unit) : '—'
@@ -37,7 +37,7 @@ export function ConsoleBudgetsPanel({
           return (
             <li
               key={budget.metric}
-              className="text-[9px]"
+              className="text-[0.5625rem]"
               data-testid={`${testIdPrefix}-${budget.metric}`}
             >
               <div className="mb-0.5 flex items-baseline justify-between gap-2">

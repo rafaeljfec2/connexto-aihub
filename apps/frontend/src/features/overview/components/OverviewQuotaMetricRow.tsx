@@ -64,9 +64,9 @@ export function OverviewQuotaMetricRow({ accountId, snapshotScope, metric }: Ove
 
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5" data-testid={testId}>
-      <span className="text-[9px] font-medium text-[#CBD5E2]">{metricLabel(snapshotScope, metric)}</span>
+      <span className="text-[0.5625rem] font-medium text-[#CBD5E2]">{metricLabel(snapshotScope, metric)}</span>
       {values.length > 0 ? (
-        <span className="flex flex-wrap justify-end gap-x-2 text-right text-[9px] text-[#A7B3C3]">
+        <span className="flex flex-wrap justify-end gap-x-2 text-right text-[0.5625rem] text-[#A7B3C3]">
           {values.map((value) => <span key={value}>{value}</span>)}
         </span>
       ) : null}

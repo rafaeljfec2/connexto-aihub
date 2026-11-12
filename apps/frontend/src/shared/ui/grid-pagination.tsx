@@ -31,10 +31,10 @@ type GridPageSizeSelectProps = {
 }
 
 const triggerClass =
-  'inline-flex min-w-[52px] items-center justify-between gap-1.5 rounded-md border border-line bg-[#171E29] px-2 py-1 font-mono text-[10px] text-[#AFBBCD] outline-none transition-colors hover:bg-white/[0.04] focus-visible:border-cobalt focus-visible:shadow-[0_0_0_3px_rgb(120_150_232_/_0.12)]'
+  'inline-flex min-w-[52px] items-center justify-between gap-1.5 rounded-md border border-line bg-[#171E29] px-2 py-1 font-mono text-[0.625rem] text-[#AFBBCD] outline-none transition-colors hover:bg-white/[0.04] focus-visible:border-cobalt focus-visible:shadow-[0_0_0_3px_rgb(120_150_232_/_0.12)]'
 
 const optionClass =
-  'block w-full cursor-pointer rounded-[5px] border-0 bg-transparent px-2 py-1.5 text-left font-mono text-[10px] text-[#AFBBCD] outline-none transition-colors hover:bg-white/[0.06] focus-visible:bg-white/[0.06]'
+  'block w-full cursor-pointer rounded-[5px] border-0 bg-transparent px-2 py-1.5 text-left font-mono text-[0.625rem] text-[#AFBBCD] outline-none transition-colors hover:bg-white/[0.06] focus-visible:bg-white/[0.06]'
 
 function computeMenuPosition(trigger: HTMLButtonElement): MenuPosition {
   const rect = trigger.getBoundingClientRect()
@@ -155,7 +155,7 @@ function GridPageSizeSelect({ value, options, onChange }: GridPageSizeSelectProp
   return (
     <>
       <div className="mr-1 flex items-center gap-1.5">
-        <span className="font-mono text-[9px] text-[#8290A5]">Por página</span>
+        <span className="font-mono text-[0.5625rem] text-[#8290A5]">Por página</span>
         <button
           ref={triggerRef}
           type="button"
@@ -203,7 +203,7 @@ export function GridPagination({
       role="navigation"
       aria-label="Paginação"
     >
-      <span className="font-mono text-[9px] text-[#8592A7]">
+      <span className="font-mono text-[0.5625rem] text-[#8592A7]">
         {meta.rangeStart}–{meta.rangeEnd} de {meta.totalItems.toLocaleString('pt-BR')}
       </span>
       <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -217,7 +217,7 @@ export function GridPagination({
         >
           <ChevronLeft className="size-3.5" aria-hidden />
         </button>
-        <span className="min-w-[52px] text-center font-mono text-[9px] text-[#A9B4C4]">
+        <span className="min-w-[52px] text-center font-mono text-[0.5625rem] text-[#A9B4C4]">
           {meta.page} / {meta.totalPages}
         </span>
         <button

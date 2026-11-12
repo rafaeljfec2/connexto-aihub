@@ -77,14 +77,14 @@ function CursorUsageDrawerContent({
         <UsageMetric label="Requisições inclusas" value={summary.subscriptionIncludedReqs} secondaryLabel="Uso cobrado" secondary={summary.usageBasedReqs} />
       </div>
       {envelope.error || hasRefetchError ? (
-        <p className="mt-2 text-[10px] text-warning" role="status" data-testid="cursor-drawer-refresh-warning">
+        <p className="mt-2 text-[0.625rem] text-warning" role="status" data-testid="cursor-drawer-refresh-warning">
           Falha ao atualizar; exibindo os dados carregados anteriormente.
         </p>
       ) : null}
       <div className="mt-3">
         <p className="cursor-drawer-usage-label">REQUISIÇÕES DO AGENTE · POR DIA</p>
         {series.length === 0 ? (
-          <p className="mt-2 text-[10px] text-muted">Sem atividade diária reportada.</p>
+          <p className="mt-2 text-[0.625rem] text-muted">Sem atividade diária reportada.</p>
         ) : (
           <div className="cursor-drawer-usage-chart" role="img" aria-label="Requisições do agente por dia">
             {series.map((point) => (
@@ -94,7 +94,7 @@ function CursorUsageDrawerContent({
                 style={{ height: barHeight(point.value, maxRequests) }}
                 title={point.value === undefined ? 'Sem leitura reportada' : String(point.value)}
               />
-                <span className="font-mono text-[7px] text-muted">{dayOfMonth(point.date)}</span>
+                <span className="font-mono text-[0.4375rem] text-muted">{dayOfMonth(point.date)}</span>
               </div>
             ))}
           </div>
@@ -103,11 +103,11 @@ function CursorUsageDrawerContent({
       <div className="mt-3">
         <p className="cursor-drawer-usage-label">USO POR MODELO</p>
         {models.length === 0 ? (
-          <p className="mt-2 text-[10px] text-muted">Sem uso por modelo reportado.</p>
+          <p className="mt-2 text-[0.625rem] text-muted">Sem uso por modelo reportado.</p>
         ) : (
           <ul className="mt-2 space-y-1.5">
             {models.map((model) => (
-              <li key={model.name} className="flex justify-between gap-3 text-[10px]">
+              <li key={model.name} className="flex justify-between gap-3 text-[0.625rem]">
                 <span className="truncate text-secondary">{model.name}</span>
                 <span className="shrink-0 font-mono text-primary">{model.count}</span>
               </li>
@@ -116,7 +116,7 @@ function CursorUsageDrawerContent({
         )}
       </div>
       {envelope.sourceCollectedAt ? (
-        <p className="mt-3 text-[9px] text-muted">
+        <p className="mt-3 text-[0.5625rem] text-muted">
           Última coleta: {new Date(envelope.sourceCollectedAt).toLocaleString('pt-BR')}
         </p>
       ) : null}

@@ -13,10 +13,10 @@ export function IntelligencePage() {
       <AppPageHeader
         actions={
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-cobalt/25 bg-cobalt/10 px-2.5 py-0.5 font-mono text-[10px] font-medium text-cobalt">
+            <span className="rounded-full border border-cobalt/25 bg-cobalt/10 px-2.5 py-0.5 font-mono text-[0.625rem] font-medium text-cobalt">
               E08 · ATIVO
             </span>
-            <span className="rounded-full border border-warning/25 bg-warning/10 px-2.5 py-0.5 font-mono text-[10px] font-medium text-warning">
+            <span className="rounded-full border border-warning/25 bg-warning/10 px-2.5 py-0.5 font-mono text-[0.625rem] font-medium text-warning">
               E10 · PLANEJADO
             </span>
           </div>
@@ -37,7 +37,7 @@ export function IntelligencePage() {
         <EvolutionTimelinePanel />
       </div>
 
-      <div className="flex items-center gap-2.5 rounded-[10px] border border-line bg-surface/80 px-3 py-2 text-[11px] text-secondary">
+      <div className="flex items-center gap-2.5 rounded-[10px] border border-line bg-surface/80 px-3 py-2 text-[0.6875rem] text-secondary">
         <div className="size-1.5 shrink-0 rounded-full bg-cobalt" />
         <p>
           <strong className="font-semibold text-primary">Princípio de produto:</strong> nenhuma recomendação adaptativa deve alterar o roteamento sem evidência rastreável, avaliação e política explícita.
