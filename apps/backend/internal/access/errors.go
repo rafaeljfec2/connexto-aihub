@@ -17,6 +17,7 @@ const (
 	ErrorPayloadTooLarge      = "payload_too_large"
 	ErrorUnsupportedMediaType = "unsupported_media_type"
 	ErrorTooManyRequests      = "too_many_requests"
+	ErrorConflict             = "conflict"
 )
 
 const errorContentType = "application/json; charset=utf-8"
@@ -79,6 +80,14 @@ func WriteInternalError(w http.ResponseWriter) {
 // WriteTooManyRequests emits HTTP 429 when an auth rate limit is exceeded.
 func WriteTooManyRequests(w http.ResponseWriter) {
 	writeError(w, http.StatusTooManyRequests, ErrorTooManyRequests, "too many attempts; try again later")
+}
+
+// WriteConflict emits HTTP 409 for resource conflicts such as duplicate signup email.
+func WriteConflict(w http.ResponseWriter, message string) {
+	if message == "" {
+		message = "request conflicts with existing state"
+	}
+	writeError(w, http.StatusConflict, ErrorConflict, message)
 }
 
 // WriteMethodNotAllowed emits HTTP 405 without a JSON body.

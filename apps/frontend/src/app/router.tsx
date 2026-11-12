@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import { ForgotPasswordPage, LoginPage, OperatorAuthGate, ResetPasswordPage } from '../features/auth'
+import { ForgotPasswordPage, LoginPage, OperatorAuthGate, ResetPasswordPage, SignUpPage } from '../features/auth'
 import { CatalogPage } from '../features/catalog'
 import { ExecutionsPage } from '../features/executions'
 import { ResourcesPage } from '../features/resources'
@@ -12,6 +12,7 @@ import { RootLayout } from './layouts/RootLayout'
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/signup', element: <SignUpPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
   {

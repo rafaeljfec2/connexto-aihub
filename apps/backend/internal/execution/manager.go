@@ -225,7 +225,7 @@ func (m *Manager) logFinished(result Result, command Command) {
 	if result.Outcome == OutcomeFailed || result.Outcome == OutcomeTimedOut {
 		level = slog.LevelWarn
 	}
-	m.logger.Log(context.Background(), level, "execution finished",
+	attrs := []any{
 		"execution_id", result.ExecutionID,
 		"request_id", command.RequestID,
 		"provider_id", command.Target.ProviderID,
@@ -235,7 +235,11 @@ func (m *Manager) logFinished(result Result, command Command) {
 		"cause", result.Cause,
 		"upstream_status", result.UpstreamStatus,
 		"duration", result.Duration,
-	)
+	}
+	if summary := strings.TrimSpace(result.UpstreamErrorSummary); summary != "" {
+		attrs = append(attrs, "upstream_error", summary)
+	}
+	m.logger.Log(context.Background(), level, "execution finished", attrs...)
 }
 
 func newExecutionID() (string, error) {

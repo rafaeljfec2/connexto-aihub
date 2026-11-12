@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 	"time"
+
+	"aihub/internal/providers"
 )
 
 func (e *execution) run(sink Sink) Result {
@@ -22,6 +24,13 @@ func (e *execution) run(sink Sink) Result {
 	if response == nil || response.Body == nil {
 		e.reserve(terminalEvent{outcome: OutcomeFailed, phase: PhaseOpening, cause: CauseTransport})
 		return e.finish()
+	}
+
+	if summary := response.Header.Get(providers.InternalUpstreamErrorDetailHeader); summary != "" {
+		e.mu.Lock()
+		e.upstreamErrorSummary = summary
+		e.mu.Unlock()
+		response.Header.Del(providers.InternalUpstreamErrorDetailHeader)
 	}
 
 	e.mu.Lock()

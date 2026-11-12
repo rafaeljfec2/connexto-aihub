@@ -49,14 +49,16 @@ func (w *fixedWindow) allow(key string) bool {
 
 // Limiter groups in-memory per-IP limits for auth endpoints.
 type Limiter struct {
-	login  *fixedWindow
+	login    *fixedWindow
+	signup   *fixedWindow
 	recovery *fixedWindow
 }
 
-// NewLimiter builds login (5/min) and recovery (3/hour) limiters.
+// NewLimiter builds login (5/min), signup (5/min), and recovery (3/hour) limiters.
 func NewLimiter() *Limiter {
 	return &Limiter{
 		login:    newFixedWindow(5, time.Minute),
+		signup:   newFixedWindow(5, time.Minute),
 		recovery: newFixedWindow(3, time.Hour),
 	}
 }
@@ -71,6 +73,10 @@ func clientIP(r *http.Request) string {
 
 func (l *Limiter) AllowLogin(r *http.Request) bool {
 	return l.login.allow(clientIP(r))
+}
+
+func (l *Limiter) AllowSignup(r *http.Request) bool {
+	return l.signup.allow(clientIP(r))
 }
 
 func (l *Limiter) AllowRecovery(r *http.Request) bool {

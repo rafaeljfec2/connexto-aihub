@@ -32,6 +32,47 @@ type uiForgotPasswordResponse struct {
 	Message string `json:"message"`
 }
 
+// NewUIUsersSignUpHandler registers a new admin user and sets access and refresh cookies.
+func NewUIUsersSignUpHandler(svc *userauth.Service, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(io.LimitReader(r.Body, 4<<10))
+		if err != nil {
+			access.WriteInternalError(w)
+			return
+		}
+
+		var payload uiEmailLoginRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			access.WriteInvalidRequest(w, "request body must be JSON")
+			return
+		}
+
+		result, err := svc.SignUp(r.Context(), r, payload.Email, payload.Password)
+		switch err {
+		case nil:
+		case userauth.ErrRateLimited:
+			access.WriteTooManyRequests(w)
+			return
+		case userauth.ErrSignupInvalid:
+			access.WriteInvalidRequest(w, "invalid email or password")
+			return
+		case userauth.ErrEmailRegistered:
+			access.WriteConflict(w, "email already registered")
+			return
+		default:
+			access.WriteInternalError(w)
+			return
+		}
+
+		w.Header().Add("Set-Cookie", result.AccessCookie)
+		w.Header().Add("Set-Cookie", result.RefreshCookie)
+		writeJSONNoStore(w, uiLoginUserResponse{User: result.User})
+		if logger != nil {
+			logger.Info("ui user signup succeeded", "user_id", result.User.ID)
+		}
+	})
+}
+
 // NewUIUsersLoginHandler authenticates email/password and sets access and refresh cookies.
 func NewUIUsersLoginHandler(svc *userauth.Service, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

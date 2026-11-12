@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 )
@@ -14,6 +15,8 @@ var (
 	ErrRateLimited        = errors.New("rate limited")
 	ErrRefreshInvalid     = errors.New("refresh invalid")
 	ErrResetInvalid       = errors.New("reset invalid")
+	ErrSignupInvalid      = errors.New("signup invalid")
+	ErrEmailRegistered    = errors.New("email already registered")
 )
 
 // Service implements users-mode authentication flows.
@@ -65,23 +68,72 @@ func (s *Service) Login(ctx context.Context, r *http.Request, email, password st
 		return LoginResult{}, ErrInvalidCredentials
 	}
 
+	return s.issueLoginResult(ctx, id, email, role)
+}
+
+func (s *Service) SignUp(ctx context.Context, r *http.Request, email, password string) (LoginResult, error) {
+	if !s.limiter.AllowSignup(r) {
+		return LoginResult{}, ErrRateLimited
+	}
+	if err := validateSignupCredentials(email, password); err != nil {
+		return LoginResult{}, err
+	}
+
+	hash, err := HashPassword(password)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	user, err := s.store.CreateUser(ctx, normalizeEmail(email), hash, RoleAdmin)
+	if IsUniqueViolation(err) {
+		return LoginResult{}, ErrEmailRegistered
+	}
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	result, err := s.issueLoginResult(ctx, user.ID, user.Email, user.Role)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	result.User = user
+	return result, nil
+}
+
+func validateSignupCredentials(email, password string) error {
+	norm := normalizeEmail(email)
+	if norm == "" || len(password) < 8 {
+		return ErrSignupInvalid
+	}
+	addr, err := mail.ParseAddress(norm)
+	if err != nil {
+		return ErrSignupInvalid
+	}
+	if strings.ToLower(strings.TrimSpace(addr.Address)) != norm {
+		return ErrSignupInvalid
+	}
+	return nil
+}
+
+func (s *Service) issueLoginResult(ctx context.Context, userID, email, role string) (LoginResult, error) {
 	plain, digest, err := NewOpaqueToken()
 	if err != nil {
 		return LoginResult{}, err
 	}
 
-	sessionID, err := s.store.InsertSession(ctx, id, digest, time.Now().Add(RefreshTTL))
+	sessionID, err := s.store.InsertSession(ctx, userID, digest, time.Now().Add(RefreshTTL))
 	if err != nil {
 		return LoginResult{}, err
 	}
 
 	expires := time.Now().Add(AccessTTL)
-	access, err := SignAccessJWT(s.secret, id, normalizeEmail(email), role, sessionID, expires)
+	normEmail := normalizeEmail(email)
+	access, err := SignAccessJWT(s.secret, userID, normEmail, role, sessionID, expires)
 	if err != nil {
 		return LoginResult{}, err
 	}
 
-	user := User{ID: id, Email: normalizeEmail(email), Role: role}
+	user := User{ID: userID, Email: normEmail, Role: role}
 	return LoginResult{
 		User:          user,
 		AccessCookie:  formatAccessCookie(access, s.secureCookie),

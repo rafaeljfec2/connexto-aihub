@@ -46,6 +46,16 @@ On failure (users): `401` with message `invalid credentials` (uniform for unknow
 
 Rate limit: 5 attempts per client IP per minute (in-process).
 
+### `POST /api/ui/signup`
+
+Users mode only. Body `{ "email": string, "password": string }` → `{ "user": { "id", "email", "role" } }` and the same two cookies as login.
+
+- Invalid email or password shorter than 8 characters: `400`.
+- Email already registered: `409` with message `email already registered`.
+- Rate limit: 5 attempts per client IP per minute (separate window from login).
+
+New accounts use `role=admin` and `owns_hub_data=false`. Bootstrap hub ownership is unchanged.
+
 ### `POST /api/ui/refresh`
 
 Users mode only. Reads refresh cookie only (no body). Rotates refresh (single-use); reusing a revoked refresh revokes all sessions for that user. Sets new access and refresh cookies. `401` when refresh invalid.
@@ -76,7 +86,7 @@ Users mode only. Body `{ "token": string, "password": string }`. On success: upd
 
 ### Public paths (`uiAuthExempt`)
 
-`GET /api/ui/session`, `POST /api/ui/login`, `POST /api/ui/refresh`, `POST /api/ui/forgot-password`, `POST /api/ui/reset-password`.
+`GET /api/ui/session`, `POST /api/ui/login`, `POST /api/ui/signup`, `POST /api/ui/refresh`, `POST /api/ui/forgot-password`, `POST /api/ui/reset-password`.
 
 ## 5. Tokens and storage
 
@@ -111,7 +121,8 @@ Environment: `AIHUB_SMTP_HOST`, `AIHUB_SMTP_PORT`, `AIHUB_SMTP_USER`, `AIHUB_SMT
 6. Bootstrap creates admin only when `users` is empty.
 7. Rate limits return `429` when exceeded.
 8. Migration `0011` applies cleanly via embedded migrate.
+9. Signup creates an admin user, sets cookies, and `GET /api/ui/session` returns the user; duplicate email returns `409`.
 
 ## 10. Out of scope
 
-Public signup, Google OAuth, email confirmation, multi-role RBAC, per-user API keys, per-user generation isolation.
+Google OAuth, email confirmation, multi-role RBAC, per-user API keys, per-user generation isolation.

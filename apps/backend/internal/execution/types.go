@@ -73,6 +73,8 @@ type Result struct {
 	// QuotaResetInNS is set when the upstream reported a quota or
 	// subscription exhaustion and announced a reset window.
 	QuotaResetInNS *int64
+	// UpstreamErrorSummary is a redacted upstream error message for logs (never prompt or raw body).
+	UpstreamErrorSummary string
 }
 
 // FinishedExecution is the minimal immutable observation offered to consumers

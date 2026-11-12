@@ -17,6 +17,8 @@ func adaptResponsesPayloadForProvider(providerID string, body []byte) ([]byte, e
 		return normalizeOpenCodeGoResponsesInput(body)
 	case providers.AntigravityID:
 		return normalizeAntigravityResponsesModel(body)
+	case providers.OpenRouterID:
+		return normalizeOpenRouterResponsesInput(body)
 	default:
 		return body, nil
 	}

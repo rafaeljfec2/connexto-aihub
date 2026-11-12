@@ -18,15 +18,21 @@ to logs. The adapter does not retry or fall back to another model or provider.
   supports every Responses input, tool, modality, or output option. The adapter
   does not infer or normalize unsupported features. Responses execution errors
   preserve the upstream HTTP status while replacing the upstream error body
-  with a generic JSON error. The native model-list route passes successful
-  provider responses through and applies the same error-body sanitization.
+  with a redacted JSON error that surfaces the upstream message (and bounded
+  code/provider_code metadata) without credentials or full raw bodies. The
+  native model-list route passes successful provider responses through and
+  applies the same error-body sanitization.
 - The current execution record stores bounded metadata only. It does not retain
   prompts, responses, or OpenRouter response state. Multi-turn continuity must
   be supplied by the caller in each request; the AI Hub does not manage
   `previous_response_id` state.
-- The request body is passed through. OpenRouter's Responses schema specifies
-  `store` as `false`; callers should omit it or send `false`. The adapter does
-  not rewrite a conflicting value.
+- Responses request bytes pass through unchanged except for bounded OpenRouter
+  input shaping: non-replayable thinking blocks (for example
+  `redacted_thinking`) and `include: reasoning.encrypted_content` are removed
+  before upstream execution so multi-turn Cursor/Codex histories can route
+  through OpenRouter. OpenRouter's Responses schema specifies `store` as
+  `false`; callers should omit it or send `false`. The adapter does not rewrite
+  a conflicting `store` value.
 - OpenRouter documents `HTTP-Referer` and `X-OpenRouter-Title` for attribution.
   They are not sent because this phase has no application URL/title settings.
 - Provider-level health is based on the configured endpoint and credential.

@@ -15,6 +15,28 @@ import (
 
 const openRouterTestCredential = "sk-or-test-only-do-not-use"
 
+func TestOpenRouterResponsesStripsThinkingBeforeUpstream(t *testing.T) {
+	payload := `{"model":"anthropic/claude-sonnet-4.5","input":[{"role":"assistant","content":[{"type":"redacted_thinking","data":"x"},{"type":"output_text","text":"ok"}]}],"stream":true}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "redacted_thinking") {
+			t.Errorf("upstream saw redacted_thinking: %s", body)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+
+	client := newOpenRouterTestClient(t, server.URL+"/api/v1", server.Client(), openRouterTestCredential)
+	_, err := client.OpenTargetResponses(context.Background(), providers.ResponsesTarget{
+		ProviderID: providers.OpenRouterID,
+	}, []byte(payload), "application/json", "")
+	if err != nil {
+		t.Fatalf("OpenTargetResponses() error = %v", err)
+	}
+}
+
 func TestOpenRouterResponsesPreservesBodyAndUsesConfiguredEndpoint(t *testing.T) {
 	payload := `{"model":"anthropic/claude-sonnet-4.5","input":"hello","stream":true}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +152,13 @@ func TestOpenRouterResponsesPreservesUpstreamHTTPError(t *testing.T) {
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("status = %d, want 429", response.StatusCode)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if !strings.Contains(string(body), "rate_limit_exceeded") {
+		t.Fatalf("sanitized body = %s, want upstream code in message", body)
 	}
 }
 

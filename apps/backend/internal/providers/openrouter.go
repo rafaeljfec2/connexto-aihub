@@ -106,6 +106,11 @@ func (c *OpenRouterClient) OpenTargetResponses(ctx context.Context, target Respo
 		return nil, errors.New("provider model identity must not be empty")
 	}
 
+	normalized, err := NormalizeOpenRouterResponsesPayload(payload)
+	if err != nil {
+		return nil, fmt.Errorf("normalize OpenRouter responses payload: %w", err)
+	}
+
 	var requestWritten atomic.Bool
 	trace := &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
 		if info.Err == nil {
@@ -113,7 +118,7 @@ func (c *OpenRouterClient) OpenTargetResponses(ctx context.Context, target Respo
 		}
 	}}
 	response, err := c.do(httptrace.WithClientTrace(ctx, trace), http.MethodPost,
-		openRouterResponses, bytes.NewReader(payload), contentType)
+		openRouterResponses, bytes.NewReader(normalized), contentType)
 	if err == nil {
 		sanitizeOpenRouterErrorResponse(response)
 		return response, nil
@@ -126,18 +131,6 @@ func (c *OpenRouterClient) OpenTargetResponses(ctx context.Context, target Respo
 		return nil, ResponseHeaderTimeoutError{}
 	}
 	return nil, err
-}
-
-func sanitizeOpenRouterErrorResponse(response *http.Response) {
-	if response == nil || response.StatusCode < http.StatusMultipleChoices {
-		return
-	}
-	if response.Body != nil {
-		_ = response.Body.Close()
-	}
-	response.Body = io.NopCloser(strings.NewReader(openRouterErrorBody))
-	response.ContentLength = int64(len(openRouterErrorBody))
-	response.Header.Set("Content-Type", "application/json")
 }
 
 // FetchModelDescriptors parses only claims explicitly present in OpenRouter's catalog.

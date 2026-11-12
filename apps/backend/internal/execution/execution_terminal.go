@@ -56,6 +56,7 @@ func (e *execution) finish() Result {
 		OutputStreamDurationNS: e.outputStreamDurationNS,
 		TelemetryEvents:        append([]TelemetryEvent(nil), e.telemetryEvents...),
 		QuotaResetInNS:         e.quotaResetIn,
+		UpstreamErrorSummary:   e.upstreamErrorSummary,
 	}
 	e.mu.Unlock()
 	e.manager.logFinished(result, e.command)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -191,4 +192,10 @@ func (s *Store) ConsumeResetToken(ctx context.Context, tokenHash []byte) (userID
 // IsNotFound reports pgx.ErrNoRows.
 func IsNotFound(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows)
+}
+
+// IsUniqueViolation reports a PostgreSQL unique constraint violation.
+func IsUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

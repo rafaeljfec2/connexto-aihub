@@ -157,6 +157,9 @@ export function LoginPage() {
               <Link className="text-xs text-cobalt hover:underline" to="/forgot-password">
                 Forgot password?
               </Link>
+              <Link className="text-xs text-cobalt hover:underline" to="/signup">
+                Create account
+              </Link>
             </div>
             <Button type="submit" variant="primary" size="lg" disabled={loginMutation.isPending}>
               {loginMutation.isPending ? 'Signing in…' : 'Sign in'}

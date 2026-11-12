@@ -13,6 +13,7 @@ func TestUIAuthExemptRoutes(t *testing.T) {
 	}{
 		{"GET", "/api/ui/session", true},
 		{"POST", "/api/ui/login", true},
+		{"POST", "/api/ui/signup", true},
 		{"POST", "/api/ui/refresh", true},
 		{"POST", "/api/ui/forgot-password", true},
 		{"POST", "/api/ui/reset-password", true},

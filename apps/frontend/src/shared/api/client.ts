@@ -22,6 +22,7 @@ export class ApiError extends Error {
 
 const authPathsNoRefresh = new Set([
   '/api/ui/login',
+  '/api/ui/signup',
   '/api/ui/refresh',
   '/api/ui/forgot-password',
   '/api/ui/reset-password',

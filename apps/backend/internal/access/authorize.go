@@ -71,7 +71,7 @@ func uiAuthExempt(r *http.Request) bool {
 	}
 
 	switch r.URL.Path {
-	case "/api/ui/login", "/api/ui/refresh", "/api/ui/forgot-password", "/api/ui/reset-password":
+	case "/api/ui/login", "/api/ui/signup", "/api/ui/refresh", "/api/ui/forgot-password", "/api/ui/reset-password":
 		return true
 	default:
 		return false

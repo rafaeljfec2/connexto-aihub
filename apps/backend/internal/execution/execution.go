@@ -29,6 +29,7 @@ type execution struct {
 	timeToFirstTokenNS     *int64
 	outputStreamDurationNS *int64
 	quotaResetIn           *int64
+	upstreamErrorSummary   string
 	firstOutputAt          time.Time
 	telemetryEvents        []TelemetryEvent
 

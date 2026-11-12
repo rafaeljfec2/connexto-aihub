@@ -41,6 +41,14 @@ export async function loginUser(email: string, password: string): Promise<void> 
   })
 }
 
+export async function signUpUser(email: string, password: string): Promise<void> {
+  await fetchJson<{ user: UiUser }>('/api/ui/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+}
+
 export async function logoutOperator(): Promise<void> {
   await fetchJson<{ ok: boolean }>('/api/ui/logout', {
     method: 'POST',

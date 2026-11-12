@@ -16,6 +16,60 @@ import (
 	"aihub/internal/userauth"
 )
 
+func TestSignUpCreatesSessionAndRejectsDuplicate(t *testing.T) {
+	pool := dbtest.Pool(t)
+	if _, _, err := db.Migrate(context.Background(), pool); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	store := userauth.NewStore(pool)
+	secret := strings.Repeat("s", 32)
+	svc := userauth.NewService(store, []byte(secret), false, nil, nil)
+	gate := userauth.NewGate(store, []byte(secret), false)
+	signupHandler := gateway.NewUIUsersSignUpHandler(svc, nil)
+
+	signupReq := httptest.NewRequest(http.MethodPost, "/api/ui/signup", strings.NewReader(`{"email":"new@example.com","password":"valid-pass"}`))
+	signupReq.Header.Set("Content-Type", "application/json")
+	signupReq.RemoteAddr = "127.0.0.1:5555"
+	signupRec := httptest.NewRecorder()
+	signupHandler.ServeHTTP(signupRec, signupReq)
+	if signupRec.Code != http.StatusOK {
+		t.Fatalf("signup status=%d body=%s", signupRec.Code, signupRec.Body.String())
+	}
+
+	sessionReq := httptest.NewRequest(http.MethodGet, "/api/ui/session", nil)
+	for _, c := range signupRec.Result().Cookies() {
+		sessionReq.AddCookie(c)
+	}
+	sessionHandler := gateway.NewUIUsersSessionHandler(gate)
+	sessionRec := httptest.NewRecorder()
+	sessionHandler.ServeHTTP(sessionRec, sessionReq)
+	if sessionRec.Code != http.StatusOK {
+		t.Fatalf("session status=%d body=%s", sessionRec.Code, sessionRec.Body.String())
+	}
+	if !strings.Contains(sessionRec.Body.String(), "new@example.com") {
+		t.Fatalf("session body=%s", sessionRec.Body.String())
+	}
+
+	shortReq := httptest.NewRequest(http.MethodPost, "/api/ui/signup", strings.NewReader(`{"email":"short@example.com","password":"tiny"}`))
+	shortReq.Header.Set("Content-Type", "application/json")
+	shortReq.RemoteAddr = "127.0.0.1:5556"
+	shortRec := httptest.NewRecorder()
+	signupHandler.ServeHTTP(shortRec, shortReq)
+	if shortRec.Code != http.StatusBadRequest {
+		t.Fatalf("short password status=%d", shortRec.Code)
+	}
+
+	dupReq := httptest.NewRequest(http.MethodPost, "/api/ui/signup", strings.NewReader(`{"email":"new@example.com","password":"other-pass-ok"}`))
+	dupReq.Header.Set("Content-Type", "application/json")
+	dupReq.RemoteAddr = "127.0.0.1:5557"
+	dupRec := httptest.NewRecorder()
+	signupHandler.ServeHTTP(dupRec, dupReq)
+	if dupRec.Code != http.StatusConflict {
+		t.Fatalf("duplicate status=%d body=%s", dupRec.Code, dupRec.Body.String())
+	}
+}
+
 func TestUsersLoginRefreshAndReuseRevokesFamily(t *testing.T) {
 	pool := dbtest.Pool(t)
 	if _, _, err := db.Migrate(context.Background(), pool); err != nil {
