@@ -1,0 +1,102 @@
+import { describe, expect, it, vi } from "vitest";
+import type { CursorClient } from "../src/client.js";
+import { CursorSessionManager } from "../src/sessions.js";
+
+describe("CursorSessionManager", () => {
+  it("creates then resumes agents for the same session id", async () => {
+    const agent = {
+      agentId: "agent-1",
+      send: vi.fn(),
+      close: vi.fn(),
+    };
+
+    const createLocalAgent = vi.fn(() => Promise.resolve(agent as never));
+    const resumeLocalAgent = vi.fn(() => Promise.resolve(agent as never));
+
+    const client: CursorClient = {
+      listModels: vi.fn(),
+      createLocalAgent,
+      resumeLocalAgent,
+    };
+
+    const sessions = new CursorSessionManager(client);
+    const params = {
+      apiKey: "key",
+      model: "composer-2.5",
+      name: "test",
+      workingDirectory: process.cwd(),
+    };
+
+    await sessions.acquireAgent("session-a", params);
+    await sessions.acquireAgent("session-a", params);
+
+    expect(createLocalAgent).toHaveBeenCalledTimes(1);
+    expect(resumeLocalAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("clearInMemorySessionCache forces a new agent on next acquire with same id", async () => {
+    const agent = {
+      agentId: "agent-1",
+      send: vi.fn(),
+      close: vi.fn(),
+    };
+
+    const createLocalAgent = vi.fn(() => Promise.resolve(agent as never));
+    const resumeLocalAgent = vi.fn(() => Promise.resolve(agent as never));
+
+    const client: CursorClient = {
+      listModels: vi.fn(),
+      createLocalAgent,
+      resumeLocalAgent,
+    };
+
+    const sessions = new CursorSessionManager(client);
+    const params = {
+      apiKey: "key",
+      model: "composer-2.5",
+      name: "test",
+      workingDirectory: process.cwd(),
+    };
+
+    await sessions.acquireAgent("session-b", params);
+    expect(createLocalAgent).toHaveBeenCalledTimes(1);
+
+    sessions.clearInMemorySessionCache();
+
+    await sessions.acquireAgent("session-b", params);
+    expect(createLocalAgent).toHaveBeenCalledTimes(2);
+    expect(resumeLocalAgent).not.toHaveBeenCalled();
+  });
+
+  it("recreates the agent when working directory changes for the same session", async () => {
+    const agent = {
+      agentId: "agent-1",
+      send: vi.fn(),
+      close: vi.fn(),
+    };
+
+    const createLocalAgent = vi.fn(() => Promise.resolve(agent as never));
+    const resumeLocalAgent = vi.fn(() => Promise.resolve(agent as never));
+
+    const client: CursorClient = {
+      listModels: vi.fn(),
+      createLocalAgent,
+      resumeLocalAgent,
+    };
+
+    const sessions = new CursorSessionManager(client);
+    const first = {
+      apiKey: "key",
+      model: "composer-2.5",
+      name: "test",
+      workingDirectory: "/tmp/project-a",
+    };
+    const second = { ...first, workingDirectory: "/tmp/project-b" };
+
+    await sessions.acquireAgent("session-cwd", first);
+    await sessions.acquireAgent("session-cwd", second);
+
+    expect(createLocalAgent).toHaveBeenCalledTimes(2);
+    expect(resumeLocalAgent).toHaveBeenCalledTimes(0);
+  });
+});

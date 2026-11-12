@@ -11,6 +11,11 @@ bin
 ai-hub
 apps/frontend/dist
 apps/backend/internal/static/dist
+apps/proxy/apps/*/dist
+apps/proxy/packages/**/dist
+apps/proxy/tests
+apps/proxy/docs
+apps/proxy/reports
 coverage
 coverage.out
 *.test

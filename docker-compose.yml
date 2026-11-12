@@ -1,12 +1,53 @@
 name: connexto-aihub
 
-include:
-  - path: ../connexto-proxy-cli-llms/docker-compose.yml
-    project_directory: ../connexto-proxy-cli-llms
-    env_file:
-      - ../connexto-proxy-cli-llms/.env
-
 services:
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/proxy/Dockerfile
+      args:
+        NODE_VERSION: "24.22.1"
+        PNPM_VERSION: "12.16.1"
+    image: agent-runtime-gateway:local
+    ports:
+      - 9090:9090
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: apps/proxy/.env
+        required: true
+    environment:
+      HOST: 0.0.0.0
+      NODE_ENV: production
+      LOG_FORMAT: json
+      LOG_LEVEL: info
+      # Host .env often points at WSL Chrome + headed auth; invalid inside the container.
+      CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
+      CHROMIUM_NO_SANDBOX: "true"
+      CURSOR_USAGE_AUTH_HEADLESS: "true"
+      HOME: /var/lib/connexto-proxy/gateway-home
+      CURSOR_USAGE_AUTH_USER_DATA_DIR: /var/lib/connexto-proxy/cursor-usage-auth
+      CURSOR_USAGE_INTERACTION_URL_BASE: http://127.0.0.1:9090
+      GATEWAY_JSON_BODY_LIMIT_BYTES: ${GATEWAY_JSON_BODY_LIMIT_BYTES:-33554432}
+      CURSOR_DEFAULT_WORKING_DIRECTORY: /workspace
+      SESSION_STORAGE_DRIVER: ${SESSION_STORAGE_DRIVER:-filesystem}
+      SESSION_STORAGE_PATH: ${DOCKER_SESSION_STORAGE_PATH:-/var/lib/connexto-proxy/sessions}
+      AGY_PATH: /app/.gemini/bin/agy
+      ANTIGRAVITY_STORAGE_PATH: ${ANTIGRAVITY_STORAGE_PATH:-/app}
+      PATH: /app/.gemini/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      BROWSER_BRIDGE_URL: ${BROWSER_BRIDGE_URL:-http://host.docker.internal:4318}
+      BROWSER_BRIDGE_TOKEN: ${BROWSER_BRIDGE_TOKEN:-stage3-secure-token-xyz}
+    volumes:
+      - ${CURSOR_WORKSPACE_HOST_PATH:-.}:/workspace:rw
+      - ${HOST_HOME:-${HOME}}:${HOST_HOME:-${HOME}}:rw
+      - proxy-sessions:/var/lib/connexto-proxy/sessions:rw
+      - ${HOST_GEMINI_DIR:-${HOME}/.gemini}:/app/.gemini:rw
+      - ${HOST_ANTIGRAVITY_CONFIG_DIR:-${HOME}/.config/antigravity}:/app/.config/antigravity:rw
+    user: ${CURSOR_CONTAINER_USER:-1000:1000}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   backend:
     build:
       context: .
@@ -37,7 +78,7 @@ services:
       gateway:
         condition: service_healthy
     volumes:
-      - aihub-data:/var/lib/aihub
+      - ${AIHUB_HOST_DATA_DIR:-${HOME}/.local/share/ai-hub}:/var/lib/aihub:rw
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -62,4 +103,4 @@ services:
       - no-new-privileges:true
 
 volumes:
-  aihub-data:
+  proxy-sessions:

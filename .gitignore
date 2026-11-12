@@ -4,6 +4,10 @@
 *.test
 coverage.out
 apps/backend/internal/static/dist/
+apps/proxy/apps/*/dist/
+apps/proxy/packages/**/dist/
+apps/proxy/coverage/
+apps/proxy/.vitest-exit.code
 
 # Node workspace artifacts (pnpm + Turborepo)
 node_modules/

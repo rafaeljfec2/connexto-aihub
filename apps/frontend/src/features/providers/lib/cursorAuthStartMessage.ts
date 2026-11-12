@@ -7,7 +7,7 @@ export function cursorAuthStartSuccessMessage(res: CursorProxyAuthStartResponse)
   if (mode === 'headless') {
     return (
       'Login iniciado no proxy em modo headless (comum no Docker): nenhuma janela Chrome abre no seu computador. ' +
-      'Login Google/GitHub exige proxy no host: pare o Docker na porta 9090, rode `pnpm dev` em connexto-proxy-cli-llms ' +
+      'Login Google/GitHub exige proxy no host: pare o Docker na porta 9090, rode `pnpm dev:proxy` (ou `pnpm --dir apps/proxy dev`) ' +
       'com CURSOR_USAGE_AUTH_HEADLESS=false e repita Login web. ' +
       `Referência: ${link}`
     )

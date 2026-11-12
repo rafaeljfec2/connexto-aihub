@@ -1,0 +1,44 @@
+{
+  "name": "agent-runtime-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter \"@agent-runtime-gateway/*\" run build",
+    "dev": "pnpm --filter @agent-runtime-gateway/api dev",
+    "bridge": "bash scripts/start-bridge-windows.sh",
+    "bridge:windows": "bash scripts/start-bridge-windows.sh",
+    "bridge:restart": "bash scripts/start-bridge-windows.sh",
+    "start": "pnpm --filter @agent-runtime-gateway/api start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm --filter \"@agent-runtime-gateway/*\" typecheck && tsc -p tsconfig.tests.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@agent-runtime-gateway/api": "workspace:*",
+    "@agent-runtime-gateway/compatibility-openai": "workspace:*",
+    "@agent-runtime-gateway/core": "workspace:*",
+    "@agent-runtime-gateway/provider-antigravity": "workspace:*",
+    "@agent-runtime-gateway/provider-cursor": "workspace:*",
+    "@agent-runtime-gateway/provider-cursor-usage": "workspace:*",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.0",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "4.1.12",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "pino": "^10.4.0",
+    "pino-pretty": "^13.2.0",
+    "prettier": "^3.6.2",
+    "supertest": "^7.3.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3",
+    "vitest": "^4.0.8"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
