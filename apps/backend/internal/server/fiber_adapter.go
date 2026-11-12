@@ -15,6 +15,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+var errResponseConnClosed = errors.New("response connection is closed")
+
 // fiberHTTPHandler keeps the existing net/http handler contract at the
 // application boundary while using Fiber as the only network server. The
 // response is streamed through fasthttp's body stream writer instead of the
@@ -30,6 +32,9 @@ func fiberHTTPHandler(handler http.Handler) fiber.Handler {
 		fasthttpContext := c.Context()
 		writer := newFiberResponseWriter(fasthttpContext)
 		fasthttpContext.SetBodyStreamWriter(func(stream *bufio.Writer) {
+			// Drop the context before fasthttp resets it. A late deadline
+			// update otherwise calls SetWriteDeadline on a nil connection.
+			defer writer.releaseContext()
 			for operation := range writer.operations {
 				if operation.flush {
 					if err := stream.Flush(); err != nil {
@@ -146,7 +151,22 @@ func (w *fiberResponseWriter) FlushError() error {
 }
 
 func (w *fiberResponseWriter) SetWriteDeadline(deadline time.Time) error {
-	return w.context.Conn().SetWriteDeadline(deadline)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.context == nil {
+		return errResponseConnClosed
+	}
+	conn := w.context.Conn()
+	if conn == nil {
+		return errResponseConnClosed
+	}
+	return conn.SetWriteDeadline(deadline)
+}
+
+func (w *fiberResponseWriter) releaseContext() {
+	w.mu.Lock()
+	w.context = nil
+	w.mu.Unlock()
 }
 
 func (w *fiberResponseWriter) Unwrap() http.ResponseWriter {

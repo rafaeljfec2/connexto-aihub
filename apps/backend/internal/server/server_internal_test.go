@@ -1,8 +1,13 @@
 package server
 
 import (
+	"errors"
 	"net"
+	"net/http"
 	"testing"
+	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
 func TestIsLoopback(t *testing.T) {
@@ -57,5 +62,19 @@ func TestIsListenerAllowed(t *testing.T) {
 				t.Fatalf("isListenerAllowed(%v, %v) = %v, want %v", test.addr, test.allowNonLoopback, got, test.want)
 			}
 		})
+	}
+}
+
+func TestSetWriteDeadlineWhenConnectionIsGone(t *testing.T) {
+	writer := newFiberResponseWriter(&fasthttp.RequestCtx{})
+	deadline := time.Now().Add(time.Second)
+
+	if err := writer.SetWriteDeadline(deadline); !errors.Is(err, errResponseConnClosed) {
+		t.Fatalf("SetWriteDeadline() error = %v, want %v", err, errResponseConnClosed)
+	}
+
+	writer.releaseContext()
+	if err := http.NewResponseController(writer).SetWriteDeadline(deadline); !errors.Is(err, errResponseConnClosed) {
+		t.Fatalf("ResponseController.SetWriteDeadline() error = %v, want %v", err, errResponseConnClosed)
 	}
 }
