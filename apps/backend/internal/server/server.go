@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"aihub/internal/access"
 	"aihub/internal/config"
 	"github.com/gofiber/fiber/v2"
 )
@@ -32,6 +34,7 @@ type Server struct {
 
 type options struct {
 	allowNonLoopback bool
+	bodyLimit        int
 }
 
 // Option customizes server exposure policy.
@@ -45,11 +48,26 @@ func WithNonLoopbackAllowed(allowed bool) Option {
 	}
 }
 
+// WithBodyLimit sets the transport request-body ceiling in bytes. The
+// application admission policy remains the authority for each route. Zero
+// selects the gateway default so Fiber's 4 MiB built-in limit cannot reject
+// a body the gateway is configured to accept.
+func WithBodyLimit(limit int) Option {
+	return func(opts *options) {
+		opts.bodyLimit = limit
+	}
+}
+
 // New builds the HTTP server module.
 func New(cfg config.Server, handler http.Handler, logger *slog.Logger, opts ...Option) *Server {
 	settings := options{}
 	for _, option := range opts {
 		option(&settings)
+	}
+
+	bodyLimit := settings.bodyLimit
+	if bodyLimit <= 0 {
+		bodyLimit = int(access.DefaultMaxBodyBytes)
 	}
 
 	server := &Server{
@@ -64,14 +82,39 @@ func New(cfg config.Server, handler http.Handler, logger *slog.Logger, opts ...O
 		WriteTimeout:          cfg.WriteTimeout,
 		IdleTimeout:           cfg.IdleTimeout,
 		ReadBufferSize:        maxHeaderBytes,
+		BodyLimit:             bodyLimit,
 		DisableStartupMessage: true,
-		ErrorHandler: func(_ *fiber.Ctx, err error) error {
-			return err
-		},
+		ErrorHandler:          requestErrorHandler(logger, bodyLimit),
 	})
 	server.app.All("/*", fiberHTTPHandler(handler))
 
 	return server
+}
+
+// requestErrorHandler answers transport failures itself. Returning the error
+// makes Fiber log "failed to call ErrorHandler" and replace the status with 500.
+func requestErrorHandler(logger *slog.Logger, bodyLimit int) fiber.ErrorHandler {
+	return func(c *fiber.Ctx, err error) error {
+		code := fiber.StatusInternalServerError
+		var fiberErr *fiber.Error
+		if errors.As(err, &fiberErr) {
+			code = fiberErr.Code
+		}
+
+		if logger != nil && code == fiber.StatusRequestEntityTooLarge {
+			logger.Warn("request body exceeds transport limit",
+				"method", c.Method(),
+				"path", c.Path(),
+				"limit_bytes", bodyLimit,
+			)
+		}
+
+		if writeErr := c.SendStatus(code); writeErr != nil && logger != nil {
+			logger.Debug("transport error response was not written", "status", code, "error", writeErr)
+		}
+
+		return nil
+	}
 }
 
 // Name implements app.Module.

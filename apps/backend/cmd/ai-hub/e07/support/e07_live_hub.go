@@ -80,7 +80,9 @@ func StartE07Hub(cfg config.Config, observer *E07ProviderObserver, logger *slog.
 	requestIDs := &E07RequestIDs{}
 	serverConfig := cfg.Server
 	serverConfig.Port = 0
-	httpServer := server.New(serverConfig, &E07ResponseObserver{Next: router, RequestIDs: requestIDs}, logger)
+	httpServer := server.New(serverConfig, &E07ResponseObserver{Next: router, RequestIDs: requestIDs}, logger,
+		server.WithBodyLimit(int(cfg.Gateway.MaxBodyBytes)),
+	)
 	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, executionManager, cfg.Server.ShutdownTimeout)
 	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, executionManager)
 	application, err := app.New(logger, guardedProvider, recordsModule, serviceLifecycle)

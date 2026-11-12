@@ -80,21 +80,21 @@ func run() error {
 	}
 	connextoProxyTransport := providers.NewConnextoProxyHTTPClient()
 	cursorProxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:            cfg.Provider.ConnextoProxy.BaseURL,
-		ManagementKey:      cfg.Provider.ConnextoProxy.GatewayKey,
-		LogicalProviderID:  providers.CursorID,
-		InferenceOptional:  false,
-		Enabled:            true,
+		BaseURL:           cfg.Provider.ConnextoProxy.BaseURL,
+		ManagementKey:     cfg.Provider.ConnextoProxy.GatewayKey,
+		LogicalProviderID: providers.CursorID,
+		InferenceOptional: false,
+		Enabled:           true,
 	}, connextoProxyTransport)
 	if err != nil {
 		return fmt.Errorf("build Connexto Proxy provider (cursor): %w", err)
 	}
 	antigravityProxyClient, err := providers.NewConnextoProxyClient(providers.Settings{
-		BaseURL:            cfg.Provider.ConnextoProxy.BaseURL,
-		ManagementKey:      cfg.Provider.ConnextoProxy.GatewayKey,
-		LogicalProviderID:  providers.AntigravityID,
-		InferenceOptional:  true,
-		Enabled:            true,
+		BaseURL:           cfg.Provider.ConnextoProxy.BaseURL,
+		ManagementKey:     cfg.Provider.ConnextoProxy.GatewayKey,
+		LogicalProviderID: providers.AntigravityID,
+		InferenceOptional: true,
+		Enabled:           true,
 	}, connextoProxyTransport)
 	if err != nil {
 		return fmt.Errorf("build Connexto Proxy provider (antigravity): %w", err)
@@ -110,9 +110,9 @@ func run() error {
 		gateway.PublishProviderStatus(eventHub, providerModule.Statuses)
 	})
 	catalogSources := map[string]catalog.SourceFunc{
-		providers.OpenCodeGoID: providerClient.FetchModelDescriptors,
-		providers.OpenRouterID: openRouterClient.FetchModelDescriptors,
-		providers.CursorID:     cursorProxyClient.FetchModelDescriptors,
+		providers.OpenCodeGoID:  providerClient.FetchModelDescriptors,
+		providers.OpenRouterID:  openRouterClient.FetchModelDescriptors,
+		providers.CursorID:      cursorProxyClient.FetchModelDescriptors,
 		providers.AntigravityID: antigravityProxyClient.FetchModelDescriptors,
 	}
 	recordsModule := records.New(records.Options{
@@ -187,6 +187,7 @@ func run() error {
 
 	httpServer := server.New(cfg.Server, router, logger,
 		server.WithNonLoopbackAllowed(cfg.Gateway.AllowedHostsSet && len(cfg.Gateway.AllowedHosts) > 0),
+		server.WithBodyLimit(int(cfg.Gateway.MaxBodyBytes)),
 	)
 	serviceLifecycle := lifecycle.NewExecutionLifecycle(httpServer, runtime.executionManager, cfg.Server.ShutdownTimeout)
 	guardedProvider := lifecycle.NewGuardedProviderModule(providerModule, runtime.executionManager)
