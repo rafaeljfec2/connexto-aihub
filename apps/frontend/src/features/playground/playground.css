@@ -1,0 +1,74 @@
+@layer components {
+  .playground-page {
+    @apply grid gap-4;
+  }
+
+  .playground-header {
+    @apply flex flex-wrap items-start justify-between gap-4;
+  }
+
+  .playground-status {
+    @apply pt-1 text-sm text-muted;
+  }
+
+  .playground-panel {
+    @apply grid gap-3 rounded-[10px] border border-line bg-surface p-4;
+  }
+
+  .playground-select-row,
+  .playground-settings-row {
+    @apply grid gap-3 md:grid-cols-2;
+  }
+
+  .playground-settings label,
+  .playground-select-row label {
+    @apply grid gap-1.5 text-sm text-secondary;
+  }
+
+  .playground-settings textarea,
+  .playground-select-row select,
+  .playground-settings input,
+  .playground-composer textarea {
+    @apply rounded-md border border-line bg-[#171E29] px-3 py-2 font-sans text-sm text-primary outline-none focus:border-cobalt focus:ring-2 focus:ring-cobalt/15;
+  }
+
+  .playground-empty {
+    @apply rounded-lg border border-dashed border-line p-6 text-muted;
+  }
+
+  .playground-messages {
+    @apply m-0 grid list-none gap-3 p-0;
+  }
+
+  .playground-message {
+    @apply rounded-lg border border-line bg-raised p-3;
+  }
+
+  .playground-message-user {
+    @apply border-cobalt/35;
+  }
+
+  .playground-message-assistant {
+    @apply border-healthy/35;
+  }
+
+  .playground-message header {
+    @apply mb-1 flex items-center gap-2;
+  }
+
+  .streaming-dot {
+    @apply text-xs text-healthy;
+  }
+
+  .playground-metrics {
+    @apply mt-2 flex flex-wrap gap-3 text-xs text-muted;
+  }
+
+  .playground-composer {
+    @apply grid gap-2;
+  }
+
+  .playground-composer-actions {
+    @apply flex justify-end;
+  }
+}
