@@ -17,6 +17,7 @@ describe('IntelligencePage', () => {
 
     expect(screen.getByText('INTELLIGENCE / LEARNING ENGINE')).toBeTruthy()
     expect(screen.getByRole('heading', { level: 1, name: 'Aprendizagem & decisões' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Ajuda' })).toBeTruthy()
     expect(screen.getByText('E08 · ATIVO')).toBeTruthy()
     expect(screen.getByText('E10 · PLANEJADO')).toBeTruthy()
   })

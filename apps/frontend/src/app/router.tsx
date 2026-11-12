@@ -3,7 +3,7 @@ import { ForgotPasswordPage, LoginPage, OperatorAuthGate, ResetPasswordPage, Sig
 import { CatalogPage } from '../features/catalog'
 import { ExecutionsPage } from '../features/executions'
 import { ResourcesPage } from '../features/resources'
-import { IntelligencePage } from '../features/intelligence'
+import { IntelligenceHelpPage, IntelligencePage } from '../features/intelligence'
 import { OverviewPage } from '../features/overview'
 import { PlaygroundPage } from '../features/playground'
 import { ProvidersPage } from '../features/providers'
@@ -28,6 +28,7 @@ const router = createBrowserRouter([
       { path: 'catalog', element: <CatalogPage /> },
       { path: 'playground', element: <PlaygroundPage /> },
       { path: 'intelligence', element: <IntelligencePage /> },
+      { path: 'intelligence/help', element: <IntelligenceHelpPage /> },
       { path: 'executions', element: <ExecutionsPage /> },
       { path: 'resources', element: <ResourcesPage /> },
       { path: 'profile', element: <ProfilePage /> },

@@ -1,3 +1,5 @@
+import { CircleHelp } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { AppPageHeader } from '../../../app/layouts/AppPageHeader'
 import { appPageClassName } from '../../../app/layouts/appShellLayout'
 import { IntelligenceNoticeBanner } from '../components/IntelligenceNoticeBanner'
@@ -6,6 +8,7 @@ import { ContextAdequacyPanel } from '../components/ContextAdequacyPanel'
 import { DecisionStackPanel } from '../components/DecisionStackPanel'
 import { SignalsPanel } from '../components/SignalsPanel'
 import { EvolutionTimelinePanel } from '../components/EvolutionTimelinePanel'
+import { Button } from '../../../shared/ui/button'
 
 export function IntelligencePage() {
   return (
@@ -13,6 +16,12 @@ export function IntelligencePage() {
       <AppPageHeader
         actions={
           <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/intelligence/help">
+                <CircleHelp className="size-3.5 text-cobalt" aria-hidden />
+                Ajuda
+              </Link>
+            </Button>
             <span className="rounded-full border border-cobalt/25 bg-cobalt/10 px-2.5 py-0.5 font-mono text-[0.625rem] font-medium text-cobalt">
               E08 · ATIVO
             </span>

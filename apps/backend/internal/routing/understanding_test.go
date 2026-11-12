@@ -103,6 +103,48 @@ func TestUnderstandRequest_ExplicitModel(t *testing.T) {
 	}
 }
 
+func TestUnderstandRequest_EffortOnlyDoesNotRequireReasoning(t *testing.T) {
+	body := []byte(`{
+		"model": "antigravity:gpt-oss-120b-medium",
+		"input": "oi",
+		"reasoning": {"effort": "medium", "context": "all_turns"}
+	}`)
+	structural, err := routing.ValidateStructure(body)
+	if err != nil {
+		t.Fatalf("ValidateStructure failed: %v", err)
+	}
+	understanding, parseErr := routing.UnderstandRequest(body, structural)
+	if parseErr != nil {
+		t.Fatalf("UnderstandRequest failed: %v", parseErr)
+	}
+	for _, cap := range understanding.Requirements.RequiredCapabilities {
+		if cap == "reasoning" {
+			t.Fatalf("effort-only reasoning required capability: %+v", understanding.Requirements.RequiredCapabilities)
+		}
+	}
+}
+
+func TestUnderstandRequest_ReasoningBudgetRequiresCapability(t *testing.T) {
+	body := []byte(`{"model":"x","input":"oi","reasoning":{"effort":"high","max_tokens":2000}}`)
+	structural, err := routing.ValidateStructure(body)
+	if err != nil {
+		t.Fatalf("ValidateStructure failed: %v", err)
+	}
+	understanding, parseErr := routing.UnderstandRequest(body, structural)
+	if parseErr != nil {
+		t.Fatalf("UnderstandRequest failed: %v", parseErr)
+	}
+	found := false
+	for _, cap := range understanding.Requirements.RequiredCapabilities {
+		if cap == "reasoning" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected reasoning capability, got %+v", understanding.Requirements.RequiredCapabilities)
+	}
+}
+
 func TestUnderstandRequest_ToolsAndSchemaCapabilities(t *testing.T) {
 	body := []byte(`{
 		"model": "aihub/auto",

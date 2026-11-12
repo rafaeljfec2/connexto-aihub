@@ -3,6 +3,7 @@ package routing
 import (
 	"encoding/json"
 	"sort"
+	"strings"
 )
 
 // ProjectRequirements derives normalized capability requirements from structural JSON.
@@ -41,7 +42,7 @@ func ProjectRequirements(body []byte, structural StructuralRequest) (Requirement
 		}
 	}
 
-	if len(envelope.Reasoning) > 0 && string(envelope.Reasoning) != "null" && string(envelope.Reasoning) != "{}" {
+	if reasoningRequiresCapability(envelope.Reasoning) {
 		required["reasoning"] = struct{}{}
 	}
 
@@ -77,6 +78,31 @@ func ProjectRequirements(body []byte, structural StructuralRequest) (Requirement
 	}
 
 	return status, nil
+}
+
+// reasoningRequiresCapability is true when the reasoning object asks for a
+// thinking feature. Cursor's effort slider and portable session fields
+// (context, summary, encrypted_content) are not a capability requirement:
+// models such as gpt-oss-120b-medium advertise reasoning as unsupported and
+// would otherwise 404 on an explicit selection.
+func reasoningRequiresCapability(raw json.RawMessage) bool {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" || trimmed == "{}" {
+		return false
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &object); err != nil || len(object) == 0 {
+		return true
+	}
+	for key := range object {
+		switch key {
+		case "effort", "context", "summary", "encrypted_content":
+			continue
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 func projectInputRequirements(raw json.RawMessage, required map[string]struct{}) (bool, error) {

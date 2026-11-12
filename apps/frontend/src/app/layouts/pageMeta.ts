@@ -57,6 +57,12 @@ export const pageMetaByPath: Record<string, AppPageMeta> = {
     title: 'Aprendizagem & decisões',
     lead: 'Entenda como o contexto orienta a escolha de modelos — e quais evidências sustentam cada decisão.',
   },
+  '/intelligence/help': {
+    crumb: 'Ajuda do roteamento',
+    eyebrow: 'INTELLIGENCE / ROUTING',
+    title: 'Como o roteamento decide',
+    lead: 'Regras determinísticas que escolhem um provedor e um modelo, ou recusam a chamada.',
+  },
   '/profile': {
     crumb: 'Meu perfil',
     eyebrow: 'ACCOUNT',
