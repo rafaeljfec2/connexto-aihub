@@ -38,7 +38,9 @@ func ProjectRequirements(body []byte, structural StructuralRequest) (Requirement
 		case "function":
 			required["function_tools"] = struct{}{}
 		case "custom":
-			required["custom_tools"] = struct{}{}
+			// Client-executed freeform tools (e.g. Codex apply_patch) stay on the
+			// wire for upstream adapters but do not gate routing: E03 keeps
+			// custom_tools=unknown for every catalog entry.
 		}
 	}
 

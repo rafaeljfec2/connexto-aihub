@@ -143,7 +143,7 @@ The MVP recognizes only structural request features that map to E03's closed cap
 | `input_audio` item | `audio_input` | Known mappable capability |
 | `input_file` or file-attachment item types documented by OpenAI Responses | *(none in E03 vocabulary)* | Known feature, **requirement_unmapped** — do not infer `file_input` |
 | `tools[]` with `type: function` | `function_tools` | Known mappable capability |
-| `tools[]` with `type: custom` | `custom_tools` | Known feature; catalog claim often `unknown` — insufficient evidence, not compatibility |
+| `tools[]` with `type: custom` | *(none for eligibility)* | Client-executed freeform tools pass through on the wire; do not project `custom_tools` because E03 keeps that claim `unknown` for every entry |
 | Nonempty requested reasoning configuration | `reasoning` | Known mappable capability |
 | `text.format.type: json_schema` | `structured_output` | Known mappable capability (JSON schema constrained output) |
 | `text.format.type: json_object` | `structured_output` | Known mappable capability (JSON object mode uses the same normalized claim until E03 adds a distinct capability) |

@@ -26,6 +26,26 @@ func TestProjectRequirementsMapsJSONObject(t *testing.T) {
 	}
 }
 
+func TestProjectRequirementsCodexStyleToolsOmitCustomToolsGate(t *testing.T) {
+	body := []byte(`{
+		"tools": [
+			{"type": "function", "name": "read_file"},
+			{"type": "custom", "name": "apply_patch"}
+		],
+		"input": "hi"
+	}`)
+	status, err := routing.ProjectRequirements(body, routing.StructuralRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(status.RequiredCapabilities, "function_tools") {
+		t.Fatalf("expected function_tools, got %v", status.RequiredCapabilities)
+	}
+	if contains(status.RequiredCapabilities, "custom_tools") {
+		t.Fatalf("custom_tools must not gate routing, got %v", status.RequiredCapabilities)
+	}
+}
+
 func TestProjectRequirementsFileInputUnmapped(t *testing.T) {
 	status, err := routing.ProjectRequirements([]byte(`{"input":[{"type":"input_file"}]}`), routing.StructuralRequest{})
 	if err != nil {
