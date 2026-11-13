@@ -103,7 +103,7 @@ async function* completedSdkRunEvents(
   cleanup: () => Promise<void>,
 ): AsyncGenerator<CursorTextEvent> {
   const result = await run.wait();
-  if (result.status !== "finished") {
+  if (result.status !== "finished" && finalText.length === 0) {
     throw new Error(
       result.error?.message ?? `Cursor SDK run ended with ${result.status}.`,
     );

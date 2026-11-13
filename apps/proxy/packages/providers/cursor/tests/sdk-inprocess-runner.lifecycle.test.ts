@@ -189,6 +189,62 @@ describe("createCursorSdkInProcessCompletion lifecycle", () => {
     expect(deleteAgent).toHaveBeenCalledWith("agent-2");
   });
 
+  it("completes a text turn when the SDK run ends without finished after text", async () => {
+    const run = {
+      id: "run-text",
+      status: "error" as const,
+      async *stream(): AsyncGenerator<SDKMessage> {
+        await Promise.resolve();
+        yield {
+          type: "assistant",
+          agent_id: "agent-text",
+          run_id: "run-text",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "Corrigindo o minor." }],
+          },
+        };
+      },
+      wait: () =>
+        Promise.resolve({
+          id: "run-text",
+          status: "error" as const,
+          error: { message: "Cursor SDK run ended with error." },
+        }),
+      cancel: vi.fn(() => Promise.resolve()),
+    };
+    const dependencies: CursorSdkInProcessDependencies = {
+      createAgent: vi.fn(() =>
+        Promise.resolve({
+          agentId: "agent-text",
+          send: () => Promise.resolve(run),
+          close: vi.fn(),
+        }),
+      ),
+      deleteAgent: vi.fn(() => Promise.resolve()),
+    };
+
+    const completion = await createCursorSdkInProcessCompletion(
+      {
+        apiKey: "cursor-key",
+        model: "composer-2.5",
+        agentName: "gateway-test",
+        prompt: "Say hello",
+        clientTools: [],
+      },
+      dependencies,
+    );
+    const events: CursorTextEvent[] = [];
+    for await (const event of completion.stream) events.push(event);
+
+    expect(events).toContainEqual({ type: "text", text: "Corrigindo o minor." });
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      finalText: "Corrigindo o minor.",
+      toolCalls: [],
+    });
+  });
+
   it("cancels and cleans up an agent when the stream is never consumed", async () => {
     const run = {
       id: "run-3",

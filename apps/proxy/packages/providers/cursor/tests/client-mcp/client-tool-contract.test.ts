@@ -88,4 +88,22 @@ describe("client-tool-contract", () => {
     expect(enforced.rawInput).not.toMatch(/^git status/);
     expect(enforced.rawInput).toContain("tools.exec_command");
   });
+
+  it("never adds rtk to shell payloads; agent instructions own that policy", () => {
+    const shell = enforceClientToolContract(
+      { name: "client_shell", arguments: { command: "git status -sb" } },
+      codexTools,
+    );
+    expect(shell.arguments).toEqual({ command: "git status -sb" });
+    expect(JSON.stringify(shell.arguments)).not.toContain("rtk");
+
+    const execScript =
+      'const r = await tools.exec_command({cmd:"git log -1 --oneline"}); text(r);';
+    const exec = enforceClientToolContract(
+      { name: "exec", arguments: { input: execScript } },
+      codexTools,
+    );
+    expect(exec.rawInput).toBe(execScript);
+    expect(exec.rawInput).not.toContain('cmd:"rtk ');
+  });
 });
