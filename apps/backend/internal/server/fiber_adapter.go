@@ -28,7 +28,11 @@ func fiberHTTPHandler(handler http.Handler) fiber.Handler {
 			return fiber.ErrBadRequest
 		}
 
-		request = request.WithContext(fiberRequestContext(c.Context()))
+		requestContext := fiberRequestContext(c.Context())
+		if c.Locals(accessLogManagedContextKey{}) == true {
+			requestContext = context.WithValue(requestContext, accessLogManagedContextKey{}, true)
+		}
+		request = request.WithContext(requestContext)
 		fasthttpContext := c.Context()
 		writer := newFiberResponseWriter(fasthttpContext)
 		fasthttpContext.SetBodyStreamWriter(func(stream *bufio.Writer) {

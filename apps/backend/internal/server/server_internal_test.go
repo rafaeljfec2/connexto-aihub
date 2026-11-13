@@ -4,11 +4,41 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/valyala/fasthttp"
 )
+
+func TestAccessLogEnabled(t *testing.T) {
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{value: "1", want: true},
+		{value: " true ", want: true},
+		{value: "TRUE", want: true},
+		{value: "", want: false},
+		{value: "0", want: false},
+		{value: "yes", want: false},
+	}
+
+	for _, test := range tests {
+		if got := accessLogEnabled(test.value); got != test.want {
+			t.Errorf("accessLogEnabled(%q) = %v, want %v", test.value, got, test.want)
+		}
+	}
+}
+
+func TestSanitizeAccessLogValue(t *testing.T) {
+	if got, want := sanitizeAccessLogValue("a\r\nb\x7f", 128), "ab"; got != want {
+		t.Fatalf("sanitized value = %q, want %q", got, want)
+	}
+	if got, want := sanitizeAccessLogValue(strings.Repeat("x", 5), 3), "xxx"; got != want {
+		t.Fatalf("truncated value = %q, want %q", got, want)
+	}
+}
 
 func TestIsLoopback(t *testing.T) {
 	tests := []struct {

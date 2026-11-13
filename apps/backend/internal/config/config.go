@@ -114,6 +114,9 @@ func UnknownEnvVariables() []string {
 		if !found || !strings.HasPrefix(name, "AIHUB_") {
 			continue
 		}
+		if name == EnvHTTPAccessLog {
+			continue
+		}
 
 		if _, known := knownEnvKeys[name]; !known {
 			unknown = append(unknown, name)

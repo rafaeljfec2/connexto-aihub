@@ -13,6 +13,8 @@ import (
 // correlationHeader carries the request identifier in both directions.
 const correlationHeader = "X-Request-Id"
 
+type accessLogManagedContextKey struct{}
+
 // withCorrelationID reuses a valid inbound identifier or generates a new one,
 // stores it in the request context and echoes it in the response.
 func withCorrelationID(logger *slog.Logger, next http.Handler) http.Handler {
@@ -37,6 +39,11 @@ func withCorrelationID(logger *slog.Logger, next http.Handler) http.Handler {
 // omits headers and query strings so credentials never reach the logs.
 func withRequestLog(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Context().Value(accessLogManagedContextKey{}) == true {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		started := time.Now()
 		recorder := &responseRecorder{ResponseWriter: w}
 

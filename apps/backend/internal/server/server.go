@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -86,6 +87,11 @@ func New(cfg config.Server, handler http.Handler, logger *slog.Logger, opts ...O
 		DisableStartupMessage: true,
 		ErrorHandler:          requestErrorHandler(logger, bodyLimit),
 	})
+	if accessLogEnabled(os.Getenv(config.EnvHTTPAccessLog)) {
+		for _, middleware := range accessLogMiddlewares(os.Stdout) {
+			server.app.Use(middleware)
+		}
+	}
 	server.app.All("/*", fiberHTTPHandler(handler))
 
 	return server
