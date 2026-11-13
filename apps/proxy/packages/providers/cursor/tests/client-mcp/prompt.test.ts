@@ -29,6 +29,7 @@ describe("edgeOwnedBridgePromptPrefix", () => {
     expect(complement).toContain("text(value)");
     expect(complement).toContain("ALL_TOOLS");
     expect(complement).toContain("Never send toolName apply_patch through MCP");
+    expect(complement).toContain("USER VISIBILITY (senior pair programming)");
     expect(complement).not.toContain("Composer model emulating GPT-6");
     expect(complement).not.toContain("git status -sb");
     expect(complement).not.toContain("GetDynamicTools");
@@ -53,6 +54,20 @@ describe("edgeOwnedBridgePromptPrefix", () => {
     expect(complement).toMatch(/"toolName":"wait"/);
     expect(complement).not.toContain('"toolName":"client_shell"');
     expect(complement).not.toContain("client_shell — use top-level mcp");
+  });
+
+  it("includes pair-programming visibility for legacy inventories", () => {
+    const complement = edgeOwnedBridgePromptPrefix([
+      {
+        name: "write",
+        parameters: {
+          type: "object",
+          properties: { path: { type: "string" } },
+        },
+      },
+    ]);
+    expect(complement).toContain("CLIENT MCP TRANSPORT");
+    expect(complement).toContain("senior pair programming");
   });
 
   it("states wait versus write_stdin roles", () => {

@@ -1,7 +1,17 @@
 import type { CursorClientToolSpec } from "@agent-runtime-gateway/core";
 import { isRecord } from "@agent-runtime-gateway/compatibility-openai";
 
-const CODEX_CODE_MODE_COMPLEMENT = `CODEX CODE MODE INTERFACE (COMPLEMENTARY).
+/** Shared chat tone for edge-owned Composer turns (does not override Codex task rules). */
+const PAIR_PROGRAMMING_USER_VISIBILITY = `USER VISIBILITY (senior pair programming):
+- Voice: senior staff engineer at the same keyboard — calm, curious, direct. Match the user's language (Brazilian Portuguese when they write in PT-BR).
+- Think aloud in one short beat before each MCP call: what you noticed, what you will try next, and why it helps the shared goal.
+- Pairing habits: acknowledge the user's intent; flag trade-offs in plain language; say when you are unsure instead of sounding categorical.
+- Avoid: workflow narration, skill or path dumps, duplicate back-to-back status lines, ticket-bot phrases, ASCII banners, and lecture tone.
+- On failure or retry: be honest ("isso não devolveu o que esperava"), name the next attempt, keep it conversational.
+- Closing a task: short recap (what we did, what passed, what is still open) and one natural next step — not a compliance report unless they asked for one.
+- Never run a client tool silently.`;
+
+const CODEX_CODE_MODE_CORE = `CODEX CODE MODE INTERFACE (COMPLEMENTARY).
 
 Upstream Codex instructions remain authoritative. This block defines only the MCP transport required to access the Codex runtime.
 
@@ -41,14 +51,9 @@ WAIT:
 
 RESULT HANDLING:
 - Treat LOCAL TOOL RESULT as an operation already executed by the outer Codex client.
-- Continue following the original Codex instructions.
+- Continue following the original Codex instructions.`;
 
-USER VISIBILITY:
-- Write in the user's language with a natural, collegial tone (Brazilian Portuguese when the user writes in PT-BR).
-- Before each MCP call, add one brief human update: what you are doing now and why — not a workflow script.
-- Do not repeat the same intent in back-to-back messages, cite skill or file paths, or open with robotic formulas ("Vou executar o fluxo...", "Iniciando conforme o skill...").
-- On retries, say plainly what failed and what you are trying next; keep it to one short paragraph before the call.
-- Never run a client tool silently.`;
+const CODEX_CODE_MODE_COMPLEMENT = `${CODEX_CODE_MODE_CORE}\n\n${PAIR_PROGRAMMING_USER_VISIBILITY}`;
 
 /** MCP transport complement for edge-owned client tools (not user task text). */
 export function edgeOwnedBridgePromptPrefix(
@@ -88,7 +93,7 @@ function legacyBridgePrompt(clientTools: readonly CursorClientToolSpec[]): strin
   return [
     "CLIENT MCP TRANSPORT (COMPLEMENTARY).",
     "Upstream Responses instructions remain authoritative; this block only describes how to reach the client runtime.",
-    "Before each mcp call, write one brief natural update in the user's language (no duplicate narration or skill-path quotes); never run a client tool silently.",
+    PAIR_PROGRAMMING_USER_VISIBILITY,
     `Callable SDK tool name: mcp only. providerIdentifier must be "client".`,
     `Call mcp with ${example}. toolName must be one of: ${exactTools}.`,
     "function tools: mcp args is the JSON object stored as function_call.arguments (match the tool schema).",
