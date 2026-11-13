@@ -1,5 +1,6 @@
 import type { CursorClientToolSpec } from "@agent-runtime-gateway/core";
 import { isRecord } from "@agent-runtime-gateway/compatibility-openai";
+import { mandatoryContractPromptBlock } from "./client-tool-contract.js";
 
 export function edgeOwnedBridgePromptPrefix(
   prompt: string,
@@ -13,14 +14,17 @@ export function edgeOwnedBridgePromptPrefix(
     "LOCAL TOOL REQUIRED.",
     "The only callable tool in this runtime is named mcp.",
     "You do not have GetDynamicTools, CallDynamicTool, GetMcpTools, or CallMcpTool. Those names fail and must not be used.",
-    `Call mcp exactly once with ${example}.`,
+    "When a client tool is needed: write the USER VISIBLE PROGRESS lines first, then call mcp exactly once.",
+    `Call mcp with ${example}.`,
     `toolName must be one of: ${exactTools}.`,
-    "Do not answer with prose before that mcp call.",
   ].join("\n");
   return [
-    "You are running through an inference bridge behind an OpenAI Responses client.",
+    "You are the Composer model emulating GPT-6 output for an OpenAI Responses client.",
+    "Emit exactly one SDK mcp call per turn when a tool is needed, after USER VISIBLE PROGRESS. No Cursor editor or Agent SDK tool names.",
+    userVisibleProgressBlock(),
+    mandatoryContractPromptBlock(tools),
     "The outer client owns local tool execution. This runtime must not execute SDK built-in shell, read, write, edit, glob, grep, ls, or delete.",
-    "Your job is to choose one outer-client tool and fill the OpenAI payload. The proxy turns that payload into a Responses function_call or custom_tool_call. Do not emit those item types yourself.",
+    "The proxy turns your mcp payload into a Responses function_call or custom_tool_call. Do not emit those item types yourself.",
     codexClientGuide(tools),
     openaiOutputContract(tools),
     "If LOCAL TOOL RESULT records are present, treat those tools as already executed by the outer client and continue from the result.",
@@ -28,6 +32,20 @@ export function edgeOwnedBridgePromptPrefix(
     prompt,
     "",
     trailer,
+  ].join("\n");
+}
+
+function userVisibleProgressBlock(): string {
+  return [
+    "USER VISIBLE PROGRESS (REQUIRED).",
+    "The user must always see what you are doing. Never run a client tool silently.",
+    "Before each mcp call, write 1-3 short sentences in the same language as the user task:",
+    "- what you understood from the request or the latest LOCAL TOOL RESULT;",
+    "- what you are doing now;",
+    "- which inventory toolName you will call next and why (plain language, not JSON).",
+    "After LOCAL TOOL RESULT, briefly interpret the outcome and state the next step before another mcp (if needed).",
+    "When no client tool is needed, end with a concise summary of the outcome.",
+    "Progress text lives in assistant message text only. Never put progress, plans, or narration inside mcp args or exec scripts except text(result) outputs from Codex.",
   ].join("\n");
 }
 
@@ -42,24 +60,29 @@ function mcpCallExample(tools: readonly CursorClientToolSpec[]): string {
 }
 
 function codexClientGuide(tools: readonly CursorClientToolSpec[]): string {
-  const functionNames = tools
-    .filter((tool) => tool.inputFormat !== "grammar")
-    .map((tool) => tool.name.trim());
   const lines = [
-    "CODEX CLIENT.",
-    "Codex is the program on the user's machine. It executes the tool you select. You do not have its filesystem or its tool objects.",
-    "One mcp call becomes one Codex tool call. Codex runs it, then the next request brings the result back.",
+    "CODEX CLIENT INTERFACE.",
+    "This block is the parser between you and Codex. Emit one mcp call whose payload matches the OpenAI Responses item Codex will run.",
+    "OpenAI function tool: mcp args is the JSON object Codex stores as function_call.arguments.",
+    "OpenAI custom tool: mcp args is {\"input\":\"<raw source>\"}. That string is custom_tool_call.input. It is not JSON and not a markdown fence.",
   ];
   if (tools.some((tool) => tool.name.trim() === "exec" && tool.inputFormat === "grammar")) {
     lines.push(
-      "Codex exec: Codex evaluates args.input as JavaScript in a sandbox. The only helpers are tools.exec_command({cmd: string}) and text(value). exec_command runs a shell command and returns its output. text sends that output back to you. There is no filesystem API in that sandbox.",
-      'Shell example: {"providerIdentifier":"client","toolName":"exec","args":{"input":"const result = await tools.exec_command({cmd:\\"git status -sb\\"}); text(result);"}}',
+      "Codex code mode (openai/codex): the exec custom tool runs args.input as an async JavaScript module in a V8 isolate. No Node, no filesystem, no network, no console, no import().",
+      "Nested Codex tools are methods on the global tools object. A freeform tool takes a string. A function tool takes an object.",
+      "Shell: const result = await tools.exec_command({ cmd: \"git status -sb\" }); text(result);",
+      "exec_command accepts cmd (required), and optionally workdir, shell, tty, yield_time_ms, and max_output_tokens.",
+      "text(value) appends the output Codex returns to you. exit() stops the script.",
+      "Do not call tools.client, tools.client_write, node:fs, or import(). Those are not Codex tools.",
     );
-  }
-  if (functionNames.length > 0) {
-    lines.push(
-      `Codex function tools (${functionNames.join(", ")}): Codex runs them on the workspace. Put the tool's JSON arguments in mcp args. Do not reimplement them inside exec.`,
-    );
+    const grammarNames = tools
+      .filter((tool) => tool.inputFormat === "grammar" && tool.name.trim() !== "exec")
+      .map((tool) => tool.name.trim());
+    if (grammarNames.length > 0) {
+      lines.push(
+        `From inside exec, call freeform tools as await tools.${grammarNames[0]}(sourceText). You may also emit toolName "${grammarNames[0]}" with args.input set to that same raw source.`,
+      );
+    }
   }
   return lines.join("\n");
 }
@@ -70,7 +93,6 @@ function openaiOutputContract(tools: readonly CursorClientToolSpec[]): string {
     'Transport is always SDK mcp with providerIdentifier "client".',
     "function tools: args is the JSON object stored as function_call.arguments. Match the tool schema. Do not nest it under another args key.",
     "custom tools (grammar): args is {\"input\":\"<source>\"}. That string is forwarded unchanged as custom_tool_call.input.",
-    "Creating or editing files is a separate mcp call to a function tool. The exec runtime cannot write the workspace.",
   ];
   for (const tool of tools) {
     lines.push(toolContractLine(tool, tools));
@@ -84,6 +106,9 @@ function toolContractLine(
 ): string {
   const name = tool.name.trim();
   if (tool.inputFormat === "grammar") {
+    return grammarContract(name, tools);
+  }
+  if (name === "apply_patch") {
     return grammarContract(name, tools);
   }
   if (name === "client_shell") {
@@ -103,21 +128,30 @@ function grammarContract(
   name: string,
   tools: readonly CursorClientToolSpec[],
 ): string {
+  if (name === "apply_patch") {
+    return [
+      "apply_patch is a custom_tool_call. args.input is the patch text, not JSON.",
+      "Envelope: *** Begin Patch / file operations / *** End Patch.",
+      "Operations: *** Add File: <relative path>, *** Delete File: <relative path>, *** Update File: <relative path>.",
+      "Update hunks start with @@. Lines are context (space), deletion (-), or addition (+). Paths are relative.",
+      "Inside exec the same text is the string argument: await tools.apply_patch(patchText).",
+    ].join(" ");
+  }
   if (name !== "exec") {
     return `${name} is a custom_tool_call. Put only the raw ${name} source in args.input.`;
   }
   const fileTools = tools
-    .filter((tool) => tool.inputFormat !== "grammar")
+    .filter((tool) => tool.name.trim() !== "exec")
     .map((tool) => tool.name.trim())
     .filter((toolName) => /write|edit|patch|strreplace/i.test(toolName));
   const fileRoute =
     fileTools.length > 0
-      ? `Use ${fileTools.join(" or ")} for file changes.`
-      : "Use a function tool from the inventory for file changes.";
+      ? `Use ${fileTools.join(" or ")} for file changes, either as its own mcp toolName or as await tools.${fileTools[0]}(...) inside exec.`
+      : "Use a declared Codex tool for file changes.";
   return [
-    "exec is a custom_tool_call. args.input is JavaScript for the Codex exec runtime, not a shell command line and not a file writer.",
+    "exec is a custom_tool_call. args.input is raw JavaScript for the Codex V8 isolate, not a shell command line.",
     'Example args.input: const result = await tools.exec_command({cmd:"git status -sb"}); text(result);',
-    "Do not pass a raw bash pipeline, tools.client, tools.client_write, node:fs, import(), or apply_patch inside exec.",
+    "Do not pass a raw bash pipeline, tools.client, tools.client_write, node:fs, or import() inside exec.",
     fileRoute,
   ].join(" ");
 }

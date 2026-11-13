@@ -1,16 +1,11 @@
-import {
-  collectRunOutput,
-  confirmStreamingRunSuccess,
-} from "../utils/run.js";
-import { openAiToolCallFromAgentEvent } from "../utils/agent-run-collect.js";
+import { collectRunOutput } from "../utils/run.js";
+import { deliverChatCompletionStream } from "./chat-completions-stream.js";
+import { extractActiveChatToolResults } from "./chat-completions-tool-results.js";
 import crypto from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Express, Request, Response } from "express";
 import {
-  chatChunk,
   chatCompletionResponse,
-  chatUsageChunk,
-  doneChunk,
   HttpError,
   openAiErrorPayload,
   prepareChatRequest,
@@ -19,7 +14,6 @@ import { getGatewayServices } from "../services/gateway.js";
 import { resolveRequestApiKey } from "../utils/auth.js";
 import { resolveRequestPrincipal } from "../utils/identity.js";
 import { resolveSessionAffinity } from "../utils/session.js";
-import { initSseHeaders } from "../utils/sse.js";
 import { getLogger } from "../utils/logger.js";
 import { sendHttpError } from "../utils/error-handler.js";
 import { createRequestCancellation } from "../utils/request-cancellation.js";
@@ -130,7 +124,7 @@ export function registerChatCompletionRoutes(app: Express): void {
           return;
         }
 
-        const toolResults = extractActiveToolResults(
+        const toolResults = extractActiveChatToolResults(
           Array.isArray(req.body?.messages) ? (req.body.messages as unknown[]) : [],
         );
 
@@ -162,88 +156,17 @@ export function registerChatCompletionRoutes(app: Express): void {
 
         if (cancellation.signal.aborted) return;
         if (prepared.stream) {
-          initSseHeaders(res);
-
-          res.write(
-            chatChunk({ id, created, model: prepared.model, role: "assistant" }),
-          );
-
-          let fullText = "";
-          let firstDeltaMs: number | undefined;
-          let toolCallIndex = 0;
-          let streamFailed = false;
-
-          for await (const event of run.events) {
-            if (cancellation.signal.aborted) break;
-            if (event.type === "message.delta" && event.delta) {
-              if (firstDeltaMs === undefined) {
-                firstDeltaMs =
-                  Math.round((performance.now() - providerStart) * 100) / 100;
-              }
-              fullText += event.delta;
-              res.write(
-                chatChunk({ id, created, model: prepared.model, delta: event.delta }),
-              );
-            } else if (event.type === "tool.call") {
-              const toolCall = openAiToolCallFromAgentEvent(event);
-              res.write(
-                chatChunk({
-                  id,
-                  created,
-                  model: prepared.model,
-                  toolCall: { index: toolCallIndex, value: toolCall },
-                }),
-              );
-              toolCallIndex += 1;
-            } else if (event.type === "run.failed") {
-              streamFailed = true;
-              break;
-            }
-          }
-
-          if (cancellation.signal.aborted) return;
-          if (streamFailed || !(await confirmStreamingRunSuccess(run, target.providerId, res))) {
-            return;
-          }
-          const providerDurationMs =
-            Math.round((performance.now() - providerStart) * 100) / 100;
-
-          getLogger().info(
-            {
-              requestId,
-              provider: target.providerId,
-              model: target.modelId,
-              status: "completed",
-              durationMs: providerDurationMs,
-              timeToFirstDeltaMs: firstDeltaMs ?? providerDurationMs,
-            },
-            "provider stream completed",
-          );
-
-          res.write(
-            chatChunk({
-              id,
-              created,
-              model: prepared.model,
-              finish: true,
-              finishReason: toolCallIndex > 0 ? "tool_calls" : "stop",
-            }),
-          );
-
-          if (prepared.includeUsage) {
-            res.write(
-              chatUsageChunk({
-                id,
-                created,
-                model: prepared.model,
-                promptChars: prepared.promptChars,
-                completionChars: fullText.length,
-              }),
-            );
-          }
-
-          res.write(doneChunk());
-          res.end();
+          await deliverChatCompletionStream({
+            run,
+            res,
+            signal: cancellation.signal,
+            id,
+            created,
+            prepared,
+            providerStart,
+            requestId,
+            target,
+          });
           return;
         }
 
@@ -299,44 +222,4 @@ export function registerChatCompletionRoutes(app: Express): void {
       }
     },
   );
-}
-
-function extractActiveToolResults(
-  messages: readonly unknown[],
-): { toolCallId: string; toolName?: string; content: string }[] {
-  let lastAssistantWithToolsIdx = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (
-      m &&
-      typeof m === "object" &&
-      (m as Record<string, unknown>).role === "assistant" &&
-      Array.isArray((m as Record<string, unknown>).tool_calls) &&
-      ((m as Record<string, unknown>).tool_calls as unknown[]).length > 0
-    ) {
-      lastAssistantWithToolsIdx = i;
-      break;
-    }
-  }
-
-  const activeMessages =
-    lastAssistantWithToolsIdx >= 0
-      ? messages.slice(lastAssistantWithToolsIdx + 1)
-      : messages;
-
-  return activeMessages
-    .filter(
-      (m): m is Record<string, unknown> =>
-        Boolean(m) &&
-        typeof m === "object" &&
-        (m as Record<string, unknown>).role === "tool",
-    )
-    .map((m) => ({
-      toolCallId: typeof m.tool_call_id === "string" ? m.tool_call_id : "",
-      toolName: typeof m.name === "string" ? m.name : undefined,
-      content:
-        typeof m.content === "string"
-          ? m.content
-          : JSON.stringify(m.content ?? ""),
-    }));
 }

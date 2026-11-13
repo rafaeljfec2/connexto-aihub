@@ -45,10 +45,31 @@ describe("edgeOwnedBridgePromptPrefix", () => {
     ]);
 
     expect(prompt).toContain('"toolName":"apply_patch"');
-    expect(prompt).toContain("Use apply_patch for file changes.");
+    expect(prompt).toContain("Use apply_patch for file changes");
+    expect(prompt).toContain("*** Begin Patch");
+    expect(prompt).toContain("await tools.apply_patch(patchText)");
     expect(prompt).toContain("node:fs");
-    expect(prompt).toContain("CODEX CLIENT");
-    expect(prompt).toContain("tools.exec_command({cmd: string})");
-    expect(prompt).toContain("Codex executes this tool on the workspace");
+    expect(prompt).toContain("CODEX CLIENT INTERFACE");
+    expect(prompt).toContain("tools.exec_command({ cmd:");
+  });
+
+  it("requires user-visible progress before mcp instead of silent tool calls", () => {
+    const prompt = edgeOwnedBridgePromptPrefix("Corrigir o runner", [
+      { name: "exec", inputFormat: "grammar" },
+    ]);
+    expect(prompt).toContain("USER VISIBLE PROGRESS (REQUIRED)");
+    expect(prompt).toContain("Never run a client tool silently");
+    expect(prompt).toContain("write the USER VISIBLE PROGRESS lines first");
+    expect(prompt).not.toContain("Do not answer with prose before that mcp call");
+    expect(prompt).not.toContain("No prose before mcp");
+  });
+
+  it("includes the mandatory GPT-6 contract block shared with the proxy validator", () => {
+    const prompt = edgeOwnedBridgePromptPrefix("Ship the fix", [
+      { name: "exec", inputFormat: "grammar" },
+    ]);
+    expect(prompt).toContain("GPT-6 OUTPUT CONTRACT (MANDATORY)");
+    expect(prompt).toContain("The proxy validates every mcp payload");
+    expect(prompt).toContain("Composer model emulating GPT-6");
   });
 });

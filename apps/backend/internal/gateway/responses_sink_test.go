@@ -7,6 +7,27 @@ import (
 	"time"
 )
 
+func TestResponseSinkEnsuresTerminalWhenUpstreamEOFWithoutCompleted(t *testing.T) {
+	writer := &flushErrorWriter{header: make(http.Header), flushErr: nil}
+	sink := &responseSink{writer: writer, inactivity: time.Second}
+	sink.Commit(http.StatusOK, "text/event-stream; charset=utf-8")
+	if err := sink.WriteChunk([]byte("event: response.output_text.delta\ndata: {\"delta\":\"hi\"}\n\n")); err != nil {
+		t.Fatalf("WriteChunk() error = %v", err)
+	}
+	if sink.terminal.SawTerminal {
+		t.Fatal("SawTerminal = true before ensureSSETerminal")
+	}
+	if err := sink.ensureSSETerminal(); err != nil {
+		t.Fatalf("ensureSSETerminal() error = %v", err)
+	}
+	if !sink.terminal.SawTerminal {
+		t.Fatal("SawTerminal = false after ensureSSETerminal")
+	}
+	if err := sink.ensureSSETerminal(); err != nil {
+		t.Fatalf("second ensureSSETerminal() error = %v", err)
+	}
+}
+
 func TestResponseSinkReturnsFlushError(t *testing.T) {
 	flushErr := errors.New("client flush failed")
 	writer := &flushErrorWriter{header: make(http.Header), flushErr: flushErr}

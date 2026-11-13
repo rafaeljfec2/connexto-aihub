@@ -1,15 +1,19 @@
-import { collectRunText, confirmStreamingRunSuccess } from "../utils/run.js";
+import { collectRunText } from "../utils/run.js";
 import crypto from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Express, Request, Response } from "express";
 import {
-  doneChunk,
   encodeSse,
   openAiErrorPayload,
   textCompletionResponse,
 } from "@agent-runtime-gateway/compatibility-openai";
 import { getGatewayServices } from "../services/gateway.js";
 import { resolveRequestApiKey } from "../utils/auth.js";
+import {
+  resolveStreamRunOutcome,
+  startSsePing,
+  writeSseDone,
+} from "../utils/sse-stream.js";
 import { initSseHeaders } from "../utils/sse.js";
 import { getLogger } from "../utils/logger.js";
 import { sendHttpError } from "../utils/error-handler.js";
@@ -90,68 +94,100 @@ export function registerCompletionRoutes(app: Express): void {
         initSseHeaders(res);
 
         let firstDeltaMs: number | undefined;
+        let streamFailed = false;
+        const pingTimer = startSsePing(res);
+        let terminalEmitted = false;
 
-        for await (const event of run.events) {
-          if (cancellation.signal.aborted) break;
-          if (event.type === "message.delta" && event.delta) {
-            if (firstDeltaMs === undefined) {
-              firstDeltaMs =
-                Math.round((performance.now() - providerStart) * 100) / 100;
+        const emitTerminal = (finishReason: "stop" | "length"): void => {
+          if (terminalEmitted || res.writableEnded) return;
+          terminalEmitted = true;
+          const finishChunk = {
+            id,
+            object: "text_completion",
+            created,
+            model: target.modelId,
+            choices: [
+              {
+                text: "",
+                index: 0,
+                logprobs: null,
+                finish_reason: finishReason,
+              },
+            ],
+          };
+          res.write(encodeSse(finishChunk));
+          writeSseDone(res);
+        };
+
+        try {
+          for await (const event of run.events) {
+            if (cancellation.signal.aborted) break;
+            if (event.type === "message.delta" && event.delta) {
+              if (firstDeltaMs === undefined) {
+                firstDeltaMs =
+                  Math.round((performance.now() - providerStart) * 100) / 100;
+              }
+              const chunk = {
+                id,
+                object: "text_completion",
+                created,
+                model: target.modelId,
+                choices: [
+                  {
+                    text: event.delta,
+                    index: 0,
+                    logprobs: null,
+                    finish_reason: null,
+                  },
+                ],
+              };
+              res.write(encodeSse(chunk));
+            } else if (event.type === "run.failed") {
+              streamFailed = true;
+              break;
             }
-            const chunk = {
-              id,
-              object: "text_completion",
-              created,
+          }
+
+          const outcome = await resolveStreamRunOutcome(
+            run,
+            cancellation.signal,
+            streamFailed,
+          );
+          const providerDurationMs =
+            Math.round((performance.now() - providerStart) * 100) / 100;
+
+          getLogger().info(
+            {
+              requestId,
+              provider: target.providerId,
               model: target.modelId,
-              choices: [
-                {
-                  text: event.delta,
-                  index: 0,
-                  logprobs: null,
-                  finish_reason: null,
-                },
-              ],
-            };
-            res.write(encodeSse(chunk));
+              status: outcome.success ? "completed" : "failed",
+              durationMs: providerDurationMs,
+              timeToFirstDeltaMs: firstDeltaMs ?? providerDurationMs,
+              streamFailed: outcome.streamFailed,
+              aborted: outcome.aborted,
+            },
+            outcome.success ? "provider stream completed" : "provider stream ended incompletely",
+          );
+
+          emitTerminal(outcome.success ? "stop" : "length");
+        } catch (error) {
+          getLogger().error(
+            {
+              requestId,
+              provider: target.providerId,
+              model: target.modelId,
+              err: error,
+            },
+            "provider legacy completion stream delivery failed",
+          );
+          emitTerminal("length");
+        } finally {
+          clearInterval(pingTimer);
+          if (!terminalEmitted && !res.writableEnded) {
+            emitTerminal("length");
           }
         }
-
-        if (cancellation.signal.aborted) return;
-        if (!(await confirmStreamingRunSuccess(run, target.providerId, res))) {
-          return;
-        }
-        const providerDurationMs =
-          Math.round((performance.now() - providerStart) * 100) / 100;
-
-        getLogger().info(
-          {
-            requestId,
-            provider: target.providerId,
-            model: target.modelId,
-            status: "completed",
-            durationMs: providerDurationMs,
-            timeToFirstDeltaMs: firstDeltaMs ?? providerDurationMs,
-          },
-          "provider stream completed",
-        );
-
-        const finishChunk = {
-          id,
-          object: "text_completion",
-          created,
-          model: target.modelId,
-          choices: [
-            {
-              text: "",
-              index: 0,
-              logprobs: null,
-              finish_reason: "stop",
-            },
-          ],
-        };
-        res.write(encodeSse(finishChunk));
-        res.write(doneChunk());
-        res.end();
         return;
       }
 

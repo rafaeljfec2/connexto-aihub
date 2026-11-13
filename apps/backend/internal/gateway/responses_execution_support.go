@@ -27,9 +27,18 @@ type responseSink struct {
 	inactivity  time.Duration
 	tap         *capture.StreamTap
 	contentType string
+	committed   bool
+	terminal    capture.SSETerminalObserver
 }
 
+var syntheticResponsesTerminal = []byte(
+	"event: response.completed\n" +
+		`data: {"type":"response.completed","response":{"status":"incomplete","incomplete_details":{"reason":"upstream_stream_closed"},"output":[]}}` + "\n\n" +
+		"data: [DONE]\n\n",
+)
+
 func (s *responseSink) Commit(status int, contentType string) {
+	s.committed = true
 	s.contentType = contentType
 	if contentType != "" {
 		s.writer.Header().Set("Content-Type", contentType)
@@ -40,6 +49,9 @@ func (s *responseSink) Commit(status int, contentType string) {
 }
 
 func (s *responseSink) WriteChunk(chunk []byte) error {
+	if s.committed {
+		s.terminal.ObserveChunk(chunk)
+	}
 	if s.tap != nil {
 		s.tap.Observe(chunk)
 	}
@@ -57,6 +69,21 @@ func (s *responseSink) WriteChunk(chunk []byte) error {
 // KeepAlive refreshes the write deadline and, for SSE, emits a comment so
 // clients do not treat model silence as a dead connection. It does not count
 // as an upstream chunk, so the inactivity watchdog still applies.
+// ensureSSETerminal appends a synthetic terminal frame when upstream closed an SSE
+// stream without response.completed (proxy crash, dev reload, or partial failure).
+// The payload is intentionally minimal (empty output): it only signals turn end to
+// Codex; partial deltas/tool frames already forwarded are not reconstructed here.
+func (s *responseSink) ensureSSETerminal() error {
+	if !s.committed || s.terminal.SawTerminal {
+		return nil
+	}
+	if !strings.Contains(strings.ToLower(s.contentType), "text/event-stream") {
+		return nil
+	}
+	s.terminal.SawTerminal = true
+	return s.WriteChunk(syntheticResponsesTerminal)
+}
+
 func (s *responseSink) KeepAlive() error {
 	controller := http.NewResponseController(s.writer)
 	if strings.Contains(strings.ToLower(s.contentType), "text/event-stream") {

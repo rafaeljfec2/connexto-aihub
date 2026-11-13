@@ -265,6 +265,8 @@ export function responseDoneEvents(input: {
   toolCalls?: OpenAiToolCall[];
   promptChars: number;
   metadata?: Record<string, unknown>;
+  status?: "completed" | "incomplete";
+  incompleteDetails?: { reason: string } | null;
   textStarted?: boolean;
   textOutputIndex?: number;
 }): Uint8Array[] {
@@ -313,7 +315,14 @@ export function responseDoneEvents(input: {
   return [
     ...textEvents,
     encodeSse(
-      { type: "response.completed", response: responseObject(input) },
+      {
+        type: "response.completed",
+        response: responseObject({
+          ...input,
+          status: input.status,
+          incompleteDetails: input.incompleteDetails,
+        }),
+      },
       "response.completed",
     ),
   ];

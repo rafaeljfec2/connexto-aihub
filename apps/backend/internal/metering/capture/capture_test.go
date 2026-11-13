@@ -35,6 +35,21 @@ func TestStreamTapCapturesOpenRouterResponseDone(t *testing.T) {
 	}
 }
 
+func TestSSETerminalObserverIgnoresProseMentioningCompleted(t *testing.T) {
+	var obs capture.SSETerminalObserver
+	obs.ObserveChunk([]byte(
+		"event: response.output_text.delta\n" +
+			`data: {"type":"response.output_text.delta","delta":"see response.completed in the docs"}` + "\n\n",
+	))
+	if obs.SawTerminal {
+		t.Fatal("prose in delta must not count as terminal event")
+	}
+	obs.ObserveChunk([]byte("event: response.completed\ndata: {\"type\":\"response.completed\"}\n\n"))
+	if !obs.SawTerminal {
+		t.Fatal("expected real terminal event to be detected")
+	}
+}
+
 func TestStreamTapIgnoresIntermediateEvents(t *testing.T) {
 	tap := capture.NewStreamTap()
 	tap.Observe([]byte("data: {\"type\":\"response.created\"}\n\n"))

@@ -64,6 +64,8 @@ export function responseObject(input: {
     thoughtTokens?: number;
   };
   reasoningEffort?: string;
+  status?: "completed" | "incomplete";
+  incompleteDetails?: { reason: string } | null;
   metadata?: Record<string, unknown>;
 }): Record<string, unknown> {
   const messageId = `msg_${input.id.slice(5)}`;
@@ -109,10 +111,10 @@ export function responseObject(input: {
     id: input.id,
     object: "response",
     created_at: input.created,
-    status: "completed",
+    status: input.status ?? "completed",
     completed_at: Math.max(input.created, Math.floor(Date.now() / 1000)),
     error: null,
-    incomplete_details: null,
+    incomplete_details: input.incompleteDetails ?? null,
     model: input.model,
     output,
     parallel_tool_calls: true,

@@ -215,6 +215,9 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Payload:           executionPayload,
 		ContentType:       contentType,
 	}, execSink)
+	if result.Committed {
+		_ = responseWriter.ensureSSETerminal()
+	}
 	captured := streamTap.Finalize(responseWriter.contentType)
 	if h.usage != nil && err == nil {
 		h.usage.RecordFromCaptureBestEffort(r.Context(), metering.RecordInput{
