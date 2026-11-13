@@ -64,12 +64,14 @@ export function agentRunFromCursorTextStream(input: {
           };
         } else if (event.type === "tool_call") {
           toolCallSeq += 1;
+          const rawInput = event.toolCall.rawInput;
           yield {
             type: "tool.call",
             runId: input.runId,
             toolName: event.toolCall.name,
             callId: `${toolCallId(event.toolCall)}_${toolCallSeq}`,
-            arguments: JSON.stringify(event.toolCall.arguments ?? {}),
+            arguments: rawInput ?? JSON.stringify(event.toolCall.arguments ?? {}),
+            ...(rawInput !== undefined ? { callKind: "custom" as const } : {}),
           };
         } else if (event.type === "rejected_tool_call") {
           const message =

@@ -12,6 +12,8 @@ export interface CursorClientToolSpec {
   name: string;
   description?: string;
   parameters?: unknown;
+  /** Codex code-mode tools whose input is raw source, not a JSON object. */
+  inputFormat?: "grammar";
 }
 
 /** Cursor-only execution hints set by the HTTP layer for hub-integrated clients. */
@@ -134,8 +136,10 @@ export interface AgentToolCallEvent {
   runId: string;
   toolName: string;
   callId: string;
-  /** JSON-encoded tool arguments when provided by the upstream runtime. */
+  /** JSON-encoded tool arguments, or raw source when callKind is custom. */
   arguments?: string;
+  /** Grammar tools such as Codex exec must be returned as custom_tool_call. */
+  callKind?: "custom";
 }
 
 export interface AgentToolResultEvent {

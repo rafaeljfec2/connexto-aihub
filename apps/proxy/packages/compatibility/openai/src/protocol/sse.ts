@@ -155,6 +155,9 @@ export function responseToolCallEvents(input: {
   toolCall: OpenAiToolCall;
   outputIndex: number;
 }): Uint8Array[] {
+  if (input.toolCall.type === "custom") {
+    return responseCustomToolCallEvents(input);
+  }
   const item = {
     id: `fc_${input.id.slice(5)}_${input.outputIndex}`,
     type: "function_call",
@@ -190,6 +193,58 @@ export function responseToolCallEvents(input: {
         arguments: input.toolCall.function.arguments,
       },
       "response.function_call_arguments.done",
+    ),
+    encodeSse(
+      {
+        type: "response.output_item.done",
+        output_index: input.outputIndex,
+        item: doneItem,
+      },
+      "response.output_item.done",
+    ),
+  ];
+}
+
+function responseCustomToolCallEvents(input: {
+  id: string;
+  toolCall: OpenAiToolCall;
+  outputIndex: number;
+}): Uint8Array[] {
+  const item = {
+    id: `ctc_${input.id.slice(5)}_${input.outputIndex}`,
+    type: "custom_tool_call",
+    status: "in_progress",
+    call_id: input.toolCall.id,
+    name: input.toolCall.function.name,
+    input: "",
+  };
+  const doneItem = {
+    ...item,
+    status: "completed",
+    input: input.toolCall.function.arguments,
+  };
+  return [
+    encodeSse(
+      { type: "response.output_item.added", output_index: input.outputIndex, item },
+      "response.output_item.added",
+    ),
+    encodeSse(
+      {
+        type: "response.custom_tool_call_input.delta",
+        item_id: item.id,
+        output_index: input.outputIndex,
+        delta: input.toolCall.function.arguments,
+      },
+      "response.custom_tool_call_input.delta",
+    ),
+    encodeSse(
+      {
+        type: "response.custom_tool_call_input.done",
+        item_id: item.id,
+        output_index: input.outputIndex,
+        input: input.toolCall.function.arguments,
+      },
+      "response.custom_tool_call_input.done",
     ),
     encodeSse(
       {

@@ -322,6 +322,8 @@ success.
 
 See also the [Codex E07 report](docs/validation/E07-codex-first-harness-integration.md).
 
+Cursor IDE users who enable **Override OpenAI Base URL** must use the hub API root (`https://<host>/v1`), the gateway client key (not a Cursor.com key), model `aihub/auto`, and prefer **Ask** mode for BYOK smoke tests. The Go hub exposes `POST /v1/chat/completions` (adapter) and `POST /v1/responses` (Codex and other harnesses). See [Cursor IDE BYOK with AI Hub](docs/validation/E02-cursor-ide-byok-aihub.md).
+
 ### Codex CLI support (validated release and environment)
 
 E07 validated Codex CLI `0.164.0-alpha.11.1` on Linux `amd64` as the AI Hub's

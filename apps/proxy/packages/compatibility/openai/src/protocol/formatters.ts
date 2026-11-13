@@ -84,14 +84,25 @@ export function responseObject(input: {
     });
   }
   for (const [index, toolCall] of (input.toolCalls ?? []).entries()) {
-    output.push({
-      id: `fc_${input.id.slice(5)}_${index}`,
-      type: "function_call",
-      status: "completed",
-      call_id: toolCall.id,
-      name: toolCall.function.name,
-      arguments: toolCall.function.arguments,
-    });
+    output.push(
+      toolCall.type === "custom"
+        ? {
+            id: `ctc_${input.id.slice(5)}_${index}`,
+            type: "custom_tool_call",
+            status: "completed",
+            call_id: toolCall.id,
+            name: toolCall.function.name,
+            input: toolCall.function.arguments,
+          }
+        : {
+            id: `fc_${input.id.slice(5)}_${index}`,
+            type: "function_call",
+            status: "completed",
+            call_id: toolCall.id,
+            name: toolCall.function.name,
+            arguments: toolCall.function.arguments,
+          },
+    );
   }
   const outputChars = completionCharsFromOutput(input.text, input.toolCalls ?? []);
   return {

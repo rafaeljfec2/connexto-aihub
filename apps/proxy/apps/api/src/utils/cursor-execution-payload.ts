@@ -43,6 +43,7 @@ function mapRawPassthroughTools(body: Record<string, unknown>): CursorClientTool
           : "";
     if (!name || seen.has(name)) continue;
     seen.add(name);
+    const format = isRecord(tool.format) ? tool.format : undefined;
     specs.push({
       name,
       ...(typeof tool.description === "string" ? { description: tool.description } : {}),
@@ -51,6 +52,7 @@ function mapRawPassthroughTools(body: Record<string, unknown>): CursorClientTool
         : isRecord(tool.function) && tool.function.parameters !== undefined
           ? { parameters: tool.function.parameters }
           : {}),
+      ...(format?.type === "grammar" ? { inputFormat: "grammar" as const } : {}),
     });
   }
   return specs.length > 0 ? specs : undefined;

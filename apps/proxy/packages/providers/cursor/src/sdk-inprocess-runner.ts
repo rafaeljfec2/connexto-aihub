@@ -6,10 +6,7 @@ import {
   type AgentOptions,
   type RunResult,
   type RunStatus,
-  type SDKCustomTool,
-  type SDKCustomToolResult,
   type SDKImage,
-  type SDKJsonValue,
   type SDKMessage,
   type SDKUserMessage,
 } from "@cursor/sdk";
@@ -19,6 +16,18 @@ import type {
   AgentImageInput,
   CursorClientToolSpec,
 } from "@agent-runtime-gateway/core";
+import {
+  type ClientToolCallbackBody,
+  type ClientToolCallbackServer,
+  startClientToolCallbackServer,
+} from "./client-mcp/callback-server.js";
+import { clientForwardingMcpServers } from "./client-mcp/forwarding.js";
+import { attachGrammarInput } from "./client-mcp/grammar-input.js";
+import {
+  mcpToolCallToClientTool,
+  resolveInventoryToolName,
+} from "./client-mcp/normalize.js";
+import { edgeOwnedBridgePromptPrefix } from "./client-mcp/prompt.js";
 import { cursorModelSelection } from "./model-selection.js";
 import { CursorProviderError } from "./provider-error.js";
 import type { CursorTextEvent } from "./engine/types.js";
@@ -32,9 +41,13 @@ interface CursorSdkRun {
   cancel(): Promise<void>;
 }
 
+export interface CursorSdkSendOptions {
+  readonly mcpServers?: Record<string, unknown>;
+}
+
 interface CursorSdkAgent {
   readonly agentId: string;
-  send(message: string | SDKUserMessage): Promise<CursorSdkRun>;
+  send(message: string | SDKUserMessage, options?: CursorSdkSendOptions): Promise<CursorSdkRun>;
   close(): void;
 }
 
@@ -54,6 +67,13 @@ export interface CursorSdkInProcessInput {
   readonly signal?: AbortSignal;
 }
 
+interface ClientToolInventory {
+  readonly clientTools: readonly CursorClientToolSpec[];
+  tryCapture(call: CursorToolCall): boolean;
+  peekCaptured(): CursorToolCall | null;
+  waitForCapture(): Promise<CursorToolCall>;
+}
+
 interface CursorSdkAgentResources {
   start(this: void): Promise<{ agent: CursorSdkAgent; run: CursorSdkRun }>;
   cleanup(this: void): Promise<void>;
@@ -71,15 +91,15 @@ export async function createCursorSdkInProcessCompletion(
   dependencies: CursorSdkInProcessDependencies = defaultDependencies,
 ): Promise<CursorSdkCompletion> {
   input.signal?.throwIfAborted();
-  const handoff = createToolHandoff(input.clientTools);
-  const resources = createSdkAgentResources(input, handoff, dependencies);
+  const inventory = createClientToolInventory(input.clientTools);
+  const resources = createSdkAgentResources(input, inventory, dependencies);
 
   try {
     const { agent, run } = await resources.start();
     return {
       agentId: agent.agentId,
       runId: run.id,
-      stream: streamSdkRun(run, handoff, input, resources.cleanup),
+      stream: streamSdkRun(run, inventory, input, resources.cleanup),
       cancel: resources.cleanup,
     };
   } catch (error) {
@@ -90,11 +110,12 @@ export async function createCursorSdkInProcessCompletion(
 
 function createSdkAgentResources(
   input: CursorSdkInProcessInput,
-  handoff: ReturnType<typeof createToolHandoff>,
+  inventory: ClientToolInventory,
   dependencies: CursorSdkInProcessDependencies,
 ): CursorSdkAgentResources {
   let agent: CursorSdkAgent | undefined;
   let run: CursorSdkRun | undefined;
+  let callbackServer: ClientToolCallbackServer | undefined;
   let agentClosed = false;
   let cleanupPromise: Promise<void> | undefined;
   const closeAgent = (): void => {
@@ -107,7 +128,13 @@ function createSdkAgentResources(
       if (abortHandler !== undefined) {
         input.signal?.removeEventListener("abort", abortHandler);
       }
-      cleanupPromise = disposeAgentRun(agent, run, handoff, dependencies, closeAgent);
+      cleanupPromise = disposeAgentRun(
+        agent,
+        run,
+        callbackServer,
+        dependencies,
+        closeAgent,
+      );
     }
     return cleanupPromise;
   };
@@ -121,9 +148,25 @@ function createSdkAgentResources(
   input.signal?.addEventListener("abort", abortHandler, { once: true });
 
   const start = async (): Promise<{ agent: CursorSdkAgent; run: CursorSdkRun }> => {
-    agent = await dependencies.createAgent(createAgentOptions(input, handoff.tools));
+    if (input.clientTools.length > 0) {
+      callbackServer = await startClientToolCallbackServer((body) => {
+        const call = callbackBodyToClientTool(body, input.clientTools);
+        if (!call) return false;
+        return inventory.tryCapture(call);
+      });
+    }
+    agent = await dependencies.createAgent(createAgentOptions(input));
     input.signal?.throwIfAborted();
-    run = await agent.send(createUserMessage(input));
+    const sendOptions =
+      input.clientTools.length > 0 && callbackServer !== undefined
+        ? {
+            mcpServers: clientForwardingMcpServers(input.clientTools, {
+              callbackUrl: callbackServer.url,
+              callbackToken: callbackServer.token,
+            }),
+          }
+        : undefined;
+    run = await agent.send(createUserMessage(input), sendOptions);
     input.signal?.throwIfAborted();
     return { agent, run };
   };
@@ -131,11 +174,8 @@ function createSdkAgentResources(
   return { start, cleanup };
 }
 
-function createAgentOptions(
-  input: CursorSdkInProcessInput,
-  customTools: Record<string, SDKCustomTool>,
-): AgentOptions {
-  const hasClientTools = Object.keys(customTools).length > 0;
+function createAgentOptions(input: CursorSdkInProcessInput): AgentOptions {
+  const hasClientTools = input.clientTools.length > 0;
   return {
     apiKey: input.apiKey,
     model: cursorModelSelection(input.model),
@@ -145,7 +185,6 @@ function createAgentOptions(
     mcpServers: {},
     local: {
       settingSources: [],
-      ...(hasClientTools ? { customTools } : {}),
     },
   };
 }
@@ -158,7 +197,15 @@ async function createIsolatedAgent(options: AgentOptions): Promise<CursorSdkAgen
       local: { ...options.local, cwd: workspace },
     });
     agentWorkspaces.set(agent.agentId, workspace);
-    return agent;
+    return {
+      agentId: agent.agentId,
+      send: (message, sendOptions) =>
+        agent.send(
+          message,
+          sendOptions as NonNullable<Parameters<typeof agent.send>[1]>,
+        ),
+      close: () => agent.close(),
+    };
   } catch (error) {
     await rm(workspace, { recursive: true, force: true });
     throw error;
@@ -179,11 +226,15 @@ async function deleteIsolatedAgent(agentId: string): Promise<void> {
 async function disposeAgentRun(
   agent: CursorSdkAgent | undefined,
   run: CursorSdkRun | undefined,
-  handoff: ReturnType<typeof createToolHandoff>,
+  callbackServer: ClientToolCallbackServer | undefined,
   dependencies: CursorSdkInProcessDependencies,
   closeAgent: () => void,
 ): Promise<void> {
-  handoff.release();
+  try {
+    if (callbackServer !== undefined) await callbackServer.close();
+  } catch {
+    // Best-effort shutdown for the ephemeral callback server.
+  }
   try {
     if (run?.status === "running") await run.cancel();
   } finally {
@@ -204,97 +255,129 @@ function createUserMessage(input: CursorSdkInProcessInput): SDKUserMessage {
   const toolPolicy = input.clientTools.length
     ? "\n\nRequest one client tool at a time. Wait for its result in a later request before deciding whether another client tool is needed."
     : "";
+  const body = edgeOwnedBridgePromptPrefix(input.prompt, input.clientTools);
   const images: SDKImage[] = (input.images ?? []).map((image) => ({
     data: image.data,
     mimeType: image.mimeType,
   }));
   return {
-    text: `${input.prompt}${workspaceContext}${toolPolicy}`,
+    text: `${body}${workspaceContext}${toolPolicy}`,
     ...(images.length > 0 ? { images } : {}),
   };
 }
 
-function createToolHandoff(tools: readonly CursorClientToolSpec[]): {
-  tools: Record<string, SDKCustomTool>;
-  release: () => void;
-  hasTool: (name: string) => boolean;
-} {
-  const pending = new Set<(result: SDKCustomToolResult) => void>();
-  const toolNames = new Set<string>();
-  let released = false;
-  const definitions = tools.map((tool) => {
-    const name = tool.name.trim();
-    if (!name || toolNames.has(name)) {
-      throw invalidClientTool("Client tool names must be non-empty and unique.");
-    }
-    toolNames.add(name);
-    const inputSchema = jsonSchemaRecord(tool.parameters);
-    const definition: SDKCustomTool = {
-      ...(tool.description ? { description: tool.description } : {}),
-      ...(inputSchema ? { inputSchema } : {}),
-      execute: () =>
-        new Promise<SDKCustomToolResult>((resolve) => {
-          if (released) {
-            resolve({ forwardedToClient: true });
-            return;
-          }
-          pending.add(resolve);
-        }),
-    };
-    return [name, definition] as const;
+function createClientToolInventory(
+  clientTools: readonly CursorClientToolSpec[],
+): ClientToolInventory {
+  const names = new Set(
+    clientTools.map((tool) => tool.name.trim()).filter((name) => name.length > 0),
+  );
+  let captured: CursorToolCall | null = null;
+  let notifyCapture: ((call: CursorToolCall) => void) | undefined;
+  const capturedPromise = new Promise<CursorToolCall>((resolve) => {
+    notifyCapture = resolve;
   });
-
   return {
-    tools: Object.fromEntries(definitions),
-    hasTool: (name) => toolNames.has(name),
-    release: () => {
-      released = true;
-      for (const resolve of pending) resolve({ forwardedToClient: true });
-      pending.clear();
+    clientTools,
+    tryCapture(call: CursorToolCall): boolean {
+      if (captured !== null || !names.has(call.name)) return false;
+      captured = call;
+      notifyCapture?.(call);
+      return true;
+    },
+    peekCaptured(): CursorToolCall | null {
+      return captured;
+    },
+    waitForCapture(): Promise<CursorToolCall> {
+      return capturedPromise;
     },
   };
 }
 
+function callbackBodyToClientTool(
+  body: ClientToolCallbackBody,
+  clientTools: readonly CursorClientToolSpec[],
+): CursorToolCall | null {
+  const resolved = resolveInventoryToolName(body.toolName, clientTools);
+  if (!resolved) return null;
+  return attachGrammarInput(
+    { name: resolved, arguments: { ...body.arguments } },
+    clientTools,
+  );
+}
+
 async function* streamSdkRun(
   run: CursorSdkRun,
-  handoff: ReturnType<typeof createToolHandoff>,
+  inventory: ClientToolInventory,
   input: CursorSdkInProcessInput,
   cleanup: () => Promise<void>,
 ): AsyncGenerator<CursorTextEvent> {
   let finalText = "";
+  const iterator = run.stream()[Symbol.asyncIterator]();
+  let pendingNext = iterator.next();
 
   try {
-    for await (const message of run.stream()) {
+    while (true) {
       if (input.signal?.aborted) return;
+      const alreadyCaptured = inventory.peekCaptured();
+      if (alreadyCaptured) {
+        await cleanup();
+        yield* forwardedToolCallEvents([alreadyCaptured], finalText);
+        return;
+      }
+
+      const winner = await Promise.race([
+        pendingNext.then((result) => ({ kind: "message" as const, result })),
+        inventory.waitForCapture().then((call) => ({ kind: "capture" as const, call })),
+      ]);
+
+      if (winner.kind === "capture") {
+        await cleanup();
+        yield* forwardedToolCallEvents([winner.call], finalText);
+        return;
+      }
+      if (winner.result.done) break;
+      pendingNext = iterator.next();
+
+      const message = winner.result.value;
       const text = assistantText(message);
       if (text) {
         finalText += text;
         yield { type: "text", text };
       }
-      const toolCalls = clientToolCallsFromMessage(message, handoff);
-      if (toolCalls.length > 0) {
+      const toolCall = firstClientToolCallFromMessage(message, inventory);
+      if (toolCall) {
         await cleanup();
-        yield* forwardedToolCallEvents(toolCalls, finalText);
+        yield* forwardedToolCallEvents([toolCall], finalText);
         return;
       }
     }
 
     yield* completedSdkRunEvents(run, finalText, cleanup);
   } finally {
-    handoff.release();
     await cleanup();
   }
 }
 
+function firstClientToolCallFromMessage(
+  message: SDKMessage,
+  inventory: ClientToolInventory,
+): CursorToolCall | null {
+  const fromStream = clientToolCallsFromMessage(message, inventory);
+  if (fromStream.length > 0) return fromStream[0] ?? null;
+  return null;
+}
+
 function clientToolCallsFromMessage(
   message: SDKMessage,
-  handoff: ReturnType<typeof createToolHandoff>,
+  inventory: ClientToolInventory,
 ): CursorToolCall[] {
   if (message.type === "assistant") {
-    return clientToolCallsFromAssistantMessage(message, handoff);
+    return clientToolCallsFromAssistantMessage(message, inventory);
   }
   if (message.type !== "tool_call" || message.status !== "running") return [];
-  return [clientToolCallFromMessage(message, handoff)];
+  const call = clientToolCallFromMcp(message.name, message.args, inventory);
+  return call ? [call] : [];
 }
 
 function* forwardedToolCallEvents(
@@ -327,21 +410,17 @@ function assistantText(message: SDKMessage): string {
     .join("");
 }
 
-function clientToolCallFromMessage(
-  message: Extract<SDKMessage, { type: "tool_call" }>,
-  handoff: ReturnType<typeof createToolHandoff>,
-): CursorToolCall {
-  return clientToolCallFromMcp(message.name, message.args, handoff);
-}
-
 function clientToolCallsFromAssistantMessage(
   message: SDKMessage,
-  handoff: ReturnType<typeof createToolHandoff>,
+  inventory: ClientToolInventory,
 ): CursorToolCall[] {
   if (message.type !== "assistant") return [];
   return message.message.content.flatMap((block) =>
     block.type === "tool_use"
-      ? [clientToolCallFromMcp(block.name, block.input, handoff)]
+      ? (() => {
+          const call = clientToolCallFromMcp(block.name, block.input, inventory);
+          return call ? [call] : [];
+        })()
       : [],
   );
 }
@@ -349,55 +428,21 @@ function clientToolCallsFromAssistantMessage(
 function clientToolCallFromMcp(
   name: string,
   argsValue: unknown,
-  handoff: ReturnType<typeof createToolHandoff>,
-): CursorToolCall {
-  if (name !== "mcp" || !isRecord(argsValue)) {
+  inventory: ClientToolInventory,
+): CursorToolCall | null {
+  if (name !== "mcp") {
     throw invalidClientTool(
       "Cursor SDK requested a tool outside the client tool inventory.",
     );
   }
-  const providerIdentifier = argsValue.providerIdentifier;
-  const toolName = argsValue.toolName;
-  const args = argsValue.args;
-  if (
-    providerIdentifier !== "custom-user-tools" ||
-    typeof toolName !== "string" ||
-    !handoff.hasTool(toolName) ||
-    !isRecord(args)
-  ) {
+  const call = mcpToolCallToClientTool(argsValue, inventory.clientTools);
+  if (!call) {
     throw invalidClientTool(
       "Cursor SDK requested a tool outside the client tool inventory.",
     );
   }
-  return { name: toolName, arguments: args };
-}
-
-function jsonSchemaRecord(value: unknown): Record<string, SDKJsonValue> | undefined {
-  if (value === undefined) return undefined;
-  if (!isRecord(value)) {
-    throw invalidClientTool("Client tool parameters must be a JSON schema object.");
-  }
-  const entries: Array<[string, SDKJsonValue]> = [];
-  for (const [key, item] of Object.entries(value)) {
-    if (!isSdkJsonValue(item)) {
-      throw invalidClientTool("Client tool parameters must be a JSON schema object.");
-    }
-    entries.push([key, item]);
-  }
-  return Object.fromEntries(entries);
-}
-
-function isSdkJsonValue(value: unknown): value is SDKJsonValue {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) return value.every(isSdkJsonValue);
-  return isRecord(value) && Object.values(value).every(isSdkJsonValue);
+  inventory.tryCapture(call);
+  return call;
 }
 
 function invalidClientTool(message: string): CursorProviderError {

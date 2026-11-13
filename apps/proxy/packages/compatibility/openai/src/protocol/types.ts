@@ -32,7 +32,7 @@ export interface ToolCallContext {
 
 export interface OpenAiToolCall {
   id: string;
-  type: "function";
+  type: "function" | "custom";
   function: {
     name: string;
     arguments: string;

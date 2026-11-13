@@ -33,7 +33,14 @@ describe("buildCursorExecutionContext", () => {
               {
                 type: "namespace",
                 name: "functions",
-                tools: [{ type: "custom", name: "exec", description: "run" }],
+                tools: [
+                  {
+                    type: "custom",
+                    name: "exec",
+                    description: "run",
+                    format: { type: "grammar", syntax: "lark", definition: "start: SOURCE" },
+                  },
+                ],
               },
             ],
           },
@@ -43,6 +50,8 @@ describe("buildCursorExecutionContext", () => {
 
     const ctx = buildCursorExecutionContext(hubRequest(), prepared);
     expect(ctx?.mode).toBe("edge_owned");
-    expect(ctx?.clientTools?.map((tool) => tool.name)).toEqual(["exec"]);
+    expect(ctx?.clientTools).toEqual([
+      expect.objectContaining({ name: "exec", inputFormat: "grammar" }),
+    ]);
   });
 });

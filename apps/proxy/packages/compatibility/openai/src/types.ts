@@ -25,6 +25,8 @@ export interface CursorPrompt {
 export interface CursorToolCall {
   name: string;
   arguments: Record<string, unknown>;
+  /** Raw source for a grammar tool. When set, the client receives a custom tool call. */
+  rawInput?: string;
 }
 
 export interface CursorCompletion {

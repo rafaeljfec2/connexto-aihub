@@ -311,7 +311,18 @@ export function responseInputToTextAndImages(
       lines.push(
         `ASSISTANT TOOL_CALLS: ${JSON.stringify([{ id: callId, type: "function", function: { name, arguments: JSON.stringify(args) } }])}`,
       );
-    } else if (record.type === "function_call_output") {
+    } else if (record.type === "custom_tool_call") {
+      const callId =
+        typeof record.call_id === "string" && record.call_id.trim()
+          ? record.call_id.trim()
+          : `call_response_${toolCallById.size}`;
+      const name = typeof record.name === "string" ? record.name : "unknown";
+      const source = typeof record.input === "string" ? record.input : "";
+      toolCallById.set(callId, { name, args: { code: source } });
+      lines.push(
+        `ASSISTANT TOOL_CALLS: ${JSON.stringify([{ id: callId, type: "custom", function: { name, arguments: source } }])}`,
+      );
+    } else if (record.type === "function_call_output" || record.type === "custom_tool_call_output") {
       const callId = typeof record.call_id === "string" ? record.call_id : "";
       const output = responseToolOutputText(record.output);
       const remembered = toolCallById.get(callId);

@@ -67,11 +67,14 @@ func buildGatewayRouterWithGenerations(cfg config.Config, logger *slog.Logger, r
 			return resp.Snapshots
 		}
 	}
+	responsesHandler := gateway.NewResponsesHandlerWithRegistryAndGenerations(registry, executionManager, logger, gateway.StreamInactivityTimeout,
+		routingDeps, resourceAdmission, concurrencyGate, usageMetering, generationService)
+	chatCompletionsHandler := gateway.NewChatCompletionsHandler(responsesHandler)
 	routes := []server.Route{
 		{Method: http.MethodPost, Pattern: "/v1/responses",
-			Handler: gateway.NewResponsesHandlerWithRegistryAndGenerations(registry, executionManager, logger, gateway.StreamInactivityTimeout,
-				routingDeps, resourceAdmission, concurrencyGate, usageMetering, generationService),
-			Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
+			Handler: responsesHandler, Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
+		{Method: http.MethodPost, Pattern: "/v1/chat/completions",
+			Handler: chatCompletionsHandler, Admission: access.ResponsesAdmission(policy.MaxBodyBytes())},
 		{Method: http.MethodGet, Pattern: "/v1/models", Handler: gateway.NewRegistryModelsHandler(registry, logger)},
 		{Method: http.MethodGet, Pattern: "/diagnostics/providers", Handler: gateway.NewProvidersHandler(providerManager.Statuses)},
 		{Method: http.MethodGet, Pattern: "/v1/catalog/models", Handler: gateway.NewCatalogModelsHandler(catalogModule)},

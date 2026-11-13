@@ -13,7 +13,7 @@ export function openAiToolCallFromAgentEvent(
 ): OpenAiToolCall {
   return {
     id: event.callId,
-    type: "function",
+    type: event.callKind === "custom" ? "custom" : "function",
     function: {
       name: event.toolName,
       arguments: event.arguments ?? "{}",
