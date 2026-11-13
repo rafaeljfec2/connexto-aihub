@@ -18,6 +18,7 @@ import {
 } from "./constants.js";
 import { responseToolMetadata, responseToolChoiceMetadata } from "./formatters.js";
 import { parseChatTools } from "./tools/specs.js";
+import { collectResponsesToolSpecs } from "./tools/responses-tools.js";
 import {
   shouldRequireLocalTool,
   hasRequiredLocalToolCall,
@@ -279,10 +280,8 @@ export function prepareResponsesRequest(
   const workspaceMutationDone =
     workspaceMutationRequired &&
     hasRequiredResponseLocalToolCall(record.input, tools, latestUserText);
-  const implicitAgent = responsesImplicitAgent(record, model, tools.length);
-  const agentTurn = tools.length > 0 || implicitAgent;
   const transcript: string[] = [
-    agentTurn ? RESPONSES_TOOL_SYSTEM_DIRECTIVE : SYSTEM_DIRECTIVE,
+    tools.length ? RESPONSES_TOOL_SYSTEM_DIRECTIVE : SYSTEM_DIRECTIVE,
   ];
   appendResponsesToolInventory(transcript, tools, record.tool_choice, toolContext);
   appendResponsesWorkspaceMutationRequirement(
@@ -312,7 +311,7 @@ export function prepareResponsesRequest(
     cursorModel,
     prompt: {
       text: prompt,
-      mode: agentTurn ? "agent" : "ask",
+      mode: tools.length ? "agent" : "ask",
       ...(images.length ? { images } : {}),
     },
     stream: record.stream === true,
@@ -342,53 +341,70 @@ export function prepareResponsesRequest(
   };
 }
 
-// responsesImplicitAgent keeps Codex code mode on the agent directive when the
-// client does not send classic function tools. aihub/auto is that mode unless
-// tool_choice is none. After the gateway rewrites the model id, the same turn
-// is still recognized from Codex instructions, environment_context, or a
-// custom tool that did not survive tool parsing.
-function responsesImplicitAgent(
-  record: Record<string, unknown>,
-  model: string,
-  parsedToolCount: number,
-): boolean {
-  if (record.tool_choice === "none" || parsedToolCount > 0) {
-    return false;
+/** Validates a Responses body for hub-integrated opaque forwarding (no prompt rewrite). */
+export function prepareResponsesPassthrough(
+  body: unknown,
+  cursorModel: { id: string } | undefined,
+): PreparedRequest {
+  const record = expectRecord(body, "body");
+  validateCommonUnsupported(record);
+  if (record.background === true) {
+    throw new HttpError(
+      "background responses are not supported.",
+      400,
+      "unsupported_parameter",
+      "background",
+    );
   }
-  if (model === "aihub/auto") {
-    return true;
-  }
-  if (rawToolsIncludeType(record.tools, "custom")) {
-    return true;
-  }
-  if (
-    typeof record.instructions === "string" &&
-    record.instructions.includes("You are Codex")
-  ) {
-    return true;
-  }
-  return inputContainsMarker(record.input, "environment_context");
-}
 
-function rawToolsIncludeType(tools: unknown, toolType: string): boolean {
-  if (!Array.isArray(tools)) {
-    return false;
-  }
-  return tools.some(
-    (tool) => isRecord(tool) && tool.type === toolType,
-  );
-}
+  const model =
+    typeof record.model === "string" && record.model.trim()
+      ? record.model.trim()
+      : "composer-2.5";
+  const tools = collectResponsesToolSpecs(record);
+  const instructions =
+    typeof record.instructions === "string" ? record.instructions.trim() : "";
+  const { text, images } = responseInputToTextAndImages(record.input, tools);
+  const passthroughPrompt = [instructions, text].filter((part) => part.length > 0).join("\n\n");
+  const previousResponseId =
+    typeof record.previous_response_id === "string" &&
+    record.previous_response_id.trim()
+      ? record.previous_response_id.trim()
+      : undefined;
+  const storeResponse = record.store !== false;
 
-function inputContainsMarker(input: unknown, marker: string): boolean {
-  if (typeof input === "string") {
-    return input.includes(marker);
-  }
-  if (input === undefined || input === null) {
-    return false;
-  }
-  try {
-    return JSON.stringify(input).includes(marker);
-  } catch {
-    return false;
-  }
+  return {
+    model,
+    cursorModel,
+    passthroughBody: { ...record },
+    prompt: {
+      text: passthroughPrompt,
+      mode: tools.length > 0 || Array.isArray(record.tools) ? "agent" : "ask",
+      ...(images.length ? { images } : {}),
+    },
+    stream: record.stream === true,
+    includeUsage: includeStreamUsage(record),
+    promptChars: passthroughPrompt.length,
+    responseMetadata: {
+      instructions: instructions ? instructions : null,
+      max_output_tokens: integerOrNull(record.max_output_tokens),
+      temperature: numberOrNull(record.temperature),
+      top_p: numberOrNull(record.top_p),
+      text: isRecord(record.text) ? record.text : { format: { type: "text" } },
+      previous_response_id: previousResponseId ?? null,
+      store: storeResponse,
+      ...(tools.length
+        ? {
+            tools: responseToolMetadata(tools),
+            tool_choice: responseToolChoiceMetadata(record.tool_choice),
+          }
+        : {}),
+    },
+    tools,
+    requiresLocalTool: false,
+    previousResponseId,
+    storeResponse,
+    responseInputItems: normalizedResponseInputItems(record.input),
+    toolContext: toolCallContextFromResponseInput(record.input, record.instructions),
+  };
 }

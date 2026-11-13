@@ -5,6 +5,7 @@ import {
   isRecord,
   openAiErrorPayload,
   type PreparedRequest,
+  prepareResponsesPassthrough,
   prepareResponsesRequest,
 } from "@agent-runtime-gateway/compatibility-openai";
 import type { GatewayServices } from "../../services/gateway.js";
@@ -74,12 +75,16 @@ export function resolveValidatedResponsesRequest(
     return undefined;
   }
 
+  const hubPassthrough =
+    isHubIntegratedRequest(req) && target.providerId === "cursor";
   let prepared: PreparedRequest;
   try {
-    prepared = prepareResponsesRequest(rawBody, cursorModel, {
-      previousOutput: previousState?.outputItems,
-      previousInputItems: previousState?.inputItems,
-    });
+    prepared = hubPassthrough
+      ? prepareResponsesPassthrough(rawBody, cursorModel)
+      : prepareResponsesRequest(rawBody, cursorModel, {
+          previousOutput: previousState?.outputItems,
+          previousInputItems: previousState?.inputItems,
+        });
   } catch (err) {
     if (err instanceof HttpError) {
       sendHttpError(err, req, res);

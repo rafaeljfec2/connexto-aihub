@@ -46,6 +46,22 @@ func TestProjectRequirementsCodexStyleToolsOmitCustomToolsGate(t *testing.T) {
 	}
 }
 
+func TestProjectRequirementsAdditionalToolsRequireFunctionTools(t *testing.T) {
+	body := []byte(`{
+		"input":[
+			{"type":"additional_tools","tools":[{"type":"function","name":"exec"}]},
+			{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}
+		]
+	}`)
+	status, err := routing.ProjectRequirements(body, routing.StructuralRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(status.RequiredCapabilities, "function_tools") {
+		t.Fatalf("expected function_tools from additional_tools, got %v", status.RequiredCapabilities)
+	}
+}
+
 func TestProjectRequirementsFileInputUnmapped(t *testing.T) {
 	status, err := routing.ProjectRequirements([]byte(`{"input":[{"type":"input_file"}]}`), routing.StructuralRequest{})
 	if err != nil {

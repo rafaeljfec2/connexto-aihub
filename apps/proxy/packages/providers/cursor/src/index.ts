@@ -20,3 +20,4 @@ export { CursorSessionManager } from "./sessions.js";
 export * from "./crypto.js";
 export * from "./cursor.js";
 export * from "./cursor-sdk.js";
+export { cursorPublicRaw } from "./engine/auth-api.js";

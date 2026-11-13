@@ -5,6 +5,8 @@ export type ApiKind = "chat" | "responses";
 export interface PreparedRequest {
   model: string;
   cursorModel?: { id: string };
+  /** Hub-integrated opaque forward: original Responses JSON without prompt rewriting. */
+  passthroughBody?: Record<string, unknown>;
   prompt: CursorPrompt;
   stream: boolean;
   includeUsage: boolean;

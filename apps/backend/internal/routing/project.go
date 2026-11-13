@@ -43,6 +43,9 @@ func ProjectRequirements(body []byte, structural StructuralRequest) (Requirement
 			// custom_tools=unknown for every catalog entry.
 		}
 	}
+	if inputHasExecutableTools(envelope.Input) {
+		required["function_tools"] = struct{}{}
+	}
 
 	if reasoningRequiresCapability(envelope.Reasoning) {
 		required["reasoning"] = struct{}{}
@@ -101,6 +104,30 @@ func reasoningRequiresCapability(raw json.RawMessage) bool {
 		case "effort", "context", "summary", "encrypted_content":
 			continue
 		default:
+			return true
+		}
+	}
+	return false
+}
+
+func inputHasExecutableTools(raw json.RawMessage) bool {
+	if len(raw) == 0 || raw[0] == '"' {
+		return false
+	}
+	var items []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return false
+	}
+	for _, item := range items {
+		typeRaw, ok := item["type"]
+		if !ok {
+			continue
+		}
+		var itemType string
+		if err := json.Unmarshal(typeRaw, &itemType); err != nil {
+			continue
+		}
+		if itemType == "additional_tools" {
 			return true
 		}
 	}

@@ -67,21 +67,6 @@ export async function handleCreateResponse(req: Request, res: Response): Promise
     if (!workspaceCheck.ok) return;
 
     const providerStart = performance.now();
-    const executionInput = buildAgentExecutionInput({
-      req,
-      body,
-      sessionId: sessionAffinity,
-      target,
-      prepared,
-      apiKey,
-      signal: cancellation.signal,
-      workingDirectory: workspaceCheck.workingDirectory,
-      images,
-    });
-    const run = await services.executor.execute(target.providerId, executionInput);
-
-    if (cancellation.signal.aborted) return;
-
     const deliveryContext: ResponseDeliveryContext = {
       id,
       created,
@@ -96,6 +81,21 @@ export async function handleCreateResponse(req: Request, res: Response): Promise
       textFormat: isRecord(body.text) ? body.text.format : undefined,
       reasoningEffort: readReasoningEffort(body),
     };
+
+    const executionInput = buildAgentExecutionInput({
+      req,
+      body,
+      sessionId: sessionAffinity,
+      target,
+      prepared,
+      apiKey,
+      signal: cancellation.signal,
+      workingDirectory: workspaceCheck.workingDirectory,
+      images,
+    });
+    const run = await services.executor.execute(target.providerId, executionInput);
+
+    if (cancellation.signal.aborted) return;
 
     if (prepared.stream) {
       await streamResponseRun(run, res, deliveryContext);

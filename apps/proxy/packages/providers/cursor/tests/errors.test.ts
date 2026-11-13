@@ -1,11 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConfigurationError } from "@cursor/sdk";
+import { ConfigurationError, CursorAgentError } from "@cursor/sdk";
 import { HttpError } from "@agent-runtime-gateway/compatibility-openai";
-import { normalizeCursorError } from "../src/errors.js";
+import { isCursorCapacityErrorMessage, normalizeCursorError } from "../src/errors.js";
 import { cursorBackendUrl } from "../src/engine/auth-api.js";
 import { CursorProvider } from "../src/provider.js";
 
 describe("normalizeCursorError", () => {
+  it("maps Server at capacity to cursor_rate_limit", () => {
+    const error = new CursorAgentError("[unavailable] Server at capacity");
+    expect(normalizeCursorError(error)).toMatchObject({
+      code: "cursor_rate_limit",
+      retryable: true,
+    });
+  });
+
+  it("detects capacity phrases", () => {
+    expect(isCursorCapacityErrorMessage("[unavailable] Server at capacity")).toBe(
+      true,
+    );
+    expect(isCursorCapacityErrorMessage("ok")).toBe(false);
+  });
+
   it("maps ConfigurationError to cursor_configuration_error", () => {
     const error = new ConfigurationError("working directory is missing");
     expect(normalizeCursorError(error)).toMatchObject({

@@ -8,10 +8,10 @@ import {
   resetGatewayServicesForTest,
 } from "../apps/api/src/services/gateway.js";
 
-describe("Cursor edge-owned HTTP tool forwarding", () => {
+describe("Cursor hub opaque HTTP forwarding", () => {
   afterEach(() => resetGatewayServicesForTest());
 
-  it("routes a hub tool call through the existing Responses SSE contract", async () => {
+  it("routes hub tools through edge-owned without rewriting directives", async () => {
     const edgeOwnedRunner = vi.fn(() =>
       Promise.resolve({
         agentId: "edge-agent",
@@ -48,12 +48,9 @@ describe("Cursor edge-owned HTTP tool forwarding", () => {
 
     expect(response.status).toBe(200);
     expect(response.text).toContain("event: response.function_call_arguments.done");
-    expect(response.text).toContain('"name":"noop"');
-    expect(response.text).toContain("event: response.completed");
     expect(edgeOwnedRunner).toHaveBeenCalledWith(
       expect.objectContaining({
-        apiKey: "cursor-test-key",
-        model: "composer-2.5",
+        prompt: expect.not.stringContaining("INPUT:"),
         clientTools: [expect.objectContaining({ name: "noop" })],
       }),
     );

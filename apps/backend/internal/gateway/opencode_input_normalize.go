@@ -14,7 +14,11 @@ import (
 func adaptResponsesPayloadForProvider(providerID string, body []byte) ([]byte, error) {
 	switch providerID {
 	case providers.OpenCodeGoID:
-		return normalizeOpenCodeGoResponsesInput(body)
+		promoted, err := promoteAdditionalToolsToTopLevel(body)
+		if err != nil {
+			return nil, err
+		}
+		return normalizeOpenCodeGoResponsesInput(promoted)
 	case providers.AntigravityID:
 		prefixed, err := normalizeAntigravityResponsesModel(body)
 		if err != nil {
@@ -22,7 +26,11 @@ func adaptResponsesPayloadForProvider(providerID string, body []byte) ([]byte, e
 		}
 		return providers.NormalizePortableResponsesPayload(prefixed)
 	case providers.OpenRouterID:
-		return normalizeOpenRouterResponsesInput(body)
+		promoted, err := promoteAdditionalToolsToTopLevel(body)
+		if err != nil {
+			return nil, err
+		}
+		return normalizeOpenRouterResponsesInput(promoted)
 	default:
 		return body, nil
 	}

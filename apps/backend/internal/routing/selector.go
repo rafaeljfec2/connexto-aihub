@@ -27,6 +27,11 @@ func SelectDeterministic(ctx RoutingContext, snapshot Snapshot, eligibility Elig
 		if explicitProvider != "" {
 			hasExplicitProvider = true
 		}
+	} else if !hasExplicitProvider && IsCursorProxyModelID(explicitModelID) {
+		explicitProvider = firstCursorProviderID(snapshot)
+		if explicitProvider != "" {
+			hasExplicitProvider = true
+		}
 	} else if hasExplicitProvider && providerTypeOf(snapshot, explicitProvider) == providers.TypeAntigravity {
 		explicitModelID = resolveAntigravityModelID(snapshot, explicitProvider, explicitModelID)
 	}

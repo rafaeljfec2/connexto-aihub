@@ -195,6 +195,10 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	streamTap := capture.NewStreamTap()
 	responseWriter := &responseSink{writer: w, inactivity: h.inactivity, tap: streamTap}
+	var execSink execution.Sink = responseWriter
+	if routingDecision.Origin == routing.OriginVirtualAuto && modelID != "" && modelID != routing.VirtualModelAuto {
+		execSink = newVirtualAutoModelSink(responseWriter, modelID)
+	}
 	result, err := h.manager.Execute(execCtx, execution.Command{
 		RequestID:   requestID,
 		ExecutionID: executionID,
@@ -207,7 +211,7 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		RoutingSelectedAt: routingSelectedAt,
 		Payload:           executionPayload,
 		ContentType:       contentType,
-	}, responseWriter)
+	}, execSink)
 	captured := streamTap.Finalize(responseWriter.contentType)
 	if h.usage != nil && err == nil {
 		h.usage.RecordFromCaptureBestEffort(r.Context(), metering.RecordInput{

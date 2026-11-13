@@ -38,6 +38,15 @@ import type { CursorSdkCompletion } from "./sdk/types.js";
 import { ConfigurationError } from "@cursor/sdk";
 import { HttpError } from "@agent-runtime-gateway/compatibility-openai";
 
+const CURSOR_CAPACITY_RETRY_ATTEMPTS = 2;
+const CURSOR_CAPACITY_RETRY_DELAY_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function throwNormalized(error: unknown): never {
   if (error instanceof HttpError) {
     throw error;
@@ -198,40 +207,59 @@ export class CursorProvider implements AgentProvider {
     };
 
     try {
-      const completion = await this.edgeOwnedRunner({
-        apiKey,
-        model: input.model,
-        agentName: this.agentName,
-        prompt: input.message,
-        clientTools: cursorContext?.clientTools ?? [],
-        ...(input.workingDirectory !== undefined
-          ? { workingDirectory: input.workingDirectory }
-          : {}),
-        ...(input.images !== undefined ? { images: input.images } : {}),
-        ...(input.signal !== undefined ? { signal: input.signal } : {}),
-      });
+      for (let attempt = 0; attempt < CURSOR_CAPACITY_RETRY_ATTEMPTS; attempt += 1) {
+        if (input.signal?.aborted) {
+          input.signal.throwIfAborted();
+        }
+        try {
+          const completion = await this.edgeOwnedRunner({
+            apiKey,
+            model: input.model,
+            agentName: this.agentName,
+            prompt: input.message,
+            clientTools: cursorContext?.clientTools ?? [],
+            ...(input.workingDirectory !== undefined
+              ? { workingDirectory: input.workingDirectory }
+              : {}),
+            ...(input.images !== undefined ? { images: input.images } : {}),
+            ...(input.signal !== undefined ? { signal: input.signal } : {}),
+          });
 
-      if (input.signal?.aborted) {
-        await completion.cancel?.();
-        input.signal.throwIfAborted();
-      }
-
-      const run = agentRunFromCursorTextStream({
-        providerId: this.id,
-        sessionId: input.sessionId,
-        model: input.model,
-        runId: completion.runId,
-        stream: completion.stream,
-        signal: input.signal,
-        cancel: async () => {
-          try {
+          if (input.signal?.aborted) {
             await completion.cancel?.();
-          } finally {
-            endExecution();
+            input.signal.throwIfAborted();
           }
-        },
-      });
-      return guardAgentRun(run, endExecution);
+
+          const run = agentRunFromCursorTextStream({
+            providerId: this.id,
+            sessionId: input.sessionId,
+            model: input.model,
+            runId: completion.runId,
+            stream: completion.stream,
+            signal: input.signal,
+            cancel: async () => {
+              try {
+                await completion.cancel?.();
+              } finally {
+                endExecution();
+              }
+            },
+          });
+          return guardAgentRun(run, endExecution);
+        } catch (error) {
+          const normalized = normalizeCursorError(error);
+          const canRetry =
+            normalized.retryable &&
+            attempt < CURSOR_CAPACITY_RETRY_ATTEMPTS - 1 &&
+            input.signal?.aborted !== true;
+          if (!canRetry) {
+            throw error;
+          }
+          await sleep(CURSOR_CAPACITY_RETRY_DELAY_MS);
+        }
+      }
+      endExecution();
+      throw new Error("Cursor edge-owned execution exhausted retries");
     } catch (error) {
       endExecution();
       throwNormalized(error);

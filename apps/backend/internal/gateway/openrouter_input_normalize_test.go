@@ -37,6 +37,31 @@ func TestOpenRouterResponsesInputStripsRedactedThinking(t *testing.T) {
 	}
 }
 
+func TestOpenRouterResponsesWrapsFlatInputAndFunctionTools(t *testing.T) {
+	in := []byte(`{
+		"model":"anthropic/claude-haiku-4.5",
+		"instructions":"e2e-stay-intact",
+		"tool_choice":"auto",
+		"tools":[{"type":"function","name":"probe_tool","parameters":{"type":"object","properties":{}}}],
+		"input":[{"type":"input_text","text":"call probe_tool"}],
+		"stream":false
+	}`)
+	out, err := OpenRouterResponsesPayloadForUpstream(in)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	text := string(out)
+	if !strings.Contains(text, "e2e-stay-intact") {
+		t.Fatalf("instructions changed: %s", text)
+	}
+	if !strings.Contains(text, `"type":"message"`) {
+		t.Fatalf("input not wrapped: %s", text)
+	}
+	if !strings.Contains(text, `"type":"custom"`) || !strings.Contains(text, `"name":"probe_tool"`) {
+		t.Fatalf("function tools should map to custom for OpenRouter: %s", text)
+	}
+}
+
 func TestAdaptResponsesPayloadForProviderOpenRouterOnly(t *testing.T) {
 	in := []byte(`{"input":[{"type":"message","role":"assistant","content":[{"type":"redacted_thinking"}]}]}`)
 	openRouterOut, err := adaptResponsesPayloadForProvider(providers.OpenRouterID, in)

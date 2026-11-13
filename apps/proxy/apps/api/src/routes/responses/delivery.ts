@@ -9,6 +9,7 @@ import {
   doneChunk,
   enforceStructuredOutputFormat,
   isRecord,
+  openAiErrorPayload,
   type PreparedRequest,
   responseCreatedEvents,
   responseDeltaEvent,
@@ -276,4 +277,83 @@ export async function deliverNonStreamingResponse(
   }
 
   res.status(200).json(resp);
+}
+
+/** Forwards a Cursor upstream Responses payload without rewriting the client contract. */
+export async function deliverPassthroughUpstreamResponse(
+  upstream: globalThis.Response,
+  res: Response,
+  ctx: ResponseDeliveryContext,
+): Promise<void> {
+  const providerDurationMs =
+    Math.round((performance.now() - ctx.providerStart) * 100) / 100;
+  const contentType = upstream.headers.get("content-type") ?? "";
+
+  if (contentType.includes("text/event-stream") && ctx.prepared.stream) {
+    initSseHeaders(res);
+    if (!upstream.body) {
+      res.status(502).end();
+      return;
+    }
+    for await (const chunk of upstream.body as AsyncIterable<Uint8Array>) {
+      if (ctx.signal.aborted) break;
+      res.write(chunk);
+    }
+    if (!ctx.signal.aborted) {
+      res.end();
+    }
+    getLogger().info(
+      {
+        requestId: ctx.requestId,
+        provider: ctx.target.providerId,
+        model: ctx.target.modelId,
+        status: "completed",
+        durationMs: providerDurationMs,
+        passthrough: true,
+      },
+      "provider stream completed",
+    );
+    return;
+  }
+
+  const rawText = await upstream.text();
+  if (!upstream.ok) {
+    res.status(upstream.status).type(contentType || "application/json").send(rawText);
+    return;
+  }
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(rawText) as Record<string, unknown>;
+  } catch {
+    res.status(502).json(openAiErrorPayload("Invalid upstream response", "api_error"));
+    return;
+  }
+
+  const stored = { ...payload, id: ctx.id, created: ctx.created, model: ctx.prepared.model };
+  if (ctx.prepared.storeResponse) {
+    ctx.services.responseStore.set(ctx.id, {
+      id: ctx.id,
+      created: ctx.created,
+      model: ctx.prepared.model,
+      inputItems: ctx.prepared.responseInputItems ?? [],
+      sdkSessionKey: ctx.sessionAffinity,
+      ownerPrincipal: ctx.principal,
+      responseData: stored,
+    });
+  }
+
+  getLogger().info(
+    {
+      requestId: ctx.requestId,
+      provider: ctx.target.providerId,
+      model: ctx.target.modelId,
+      status: "completed",
+      durationMs: providerDurationMs,
+      passthrough: true,
+    },
+    "provider execution completed",
+  );
+
+  res.status(200).json(stored);
 }
