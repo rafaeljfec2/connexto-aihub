@@ -60,6 +60,27 @@ describe("edgeOwnedBridgePromptPrefix", () => {
     expect(complement).toContain("They are not interchangeable");
     expect(complement).toContain("write_stdin interacts with shell processes");
   });
+
+  it("uses legacy MCP transport when inventory has no exec or wait", () => {
+    const complement = edgeOwnedBridgePromptPrefix([
+      {
+        name: "write",
+        parameters: {
+          type: "object",
+          properties: { path: { type: "string" }, fileText: { type: "string" } },
+        },
+      },
+    ]);
+
+    expect(complement).toContain("CLIENT MCP TRANSPORT");
+    expect(complement).toContain('providerIdentifier must be "client"');
+    expect(complement).toContain("write: function_call JSON args");
+    expect(complement).toContain("Schema fields: path, fileText");
+    expect(complement).not.toContain("CODEX CODE MODE INTERFACE");
+    expect(complement).not.toContain(
+      "No exec or wait in the current inventory",
+    );
+  });
 });
 
 describe("composeEdgeOwnedUserMessageText", () => {

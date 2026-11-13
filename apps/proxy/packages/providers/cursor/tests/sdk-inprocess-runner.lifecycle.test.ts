@@ -90,19 +90,19 @@ describe("createCursorSdkInProcessCompletion lifecycle", () => {
     expect(options?.local?.settingSources).toEqual([]);
     expect(options?.local?.cwd).not.toBe("/ide/project");
     expect(agent.send.mock.calls[0]?.[0]).toMatchObject({
-      text: expect.stringContaining('providerIdentifier "client"'),
+      text: expect.stringContaining('providerIdentifier must be "client"'),
     });
     const sentText = String(
       (agent.send.mock.calls[0]?.[0] as { text?: string } | undefined)?.text ?? "",
     );
     expect(sentText).toContain("Create note.txt");
-    expect(sentText.indexOf("CODEX CODE MODE INTERFACE")).toBeLessThan(
+    expect(sentText.indexOf("CLIENT MCP TRANSPORT")).toBeLessThan(
       sentText.indexOf("Create note.txt"),
     );
-    expect(sentText.indexOf("Never invoke Cursor-native tools")).toBeLessThan(
+    expect(sentText.indexOf('providerIdentifier must be "client"')).toBeLessThan(
       sentText.indexOf("Create note.txt"),
     );
-    expect(sentText).toContain("No exec or wait in the current inventory");
+    expect(sentText).toContain('"toolName":"write"');
     expect(run.cancel).toHaveBeenCalled();
     expect(events).toContainEqual({
       type: "tool_call",

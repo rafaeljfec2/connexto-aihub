@@ -1,4 +1,5 @@
 import type { CursorClientToolSpec } from "@agent-runtime-gateway/core";
+import { isRecord } from "@agent-runtime-gateway/compatibility-openai";
 
 const CODEX_CODE_MODE_COMPLEMENT = `CODEX CODE MODE INTERFACE (COMPLEMENTARY).
 
@@ -43,35 +44,71 @@ RESULT HANDLING:
 - Continue following the original Codex instructions.
 
 USER VISIBILITY:
-- Before each MCP call, provide 1-3 short progress sentences in the user's language.
+- Write in the user's language with a natural, collegial tone (Brazilian Portuguese when the user writes in PT-BR).
+- Before each MCP call, add one brief human update: what you are doing now and why — not a workflow script.
+- Do not repeat the same intent in back-to-back messages, cite skill or file paths, or open with robotic formulas ("Vou executar o fluxo...", "Iniciando conforme o skill...").
+- On retries, say plainly what failed and what you are trying next; keep it to one short paragraph before the call.
 - Never run a client tool silently.`;
 
-/** MCP transport complement for edge-owned Codex client tools (not user task text). */
+/** MCP transport complement for edge-owned client tools (not user task text). */
 export function edgeOwnedBridgePromptPrefix(
   clientTools: readonly CursorClientToolSpec[],
 ): string {
   if (clientTools.length === 0) return "";
-  const topLevel = topLevelToolNames(clientTools);
-  const examples = mcpExampleLines(clientTools);
+  if (usesCodexCodeMode(clientTools)) {
+    return codexBridgePromptSuffix(clientTools);
+  }
+  return legacyBridgePrompt(clientTools);
+}
+
+function usesCodexCodeMode(tools: readonly CursorClientToolSpec[]): boolean {
+  return tools.some((tool) => {
+    const name = tool.name.trim();
+    return name === "exec" || name === "wait";
+  });
+}
+
+function codexBridgePromptSuffix(clientTools: readonly CursorClientToolSpec[]): string {
+  const topLevel = topLevelCodexToolNames(clientTools);
+  const examples = codexMcpExampleLines(clientTools);
   return [
     CODEX_CODE_MODE_COMPLEMENT,
-    topLevel.length > 0
-      ? `Current top-level MCP toolName values: ${topLevel.join(", ")}.`
-      : "No exec or wait in the current inventory; do not emit client tool MCP calls until they appear.",
+    `Current top-level MCP toolName values: ${topLevel.join(", ")}.`,
     ...examples,
   ]
     .filter((line) => line.length > 0)
     .join("\n\n");
 }
 
-function topLevelToolNames(tools: readonly CursorClientToolSpec[]): string[] {
+function legacyBridgePrompt(clientTools: readonly CursorClientToolSpec[]): string {
+  const tools = clientTools.filter((tool) => tool.name.trim().length > 0);
+  const exactTools = tools.map((tool) => tool.name.trim()).join(", ");
+  const example = legacyMcpCallShapeExample(tools);
+  const inventoryLines = tools.map((tool) => legacyInventoryTransportLine(tool));
+  return [
+    "CLIENT MCP TRANSPORT (COMPLEMENTARY).",
+    "Upstream Responses instructions remain authoritative; this block only describes how to reach the client runtime.",
+    "Before each mcp call, write one brief natural update in the user's language (no duplicate narration or skill-path quotes); never run a client tool silently.",
+    `Callable SDK tool name: mcp only. providerIdentifier must be "client".`,
+    `Call mcp with ${example}. toolName must be one of: ${exactTools}.`,
+    "function tools: mcp args is the JSON object stored as function_call.arguments (match the tool schema).",
+    'custom tools (grammar): mcp args is {"input":"<raw source>"} forwarded as custom_tool_call.input.',
+    ...inventoryLines,
+    "The proxy converts your mcp payload into Responses function_call or custom_tool_call items; do not emit those item types yourself.",
+    "If LOCAL TOOL RESULT records are present, treat those tools as already executed by the client and continue from the result.",
+  ]
+    .filter((line) => line.length > 0)
+    .join("\n");
+}
+
+function topLevelCodexToolNames(tools: readonly CursorClientToolSpec[]): string[] {
   const allowed = new Set(["exec", "wait"]);
   return tools
     .map((tool) => tool.name.trim())
     .filter((name) => name.length > 0 && allowed.has(name));
 }
 
-function mcpExampleLines(tools: readonly CursorClientToolSpec[]): string[] {
+function codexMcpExampleLines(tools: readonly CursorClientToolSpec[]): string[] {
   const lines: string[] = [];
   if (tools.some((tool) => tool.name.trim() === "exec")) {
     lines.push(
@@ -84,6 +121,44 @@ function mcpExampleLines(tools: readonly CursorClientToolSpec[]): string[] {
     );
   }
   return lines;
+}
+
+function legacyMcpCallShapeExample(tools: readonly CursorClientToolSpec[]): string {
+  const preferred =
+    tools.find((tool) => tool.inputFormat === "grammar") ??
+    tools.find((tool) => tool.inputFormat !== "grammar") ??
+    tools[0];
+  if (!preferred) {
+    return '{"providerIdentifier":"client","toolName":"<name>","args":{}}';
+  }
+  return legacyMcpExampleForTool(preferred);
+}
+
+function legacyMcpExampleForTool(tool: CursorClientToolSpec): string {
+  const name = tool.name.trim();
+  if (tool.inputFormat === "grammar" || name === "apply_patch") {
+    return `{"providerIdentifier":"client","toolName":"${name}","args":{"input":"<raw ${name} source>"}}`;
+  }
+  return `{"providerIdentifier":"client","toolName":"${name}","args":{...schema fields}}`;
+}
+
+function legacyInventoryTransportLine(tool: CursorClientToolSpec): string {
+  const name = tool.name.trim();
+  if (tool.inputFormat === "grammar") {
+    if (name === "apply_patch") {
+      return "apply_patch: custom_tool_call via args.input patch text (*** Begin Patch envelope).";
+    }
+    return `${name}: custom_tool_call via args.input raw source.`;
+  }
+  const properties = schemaPropertyNames(tool.parameters);
+  const propertyText =
+    properties.length > 0 ? ` Schema fields: ${properties.join(", ")}.` : "";
+  return `${name}: function_call JSON args.${propertyText}`;
+}
+
+function schemaPropertyNames(parameters: unknown): string[] {
+  if (!isRecord(parameters) || !isRecord(parameters.properties)) return [];
+  return Object.keys(parameters.properties).slice(0, 12);
 }
 
 export function composeEdgeOwnedUserMessageText(params: {

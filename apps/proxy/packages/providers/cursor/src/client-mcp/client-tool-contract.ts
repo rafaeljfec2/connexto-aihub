@@ -32,7 +32,7 @@ export function mandatoryContractPromptBlock(
     "GPT-6 OUTPUT CONTRACT (MANDATORY).",
     "This block is law, not advice. The proxy validates every mcp payload before Codex runs it.",
     "One tool per turn. toolName must be from the client inventory only.",
-    "Assistant progress text before mcp is required for the user; only the mcp payload is validated here.",
+    "Assistant must include a brief natural-language update before mcp (for the user); only the mcp payload is validated here.",
     "Do not narrate SDK usage, editor tools, or Cursor-native names inside the mcp payload.",
     `Inventory: ${exactTools || "(none)"}.`,
     "function tools: args is a JSON object matching the schema. No JavaScript modules inside args.",
