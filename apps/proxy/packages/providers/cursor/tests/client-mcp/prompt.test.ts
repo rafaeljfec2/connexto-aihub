@@ -47,5 +47,8 @@ describe("edgeOwnedBridgePromptPrefix", () => {
     expect(prompt).toContain('"toolName":"apply_patch"');
     expect(prompt).toContain("Use apply_patch for file changes.");
     expect(prompt).toContain("node:fs");
+    expect(prompt).toContain("CODEX CLIENT");
+    expect(prompt).toContain("tools.exec_command({cmd: string})");
+    expect(prompt).toContain("Codex executes this tool on the workspace");
   });
 });

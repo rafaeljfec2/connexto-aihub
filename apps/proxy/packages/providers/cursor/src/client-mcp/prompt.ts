@@ -21,6 +21,7 @@ export function edgeOwnedBridgePromptPrefix(
     "You are running through an inference bridge behind an OpenAI Responses client.",
     "The outer client owns local tool execution. This runtime must not execute SDK built-in shell, read, write, edit, glob, grep, ls, or delete.",
     "Your job is to choose one outer-client tool and fill the OpenAI payload. The proxy turns that payload into a Responses function_call or custom_tool_call. Do not emit those item types yourself.",
+    codexClientGuide(tools),
     openaiOutputContract(tools),
     "If LOCAL TOOL RESULT records are present, treat those tools as already executed by the outer client and continue from the result.",
     "",
@@ -38,6 +39,29 @@ function mcpCallExample(tools: readonly CursorClientToolSpec[]): string {
     return `{"providerIdentifier":"client","toolName":"${tool.name.trim()}","args":{"input":"<raw ${tool.name.trim()} source>"}}`;
   }
   return `{"providerIdentifier":"client","toolName":"${tool.name.trim()}","args":{...JSON object for function_call.arguments}}`;
+}
+
+function codexClientGuide(tools: readonly CursorClientToolSpec[]): string {
+  const functionNames = tools
+    .filter((tool) => tool.inputFormat !== "grammar")
+    .map((tool) => tool.name.trim());
+  const lines = [
+    "CODEX CLIENT.",
+    "Codex is the program on the user's machine. It executes the tool you select. You do not have its filesystem or its tool objects.",
+    "One mcp call becomes one Codex tool call. Codex runs it, then the next request brings the result back.",
+  ];
+  if (tools.some((tool) => tool.name.trim() === "exec" && tool.inputFormat === "grammar")) {
+    lines.push(
+      "Codex exec: Codex evaluates args.input as JavaScript in a sandbox. The only helpers are tools.exec_command({cmd: string}) and text(value). exec_command runs a shell command and returns its output. text sends that output back to you. There is no filesystem API in that sandbox.",
+      'Shell example: {"providerIdentifier":"client","toolName":"exec","args":{"input":"const result = await tools.exec_command({cmd:\\"git status -sb\\"}); text(result);"}}',
+    );
+  }
+  if (functionNames.length > 0) {
+    lines.push(
+      `Codex function tools (${functionNames.join(", ")}): Codex runs them on the workspace. Put the tool's JSON arguments in mcp args. Do not reimplement them inside exec.`,
+    );
+  }
+  return lines.join("\n");
 }
 
 function openaiOutputContract(tools: readonly CursorClientToolSpec[]): string {
@@ -68,7 +92,11 @@ function toolContractLine(
   const properties = schemaPropertyNames(tool.parameters);
   const propertyText =
     properties.length > 0 ? ` Properties: ${properties.join(", ")}.` : "";
-  return `${name} is a function_call. args must satisfy its JSON schema.${propertyText}`;
+  const description =
+    tool.description && tool.description.trim().length > 0
+      ? ` Codex description: ${tool.description.trim()}`
+      : "";
+  return `${name} is a function_call. Codex executes this tool on the workspace. args must satisfy its JSON schema.${propertyText}${description}`;
 }
 
 function grammarContract(
