@@ -4,33 +4,40 @@ import {
   edgeOwnedBridgePromptPrefix,
 } from "../../src/client-mcp/prompt.js";
 
-const execTool = [{ name: "exec", inputFormat: "grammar" as const }];
+const codexInventory = [
+  { name: "exec", inputFormat: "grammar" as const },
+  {
+    name: "wait",
+    parameters: {
+      type: "object",
+      properties: { cell_id: { type: "string" } },
+      required: ["cell_id"],
+    },
+  },
+];
 
 describe("edgeOwnedBridgePromptPrefix", () => {
-  it("describes MCP transport without GPT-6 persona or shell examples", () => {
-    const complement = edgeOwnedBridgePromptPrefix([
-      {
-        name: "write",
-        parameters: {
-          type: "object",
-          properties: { path: { type: "string" }, fileText: { type: "string" } },
-        },
-      },
-    ]);
+  it("describes Codex code mode without Cursor tool names or GPT-6 legacy blocks", () => {
+    const complement = edgeOwnedBridgePromptPrefix(codexInventory);
 
-    expect(complement).toContain("CLIENT MCP TRANSPORT");
-    expect(complement).toContain('providerIdentifier must be "client"');
-    expect(complement).toContain("write: function_call JSON args");
-    expect(complement).toContain("Schema fields: path, fileText");
+    expect(complement).toContain("CODEX CODE MODE INTERFACE");
+    expect(complement).toContain('providerIdentifier "client"');
+    expect(complement).toContain("tools.exec_command");
+    expect(complement).toContain("workdir");
+    expect(complement).toContain("session_id");
+    expect(complement).toContain("cell_id");
+    expect(complement).toContain("text(value)");
+    expect(complement).toContain("ALL_TOOLS");
+    expect(complement).toContain("Never send toolName apply_patch through MCP");
     expect(complement).not.toContain("Composer model emulating GPT-6");
     expect(complement).not.toContain("git status -sb");
-    expect(complement).not.toContain("GPT-6 OUTPUT CONTRACT");
-    expect(complement).not.toContain("CODEX CLIENT INTERFACE");
+    expect(complement).not.toContain("GetDynamicTools");
+    expect(complement).not.toMatch(/\bcwd\b/);
   });
 
-  it("prefers exec in the primary mcp example when Codex-shaped inventory includes function tools", () => {
+  it("lists only exec and wait as top-level MCP toolNames", () => {
     const complement = edgeOwnedBridgePromptPrefix([
-      { name: "exec", inputFormat: "grammar" },
+      ...codexInventory,
       {
         name: "client_shell",
         parameters: {
@@ -40,25 +47,18 @@ describe("edgeOwnedBridgePromptPrefix", () => {
         },
       },
     ]);
-    expect(complement).toMatch(/Call mcp with \{"providerIdentifier":"client","toolName":"exec"/);
-    expect(complement).toContain("Function tools use a separate top-level mcp call");
-    expect(complement).toContain('"toolName":"client_shell"');
-    expect(complement).toContain(
-      "Not inside exec: client_shell — use top-level mcp with toolName",
-    );
-    expect(complement).not.toContain(
-      "Declared Codex nested tools: client_shell",
-    );
+
+    expect(complement).toContain("Current top-level MCP toolName values: exec, wait.");
+    expect(complement).toMatch(/"toolName":"exec"/);
+    expect(complement).toMatch(/"toolName":"wait"/);
+    expect(complement).not.toContain('"toolName":"client_shell"');
+    expect(complement).not.toContain("client_shell — use top-level mcp");
   });
 
-  it("labels exec as custom_tool_call transport without exec_command tutorial", () => {
-    const complement = edgeOwnedBridgePromptPrefix(execTool);
-    expect(complement).toContain("exec: custom_tool_call");
-    expect(complement).toContain("EXEC ISOLATE");
-    expect(complement).toContain("tools.exec_command");
-    expect(complement).toContain("Never use require");
-    expect(complement).toContain("tools.read");
-    expect(complement).not.toContain("git status -sb");
+  it("states wait versus write_stdin roles", () => {
+    const complement = edgeOwnedBridgePromptPrefix(codexInventory);
+    expect(complement).toContain("They are not interchangeable");
+    expect(complement).toContain("write_stdin interacts with shell processes");
   });
 });
 
@@ -77,12 +77,12 @@ describe("composeEdgeOwnedUserMessageText", () => {
     const text = composeEdgeOwnedUserMessageText({
       prompt: "apply a one-line fix",
       clientInstructions: "Always prefix shell commands with rtk\nYou are Codex.",
-      clientTools: execTool,
+      clientTools: codexInventory,
       workingDirectory: "/workspace/repo",
     });
 
     const rtkAt = text.indexOf("Always prefix shell commands with rtk");
-    const complementAt = text.indexOf("CLIENT MCP TRANSPORT");
+    const complementAt = text.indexOf("CODEX CODE MODE INTERFACE");
     const inputAt = text.indexOf("apply a one-line fix");
     const workdirAt = text.indexOf("IDE workspace");
 
@@ -90,16 +90,14 @@ describe("composeEdgeOwnedUserMessageText", () => {
     expect(complementAt).toBeGreaterThan(rtkAt);
     expect(inputAt).toBeGreaterThan(complementAt);
     expect(workdirAt).toBeGreaterThan(inputAt);
-    expect(text).not.toContain("Composer model emulating GPT-6");
-    expect(text).not.toContain("git status -sb");
   });
 
   it("omits instructions block when clientInstructions is missing", () => {
     const text = composeEdgeOwnedUserMessageText({
       prompt: "Ship it",
-      clientTools: execTool,
+      clientTools: codexInventory,
     });
-    expect(text.startsWith("CLIENT MCP TRANSPORT")).toBe(true);
+    expect(text.startsWith("CODEX CODE MODE INTERFACE")).toBe(true);
     expect(text).toContain("Ship it");
   });
 });

@@ -1,134 +1,89 @@
 import type { CursorClientToolSpec } from "@agent-runtime-gateway/core";
-import { isRecord } from "@agent-runtime-gateway/compatibility-openai";
 
-/** MCP transport complement for edge-owned client tools (not user task text). */
+const CODEX_CODE_MODE_COMPLEMENT = `CODEX CODE MODE INTERFACE (COMPLEMENTARY).
+
+Upstream Codex instructions remain authoritative. This block defines only the MCP transport required to access the Codex runtime.
+
+TRANSPORT:
+- Invoke only the SDK mcp tool with providerIdentifier "client".
+- Emit exactly one MCP call per turn when a tool is needed.
+- Use only top-level Codex tools exec and wait, as declared in the current inventory.
+- exec is custom/freeform: args is {"input":"<raw JavaScript source>"}.
+- wait is a function tool: args must match its declared JSON schema.
+- The proxy converts MCP calls into Responses function_call or custom_tool_call. Never emit these items directly.
+- Never invoke nested tools directly through MCP.
+- Never invoke Cursor-native tools (read, edit, shell, grep, or other non-mcp SDK tools).
+
+EXEC:
+- Use exec/wait to run all other tools; do not attempt to use other tools directly.
+- Execute raw JavaScript in the Codex V8 isolate, not Node.js.
+- Nested tools are methods on the global tools object.
+- Use only tools available in the nested tool catalog.
+- Filter ALL_TOOLS by name and description when discovering deferred tools. Do not print the full catalog.
+- Shell: use tools.exec_command with its declared schema, including cmd and optional workdir.
+- Process interaction: use tools.write_stdin with its declared schema and the session_id returned by exec_command.
+- Patching: inside exec, use tools.apply_patch with patch text when that nested tool is available. Never send toolName apply_patch through MCP.
+- Follow the exact tool descriptions and schemas. Never invent tool names, parameters, or capabilities.
+
+RUNTIME:
+- JavaScript executes in a fresh asynchronous V8 isolate.
+- No Node.js, filesystem, network, or console APIs.
+- Do not use require, import(), node:fs, or undeclared APIs.
+- Available global helpers include text, image, store, load, notify, exit, yield_control, setTimeout, clearTimeout, and ALL_TOOLS.
+- Use text(value) to return results.
+
+WAIT:
+- Use wait only after exec reports a running cell ID.
+- Pass the returned cell_id and arguments matching the declared wait schema.
+- wait waits for more output from that JavaScript cell. It does not submit new JavaScript.
+- write_stdin interacts with shell processes. They are not interchangeable.
+
+RESULT HANDLING:
+- Treat LOCAL TOOL RESULT as an operation already executed by the outer Codex client.
+- Continue following the original Codex instructions.
+
+USER VISIBILITY:
+- Before each MCP call, provide 1-3 short progress sentences in the user's language.
+- Never run a client tool silently.`;
+
+/** MCP transport complement for edge-owned Codex client tools (not user task text). */
 export function edgeOwnedBridgePromptPrefix(
   clientTools: readonly CursorClientToolSpec[],
 ): string {
   if (clientTools.length === 0) return "";
-  const tools = clientTools.filter((tool) => tool.name.trim().length > 0);
-  const exactTools = tools.map((tool) => tool.name.trim()).join(", ");
-  const example = mcpCallShapeExample(tools);
-  const functionExample = mcpCallFunctionExample(tools);
-  const inventoryLines = tools.map((tool) => inventoryTransportLine(tool));
-  const execGuide = execIsolateGuide(tools);
-
+  const topLevel = topLevelToolNames(clientTools);
+  const examples = mcpExampleLines(clientTools);
   return [
-    "CLIENT MCP TRANSPORT (COMPLEMENTARY).",
-    "Upstream Responses instructions remain authoritative; this block only describes how to reach the client runtime.",
-    "Local tool execution belongs to the outer client; this runtime forwards one SDK mcp call per turn when needed.",
-    userVisibleProgressBlock(),
-    `Callable SDK tool name: mcp only. No GetDynamicTools, CallDynamicTool, GetMcpTools, or CallMcpTool.`,
-    `Call mcp with ${example}. providerIdentifier must be "client". toolName must be one of: ${exactTools}.`,
-    ...(functionExample ? [`Function tools use a separate top-level mcp call: ${functionExample}.`] : []),
-    "function tools: mcp args is the JSON object stored as function_call.arguments (match the tool schema).",
-    'custom tools (grammar): mcp args is {"input":"<raw source>"} forwarded as custom_tool_call.input (not JSON, not markdown fences).',
-    ...inventoryLines,
-    "The proxy converts your mcp payload into Responses function_call or custom_tool_call items; do not emit those item types yourself.",
-    ...(execGuide ? [execGuide] : []),
-    "If LOCAL TOOL RESULT records are present, treat those tools as already executed by the client and continue from the result.",
-  ].join("\n");
-}
-
-function execIsolateGuide(tools: readonly CursorClientToolSpec[]): string | undefined {
-  const hasExec = tools.some(
-    (tool) => tool.name.trim() === "exec" && tool.inputFormat === "grammar",
-  );
-  if (!hasExec) return undefined;
-  const nestedGrammarNames = tools
-    .filter(
-      (tool) =>
-        tool.name.trim() !== "exec" &&
-        (tool.inputFormat === "grammar" || tool.name.trim() === "apply_patch"),
-    )
-    .map((tool) => tool.name.trim())
-    .filter((name) => name.length > 0);
-  const functionOnlyNames = tools
-    .filter((tool) => tool.inputFormat !== "grammar" && tool.name.trim() !== "apply_patch")
-    .map((tool) => tool.name.trim())
-    .filter((name) => name.length > 0);
-  const nestedLine =
-    nestedGrammarNames.length > 0
-      ? `Inside exec, grammar tools only: ${nestedGrammarNames.join(", ")} via await tools.<name>(source) when declared in inventory.`
-      : "";
-  const functionLine =
-    functionOnlyNames.length > 0
-      ? `Not inside exec: ${functionOnlyNames.join(", ")} — use top-level mcp with toolName (function_call args), not tools.${functionOnlyNames[0]} in exec scripts.`
-      : "";
-  return [
-    "EXEC ISOLATE (toolName exec): args.input is async JavaScript for the client V8 sandbox.",
-    "Use await tools.exec_command({cmd, cwd}) for shell and filesystem inspection; emit results with text(value).",
-    "Follow upstream Responses instructions for shell conventions (they override this block).",
-    "Never use require, import(), node:fs, readFileSync, tools.read, tools.client, or undeclared tools.*.",
-    nestedLine,
-    functionLine,
-    "The proxy rejects exec scripts with forbidden APIs before they reach the client.",
+    CODEX_CODE_MODE_COMPLEMENT,
+    topLevel.length > 0
+      ? `Current top-level MCP toolName values: ${topLevel.join(", ")}.`
+      : "No exec or wait in the current inventory; do not emit client tool MCP calls until they appear.",
+    ...examples,
   ]
     .filter((line) => line.length > 0)
-    .join(" ");
+    .join("\n\n");
 }
 
-function userVisibleProgressBlock(): string {
-  return [
-    "Before each mcp call, write 1-3 short sentences in the user's language:",
-    "what you understood, what you are doing now, and which inventory toolName comes next (plain language).",
-    "Never run a client tool silently.",
-  ].join(" ");
+function topLevelToolNames(tools: readonly CursorClientToolSpec[]): string[] {
+  const allowed = new Set(["exec", "wait"]);
+  return tools
+    .map((tool) => tool.name.trim())
+    .filter((name) => name.length > 0 && allowed.has(name));
 }
 
-function mcpCallShapeExample(tools: readonly CursorClientToolSpec[]): string {
-  const preferred =
-    tools.find((tool) => tool.name.trim() === "exec" && tool.inputFormat === "grammar") ??
-    tools.find((tool) => tool.inputFormat === "grammar") ??
-    tools.find((tool) => tool.inputFormat !== "grammar") ??
-    tools[0];
-  if (!preferred) return '{"providerIdentifier":"client","toolName":"<name>","args":{}}';
-  return mcpExampleForTool(preferred);
-}
-
-function mcpCallFunctionExample(tools: readonly CursorClientToolSpec[]): string | undefined {
-  const functionTool = tools.find(
-    (tool) =>
-      tool.inputFormat !== "grammar" &&
-      tool.name.trim() !== "exec" &&
-      !(tool.name.trim() === "exec" && tool.inputFormat === "grammar"),
-  );
-  if (!functionTool) return undefined;
-  const hasGrammarOrExec = tools.some(
-    (tool) =>
-      tool.name.trim() === "exec" ||
-      tool.inputFormat === "grammar" ||
-      tool.name.trim() === "apply_patch",
-  );
-  if (!hasGrammarOrExec) return undefined;
-  return mcpExampleForTool(functionTool);
-}
-
-function mcpExampleForTool(tool: CursorClientToolSpec): string {
-  const name = tool.name.trim();
-  if (tool.inputFormat === "grammar" || name === "apply_patch") {
-    return `{"providerIdentifier":"client","toolName":"${name}","args":{"input":"<raw ${name} source>"}}`;
+function mcpExampleLines(tools: readonly CursorClientToolSpec[]): string[] {
+  const lines: string[] = [];
+  if (tools.some((tool) => tool.name.trim() === "exec")) {
+    lines.push(
+      'Example exec MCP args shape: {"providerIdentifier":"client","toolName":"exec","args":{"input":"<raw JavaScript source>"}}.',
+    );
   }
-  return `{"providerIdentifier":"client","toolName":"${name}","args":{...schema fields}}`;
-}
-
-function inventoryTransportLine(tool: CursorClientToolSpec): string {
-  const name = tool.name.trim();
-  if (tool.inputFormat === "grammar") {
-    if (name === "apply_patch") {
-      return "apply_patch: custom_tool_call via args.input patch text (*** Begin Patch envelope).";
-    }
-    return `${name}: custom_tool_call via args.input raw source.`;
+  if (tools.some((tool) => tool.name.trim() === "wait")) {
+    lines.push(
+      'Example wait MCP args shape: {"providerIdentifier":"client","toolName":"wait","args":{...fields from wait schema, including cell_id}}.',
+    );
   }
-  const properties = schemaPropertyNames(tool.parameters);
-  const propertyText =
-    properties.length > 0 ? ` Schema fields: ${properties.join(", ")}.` : "";
-  return `${name}: function_call JSON args.${propertyText}`;
-}
-
-function schemaPropertyNames(parameters: unknown): string[] {
-  if (!isRecord(parameters) || !isRecord(parameters.properties)) return [];
-  return Object.keys(parameters.properties).slice(0, 12);
+  return lines;
 }
 
 export function composeEdgeOwnedUserMessageText(params: {
