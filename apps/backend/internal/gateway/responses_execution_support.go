@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"aihub/internal/access"
@@ -48,6 +49,23 @@ func (s *responseSink) WriteChunk(chunk []byte) error {
 	controller := http.NewResponseController(s.writer)
 	if err := controller.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		return err
+	}
+	_ = controller.SetWriteDeadline(time.Now().Add(s.inactivity))
+	return nil
+}
+
+// KeepAlive refreshes the write deadline and, for SSE, emits a comment so
+// clients do not treat model silence as a dead connection. It does not count
+// as an upstream chunk, so the inactivity watchdog still applies.
+func (s *responseSink) KeepAlive() error {
+	controller := http.NewResponseController(s.writer)
+	if strings.Contains(strings.ToLower(s.contentType), "text/event-stream") {
+		if _, err := s.writer.Write([]byte(": ping\n\n")); err != nil {
+			return err
+		}
+		if err := controller.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
+			return err
+		}
 	}
 	_ = controller.SetWriteDeadline(time.Now().Add(s.inactivity))
 	return nil

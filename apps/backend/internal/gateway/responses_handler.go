@@ -18,7 +18,7 @@ import (
 )
 
 // StreamInactivityTimeout bounds silence between streamed chunks.
-const StreamInactivityTimeout = 2 * time.Minute
+const StreamInactivityTimeout = 10 * time.Minute
 
 // NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {

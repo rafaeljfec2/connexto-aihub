@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultInactivityTimeout bounds silence between forwarded chunks.
-const DefaultInactivityTimeout = 2 * time.Minute
+const DefaultInactivityTimeout = 10 * time.Minute
 
 // Manager registers, executes, and drains in-process Responses work.
 type Manager struct {

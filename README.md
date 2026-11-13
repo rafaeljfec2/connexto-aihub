@@ -130,9 +130,9 @@ variables are ignored with a startup warning; invalid values abort startup.
 | `AIHUB_SERVER_HOST`                    | `127.0.0.1`                          |
 | `AIHUB_SERVER_PORT`                    | `8080`                               |
 | `AIHUB_SERVER_READ_HEADER_TIMEOUT`     | `5s`                                 |
-| `AIHUB_SERVER_READ_TIMEOUT`            | `15s`                                |
-| `AIHUB_SERVER_WRITE_TIMEOUT`           | `30s`                                |
-| `AIHUB_SERVER_IDLE_TIMEOUT`            | `60s`                                |
+| `AIHUB_SERVER_READ_TIMEOUT`            | `2m`                                 |
+| `AIHUB_SERVER_WRITE_TIMEOUT`           | `10m`                                |
+| `AIHUB_SERVER_IDLE_TIMEOUT`            | `10m`                                |
 | `AIHUB_SERVER_SHUTDOWN_TIMEOUT`        | `10s`                                |
 | `AIHUB_LOG_LEVEL`                      | `info`                               |
 | `AIHUB_LOG_FORMAT`                     | `json`                               |

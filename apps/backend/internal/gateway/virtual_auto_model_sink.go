@@ -36,6 +36,13 @@ func (s *virtualAutoModelSink) Commit(status int, contentType string) {
 	s.inner.Commit(status, contentType)
 }
 
+func (s *virtualAutoModelSink) KeepAlive() error {
+	if alive, ok := s.inner.(interface{ KeepAlive() error }); ok {
+		return alive.KeepAlive()
+	}
+	return nil
+}
+
 func (s *virtualAutoModelSink) WriteChunk(chunk []byte) error {
 	if len(chunk) == 0 && len(s.hold) == 0 {
 		return nil

@@ -74,10 +74,18 @@ func (e *execution) reserveOpenFailure(openErr error) {
 	e.reserve(terminalEvent{outcome: OutcomeFailed, phase: PhaseOpening, cause: CauseTransport})
 }
 
+const streamKeepAliveInterval = 10 * time.Second
+
+type streamKeepAlive interface {
+	KeepAlive() error
+}
+
 func (e *execution) forward(sink Sink) {
 	chunks := e.startReader()
 	timer := time.NewTimer(e.manager.inactivity)
 	defer timer.Stop()
+	keepalive := time.NewTicker(streamKeepAliveInterval)
+	defer keepalive.Stop()
 
 	for {
 		if e.hasReserved() {
@@ -90,6 +98,15 @@ func (e *execution) forward(sink Sink) {
 		case <-timer.C:
 			e.reserve(terminalEvent{outcome: OutcomeTimedOut, phase: PhaseForwarding, cause: CauseInactivity})
 			return
+		case <-keepalive.C:
+			alive, ok := sink.(streamKeepAlive)
+			if !ok {
+				continue
+			}
+			if err := alive.KeepAlive(); err != nil {
+				e.requestCancellation(terminalEvent{outcome: OutcomeCanceled, phase: PhaseForwarding, cause: CauseClient})
+				return
+			}
 		case chunk := <-chunks:
 			if e.hasReserved() {
 				return
