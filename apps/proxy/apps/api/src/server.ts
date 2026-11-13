@@ -31,10 +31,11 @@ function main(): void {
       `Gateway server listening at http://${env.HOST}:${env.PORT}`,
     );
   });
+  const agentLoopMs = 12 * 60 * 60 * 1000;
   server.requestTimeout = 0;
-  server.headersTimeout = 120_000;
-  server.keepAliveTimeout = 120_000;
   server.timeout = 0;
+  server.keepAliveTimeout = agentLoopMs;
+  server.headersTimeout = agentLoopMs + 1_000;
 
   server.on("error", (error: Error) => {
     logger.fatal({ err: error.message }, "Gateway server error encountered");

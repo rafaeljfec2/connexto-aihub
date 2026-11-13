@@ -52,7 +52,7 @@ const (
 const (
 	dialTimeout           = 10 * time.Second
 	tlsHandshakeTimeout   = 10 * time.Second
-	responseHeaderTimeout = 120 * time.Second
+	responseHeaderTimeout = time.Hour
 )
 
 // Client executes requests against the OpenCode Go upstream. It is concrete on

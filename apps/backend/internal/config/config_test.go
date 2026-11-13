@@ -92,7 +92,7 @@ func TestLoadAppliesEnvironmentOverrides(t *testing.T) {
 		t.Fatalf("ShutdownTimeout = %v, want %v", got, want)
 	}
 
-	if got, want := cfg.Server.IdleTimeout, 10*time.Minute; got != want {
+	if got, want := cfg.Server.IdleTimeout, 12*time.Hour; got != want {
 		t.Fatalf("IdleTimeout = %v, want the default %v preserved", got, want)
 	}
 

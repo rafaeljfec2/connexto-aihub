@@ -17,8 +17,11 @@ import (
 	"aihub/internal/routing"
 )
 
-// StreamInactivityTimeout bounds silence between streamed chunks.
-const StreamInactivityTimeout = 10 * time.Minute
+// StreamInactivityTimeout bounds silence between upstream chunks on one turn.
+// SSE pings keep the client attached during that window. A multi-hour agent
+// loop is a sequence of turns, so this ceiling has to cover a long generation
+// rather than a single model token.
+const StreamInactivityTimeout = 12 * time.Hour
 
 // NewResponsesHandler creates a standalone execution manager for this handler.
 func NewResponsesHandler(client *providers.Client, logger *slog.Logger, inactivity time.Duration, routingDeps *ResponsesRouting) http.Handler {

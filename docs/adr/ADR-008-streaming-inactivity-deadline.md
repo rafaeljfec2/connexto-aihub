@@ -24,7 +24,7 @@ semantics.
 ## Consequences
 
 - Long streams stay valid as long as at least one upstream chunk arrives within the
-  inactivity window (default 10 minutes). SSE comments (`: ping`) refresh the
+  inactivity window (default 12 hours). SSE comments (`: ping`) refresh the
   client connection during model silence and do not reset that watchdog.
 - Inactivity expiry closes the upstream body and aborts the stream.
 - No global timeout is removed; other endpoints are unaffected.
