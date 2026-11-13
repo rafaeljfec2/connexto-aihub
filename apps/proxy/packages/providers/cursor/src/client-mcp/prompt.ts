@@ -31,8 +31,8 @@ export function edgeOwnedBridgePromptPrefix(
 }
 
 function mcpCallExample(tools: readonly CursorClientToolSpec[]): string {
-  const grammarTool = tools.find((tool) => tool.inputFormat === "grammar");
-  const tool = grammarTool ?? tools[0];
+  const functionTool = tools.find((tool) => tool.inputFormat !== "grammar");
+  const tool = functionTool ?? tools[0];
   if (!tool) return '{"providerIdentifier":"client","toolName":"<name>","args":{}}';
   if (tool.inputFormat === "grammar") {
     return `{"providerIdentifier":"client","toolName":"${tool.name.trim()}","args":{"input":"<raw ${tool.name.trim()} source>"}}`;
@@ -46,17 +46,21 @@ function openaiOutputContract(tools: readonly CursorClientToolSpec[]): string {
     'Transport is always SDK mcp with providerIdentifier "client".',
     "function tools: args is the JSON object stored as function_call.arguments. Match the tool schema. Do not nest it under another args key.",
     "custom tools (grammar): args is {\"input\":\"<source>\"}. That string is forwarded unchanged as custom_tool_call.input.",
+    "Creating or editing files is a separate mcp call to a function tool. The exec runtime cannot write the workspace.",
   ];
   for (const tool of tools) {
-    lines.push(toolContractLine(tool));
+    lines.push(toolContractLine(tool, tools));
   }
   return lines.join("\n");
 }
 
-function toolContractLine(tool: CursorClientToolSpec): string {
+function toolContractLine(
+  tool: CursorClientToolSpec,
+  tools: readonly CursorClientToolSpec[],
+): string {
   const name = tool.name.trim();
   if (tool.inputFormat === "grammar") {
-    return grammarContract(name);
+    return grammarContract(name, tools);
   }
   if (name === "client_shell") {
     return 'client_shell is a function_call. Example args: {"command":"git status -sb"}.';
@@ -67,14 +71,26 @@ function toolContractLine(tool: CursorClientToolSpec): string {
   return `${name} is a function_call. args must satisfy its JSON schema.${propertyText}`;
 }
 
-function grammarContract(name: string): string {
+function grammarContract(
+  name: string,
+  tools: readonly CursorClientToolSpec[],
+): string {
   if (name !== "exec") {
     return `${name} is a custom_tool_call. Put only the raw ${name} source in args.input.`;
   }
+  const fileTools = tools
+    .filter((tool) => tool.inputFormat !== "grammar")
+    .map((tool) => tool.name.trim())
+    .filter((toolName) => /write|edit|patch|strreplace/i.test(toolName));
+  const fileRoute =
+    fileTools.length > 0
+      ? `Use ${fileTools.join(" or ")} for file changes.`
+      : "Use a function tool from the inventory for file changes.";
   return [
-    "exec is a custom_tool_call. args.input is JavaScript for the Codex exec runtime, not a shell command line.",
+    "exec is a custom_tool_call. args.input is JavaScript for the Codex exec runtime, not a shell command line and not a file writer.",
     'Example args.input: const result = await tools.exec_command({cmd:"git status -sb"}); text(result);',
-    "Do not pass a raw bash pipeline, tools.client, or import() inside exec.",
+    "Do not pass a raw bash pipeline, tools.client, tools.client_write, node:fs, import(), or apply_patch inside exec.",
+    fileRoute,
   ].join(" ");
 }
 

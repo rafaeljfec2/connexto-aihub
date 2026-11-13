@@ -31,6 +31,21 @@ describe("edgeOwnedBridgePromptPrefix", () => {
     expect(prompt).toContain("tools.exec_command");
     expect(prompt).toContain("custom_tool_call.input");
     expect(prompt).toContain("Do not pass a raw bash pipeline");
+    expect(prompt).toContain("tools.client_write");
     expect(prompt).not.toContain("Prefer exact client tools");
+  });
+
+  it("points file edits at the function tool instead of exec", () => {
+    const prompt = edgeOwnedBridgePromptPrefix("Update the runner", [
+      { name: "exec", inputFormat: "grammar" },
+      {
+        name: "apply_patch",
+        parameters: { type: "object", properties: { patch: { type: "string" } } },
+      },
+    ]);
+
+    expect(prompt).toContain('"toolName":"apply_patch"');
+    expect(prompt).toContain("Use apply_patch for file changes.");
+    expect(prompt).toContain("node:fs");
   });
 });
