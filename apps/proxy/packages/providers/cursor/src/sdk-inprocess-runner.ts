@@ -368,6 +368,15 @@ function firstClientToolCallFromMessage(
   return null;
 }
 
+function attachSdkCallId(
+  call: CursorToolCall,
+  sdkCallId: string | undefined,
+): CursorToolCall {
+  const trimmed = sdkCallId?.trim();
+  if (!trimmed) return call;
+  return { ...call, sdkCallId: trimmed };
+}
+
 function clientToolCallsFromMessage(
   message: SDKMessage,
   inventory: ClientToolInventory,
@@ -377,7 +386,7 @@ function clientToolCallsFromMessage(
   }
   if (message.type !== "tool_call" || message.status !== "running") return [];
   const call = clientToolCallFromMcp(message.name, message.args, inventory);
-  return call ? [call] : [];
+  return call ? [attachSdkCallId(call, message.call_id)] : [];
 }
 
 function* forwardedToolCallEvents(
@@ -419,7 +428,7 @@ function clientToolCallsFromAssistantMessage(
     block.type === "tool_use"
       ? (() => {
           const call = clientToolCallFromMcp(block.name, block.input, inventory);
-          return call ? [call] : [];
+          return call ? [attachSdkCallId(call, block.id)] : [];
         })()
       : [],
   );

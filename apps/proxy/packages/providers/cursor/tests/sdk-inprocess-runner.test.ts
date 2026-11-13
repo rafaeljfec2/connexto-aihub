@@ -101,13 +101,21 @@ describe("createCursorSdkInProcessCompletion", () => {
     expect(run.cancel).toHaveBeenCalled();
     expect(events).toContainEqual({
       type: "tool_call",
-      toolCall: { name: "write", arguments: { path: "note.txt", fileText: "hello" } },
+      toolCall: {
+        name: "write",
+        arguments: { path: "note.txt", fileText: "hello" },
+        sdkCallId: "call-1",
+      },
     });
     expect(events.at(-1)).toEqual({
       type: "done",
       finalText: "",
       toolCalls: [
-        { name: "write", arguments: { path: "note.txt", fileText: "hello" } },
+        {
+          name: "write",
+          arguments: { path: "note.txt", fileText: "hello" },
+          sdkCallId: "call-1",
+        },
       ],
     });
     expect(closeAgent).toHaveBeenCalledOnce();
@@ -350,7 +358,14 @@ describe("createCursorSdkInProcessCompletion", () => {
     for await (const event of completion.stream) events.push(event);
 
     expect(events.filter((event) => event.type === "tool_call")).toEqual([
-      { type: "tool_call", toolCall: { name: "read", arguments: { path: "a.txt" } } },
+      {
+        type: "tool_call",
+        toolCall: {
+          name: "read",
+          arguments: { path: "a.txt" },
+          sdkCallId: "call-read",
+        },
+      },
     ]);
     expect(run.cancel).toHaveBeenCalled();
   });
@@ -404,6 +419,59 @@ describe("createCursorSdkInProcessCompletion", () => {
         // drain
       }
     }).rejects.toMatchObject({ code: "cursor_invalid_client_tool" });
+  });
+
+  it("does not forward a client tool when SDK cancel fails during cleanup", async () => {
+    const toolCallMessage: SDKMessage = {
+      type: "tool_call",
+      agent_id: "agent-8",
+      run_id: "run-8",
+      call_id: "call-8",
+      name: "mcp",
+      status: "running",
+      args: {
+        providerIdentifier: "client",
+        toolName: "write",
+        args: { path: "note.txt" },
+      },
+    };
+    const run = {
+      id: "run-8",
+      status: "running" as const,
+      async *stream(): AsyncGenerator<SDKMessage> {
+        yield toolCallMessage;
+      },
+      wait: vi.fn(() => Promise.resolve({ id: "run-8", status: "running" as const })),
+      cancel: vi.fn(() => Promise.reject(new Error("cancel failed"))),
+    };
+    const dependencies: CursorSdkInProcessDependencies = {
+      createAgent: vi.fn(() =>
+        Promise.resolve({
+          agentId: "agent-8",
+          send: () => Promise.resolve(run),
+          close: vi.fn(),
+        }),
+      ),
+      deleteAgent: vi.fn(() => Promise.resolve()),
+    };
+
+    const completion = await createCursorSdkInProcessCompletion(
+      {
+        apiKey: "cursor-key",
+        model: "composer-2.5",
+        agentName: "gateway-test",
+        prompt: "Write note",
+        clientTools: [{ name: "write" }],
+      },
+      dependencies,
+    );
+
+    await expect(async () => {
+      for await (const _event of completion.stream) {
+        // drain
+      }
+    }).rejects.toThrow("cancel failed");
+    expect(run.cancel).toHaveBeenCalled();
   });
 
   it("returns the client tool as soon as the MCP callback arrives, without waiting for the SDK stream to end", async () => {

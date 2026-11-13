@@ -27,6 +27,8 @@ export interface CursorToolCall {
   arguments: Record<string, unknown>;
   /** Raw source for a grammar tool. When set, the client receives a custom tool call. */
   rawInput?: string;
+  /** Cursor SDK `tool_call.call_id` or assistant `tool_use.id` for client correlation. */
+  sdkCallId?: string;
 }
 
 export interface CursorCompletion {
