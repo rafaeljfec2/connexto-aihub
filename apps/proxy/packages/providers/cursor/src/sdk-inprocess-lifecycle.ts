@@ -12,7 +12,7 @@ import { clientForwardingMcpServers } from "./client-mcp/forwarding.js";
 import { enforceClientToolContract } from "./client-mcp/client-tool-contract.js";
 import { attachGrammarInput } from "./client-mcp/grammar-input.js";
 import { resolveInventoryToolName } from "./client-mcp/normalize.js";
-import { edgeOwnedBridgePromptPrefix } from "./client-mcp/prompt.js";
+import { composeEdgeOwnedUserMessageText } from "./client-mcp/prompt.js";
 import { cursorModelSelection } from "./model-selection.js";
 import type { CursorSdkRun } from "./sdk-inprocess-stream.js";
 import type { CursorClientToolSpec } from "@agent-runtime-gateway/core";
@@ -182,19 +182,22 @@ async function disposeAgentRun(
 }
 
 function createUserMessage(input: CursorSdkInProcessInput): SDKUserMessage {
-  const workspaceContext = input.workingDirectory
-    ? `\n\nIDE workspace for client-side tools only: ${JSON.stringify(input.workingDirectory)}`
-    : "";
-  const toolPolicy = input.clientTools.length
-    ? "\n\nBefore each client tool, tell the user in 1-3 sentences what you are doing and which tool comes next. Request one client tool at a time and wait for its result before choosing the next step."
-    : "";
-  const body = edgeOwnedBridgePromptPrefix(input.prompt, input.clientTools);
+  const text = composeEdgeOwnedUserMessageText({
+    prompt: input.prompt,
+    clientTools: input.clientTools,
+    ...(input.clientInstructions !== undefined
+      ? { clientInstructions: input.clientInstructions }
+      : {}),
+    ...(input.workingDirectory !== undefined
+      ? { workingDirectory: input.workingDirectory }
+      : {}),
+  });
   const images = (input.images ?? []).map((image) => ({
     data: image.data,
     mimeType: image.mimeType,
   }));
   return {
-    text: `${body}${workspaceContext}${toolPolicy}`,
+    text,
     ...(images.length > 0 ? { images } : {}),
   };
 }

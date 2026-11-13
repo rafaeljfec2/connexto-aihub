@@ -12,7 +12,10 @@ export interface ClientToolContractViolation {
 const FORBIDDEN_EXEC_SUBSTRINGS = [
   "tools.client_write",
   "tools.client",
+  "tools.read",
   "node:fs",
+  "readFileSync",
+  "require(",
   "import(",
 ] as const;
 
@@ -153,14 +156,14 @@ function validateExecSource(
     return {
       rule: `exec must not use ${forbidden}.`,
       requiredFormat:
-        'const result = await tools.exec_command({cmd:"git status -sb"}); text(result);',
+        'const result = await tools.exec_command({cmd:"<shell command>"}); text(result);',
     };
   }
   if (looksLikeRawShell(source) && !source.includes("tools.exec_command")) {
     return {
       rule: "exec must not pass raw shell command lines.",
       requiredFormat:
-        'const result = await tools.exec_command({cmd:"git status -sb"}); text(result);',
+        'const result = await tools.exec_command({cmd:"<shell command>"}); text(result);',
     };
   }
   if (sourceIncludesFileWriteWithoutPatch(source) && !source.includes("tools.apply_patch")) {

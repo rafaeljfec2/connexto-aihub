@@ -218,6 +218,9 @@ export class CursorProvider implements AgentProvider {
             agentName: this.agentName,
             prompt: input.message,
             clientTools: cursorContext?.clientTools ?? [],
+            ...(cursorContext?.clientInstructions !== undefined
+              ? { clientInstructions: cursorContext.clientInstructions }
+              : {}),
             ...(input.workingDirectory !== undefined
               ? { workingDirectory: input.workingDirectory }
               : {}),

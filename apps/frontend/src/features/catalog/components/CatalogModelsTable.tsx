@@ -54,21 +54,6 @@ export function CatalogModelsTable({
   modelFilterInputRef,
 }: CatalogModelsTableProps) {
   const { t } = useTranslation('catalog')
-
-  if (isLoading) {
-    return <p className="py-8 text-center text-xs text-muted">{t('table.loading')}</p>
-  }
-
-  if (isError) {
-    return (
-      <div className="banner banner-error m-3" role="alert">
-        {t('table.loadError')}
-      </div>
-    )
-  }
-
-  const showEmptyBody = models.length === 0
-  const withCompare = Boolean(onToggleCompare)
   const headScrollRef = useRef<HTMLDivElement>(null)
   const bodyScrollRef = useRef<HTMLDivElement>(null)
   const isSyncingScrollRef = useRef(false)
@@ -87,6 +72,21 @@ export function CatalogModelsTable({
     }
     isSyncingScrollRef.current = false
   }, [])
+
+  if (isLoading) {
+    return <p className="py-8 text-center text-xs text-muted">{t('table.loading')}</p>
+  }
+
+  if (isError) {
+    return (
+      <div className="banner banner-error m-3" role="alert">
+        {t('table.loadError')}
+      </div>
+    )
+  }
+
+  const showEmptyBody = models.length === 0
+  const withCompare = Boolean(onToggleCompare)
 
   const tableHead = (
     <thead>

@@ -31,6 +31,8 @@ describe("prepareResponsesPassthrough", () => {
     expect(prepared.passthroughBody?.tool_choice).toBe("auto");
     expect(prepared.passthroughBody?.tools).toEqual(toolProbeBody.tools);
     expect(prepared.passthroughBody?.input).toEqual(toolProbeBody.input);
+    expect(prepared.prompt.text).toContain("apply a one-line fix");
+    expect(prepared.prompt.text).not.toContain("You are Codex, a coding agent.");
   });
 
   it("does not inject agent directives on aihub-shaped Codex turns", () => {

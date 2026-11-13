@@ -25,6 +25,7 @@ export interface CursorSdkInProcessInput {
   readonly model: string;
   readonly agentName: string;
   readonly prompt: string;
+  readonly clientInstructions?: string;
   readonly workingDirectory?: string;
   readonly clientTools: readonly CursorClientToolSpec[];
   readonly images?: readonly AgentImageInput[];

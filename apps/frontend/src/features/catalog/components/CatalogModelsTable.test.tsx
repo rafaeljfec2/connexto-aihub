@@ -17,7 +17,33 @@ const sampleModel: CatalogModel = {
   listing_reasons: [],
 }
 
+const tableProps = {
+  columnFilters: defaultCatalogColumnFilters,
+  onColumnFilterChange: vi.fn(),
+  providerOptions: ['openrouter'],
+  listingOptions: ['Encontrado'],
+}
+
 describe('CatalogModelsTable', () => {
+  it('keeps a stable hook order when loading finishes', () => {
+    const { rerender } = render(
+      <CatalogModelsTable models={[]} isLoading isError={false} {...tableProps} />,
+    )
+
+    expect(screen.getByText('Carregando modelos do catálogo…')).toBeTruthy()
+
+    rerender(
+      <CatalogModelsTable
+        models={[sampleModel]}
+        isLoading={false}
+        isError={false}
+        {...tableProps}
+      />,
+    )
+
+    expect(screen.getByText(sampleModel.name)).toBeTruthy()
+  })
+
   it('renders empty state when no rows on current page', () => {
     render(
       <CatalogModelsTable

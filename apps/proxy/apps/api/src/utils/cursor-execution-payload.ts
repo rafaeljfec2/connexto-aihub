@@ -3,7 +3,11 @@ import type {
   CursorClientToolSpec,
   CursorExecutionContext,
 } from "@agent-runtime-gateway/core";
-import { isRecord, type PreparedRequest } from "@agent-runtime-gateway/compatibility-openai";
+import {
+  instructionsToPlainText,
+  isRecord,
+  type PreparedRequest,
+} from "@agent-runtime-gateway/compatibility-openai";
 import {
   resolveCursorExecutionModeForRequest,
   type CursorExecutionMode,
@@ -79,6 +83,10 @@ export function buildCursorExecutionContext(
     prepared.passthroughBody !== undefined
       ? (mapRawPassthroughTools(prepared.passthroughBody) ?? mapClientTools(prepared.tools))
       : mapClientTools(prepared.tools);
+  const clientInstructions =
+    prepared.passthroughBody !== undefined
+      ? instructionsToPlainText(prepared.passthroughBody.instructions).trim() || undefined
+      : undefined;
   return {
     mode,
     promptMode: prepared.prompt.mode ?? "ask",
@@ -86,5 +94,6 @@ export function buildCursorExecutionContext(
     // Edge-owned runs delegate tool execution to the hub client (Codex), not proxy disk.
     requiresLocalTool:
       mode === "edge_owned" ? false : prepared.requiresLocalTool,
+    ...(clientInstructions !== undefined ? { clientInstructions } : {}),
   };
 }

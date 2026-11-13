@@ -32,6 +32,7 @@ import {
   appendChatOptions,
   appendResponseOptions,
   contentToTextAndImages,
+  instructionsToPlainText,
   toolCallContextFromMessages,
   toolCallContextFromResponseInput,
 } from "./transcripts/helpers.js";
@@ -362,10 +363,9 @@ export function prepareResponsesPassthrough(
       ? record.model.trim()
       : "composer-2.5";
   const tools = collectResponsesToolSpecs(record);
-  const instructions =
-    typeof record.instructions === "string" ? record.instructions.trim() : "";
+  const instructions = instructionsToPlainText(record.instructions).trim();
   const { text, images } = responseInputToTextAndImages(record.input, tools);
-  const passthroughPrompt = [instructions, text].filter((part) => part.length > 0).join("\n\n");
+  const passthroughPrompt = text;
   const previousResponseId =
     typeof record.previous_response_id === "string" &&
     record.previous_response_id.trim()

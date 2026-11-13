@@ -63,6 +63,22 @@ describe("client-tool-contract", () => {
     expect(enforced.rawInput).toContain("CONTRACT VIOLATION");
   });
 
+  it("replaces exec that uses require or tools.read before Codex runs it", () => {
+    for (const input of [
+      "const { readFileSync } = require('fs'); text(readFileSync('x'));",
+      "const x = await tools.read('/path'); text(x);",
+    ]) {
+      const enforced = enforceClientToolContract(
+        { name: "exec", arguments: { input } },
+        codexTools,
+      );
+      expect(enforced.rawInput).toMatch(/^text\(/);
+      expect(enforced.rawInput).toContain("CONTRACT VIOLATION");
+      expect(enforced.rawInput).not.toMatch(/require\s*\(/);
+      expect(enforced.rawInput).not.toMatch(/await\s+tools\.read/);
+    }
+  });
+
   it("replaces raw shell in exec with a contract correction", () => {
     const enforced = enforceClientToolContract(
       { name: "exec", arguments: { input: "git status -sb" } },

@@ -22,6 +22,8 @@ export interface CursorExecutionContext {
   promptMode: "agent" | "ask";
   clientTools?: readonly CursorClientToolSpec[];
   requiresLocalTool?: boolean;
+  /** Normalized Responses `instructions` for edge-owned prompt composition. */
+  clientInstructions?: string;
 }
 
 export interface AgentToolSpec {

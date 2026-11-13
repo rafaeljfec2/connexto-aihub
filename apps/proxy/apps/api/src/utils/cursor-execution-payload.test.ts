@@ -54,4 +54,31 @@ describe("buildCursorExecutionContext", () => {
       expect.objectContaining({ name: "exec", inputFormat: "grammar" }),
     ]);
   });
+
+  it("normalizes passthrough instructions into clientInstructions", () => {
+    const prepared = {
+      model: "composer-2.5",
+      prompt: { text: "user turn", mode: "agent" as const },
+      stream: false,
+      includeUsage: false,
+      promptChars: 9,
+      responseMetadata: {},
+      tools: [],
+      requiresLocalTool: false,
+      storeResponse: false,
+      passthroughBody: {
+        model: "composer-2.5",
+        instructions: [
+          "Always prefix shell commands with rtk",
+          { type: "input_text", text: "Codex rules" },
+        ],
+        input: [],
+      },
+    } as PreparedRequest;
+
+    const ctx = buildCursorExecutionContext(hubRequest(), prepared);
+    expect(ctx?.clientInstructions).toBe(
+      "Always prefix shell commands with rtk\nCodex rules",
+    );
+  });
 });
