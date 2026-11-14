@@ -21,100 +21,17 @@ import {
   AcpTerminatedError,
   AcpTimeoutError,
 } from "./errors.js";
+import {
+  hasChildExited,
+  installAcpProcessExitHook,
+  killChildTree,
+  killRemainingProcessGroup,
+  liveAcpChildren,
+  waitForExitOrGrace,
+} from "./agent-child-lifecycle.js";
+import { mergeAgentSpawnEnvironment } from "./agent-process-env.js";
 
 export type { SpawnFn };
-
-const INHERITED_ENV_KEYS = new Set([
-  "APPDATA",
-  "COLORTERM",
-  "COMSPEC",
-  "HOME",
-  "HOMEDRIVE",
-  "HOMEPATH",
-  "LANG",
-  "LANGUAGE",
-  "LOCALAPPDATA",
-  "LOGNAME",
-  "NO_COLOR",
-  "PATH",
-  "PATHEXT",
-  "SYSTEMROOT",
-  "TEMP",
-  "TERM",
-  "TMP",
-  "TMPDIR",
-  "USER",
-  "USERPROFILE",
-  "WINDIR",
-  "DBUS_SESSION_BUS_ADDRESS",
-  "DISPLAY",
-  "WAYLAND_DISPLAY",
-  "WSL_DISTRO_NAME",
-  "WSL_INTEROP",
-  "XDG_RUNTIME_DIR",
-  "XDG_CACHE_HOME",
-  "XDG_CONFIG_HOME",
-  "XDG_DATA_HOME",
-  "XDG_STATE_HOME",
-]);
-
-function agentEnvironment(
-  hostEnvironment: NodeJS.ProcessEnv,
-  explicitEnvironment?: Readonly<Record<string, string>>,
-): NodeJS.ProcessEnv {
-  const safeEnvironment: NodeJS.ProcessEnv = {};
-  for (const [key, value] of Object.entries(hostEnvironment)) {
-    const normalizedKey = key.toUpperCase();
-    if (
-      value !== undefined &&
-      (INHERITED_ENV_KEYS.has(normalizedKey) || normalizedKey.startsWith("LC_"))
-    ) {
-      safeEnvironment[key] = value;
-    }
-  }
-  return { ...safeEnvironment, ...explicitEnvironment };
-}
-
-/** Children alive under this transport; killed (group-level) on process exit. */
-const liveChildren = new Set<ChildProcess>();
-let exitHookInstalled = false;
-
-function installProcessExitHook(): void {
-  if (exitHookInstalled === true) {
-    return;
-  }
-  exitHookInstalled = true;
-  process.on("exit", () => {
-    for (const child of liveChildren) {
-      if (child.exitCode !== null && child.exitCode !== undefined) {
-        continue;
-      }
-      killTree(child);
-    }
-    liveChildren.clear();
-  });
-}
-
-function killTree(child: ChildProcess): void {
-  const pid = child.pid;
-  if (pid === undefined) {
-    try {
-      child.kill("SIGKILL");
-    } catch {
-      // process already gone
-    }
-    return;
-  }
-  try {
-    process.kill(-pid, "SIGKILL");
-  } catch {
-    try {
-      child.kill("SIGKILL");
-    } catch {
-      // process already gone
-    }
-  }
-}
 
 export interface TransportOptions {
   readonly command: string;
@@ -166,10 +83,10 @@ export class AgentProcessTransport {
   }
 
   public start(): void {
-    installProcessExitHook();
+    installAcpProcessExitHook();
     const spawnOptions: SpawnOptions = {
       cwd: this.options.cwd,
-      env: agentEnvironment(process.env, this.options.env),
+      env: mergeAgentSpawnEnvironment(process.env, this.options.env),
       stdio: ["pipe", "pipe", "pipe"] as SpawnOptions["stdio"],
       detached: process.platform !== "win32",
     };
@@ -183,13 +100,13 @@ export class AgentProcessTransport {
       throw new AcpSpawnError(this.options.command, String(error));
     }
     const child = this.child;
-    liveChildren.add(child);
+    liveAcpChildren.add(child);
     child.on("error", (error: Error) => {
       this.failPending(`spawn failed: ${error.message}`, null, null);
     });
     child.on("exit", (code, signal) => {
       killRemainingProcessGroup(child);
-      liveChildren.delete(child);
+      liveAcpChildren.delete(child);
       this.options.exitListener?.(code, signal);
       this.failPending(
         `process exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"})`,
@@ -198,7 +115,7 @@ export class AgentProcessTransport {
       );
     });
     child.on("close", () => {
-      liveChildren.delete(child);
+      liveAcpChildren.delete(child);
     });
 
     const stdout = child.stdout;
@@ -294,9 +211,9 @@ export class AgentProcessTransport {
     if (!child) {
       return;
     }
-    if (hasExited(child)) {
+    if (hasChildExited(child)) {
       killRemainingProcessGroup(child);
-      liveChildren.delete(child);
+      liveAcpChildren.delete(child);
       return;
     }
     let resolveExit: (() => void) | undefined;
@@ -304,7 +221,7 @@ export class AgentProcessTransport {
       resolveExit = resolve;
       child.once("exit", resolve);
     });
-    if (hasExited(child)) {
+    if (hasChildExited(child)) {
       resolveExit?.();
       return;
     }
@@ -315,13 +232,9 @@ export class AgentProcessTransport {
       child.kill("SIGINT");
     }
     const graceful = await waitForExitOrGrace(exited, graceMs);
-    if (!graceful && !hasExited(child)) {
-      if (pid !== undefined) {
-        this.signalProcessGroup(pid, "SIGKILL");
-      } else {
-        child.kill("SIGKILL");
-      }
-      if (!hasExited(child)) {
+    if (!graceful && !hasChildExited(child)) {
+      killChildTree(child);
+      if (!hasChildExited(child)) {
         await exited;
       }
     }
@@ -361,34 +274,4 @@ export class AgentProcessTransport {
       entry.reject(new AcpProcessError(`ACP agent ${reason}.`, exitCode, signal));
     }
   }
-}
-
-function killRemainingProcessGroup(child: ChildProcess): void {
-  if (process.platform === "win32" || child.pid === undefined) {
-    return;
-  }
-  try {
-    process.kill(-child.pid, "SIGKILL");
-  } catch {
-    // Process group has already exited.
-  }
-}
-
-function hasExited(child: ChildProcess): boolean {
-  return child.exitCode !== null || child.signalCode !== null;
-}
-
-async function waitForExitOrGrace(
-  exited: Promise<void>,
-  graceMs: number,
-): Promise<boolean> {
-  let timer: NodeJS.Timeout | undefined;
-  const grace = new Promise<boolean>((resolve) => {
-    timer = setTimeout(() => resolve(false), graceMs);
-  });
-  const finished = await Promise.race([exited.then(() => true), grace]);
-  if (timer !== undefined) {
-    clearTimeout(timer);
-  }
-  return finished;
 }

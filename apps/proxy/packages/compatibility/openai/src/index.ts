@@ -1,3 +1,4 @@
+export { responsesCallId } from "./protocol/call-id.js";
 export * from "./types.js";
 export * from "./sse.js";
 export * from "./http.js";

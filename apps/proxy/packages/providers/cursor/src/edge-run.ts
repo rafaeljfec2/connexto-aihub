@@ -1,5 +1,8 @@
 import type { AgentEvent, AgentResult, AgentRun } from "@agent-runtime-gateway/core";
-import type { CursorToolCall } from "@agent-runtime-gateway/compatibility-openai";
+import {
+  responsesCallId,
+  type CursorToolCall,
+} from "@agent-runtime-gateway/compatibility-openai";
 import type { CursorTextEvent } from "./engine/types.js";
 import {
   createRunCancelledEvent,
@@ -70,10 +73,11 @@ export function agentRunFromCursorTextStream(input: {
             type: "tool.call",
             runId: input.runId,
             toolName: event.toolCall.name,
-            callId:
+            callId: responsesCallId(
               sdkCallId && sdkCallId.length > 0
                 ? sdkCallId
                 : `${toolCallId(event.toolCall)}_${toolCallSeq}`,
+            ),
             arguments: rawInput ?? JSON.stringify(event.toolCall.arguments ?? {}),
             ...(rawInput !== undefined ? { callKind: "custom" as const } : {}),
           };

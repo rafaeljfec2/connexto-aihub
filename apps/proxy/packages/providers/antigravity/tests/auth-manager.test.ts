@@ -159,6 +159,12 @@ describe("AntigravityAuthManager Unit Tests", () => {
   });
 
   it("exchanges code for tokens using tokenExchanger and extracts email from JWT", async () => {
+    const fs = await import("node:fs/promises");
+    const os = await import("node:os");
+    const path = await import("node:path");
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "ag-auth-exchange-"));
+
     // Generate a mock JWT ID token with email payload
     const header = Buffer.from(JSON.stringify({ alg: "RS256" })).toString("base64url");
     const payload = Buffer.from(
@@ -172,6 +178,7 @@ describe("AntigravityAuthManager Unit Tests", () => {
     let tokensPersistedEmail: string | undefined;
 
     const manager = new AntigravityAuthManager({
+      homeDir: tmpDir,
       defaultRedirectUri:
         "http://127.0.0.1:3000/v1/providers/antigravity/auth/callback",
       tokenExchanger: (params) => {
@@ -206,6 +213,35 @@ describe("AntigravityAuthManager Unit Tests", () => {
       "http://127.0.0.1:3000/v1/providers/antigravity/auth/callback",
     );
     expect(exchangerCalledWith?.codeVerifier).toBeDefined();
+
+    const jetskiPath = path.join(tmpDir, ".gemini", "jetski-standalone-oauth-token");
+    const cliTokenPath = path.join(
+      tmpDir,
+      ".gemini",
+      "antigravity-cli",
+      "antigravity-oauth-token",
+    );
+
+    const jetskiRaw = await fs.readFile(jetskiPath, "utf8");
+    const cliRaw = await fs.readFile(cliTokenPath, "utf8");
+    expect(jetskiRaw).toBe(cliRaw);
+
+    const persisted = JSON.parse(jetskiRaw) as {
+      auth_method?: string;
+      id_token_email?: string;
+      token?: Record<string, unknown>;
+    };
+    expect(persisted.auth_method).toBe("oauth");
+    expect(persisted.id_token_email).toBe("oauth-user@example.com");
+    expect(persisted.token).toBeDefined();
+    expect(typeof persisted.token).toBe("object");
+    expect(persisted.token?.access_token).toBe("ya29.mock-access-token");
+    expect(persisted.token?.refresh_token).toBe("1//mock-refresh-token");
+    expect(persisted.token?.token_type).toBe("Bearer");
+    expect(typeof persisted.token?.expiry).toBe("string");
+    expect(persisted.token?.expires_in).toBe(3600);
+
+    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   it("clearCredentials purges local credential files and in-memory operations", async () => {

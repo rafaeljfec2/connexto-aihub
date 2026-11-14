@@ -10,6 +10,7 @@ import type { AntigravityAcpClient } from "../src/acp-client.js";
 export class FakeAcpClient implements AntigravityAcpClient {
   public readonly calls: string[] = [];
   public lastBlocks?: readonly ContentBlock[];
+  public firstPromptBlocks?: readonly ContentBlock[];
   public onPrompt: (options: RunAgentTurnOptions | undefined) => Promise<AgentTurnResult> = (
     options,
   ) => {
@@ -61,6 +62,9 @@ export class FakeAcpClient implements AntigravityAcpClient {
     options?: RunAgentTurnOptions,
   ): Promise<AgentTurnResult> {
     this.calls.push(`prompt:${sessionId}`);
+  if (this.firstPromptBlocks === undefined) {
+    this.firstPromptBlocks = blocks;
+  }
     this.lastBlocks = blocks;
     return this.onPrompt(options);
   }

@@ -1,3 +1,4 @@
+import { responsesCallId } from "./call-id.js";
 import type { OpenAiToolCall, OpenAiToolSpec } from "./types.js";
 import { isRecord } from "./common.js";
 import {
@@ -92,7 +93,7 @@ export function responseObject(input: {
             id: `ctc_${input.id.slice(5)}_${index}`,
             type: "custom_tool_call",
             status: "completed",
-            call_id: toolCall.id,
+            call_id: responsesCallId(toolCall.id),
             name: toolCall.function.name,
             input: toolCall.function.arguments,
           }
@@ -100,7 +101,7 @@ export function responseObject(input: {
             id: `fc_${input.id.slice(5)}_${index}`,
             type: "function_call",
             status: "completed",
-            call_id: toolCall.id,
+            call_id: responsesCallId(toolCall.id),
             name: toolCall.function.name,
             arguments: toolCall.function.arguments,
           },

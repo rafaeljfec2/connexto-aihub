@@ -12,28 +12,39 @@ import (
 // they must appear inside type=message (or role+content) entries. Antigravity requires
 // the model identity to be prefixed with antigravity:.
 func adaptResponsesPayloadForProvider(providerID string, body []byte) ([]byte, error) {
+	var (
+		shaped []byte
+		err    error
+	)
 	switch providerID {
 	case providers.OpenCodeGoID:
-		promoted, err := promoteAdditionalToolsToTopLevel(body)
+		var promoted []byte
+		promoted, err = promoteAdditionalToolsToTopLevel(body)
 		if err != nil {
 			return nil, err
 		}
-		return normalizeOpenCodeGoResponsesInput(promoted)
+		shaped, err = normalizeOpenCodeGoResponsesInput(promoted)
 	case providers.AntigravityID:
-		prefixed, err := normalizeAntigravityResponsesModel(body)
+		var prefixed []byte
+		prefixed, err = normalizeAntigravityResponsesModel(body)
 		if err != nil {
 			return nil, err
 		}
-		return providers.NormalizePortableResponsesPayload(prefixed)
+		shaped, err = providers.NormalizePortableResponsesPayload(prefixed)
 	case providers.OpenRouterID:
-		promoted, err := promoteAdditionalToolsToTopLevel(body)
+		var promoted []byte
+		promoted, err = promoteAdditionalToolsToTopLevel(body)
 		if err != nil {
 			return nil, err
 		}
-		return normalizeOpenRouterResponsesInput(promoted)
+		shaped, err = normalizeOpenRouterResponsesInput(promoted)
 	default:
-		return body, nil
+		shaped = body
 	}
+	if err != nil {
+		return nil, err
+	}
+	return limitResponsesCallIDs(shaped)
 }
 
 func normalizeAntigravityResponsesModel(body []byte) ([]byte, error) {

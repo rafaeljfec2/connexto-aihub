@@ -46,7 +46,7 @@ describe("AntigravityProvider prompt blocks", () => {
     );
     await run.wait();
 
-    const textBlocks = (client.lastBlocks ?? []).filter(
+    const textBlocks = (client.firstPromptBlocks ?? []).filter(
       (block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text",
     );
     expect(textBlocks[0]?.text).toContain("Parallel tool calling is disabled");

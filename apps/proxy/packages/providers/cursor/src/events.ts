@@ -4,6 +4,7 @@ import type {
   AgentRunStatus,
 } from "@agent-runtime-gateway/core";
 import type { Run, RunResult, SDKMessage } from "@cursor/sdk";
+import { responsesCallId } from "@agent-runtime-gateway/compatibility-openai";
 
 export function mapRunResultToAgentResult(result: RunResult): AgentResult {
   const status = mapRunStatus(result.status);
@@ -69,7 +70,7 @@ export function mapSdkMessageToEvents(
           type: "tool.call",
           runId,
           toolName: message.name,
-          callId: message.call_id,
+          callId: responsesCallId(message.call_id),
         },
       ];
     }
@@ -79,7 +80,7 @@ export function mapSdkMessageToEvents(
         {
           type: "tool.result",
           runId,
-          callId: message.call_id,
+          callId: responsesCallId(message.call_id),
           output: stringifyToolOutput(message.result),
         },
       ];

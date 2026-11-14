@@ -13,6 +13,7 @@ import type {
   RunAgentTurnOptions,
   SessionConfigOption,
 } from "./acp/index.js";
+import { buildIsolatedAntigravityProcessEnv } from "./isolated-process-env.js";
 
 export interface AntigravityAcpClient {
   connect(): Promise<void>;
@@ -45,15 +46,7 @@ const DEFAULT_CLIENT_INFO = {
 } as const;
 
 export function createDefaultClient(cwd: string, homeDir?: string): AntigravityAcpClient {
-  let env: Record<string, string> | undefined;
-  if (homeDir) {
-    env = {
-      ...(process.env as Record<string, string>),
-      HOME: homeDir,
-      ANTIGRAVITY_APP_DATA_DIR: homeDir,
-      DISPLAY: process.env["DISPLAY"] ?? ":0",
-    };
-  }
+  const env = homeDir ? buildIsolatedAntigravityProcessEnv(homeDir) : undefined;
   const safeCwd = fs.existsSync(cwd) ? cwd : process.cwd();
   return new AcpClient({
     command: resolveAgyCommand(),

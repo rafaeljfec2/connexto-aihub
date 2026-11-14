@@ -1,4 +1,5 @@
 import { encodeSse } from "../sse.js";
+import { responsesCallId } from "./call-id.js";
 import type { OpenAiToolCall } from "./types.js";
 import { usageFromChars } from "./pricing.js";
 import { responseObject } from "./formatters.js";
@@ -162,7 +163,7 @@ export function responseToolCallEvents(input: {
     id: `fc_${input.id.slice(5)}_${input.outputIndex}`,
     type: "function_call",
     status: "in_progress",
-    call_id: input.toolCall.id,
+    call_id: responsesCallId(input.toolCall.id),
     name: input.toolCall.function.name,
     arguments: "",
   };
@@ -214,7 +215,7 @@ function responseCustomToolCallEvents(input: {
     id: `ctc_${input.id.slice(5)}_${input.outputIndex}`,
     type: "custom_tool_call",
     status: "in_progress",
-    call_id: input.toolCall.id,
+    call_id: responsesCallId(input.toolCall.id),
     name: input.toolCall.function.name,
     input: "",
   };
