@@ -59,14 +59,14 @@ func quotaResult(cause execution.Cause, resetIn *int64) execution.Result {
 	}
 }
 
-func TestWriteExecutionFailureResponseMapsUpstreamQuotaTo429(t *testing.T) {
+func TestWriteExecutionFailureResponseMapsUpstreamQuotaWithoutRateLimit(t *testing.T) {
 	resetIn := int64((54 * time.Hour).Nanoseconds())
 	recorder := newHeaderRecorder()
 	writeExecutionFailureResponse(recorder, quotaResult(execution.CauseUpstreamQuota, &resetIn), routing.Target{})
 
 	status, headers, body := recorder.snapshot()
-	if status != http.StatusTooManyRequests {
-		t.Fatalf("status = %d, want 429", status)
+	if status != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", status)
 	}
 	if got := headers.Get("Content-Type"); got == "" {
 		t.Fatalf("missing content-type header")
@@ -111,12 +111,12 @@ func TestWriteExecutionFailureResponseKeepsHistoricalMappings(t *testing.T) {
 		}
 	})
 
-	t.Run("quota without reset window answers 429 without reset_at", func(t *testing.T) {
+	t.Run("quota without reset window answers 502 without reset_at", func(t *testing.T) {
 		recorder := newHeaderRecorder()
 		writeExecutionFailureResponse(recorder, quotaResult(execution.CauseUpstreamQuota, nil), routing.Target{})
 		status, _, body := recorder.snapshot()
-		if status != http.StatusTooManyRequests {
-			t.Fatalf("status = %d, want 429", status)
+		if status != http.StatusBadGateway {
+			t.Fatalf("status = %d, want 502", status)
 		}
 		payload := decodeFailurePayload(t, body)
 		if payload.Error.ResetAt != "" {

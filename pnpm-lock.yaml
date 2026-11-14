@@ -420,6 +420,10 @@ importers:
       '@agent-runtime-gateway/core':
         specifier: workspace:*
         version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.0
+        version: 24.19.2
 
   apps/proxy/packages/providers/cursor:
     dependencies:

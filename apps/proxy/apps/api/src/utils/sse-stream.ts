@@ -11,6 +11,13 @@ export function flushSse(res: Response): void {
   (res as FlushableResponse).flush?.();
 }
 
+/** Write one SSE frame and flush it so a later process kill cannot swallow the tail. */
+export function writeSseFrame(res: Response, frame: Uint8Array | string): void {
+  if (res.writableEnded) return;
+  res.write(frame);
+  flushSse(res);
+}
+
 export function startSsePing(res: Response): ReturnType<typeof setInterval> {
   return setInterval(() => {
     if (res.writableEnded) return;

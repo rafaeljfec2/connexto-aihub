@@ -2,36 +2,12 @@ package routing
 
 import (
 	"aihub/internal/catalog"
-	"aihub/internal/providers"
 )
 
-// FilterAutoAntigravityWithoutTools drops Antigravity when the request needs
-// executable tools. Connexto Proxy rejects OpenAI tools for Antigravity even when
-// the catalog still claims function_tools=supported.
-func FilterAutoAntigravityWithoutTools(candidates []Target, understanding RequestUnderstanding) ([]Target, []string) {
-	needsTools := false
-	for _, capName := range understanding.Requirements.RequiredCapabilities {
-		if capName == "function_tools" || capName == "custom_tools" {
-			needsTools = true
-			break
-		}
-	}
-	if !needsTools || len(candidates) == 0 {
-		return candidates, nil
-	}
-	out := make([]Target, 0, len(candidates))
-	dropped := false
-	for _, t := range candidates {
-		if t.ProviderID == providers.AntigravityID || len(t.ModelID) >= 12 && t.ModelID[:12] == "antigravity:" {
-			dropped = true
-			continue
-		}
-		out = append(out, t)
-	}
-	if !dropped {
-		return candidates, nil
-	}
-	return out, []string{"antigravity_tools_unsupported"}
+// FilterAutoAntigravityWithoutTools keeps Antigravity when the request needs tools.
+// The proxy delegates OpenAI function and custom tool calls; it does not reject them.
+func FilterAutoAntigravityWithoutTools(candidates []Target, _ RequestUnderstanding) ([]Target, []string) {
+	return candidates, nil
 }
 
 // FilterAutoContextWindow drops allowlist candidates whose known context window

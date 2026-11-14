@@ -30,6 +30,10 @@ export interface AgentToolSpec {
   readonly name: string;
   readonly description?: string;
   readonly parameters?: unknown;
+  /** When set, the provider must emit tool.call with callKind custom. */
+  readonly callKind?: "custom";
+  /** Codex grammar tools whose MCP payload is a raw input string. */
+  readonly inputFormat?: "grammar";
 }
 
 export interface AgentToolResultInput {

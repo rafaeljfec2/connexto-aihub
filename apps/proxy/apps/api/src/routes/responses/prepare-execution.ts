@@ -10,6 +10,7 @@ import {
 } from "@agent-runtime-gateway/compatibility-openai";
 import type { GatewayServices } from "../../services/gateway.js";
 import { executionImagesInput } from "../../utils/antigravity-images.js";
+import { composeAntigravityUserMessage } from "../../utils/antigravity-prompt.js";
 import { resolveRequestApiKey } from "../../utils/auth.js";
 import { resolveCursorExecutionModeForRequest } from "../../utils/cursor-execution-mode.js";
 import { buildCursorExecutionContext } from "../../utils/cursor-execution-payload.js";
@@ -76,7 +77,8 @@ export function resolveValidatedResponsesRequest(
   }
 
   const hubPassthrough =
-    isHubIntegratedRequest(req) && target.providerId === "cursor";
+    isHubIntegratedRequest(req) &&
+    (target.providerId === "cursor" || target.providerId === "antigravity");
   let prepared: PreparedRequest;
   try {
     prepared = hubPassthrough
@@ -176,7 +178,15 @@ export function buildAgentExecutionInput(params: {
   return {
     sessionId: params.sessionId,
     model: target.modelId,
-    message: prepared.prompt.text,
+    message:
+      target.providerId === "antigravity"
+        ? composeAntigravityUserMessage({
+            passthrough: prepared.passthroughBody !== undefined,
+            instructions: prepared.passthroughBody?.instructions,
+            toolsActive: prepared.tools.length > 0 && toolChoice !== "none",
+            inputText: prepared.prompt.text,
+          })
+        : prepared.prompt.text,
     credential: providerCredential(target, params.apiKey),
     signal: params.signal,
     ...(params.workingDirectory !== undefined

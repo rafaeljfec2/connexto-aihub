@@ -10,7 +10,7 @@ import type {
   McpBridgeToolCallResult,
   McpServerConfig,
 } from "./types.js";
-import { sanitizeMcpToolSchema } from "./schema.js";
+import { mcpInputSchemaForTool } from "./openai-tool-shape.js";
 
 const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
 const MCP_PROTOCOL_VERSION = "2024-11-05";
@@ -145,7 +145,7 @@ export class AntigravityMcpBridge {
         const tools = this.options.tools.map((spec) => ({
           name: spec.name,
           description: spec.description ?? "",
-          inputSchema: sanitizeMcpToolSchema(spec.parameters),
+          inputSchema: mcpInputSchemaForTool(spec),
         }));
         send({
           jsonrpc: "2.0",

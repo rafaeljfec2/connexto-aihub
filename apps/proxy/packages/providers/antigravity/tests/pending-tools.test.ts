@@ -53,22 +53,21 @@ describe("PendingToolRegistry", () => {
     }
   });
 
-  it("enforces session ownership and rejects mismatched session", () => {
+  it("accepts a tool result when the client opens a new response id", () => {
     const registry = new PendingToolRegistry();
     registry.register({
       callId: "call_abc123",
-      toolName: "get_external_test_context",
+      toolName: "exec",
       arguments: {},
-      sessionId: "session_owner",
+      sessionId: "resp_cbe1979fe85b47a9a94c9d83e6836540",
     });
 
-    try {
-      registry.validateAndConsume("call_abc123", "different_session");
-      expect.unreachable();
-    } catch (err: any) {
-      expect(err.code).toBe("session_mismatch");
-      expect(err.message).toContain("belongs to session 'session_owner'");
-    }
+    const consumed = registry.validateAndConsume(
+      "call_abc123",
+      "resp_6742341cb94849f59f7f1b3e27d502d2",
+      "exec",
+    );
+    expect(consumed.consumed).toBe(true);
   });
 
   it("rejects duplicate submissions (replay protection)", () => {

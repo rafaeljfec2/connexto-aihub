@@ -133,7 +133,7 @@ describe("Provider HTTP errors", () => {
     expect(logLines.join("\n")).not.toContain("/home/runner/private");
   });
 
-  it("maps known Cursor rate limits to a public rate-limit response", async () => {
+  it("does not answer 429 for a Cursor rate limit on chat completions", async () => {
     installFailingProvider(
       new CursorProviderError(sensitiveUpstreamMessage, "cursor_rate_limit", {
         retryable: true,
@@ -144,7 +144,7 @@ describe("Provider HTTP errors", () => {
       .set("Authorization", "Bearer synthetic-cursor-key")
       .send({ model: "composer-2.5", messages: [{ role: "user", content: "Hi" }] });
 
-    expect(response.status).toBe(429);
+    expect(response.status).toBe(502);
     expect(response.body.error.type).toBe("rate_limit_error");
     expect(response.text).not.toContain("UPSTREAM_TOKEN_73f1");
   });

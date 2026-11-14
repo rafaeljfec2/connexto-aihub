@@ -60,13 +60,13 @@ func TestRoutedResponsesResourceAdmissionWithPostgresIntegration(t *testing.T) {
 	secondReq := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
 	secondReq.Header.Set("Content-Type", "application/json")
 	handler.ServeHTTP(second, secondReq)
-	if second.Code != http.StatusTooManyRequests {
-		t.Fatalf("second status = %d, want 429", second.Code)
+	if second.Code == http.StatusTooManyRequests {
+		t.Fatalf("second status = %d, responses must not answer 429", second.Code)
 	}
-	if openerCalls.Load() != 1 {
-		t.Fatalf("opener calls after reject = %d, want still 1", openerCalls.Load())
+	if openerCalls.Load() != 2 {
+		t.Fatalf("opener calls after limit = %d, want 2", openerCalls.Load())
 	}
-	if !strings.Contains(second.Body.String(), "resource_limit_exceeded") {
+	if strings.Contains(second.Body.String(), "resource_limit_exceeded") {
 		t.Fatalf("second body = %s", second.Body.String())
 	}
 }

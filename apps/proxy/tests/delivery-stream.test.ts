@@ -74,4 +74,44 @@ describe("streamResponseRun terminal SSE", () => {
     expect(body.lastIndexOf("response.completed")).toBeGreaterThan(body.indexOf("partial"));
     expect(res.writableEnded).toBe(true);
   });
+
+  it("closes a delegated custom tool call with response.completed", async () => {
+    const run = stubRun(
+      [
+        { type: "message.delta", runId: "r", delta: "Vou rodar o teste." },
+        {
+          type: "tool.call",
+          runId: "r",
+          callId: "call_exec_1",
+          toolName: "exec",
+          callKind: "custom",
+          arguments: "text(await tools.exec_command({cmd:\"pnpm test\"}))",
+        },
+      ],
+      {
+        status: "completed",
+        output: {
+          text: "Vou rodar o teste.",
+          toolCalls: [
+            {
+              id: "call_exec_1",
+              name: "exec",
+              arguments: "text(await tools.exec_command({cmd:\"pnpm test\"}))",
+            },
+          ],
+        },
+      },
+    );
+    const { res, getBody } = createCaptureResponse();
+    const abort = new AbortController();
+    await streamResponseRun(run, res as never, baseContext(abort.signal));
+
+    const body = getBody();
+    const toolAt = body.indexOf("custom_tool_call");
+    const completedAt = body.lastIndexOf("event: response.completed");
+    expect(toolAt).toBeGreaterThan(-1);
+    expect(completedAt).toBeGreaterThan(toolAt);
+    expect(body).toContain("[DONE]");
+    expect(res.writableEnded).toBe(true);
+  });
 });

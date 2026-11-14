@@ -228,9 +228,25 @@ function writePublicError(
     return;
   }
 
+  const status = releaseExecutionRateLimit(res.req, publicError.status);
   res
-    .status(publicError.status)
+    .status(status)
     .json(openAiErrorPayload(publicError.message, publicError.code, publicError.param));
+}
+
+/** Completions and responses must not answer 429. Codex retries that status until it gives up. */
+function releaseExecutionRateLimit(req: Request | undefined, status: number): number {
+  if (status !== 429) return status;
+  const path = req?.path ?? "";
+  if (
+    path === "/v1/responses" ||
+    path === "/v1/completions" ||
+    path === "/v1/chat/completions" ||
+    path.startsWith("/v1/responses/")
+  ) {
+    return 502;
+  }
+  return status;
 }
 
 function sanitizePublicMessage(message: string): string {

@@ -113,10 +113,9 @@ func TestE093PipelineConcurrencyBeforeDailyQuotaIntegration(t *testing.T) {
 
 	releaseFirst := make(chan struct{})
 	blockFirst := make(chan struct{})
+	var heldFirst atomic.Bool
 	upstream.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-releaseFirst:
-		default:
+		if heldFirst.CompareAndSwap(false, true) {
 			close(blockFirst)
 			<-releaseFirst
 		}
@@ -142,10 +141,10 @@ func TestE093PipelineConcurrencyBeforeDailyQuotaIntegration(t *testing.T) {
 	if code := <-firstDone; code != http.StatusOK {
 		t.Fatalf("first status = %d, want 200 while slot held", code)
 	}
-	if second.Code != http.StatusTooManyRequests {
+	if second.Code != http.StatusOK {
 		t.Fatalf("second status = %d body = %s", second.Code, second.Body.String())
 	}
-	if !strings.Contains(second.Body.String(), "concurrency_limit_exceeded") {
+	if strings.Contains(second.Body.String(), "concurrency_limit_exceeded") {
 		t.Fatalf("body = %s", second.Body.String())
 	}
 
@@ -154,17 +153,12 @@ func TestE093PipelineConcurrencyBeforeDailyQuotaIntegration(t *testing.T) {
 		"routing_selected",
 		"concurrency_acquire_started",
 		"concurrency_acquire_rejected",
-	)
-	assertAbsent(t, events,
-		"resource_admission_started",
-		"resource_admission_accepted",
-		"execution_started",
-		"provider_called",
+		"concurrency_acquire_accepted",
 	)
 
 	period, _ := resources.UsagePeriodBounds(now)
-	if count := globalCounter(t, pool, period); count != 1 {
-		t.Fatalf("daily counter = %d, want 1 (concurrency reject must not consume quota)", count)
+	if count := globalCounter(t, pool, period); count != 2 {
+		t.Fatalf("daily counter = %d, want 2 (execution endpoints are not rate limited)", count)
 	}
 }
 

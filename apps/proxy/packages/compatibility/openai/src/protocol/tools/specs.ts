@@ -43,9 +43,23 @@ export function parseChatTools(value: unknown): OpenAiToolSpec[] {
         name,
         ...(description ? { description } : {}),
         ...(parameters !== undefined ? { parameters } : {}),
+        ...openAiToolKindFields(record),
       },
     ];
   });
+}
+
+export function openAiToolKindFields(
+  record: Record<string, unknown>,
+): Pick<OpenAiToolSpec, "callKind" | "inputFormat"> {
+  const type = typeof record.type === "string" ? record.type.trim() : "";
+  const format = isRecord(record.format) ? record.format : undefined;
+  const grammar = format?.type === "grammar";
+  if (type !== "custom" && !grammar) return {};
+  return {
+    callKind: "custom",
+    ...(grammar ? { inputFormat: "grammar" as const } : {}),
+  };
 }
 
 export function toolParametersFrom(...records: Record<string, unknown>[]): unknown {

@@ -12,7 +12,7 @@ import {
 } from "@agent-runtime-gateway/compatibility-openai";
 import { openAiToolCallFromAgentEvent } from "../../utils/agent-run-collect.js";
 import { getLogger } from "../../utils/logger.js";
-import { startSsePing } from "../../utils/sse-stream.js";
+import { flushSse, startSsePing, writeSseFrame } from "../../utils/sse-stream.js";
 import { initSseHeaders } from "../../utils/sse.js";
 import type { ResponseDeliveryContext } from "./delivery-context.js";
 
@@ -39,9 +39,10 @@ function writeStreamTerminal(
     status: terminal.status,
     incompleteDetails: terminal.incompleteDetails ?? null,
   })) {
-    res.write(frame);
+    writeSseFrame(res, frame);
   }
-  res.write(doneChunk());
+  writeSseFrame(res, doneChunk());
+  flushSse(res);
   res.end();
 }
 
@@ -52,17 +53,18 @@ export async function streamResponseRun(
   ctx: ResponseDeliveryContext,
 ): Promise<void> {
   initSseHeaders(res);
+  res.flushHeaders?.();
 
   for (const frame of responseCreatedEvents({
     id: ctx.id,
     created: ctx.created,
     model: ctx.prepared.model,
   })) {
-    res.write(frame);
+    writeSseFrame(res, frame);
   }
 
   for (const frame of responseTextStartEvents({ id: ctx.id, outputIndex: 0 })) {
-    res.write(frame);
+    writeSseFrame(res, frame);
   }
 
   let fullText = "";
@@ -92,7 +94,7 @@ export async function streamResponseRun(
           firstDeltaMs = Math.round((performance.now() - ctx.providerStart) * 100) / 100;
         }
         fullText += event.delta;
-        res.write(responseDeltaEvent({ id: ctx.id, delta: event.delta, outputIndex: 0 }));
+        writeSseFrame(res, responseDeltaEvent({ id: ctx.id, delta: event.delta, outputIndex: 0 }));
       } else if (event.type === "tool.call") {
         const toolCall = openAiToolCallFromAgentEvent(event);
         toolCalls.push(toolCall);
@@ -102,7 +104,7 @@ export async function streamResponseRun(
           toolCall,
           outputIndex,
         })) {
-          res.write(frame);
+          writeSseFrame(res, frame);
         }
       } else if (event.type === "run.failed") {
         streamFailed = true;

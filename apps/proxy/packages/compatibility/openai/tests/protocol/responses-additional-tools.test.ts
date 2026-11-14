@@ -62,6 +62,35 @@ describe("Codex additional_tools inventory", () => {
     expect(tools.some((tool) => tool.name === "exec")).toBe(true);
   });
 
+  it("keeps custom and grammar markers for Codex tools", () => {
+    const tools = collectResponsesToolSpecs({
+      tool_choice: "auto",
+      input: [
+        {
+          type: "additional_tools",
+          tools: [
+            {
+              type: "custom",
+              name: "exec",
+              description: "run js",
+              format: { type: "grammar", syntax: "lark", definition: "start: SOURCE" },
+            },
+            {
+              type: "function",
+              name: "wait",
+              parameters: { type: "object", properties: { cell_id: { type: "string" } } },
+            },
+          ],
+        },
+      ],
+    });
+    expect(tools.find((tool) => tool.name === "exec")).toMatchObject({
+      callKind: "custom",
+      inputFormat: "grammar",
+    });
+    expect(tools.find((tool) => tool.name === "wait")?.callKind).toBeUndefined();
+  });
+
   it("prepareResponsesPassthrough marks agent mode and exposes tools", () => {
     const prepared = prepareResponsesPassthrough(codexShapedBody, {
       id: "composer-2.5",

@@ -24,6 +24,10 @@ export interface OpenAiToolSpec {
   name: string;
   description?: string;
   parameters?: unknown;
+  /** Codex grammar and other freeform tools must round-trip as custom_tool_call. */
+  callKind?: "custom";
+  /** Present when the upstream tool declares a grammar format. */
+  inputFormat?: "grammar";
 }
 
 export interface ToolCallContext {

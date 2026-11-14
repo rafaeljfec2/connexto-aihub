@@ -52,14 +52,22 @@ export function readToolChoice(value: unknown): AgentToolChoice | undefined {
   return undefined;
 }
 
-/** Extracts tool output items following the most recent function_call item. */
+function isClientToolCallItem(item: Record<string, unknown>): boolean {
+  return item.type === "function_call" || item.type === "custom_tool_call";
+}
+
+function isClientToolOutputItem(item: Record<string, unknown>): boolean {
+  return item.type === "function_call_output" || item.type === "custom_tool_call_output";
+}
+
+/** Extracts tool output items following the most recent function or custom tool call. */
 export function extractActiveResponseToolResults(
   inputItems: readonly unknown[],
 ): { toolCallId: string; content: string }[] {
   let lastFunctionCallIdx = -1;
   for (let i = inputItems.length - 1; i >= 0; i--) {
     const item = inputItems[i];
-    if (isRecord(item) && item.type === "function_call") {
+    if (isRecord(item) && isClientToolCallItem(item)) {
       lastFunctionCallIdx = i;
       break;
     }
@@ -71,7 +79,7 @@ export function extractActiveResponseToolResults(
   return activeItems
     .filter(
       (item): item is Record<string, unknown> =>
-        isRecord(item) && item.type === "function_call_output",
+        isRecord(item) && isClientToolOutputItem(item),
     )
     .map((item) => ({
       toolCallId: typeof item.call_id === "string" ? item.call_id : "",

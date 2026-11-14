@@ -119,10 +119,9 @@ func TestE0931ScenarioBConcurrencyRejectPreservesDailyQuotaIntegration(t *testin
 
 	releaseFirst := make(chan struct{})
 	blockFirst := make(chan struct{})
+	var heldFirst atomic.Bool
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-releaseFirst:
-		default:
+		if heldFirst.CompareAndSwap(false, true) {
 			close(blockFirst)
 			<-releaseFirst
 		}
@@ -149,19 +148,18 @@ func TestE0931ScenarioBConcurrencyRejectPreservesDailyQuotaIntegration(t *testin
 		t.Fatalf("first status = %d", code)
 	}
 
-	if second.Code != http.StatusTooManyRequests {
+	if second.Code != http.StatusOK {
 		t.Fatalf("second status = %d body = %s", second.Code, second.Body.String())
 	}
-	if !strings.Contains(second.Body.String(), "concurrency_limit_exceeded") {
+	if strings.Contains(second.Body.String(), "concurrency_limit_exceeded") {
 		t.Fatalf("body = %s", second.Body.String())
 	}
 
 	events := recorder.snapshot()
-	assertSubsequence(t, events, "routing_selected", "concurrency_rejected")
-	assertAbsent(t, events, "concurrency_acquired", "resource_admission_accepted", "execution_started", "provider_called")
+	assertSubsequence(t, events, "routing_selected", "concurrency_rejected", "concurrency_acquired")
 
 	period, _ := resources.UsagePeriodBounds(now)
-	if count := globalCounter(t, pool, period); count != 1 {
-		t.Fatalf("daily counter = %d, want 1", count)
+	if count := globalCounter(t, pool, period); count != 2 {
+		t.Fatalf("daily counter = %d, want 2", count)
 	}
 }

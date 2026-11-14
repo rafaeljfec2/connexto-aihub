@@ -12,7 +12,6 @@ export class PendingToolRegistryError extends Error {
     message: string,
     public readonly code:
       | "pending_call_not_found"
-      | "session_mismatch"
       | "call_already_consumed"
       | "tool_name_mismatch",
   ) {
@@ -57,7 +56,7 @@ export class PendingToolRegistry {
 
   public validateAndConsume(
     callId: string,
-    sessionId: string,
+    _sessionId: string,
     toolName?: string,
   ): PendingToolCallRecord {
     this.cleanup();
@@ -68,12 +67,9 @@ export class PendingToolRegistry {
         "pending_call_not_found",
       );
     }
-    if (call.sessionId !== sessionId) {
-      throw new PendingToolRegistryError(
-        `Tool call '${callId}' belongs to session '${call.sessionId}', not '${sessionId}'.`,
-        "session_mismatch",
-      );
-    }
+    // Codex opens a new Responses id on each turn (store=false, no affinity header).
+    // The client echoes call_id, the same contract Cursor uses. Do not bind the
+    // result to the gateway session that emitted the call.
     if (call.consumed) {
       throw new PendingToolRegistryError(
         `Tool call '${callId}' has already been consumed. Duplicate submission is rejected.`,

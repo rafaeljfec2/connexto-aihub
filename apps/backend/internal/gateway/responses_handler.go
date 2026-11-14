@@ -265,9 +265,9 @@ func (h *responsesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // writeExecutionFailureResponse maps an uncommitted terminal opening result
-// to the structured endpoint error. Upstream quota/subscription exhaustion
-// answers 429 with the bounded reset window; everything else keeps the
-// historical 502/504 envelopes.
+// to the structured endpoint error. Quota exhaustion keeps the reset window
+// but does not use 429: Codex retries that status until "exceeded retry limit".
+// Other opening failures keep the historical 502/504 envelopes.
 func writeExecutionFailureResponse(w http.ResponseWriter, result execution.Result, routedTarget routing.Target) {
 	if result.Outcome == execution.OutcomeTimedOut && result.Phase == execution.PhaseOpening {
 		writeJSONError(w, http.StatusGatewayTimeout, executionTimeoutType, executionTimeoutMsg)
@@ -284,7 +284,7 @@ func writeExecutionFailureResponse(w http.ResponseWriter, result execution.Resul
 			if routedTarget.ProviderID != "" && routedTarget.ModelID != "" {
 				routing.RecordAutoQuotaExhausted(routedTarget, resetTime)
 			}
-			writeJSONErrorWithReset(w, http.StatusTooManyRequests, upstreamQuotaExceededType, upstreamQuotaExceededMsg, resetAt)
+			writeJSONErrorWithReset(w, http.StatusBadGateway, upstreamQuotaExceededType, upstreamQuotaExceededMsg, resetAt)
 			return
 		}
 		if result.UpstreamStatus == http.StatusTooManyRequests && routedTarget.ProviderID == providers.OpenCodeGoID {

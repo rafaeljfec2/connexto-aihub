@@ -14,18 +14,22 @@ func TestFilterAutoAntigravityWithoutTools(t *testing.T) {
 		{ProviderID: providers.OpenCodeGoID, ModelID: "gpt-6-luna"},
 	}
 	understanding := routing.RequestUnderstanding{
-		Requirements: routing.RequirementStatus{RequiredCapabilities: []string{"function_tools"}},
+		Requirements: routing.RequirementStatus{RequiredCapabilities: []string{"function_tools", "custom_tools"}},
 	}
 	out, reasons := routing.FilterAutoAntigravityWithoutTools(candidates, understanding)
-	if len(out) != 2 {
-		t.Fatalf("out=%+v want 2", out)
+	if len(out) != 3 {
+		t.Fatalf("out=%+v want 3; antigravity stays eligible when tools are required", out)
 	}
+	found := false
 	for _, tgt := range out {
 		if tgt.ProviderID == providers.AntigravityID {
-			t.Fatal("antigravity should be excluded when tools are required")
+			found = true
 		}
 	}
-	if len(reasons) == 0 || reasons[0] != "antigravity_tools_unsupported" {
-		t.Fatalf("reasons=%v", reasons)
+	if !found {
+		t.Fatal("antigravity should remain when tools are required")
+	}
+	if len(reasons) != 0 {
+		t.Fatalf("reasons=%v want none", reasons)
 	}
 }

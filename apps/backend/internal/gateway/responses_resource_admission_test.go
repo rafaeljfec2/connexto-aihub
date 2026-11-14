@@ -3,7 +3,6 @@ package gateway_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -93,20 +92,11 @@ func TestResponsesResourceAdmissionRejectsBeforeExecutionIntegration(t *testing.
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("status = %d, want 429", rec.Code)
+	if rec.Code == http.StatusTooManyRequests {
+		t.Fatalf("status = %d, responses must not answer 429 when the daily limit is full", rec.Code)
 	}
-	if openerCalls.Load() != 0 {
-		t.Fatal("provider opener must not run when admission rejects")
-	}
-	var body struct {
-		Error struct {
-			Type    string `json:"type"`
-			ResetAt string `json:"reset_at"`
-		} `json:"error"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Error.Type != "resource_limit_exceeded" || body.Error.ResetAt == "" {
-		t.Fatalf("body = %s", rec.Body.String())
+	if openerCalls.Load() != 1 {
+		t.Fatalf("opener calls = %d, want 1 after the rate limit is released", openerCalls.Load())
 	}
 }
 

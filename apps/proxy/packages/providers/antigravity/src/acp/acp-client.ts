@@ -20,6 +20,7 @@ import {
   DEFAULT_SESSION_TIMEOUT_MS,
   JSON_RPC_ERROR_AUTH_REQUIRED,
 } from "./constants.js";
+import { permissionResponse } from "./permission-response.js";
 import type {
   AcpClientOptions,
   AgentRequestListener,
@@ -323,15 +324,9 @@ export class AcpClient {
   }
 
   private agentRequestListener(): AgentRequestListener {
-    const permissionDenial: AgentRequestResponse = {
-      result: { outcome: { outcome: "cancelled" } },
-    };
     return (id, method, params): AgentRequestResponse | undefined => {
       void id;
-      void params;
-      if (method === REQUEST_PERMISSION_METHOD) {
-        return permissionDenial;
-      }
+      if (method === REQUEST_PERMISSION_METHOD) return permissionResponse(params);
       return undefined;
     };
   }

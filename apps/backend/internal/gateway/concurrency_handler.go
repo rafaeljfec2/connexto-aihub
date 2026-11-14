@@ -28,11 +28,17 @@ func (h *responsesHandler) acquireConcurrency(w http.ResponseWriter, r *http.Req
 		ModelID:     modelID,
 	})
 	if errors.Is(err, concurrency.ErrLimitExceeded) {
+		// /v1/responses and /v1/chat/completions stay open. A 429 makes Codex
+		// retry until it reports "exceeded retry limit".
 		if IntegrationTestHooks.OnConcurrencyAcquireRejected != nil {
 			IntegrationTestHooks.OnConcurrencyAcquireRejected(executionID, providerID, modelID)
 		}
-		writeJSONError(w, http.StatusTooManyRequests, concurrencyLimitExceededType, concurrencyLimitExceededMsg)
-		return false
+		h.logger.WarnContext(r.Context(), "concurrency limit reached; execution endpoint proceeds",
+			"execution_id", executionID, "provider_id", providerID, "model_id", modelID)
+		if IntegrationTestHooks.OnConcurrencyAcquireAccepted != nil {
+			IntegrationTestHooks.OnConcurrencyAcquireAccepted(executionID, providerID, modelID)
+		}
+		return true
 	}
 	if err != nil {
 		if IntegrationTestHooks.OnConcurrencyAcquireFailed != nil {

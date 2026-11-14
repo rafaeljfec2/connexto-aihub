@@ -3,7 +3,6 @@ package gateway
 import (
 	"errors"
 	"net/http"
-	"time"
 
 	"aihub/internal/resources"
 	"aihub/internal/routing"
@@ -31,12 +30,17 @@ func (h *responsesHandler) admitResources(w http.ResponseWriter, r *http.Request
 		ModelID:    modelID,
 	})
 	if errors.Is(err, resources.ErrLimitExceeded) {
+		// Completions and responses are not rejected with 429 when a daily
+		// policy is full. Codex treats that status as a retryable rate limit.
 		if IntegrationTestHooks.OnResourceAdmissionRejected != nil {
 			IntegrationTestHooks.OnResourceAdmissionRejected(providerID, modelID)
 		}
-		writeJSONErrorWithReset(w, http.StatusTooManyRequests, resourceLimitExceededType, resourceLimitExceededMsg,
-			decision.ResetAt.UTC().Format(time.RFC3339))
-		return false
+		h.logger.WarnContext(r.Context(), "resource limit reached; execution endpoint proceeds",
+			"provider_id", providerID, "model_id", modelID)
+		if IntegrationTestHooks.OnResourceAdmissionAccepted != nil {
+			IntegrationTestHooks.OnResourceAdmissionAccepted(providerID, modelID)
+		}
+		return true
 	}
 	if errors.Is(err, resources.ErrInvalidInput) {
 		if IntegrationTestHooks.OnResourceAdmissionFailed != nil {

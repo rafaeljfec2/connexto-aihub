@@ -1,6 +1,6 @@
 import type { OpenAiToolSpec } from "../types.js";
 import { isRecord } from "../common.js";
-import { parseChatTools } from "./specs.js";
+import { openAiToolKindFields, parseChatTools } from "./specs.js";
 
 /**
  * Codex and similar clients often place the live tool inventory in
@@ -66,6 +66,7 @@ function toolNodeToSpec(node: Record<string, unknown>): OpenAiToolSpec | undefin
     name,
     ...(description ? { description } : {}),
     ...(parameters !== undefined ? { parameters } : {}),
+    ...openAiToolKindFields(node),
   };
 }
 
